@@ -183,9 +183,10 @@ COLLECTOR → PET → остальное MVP → 5б.
       `spinAmount`, `spinMultiplier`, `keepMinUriSpin`).
 - [ ] 5б.7 Камикадзе питомца — только во вратах и только когда нужно (`useKamikaze`,
       `minHitpointsForKamikaze`, `minShieldForKamikaze`, `minNpcsToUseKamikaze`, `roamKamiRadius`).
-- [ ] 5б.8 «Инвоки» — модуль, в AstraBot его нет; выяснить по сети и конфигам DarkBot пользователя.
-- [ ] 5б.9 Фарм ринуска («импульсы» — не модуль, а набор конфигов: KILL/COLLECTOR под ринуск).
-- [ ] 5б.10 Квесты: сам берёт и выполняет квесты, в том числе цепочку больших квестов (пример: с 22 на
+- [ ] 5б.8 Профили фарма на Blacklight (не отдельные модули, а KILL + COLLECTOR): «инвоки» — Invoke XVI на
+      3-BL (групповой NPC, приоритет, игнор владения/атакованности, PET Enemy Locator) и «импульсы» —
+      Impulse II ради ринуска (по профилям `BL_INVOKE`, `BL_RINUSK` из DarkBot пользователя).
+- [ ] 5б.9 Квесты: сам берёт и выполняет квесты, в том числе цепочку больших квестов (пример: с 22 на
       24 уровень), ежедневные, Galaxy Trek, Season Pass (`QUEST_MODULE`).
 
 ## Этап 6. Дистрибутивы
