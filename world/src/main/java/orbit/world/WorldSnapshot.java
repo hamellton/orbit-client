@@ -25,7 +25,7 @@ public record WorldSnapshot(long nanos, Hero hero, Map<Integer, Ship> ships, Map
      */
     public record Hero(int id, String name, String shipType, int mapId, int x, int y, boolean moving, int targetX,
                        int targetY, int speed, Health health, int factionId, int clanId, int level, double credits,
-                       double uridium, int cargoFree, int cargoMax, boolean premium, boolean cloaked, boolean alive,
+                       double uridium, double experience, double honor, int cargoFree, int cargoMax, boolean premium, boolean cloaked, boolean alive,
                        int selectedId, int attackTargetId, List<Integer> attackers, int petId, int config,
                        int enemyWarning, Beacon beacon) {
     }

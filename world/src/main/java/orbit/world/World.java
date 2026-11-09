@@ -114,6 +114,8 @@ public final class World {
         int level;
         double credits;
         double uridium;
+        double experience;
+        double honor;
         int cargoFree = -1;
         int cargoMax = -1;
         int config;
@@ -261,7 +263,7 @@ public final class World {
         WorldSnapshot.Hero h = new WorldSnapshot.Hero(hero.id, hero.name, hero.shipType, hero.mapId,
                 (int) Math.round(m.x(nanos)), (int) Math.round(m.y(nanos)), m.moving(nanos),
                 (int) Math.round(m.toX()), (int) Math.round(m.toY()), hero.speed, hero.health, hero.factionId,
-                hero.clanId, hero.level, hero.credits, hero.uridium, hero.cargoFree, hero.cargoMax, hero.premium,
+                hero.clanId, hero.level, hero.credits, hero.uridium, hero.experience, hero.honor, hero.cargoFree, hero.cargoMax, hero.premium,
                 hero.cloaked, hero.alive, hero.selectedId, hero.attackTargetId, attackers(nanos), hero.petId, hero.config,
                 hero.enemyWarning, hero.beacon);
         Map<Integer, WorldSnapshot.Ship> shipViews = new LinkedHashMap<>();
@@ -312,6 +314,8 @@ public final class World {
         hero.level = p.level;
         hero.credits = p.credits;
         hero.uridium = p.uridium;
+        hero.experience = p.ep;
+        hero.honor = p.honourPoints;
         // cargoSpace is the free space: it grows by exactly the amount of ore sold (recordings)
         hero.cargoFree = p.cargoSpace;
         hero.cargoMax = p.cargoSpaceMax;
@@ -513,6 +517,28 @@ public final class World {
             return;
         }
         switch (a[1]) {
+            case "LM" -> {
+                // reward log: 0|LM|ST|CRE|<gained>|<total>, URI and HON alike, EP|<gained>|<total>|<level>
+                if (a.length >= 6 && "ST".equals(a[2])) {
+                    double total = parseDouble(a[5], -1);
+                    if (total >= 0) {
+                        switch (a[3]) {
+                            case "CRE" -> hero.credits = total;
+                            case "URI" -> hero.uridium = total;
+                            case "HON" -> hero.honor = total;
+                            case "EP" -> {
+                                hero.experience = total;
+                                if (a.length >= 7) {
+                                    hero.level = parseInt(a[6], hero.level);
+                                }
+                            }
+                            default -> {
+                                // ammunition, loot and ore messages
+                            }
+                        }
+                    }
+                }
+            }
             case "v" -> {
                 // ROCKET_ATTACK: 0|v|attacker|target|H(hit)|…
                 if (a.length >= 4 && parseInt(a[3], 0) == hero.id && hero.id != 0) {
@@ -578,6 +604,14 @@ public final class World {
 
     private boolean inGroup(int id) {
         return group.members().stream().anyMatch(m -> m.id() == id);
+    }
+
+    private static double parseDouble(String s, double fallback) {
+        try {
+            return Double.parseDouble(s.trim());
+        } catch (NumberFormatException e) {
+            return fallback;
+        }
     }
 
     private static int parseInt(String s, int fallback) {

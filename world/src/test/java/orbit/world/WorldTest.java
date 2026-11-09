@@ -199,6 +199,23 @@ class WorldTest {
     }
 
     @Test
+    void rewardLogUpdatesTotals() {
+        World w = withHero();
+        for (String m : List.of("0|LM|ST|CRE|400|3576566", "0|LM|ST|URI|1|12030", "0|LM|ST|HON|2|2158590",
+                "0|LM|ST|EP|400|6363647|11", "0|LM|ST|ROK|ammunition_rocket_plt-2021|28", "0|LM|ST|CRE|x|y")) {
+            LegacyModule lm = new LegacyModule();
+            lm.message = m;
+            w.apply(lm, 0);
+        }
+        WorldSnapshot.Hero h = w.snapshot(0).hero();
+        assertEquals(3576566, h.credits());
+        assertEquals(12030, h.uridium());
+        assertEquals(2158590, h.honor());
+        assertEquals(6363647, h.experience());
+        assertEquals(11, h.level());
+    }
+
+    @Test
     void itemBarKeepsOneSelectedItemPerCategory() {
         World w = withHero();
         MenuInitializationCommand init = new MenuInitializationCommand();
