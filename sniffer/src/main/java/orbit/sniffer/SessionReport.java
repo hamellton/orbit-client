@@ -21,11 +21,12 @@ import orbit.protocol.gen.Packets;
  * Summary of recorded sessions using the generated protocol classes.
  *
  * <pre>
- *   session-report [--show Name1,Name2] [recordings dir | *.dorec ...]
+ *   session-report [--show Name1,Name2] [--upstream SECONDS] [recordings dir | *.dorec ...]
  * </pre>
  * Prints the opening sequence and keep-alive timing per file, counts per packet type and
  * direction, and every packet that fails to decode. {@code --show} prints up to four decoded
- * examples of the named packets.
+ * examples of the named packets. {@code --upstream} prints every client→server packet of the
+ * first SECONDS after the login answer, decoded, with the time since that answer.
  */
 public final class SessionReport {
 
@@ -34,10 +35,13 @@ public final class SessionReport {
 
     public static void main(String[] args) throws Exception {
         Set<String> show = new HashSet<>();
+        double upstreamSeconds = 0;
         List<Path> inputs = new ArrayList<>();
         for (int i = 0; i < args.length; i++) {
             if (args[i].equals("--show")) {
                 show.addAll(List.of(args[++i].split(",")));
+            } else if (args[i].equals("--upstream")) {
+                upstreamSeconds = Double.parseDouble(args[++i]);
             } else {
                 inputs.add(Path.of(args[i]));
             }
@@ -70,6 +74,9 @@ public final class SessionReport {
             packets.stream().limit(12).forEach(r -> System.out.printf("  %7.3f с %s %s(%d) %d байт%n",
                     r.nanos() / 1e9, r.up() ? "→" : "←", nameOf(r.id()), r.id(), r.bytes().length));
             printKeepAlive(packets);
+            if (upstreamSeconds > 0) {
+                printUpstream(packets, upstreamSeconds);
+            }
 
             for (PacketRecord r : packets) {
                 total++;
@@ -112,6 +119,49 @@ public final class SessionReport {
                 .sorted(Comparator.comparingLong((Map.Entry<String, long[]> e) -> e.getValue()[0]).reversed())
                 .limit(limit)
                 .forEach(e -> System.out.printf("  %6d  %s%n", e.getValue()[0], e.getKey().substring(2)));
+    }
+
+    /** Client packets after the first server packet that follows {@code LoginRequest}. */
+    private static void printUpstream(List<PacketRecord> packets, double seconds) {
+        int login = -1;
+        for (int i = 0; i < packets.size(); i++) {
+            if (packets.get(i).up() && "LoginRequest".equals(Packets.name(packets.get(i).id()))) {
+                login = i;
+                break;
+            }
+        }
+        if (login < 0) {
+            System.out.println("Нет LoginRequest.");
+            return;
+        }
+        long t0 = -1;
+        for (int i = login + 1; i < packets.size(); i++) {
+            if (!packets.get(i).up()) {
+                t0 = packets.get(i).nanos();
+                break;
+            }
+        }
+        if (t0 < 0) {
+            return;
+        }
+        System.out.printf("Исходящие за %.0f с после ответа на вход:%n", seconds);
+        long prev = t0;
+        for (PacketRecord r : packets) {
+            if (!r.up() || r.nanos() < t0) {
+                continue;
+            }
+            if (r.nanos() - t0 > seconds * 1e9) {
+                break;
+            }
+            String text;
+            try {
+                text = PacketCodec.decode(r.bytes()).toString();
+            } catch (RuntimeException e) {
+                text = nameOf(r.id()) + " (не разобран: " + e.getMessage() + ")";
+            }
+            System.out.printf("  +%6.3f с (Δ%5.3f) %s%n", (r.nanos() - t0) / 1e9, (r.nanos() - prev) / 1e9, text);
+            prev = r.nanos();
+        }
     }
 
     private static void printKeepAlive(List<PacketRecord> packets) {
