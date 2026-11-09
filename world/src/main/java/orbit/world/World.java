@@ -389,6 +389,10 @@ public final class World {
     // ---- item bar ----
 
     private void initItems(MenuInitializationCommand p, long nanos) {
+        if (p.categories.isEmpty()) {
+            // sent again with slot bars only (seen while the player opened windows): the items stay
+            return;
+        }
         items.clear();
         for (MenuCategoryInitializationCommand c : p.categories) {
             for (MenuItemInitializationCommand i : c.menuItems) {

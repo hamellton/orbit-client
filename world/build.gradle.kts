@@ -11,7 +11,9 @@ dependencies {
 }
 
 tasks.named<Test>("test") {
-    systemProperty("orbit.recordings", rootProject.layout.projectDirectory.dir("recordings").asFile.absolutePath)
+    // -Porbit.recordings=<dir> runs the recording checks on another set of sessions
+    systemProperty("orbit.recordings", providers.gradleProperty("orbit.recordings")
+        .getOrElse(rootProject.layout.projectDirectory.dir("recordings").asFile.absolutePath))
 }
 
 // map facts (reference/maps/*.json) ship inside the jar

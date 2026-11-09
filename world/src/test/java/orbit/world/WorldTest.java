@@ -209,6 +209,7 @@ class WorldTest {
         w.apply(init, 0);
         assertEquals("ammunition_laser_lcb-10", w.snapshot(0).selected("lasers").id());
 
+        w.apply(new MenuInitializationCommand(), 0); // slot bars only: items stay
         MenuItemStatusCommand st = item("ammunition_laser_ucb-100", 49, true).status;
         w.apply(st, 0);
         WorldSnapshot s = w.snapshot(0);

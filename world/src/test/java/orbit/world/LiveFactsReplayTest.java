@@ -17,6 +17,7 @@ import orbit.protocol.gen.AttackHitCommand;
 import orbit.protocol.gen.AttackHitNoLockCommand;
 import orbit.protocol.gen.GroupInitializationCommand;
 import orbit.protocol.gen.GroupMemberUpdateCommand;
+import orbit.protocol.gen.MenuItemCooldownGroupTimerCommand;
 import orbit.protocol.gen.MenuItemTimerCommand;
 import orbit.protocol.gen.TimerStateModule;
 import org.junit.jupiter.api.Assumptions;
@@ -41,16 +42,34 @@ class LiveFactsReplayTest {
         for (Path f : recordings()) {
             started.clear();
             for (PacketRecord r : Recording.readPackets(f)) {
-                if (r.up() || !(PacketCodec.decode(r.bytes()) instanceof MenuItemTimerCommand t) || t.timerState == null) {
+                if (r.up()) {
+                    continue;
+                }
+                Packet p = PacketCodec.decode(r.bytes());
+                String key;
+                TimerStateModule state;
+                double time;
+                if (p instanceof MenuItemTimerCommand t) {
+                    key = t.menuItemId;
+                    state = t.timerState;
+                    time = t.time;
+                } else if (p instanceof MenuItemCooldownGroupTimerCommand g && g.cooldownType != null) {
+                    key = "cooldown group " + g.cooldownType.typeValue;
+                    state = g.timerState;
+                    time = g.time;
+                } else {
+                    continue;
+                }
+                if (state == null) {
                     continue;
                 }
                 double now = r.nanos() / 1e6;
-                if (t.timerState.timerStateValue != TimerStateModule.TIMERSTATE_READY && t.time > 0) {
-                    started.putIfAbsent(t.menuItemId, new double[] {now, t.time});
-                } else if (t.timerState.timerStateValue == TimerStateModule.TIMERSTATE_READY && started.containsKey(t.menuItemId)) {
-                    double[] s = started.remove(t.menuItemId);
+                if (state.timerStateValue != TimerStateModule.TIMERSTATE_READY && time > 0) {
+                    started.putIfAbsent(key, new double[] {now, time});
+                } else if (state.timerStateValue == TimerStateModule.TIMERSTATE_READY && started.containsKey(key)) {
+                    double[] s = started.remove(key);
                     double actual = now - s[0];
-                    String line = String.format("%s: %s announced %.0f, ready after %.0f ms", f.getFileName(), t.menuItemId, s[1], actual);
+                    String line = String.format("%s: %s announced %.0f, ready after %.0f ms", f.getFileName(), key, s[1], actual);
                     checked.add(line);
                     if (Math.abs(actual - s[1]) > Math.max(1500, s[1] * 0.15)) {
                         wrong.add(line);
