@@ -22,15 +22,11 @@ final class Socks5Server {
     private static final Logger log = LoggerFactory.getLogger(Socks5Server.class);
 
     private final int port;
-    private final PacketNames names;
-    private final PacketDecoder decoder;
     private final Path recordDir;
     private final Predicate<String> isGameTarget;
 
-    Socks5Server(int port, PacketNames names, PacketDecoder decoder, Path recordDir, Predicate<String> isGameTarget) {
+    Socks5Server(int port, Path recordDir, Predicate<String> isGameTarget) {
         this.port = port;
-        this.names = names;
-        this.decoder = decoder;
         this.recordDir = recordDir;
         this.isGameTarget = isGameTarget;
     }
@@ -109,7 +105,7 @@ final class Socks5Server {
             reply(out, 0);
 
             if (isGameTarget.test(target)) {
-                new GameRelay(client, upstream, target, names, decoder, recordDir).run();
+                new GameRelay(client, upstream, target, recordDir).run();
             } else {
                 log.info("Туннель к {}", target);
                 pipe(client, upstream);

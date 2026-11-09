@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.InputStream;
@@ -20,6 +19,10 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import orbit.net.Frames;
+import orbit.protocol.PacketCodec;
+import orbit.protocol.gen.LoginRequest;
+import orbit.protocol.gen.ProtocolVersion;
+import orbit.protocol.gen.VersionCommand;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -32,14 +35,18 @@ class SnifferRelayTest {
 
     @Test
     void relaysGameTrafficUnchangedAndRecordsMaskedSession() throws Exception {
-        Path json = tmp.resolve("packets.json");
-        Files.writeString(json, "[{\"id\":7,\"name\":\"LoginRequest\",\"writeBody\":[]},"
-                + "{\"id\":667,\"name\":\"VersionCommand\",\"writeBody\":[]}]");
-        PacketNames names = PacketNames.load(json);
-        PacketDecoder decoder = PacketDecoder.load(json);
-
-        byte[] login = loginRequest(SESSION, "do-lz4-block-v3");
-        byte[] reply = {0x02, (byte) 0x9B, 1}; // VersionCommand-like payload
+        LoginRequest lr = new LoginRequest();
+        lr.userID = 123;
+        lr.factionID = 1;
+        lr.sessionID = SESSION;
+        lr.version = ProtocolVersion.COMPRESSION;
+        lr.instanceId = 22;
+        lr.isMiniClient = true;
+        byte[] login = PacketCodec.encode(lr);
+        VersionCommand vc = new VersionCommand();
+        vc.version = ProtocolVersion.VERSION_HASH;
+        vc.equal = true;
+        byte[] reply = PacketCodec.encode(vc);
 
         try (ServerSocket game = new ServerSocket(0, 50, InetAddress.getLoopbackAddress())) {
             CompletableFuture<byte[][]> serverSide = CompletableFuture.supplyAsync(() -> {
@@ -54,7 +61,7 @@ class SnifferRelayTest {
                 }
             });
 
-            Socks5Server socks = new Socks5Server(0, names, decoder, tmp.resolve("rec"), t -> true);
+            Socks5Server socks = new Socks5Server(0, tmp.resolve("rec"), t -> true);
             try (ServerSocket ss = socks.bind()) {
                 Thread.ofVirtual().start(() -> {
                     try {
@@ -88,6 +95,7 @@ class SnifferRelayTest {
         String asText = new String(recordedLogin, StandardCharsets.ISO_8859_1);
         assertFalse(asText.contains(SESSION), "session id must not be recorded");
         assertTrue(asText.contains("x".repeat(SESSION.length())));
+        assertEquals("x".repeat(SESSION.length()), ((LoginRequest) PacketCodec.decode(recordedLogin)).sessionID);
         assertArrayEquals(reply, records.get(2));
     }
 
@@ -97,19 +105,6 @@ class SnifferRelayTest {
         assertTrue(SnifferMain.GAME_TARGET.matcher("arenaserver-22-02-public.prod.darkorbit.com:6002").matches());
         assertFalse(SnifferMain.GAME_TARGET.matcher("www.darkorbit.com:443").matches());
         assertFalse(SnifferMain.GAME_TARGET.matcher("darkorbit.com.evil.net:6003").matches());
-    }
-
-    private static byte[] loginRequest(String session, String version) throws Exception {
-        ByteArrayOutputStream b = new ByteArrayOutputStream();
-        DataOutputStream d = new DataOutputStream(b);
-        d.writeShort(7);
-        d.writeInt(123 << 3);
-        d.writeShort(1);
-        d.writeUTF(session);
-        d.writeUTF(version);
-        d.writeInt(0);
-        d.writeBoolean(true);
-        return b.toByteArray();
     }
 
     private static void socksConnect(DataOutputStream out, DataInputStream in, String ip, int port) throws Exception {

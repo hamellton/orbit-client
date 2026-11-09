@@ -13,6 +13,11 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 import orbit.net.Downstream;
 import orbit.net.Frames;
+import orbit.protocol.Packet;
+import orbit.protocol.PacketCodec;
+import orbit.protocol.ProtocolOutdatedException;
+import orbit.protocol.gen.Packets;
+import orbit.protocol.gen.VersionCommand;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,21 +34,16 @@ final class GameRelay {
     private final Socket client;
     private final Socket server;
     private final String target;
-    private final PacketNames names;
-    private final PacketDecoder decoder;
     private final Path recordDir;
     private final long id = IDS.incrementAndGet();
 
     private volatile boolean compressionOffered;
     private final Stats stats = new Stats();
 
-    GameRelay(Socket client, Socket server, String target, PacketNames names, PacketDecoder decoder,
-            Path recordDir) {
+    GameRelay(Socket client, Socket server, String target, Path recordDir) {
         this.client = client;
         this.server = server;
         this.target = target;
-        this.names = names;
-        this.decoder = decoder;
         this.recordDir = recordDir;
     }
 
@@ -156,20 +156,33 @@ final class GameRelay {
 
     private void logPacket(String arrow, byte[] packet, boolean fromEnvelope) {
         short pid = Downstream.packetId(packet);
-        boolean known = names.known(pid);
+        boolean known = Packets.known(pid);
         stats.count(known);
         if (!log.isInfoEnabled()) {
             return;
         }
         String text;
         try {
-            text = abbreviate(decoder.decode(packet).toString());
+            Packet decoded = PacketCodec.decode(packet);
+            if (decoded instanceof VersionCommand vc) {
+                try {
+                    ProtocolOutdatedException.check(vc);
+                } catch (ProtocolOutdatedException e) {
+                    log.error("[#{}] {}", id, e.getMessage());
+                }
+            }
+            text = abbreviate(decoded.toString());
         } catch (RuntimeException e) {
             stats.decodeErrors++;
-            log.warn("[#{}] {} {}({}): поля не разобраны — {}", id, arrow, names.name(pid), pid, e.getMessage());
-            text = names.name(pid);
+            log.warn("[#{}] {} {}({}): поля не разобраны — {}", id, arrow, nameOf(pid), pid, e.getMessage());
+            text = nameOf(pid);
         }
         log.info("[#{}] {} {} ({} байт{})", id, arrow, text, packet.length, fromEnvelope ? ", lz4" : "");
+    }
+
+    private static String nameOf(short pid) {
+        String n = Packets.name(pid);
+        return n != null ? n : "?" + pid;
     }
 
     private static String abbreviate(String s) {

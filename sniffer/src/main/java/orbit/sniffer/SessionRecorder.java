@@ -6,6 +6,7 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import orbit.net.Recording;
 
 /**
  * Appends raw frame payloads of one game connection to a file.
@@ -16,8 +17,8 @@ import java.nio.file.Path;
  */
 final class SessionRecorder implements Closeable {
 
-    static final byte UP = 0;
-    static final byte DOWN = 1;
+    static final byte UP = Recording.UP;
+    static final byte DOWN = Recording.DOWN;
 
     private final DataOutputStream out;
     private final long start = System.nanoTime();
@@ -25,7 +26,7 @@ final class SessionRecorder implements Closeable {
     SessionRecorder(Path file) throws IOException {
         Files.createDirectories(file.getParent());
         out = new DataOutputStream(new BufferedOutputStream(Files.newOutputStream(file)));
-        out.writeBytes("DOREC1");
+        out.writeBytes(Recording.MAGIC);
     }
 
     synchronized void record(byte direction, byte[] payload) throws IOException {

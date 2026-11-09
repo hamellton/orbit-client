@@ -1,8 +1,7 @@
 plugins { application }
 
 dependencies {
-    implementation(project(":net"))
-    implementation(libs.jackson.databind)
+    implementation(project(":protocol"))
     runtimeOnly(libs.logback.classic)
 }
 

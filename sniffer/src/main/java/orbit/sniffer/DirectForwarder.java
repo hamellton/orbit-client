@@ -26,15 +26,11 @@ final class DirectForwarder {
 
     private final String upstreamIp;
     private final List<Integer> ports;
-    private final PacketNames names;
-    private final PacketDecoder decoder;
     private final Path recordDir;
 
-    DirectForwarder(String upstreamIp, List<Integer> ports, PacketNames names, PacketDecoder decoder, Path recordDir) {
+    DirectForwarder(String upstreamIp, List<Integer> ports, Path recordDir) {
         this.upstreamIp = upstreamIp;
         this.ports = List.copyOf(ports);
-        this.names = names;
-        this.decoder = decoder;
         this.recordDir = recordDir;
     }
 
@@ -90,7 +86,7 @@ final class DirectForwarder {
             client.setTcpNoDelay(true);
             server.setTcpNoDelay(true);
             server.connect(new InetSocketAddress(upstreamIp, port), 15_000);
-            new GameRelay(client, server, target, names, decoder, recordDir).run();
+            new GameRelay(client, server, target, recordDir).run();
         } catch (IOException e) {
             log.warn("Не удалось переслать соединение на {}: {}", target, e.getMessage());
         }
