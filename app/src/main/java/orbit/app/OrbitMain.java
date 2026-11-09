@@ -38,6 +38,7 @@ import org.slf4j.LoggerFactory;
  * <pre>
  *   orbit bot --account main [--headless] [--profile local/client-profile.json] [--vault local/vault.bin]
  *             [--fly 105/65]   # development: fly to a point of the current map once in game
+ *             [--go 3-7:40/40] # development: travel to a map (and a point) through portals
  *   orbit observe [--port 1080] [--direct IP:6001-6007] [--out recordings]   # watch the official client
  *   orbit replay recordings/session-….dorec [--speed 2]
  *   orbit render recordings/session-….dorec --at 30 [--out minimap.png]   # minimap at second 30 as PNG
@@ -141,6 +142,9 @@ public final class OrbitMain {
         if (o.fly != null) {
             startFlightTest(feed, conn, o.fly);
         }
+        if (o.go != null) {
+            startTravelTest(feed, conn, o.go);
+        }
         runUntilClosed(feed, o.headless, conn::close, runner);
     }
 
@@ -177,6 +181,61 @@ public final class OrbitMain {
                 }
                 var h = feed.snapshot().hero();
                 log.info("Тест полёта: прибыл в {}/{} ({} кликов)", h.x() / 100, h.y() / 100, nav.clicks());
+                feed.setAction(null);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        });
+    }
+
+    /**
+     * Development check of map travel: once in game, goes to {@code MAP[:X/Y]} (e.g. {@code 3-7} or
+     * {@code 3-7:40/40}) through portals and logs each jump.
+     */
+    private static void startTravelTest(WorldFeed feed, GameConnection conn, String target) {
+        String[] parts = target.split(":");
+        orbit.world.maps.MapCatalog catalog = orbit.world.maps.MapCatalog.bundled();
+        orbit.world.maps.MapCatalog.MapInfo map = catalog.byName(parts[0].trim());
+        if (map == null) {
+            log.error("Неизвестная карта: {}", parts[0]);
+            return;
+        }
+        double x = Double.NaN;
+        double y = Double.NaN;
+        if (parts.length > 1) {
+            String[] xy = parts[1].split("[/,]");
+            x = Double.parseDouble(xy[0].trim()) * 100;
+            y = Double.parseDouble(xy[1].trim()) * 100;
+        }
+        java.util.Random random = new java.util.Random();
+        orbit.bot.nav.Navigator nav = new orbit.bot.nav.Navigator(feed::snapshot, conn::send, catalog, random, System::nanoTime);
+        orbit.bot.nav.Traveler traveler = new orbit.bot.nav.Traveler(feed::snapshot, conn::send, nav, catalog, random,
+                System::nanoTime);
+        double tx = x;
+        double ty = y;
+        Thread.ofPlatform().name("bot-loop").daemon().start(() -> {
+            try {
+                while (feed.snapshot().hero().id() == 0) {
+                    Thread.sleep(500);
+                }
+                Thread.sleep(4_000 + random.nextInt(3_000));
+                log.info("Тест перелёта: на {}{}", map.name(), Double.isNaN(tx) ? "" : " " + (int) tx / 100 + "/" + (int) ty / 100);
+                feed.setAction("перелёт на " + map.name());
+                traveler.travel(map.id(), tx, ty);
+                long nextLog = 0;
+                while (traveler.state() == orbit.bot.nav.Traveler.State.TRAVELLING) {
+                    traveler.tick();
+                    if (System.currentTimeMillis() > nextLog) {
+                        var h = feed.snapshot().hero();
+                        log.info("Перелёт: {} {}/{}, прыжков {}", catalog.info(h.mapId()).name(), h.x() / 100, h.y() / 100,
+                                traveler.jumps());
+                        nextLog = System.currentTimeMillis() + 5_000;
+                    }
+                    Thread.sleep(100);
+                }
+                var h = feed.snapshot().hero();
+                log.info("Тест перелёта: {} — {} {}/{}, прыжков {}{}", traveler.state(), catalog.info(h.mapId()).name(),
+                        h.x() / 100, h.y() / 100, traveler.jumps(), traveler.failure().isEmpty() ? "" : " (" + traveler.failure() + ")");
                 feed.setAction(null);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
@@ -286,7 +345,7 @@ public final class OrbitMain {
 
     /** Command-line options shared by the modes. */
     record Options(String account, Path vault, Path profile, boolean headless, int port, String direct, Path out,
-                   double speed, double at, String fly, List<String> positional) {
+                   double speed, double at, String fly, String go, List<String> positional) {
 
         static Options parse(List<String> args) {
             String account = null;
@@ -299,6 +358,7 @@ public final class OrbitMain {
             double speed = 1;
             double at = -1;
             String fly = null;
+            String go = null;
             List<String> positional = new java.util.ArrayList<>();
             for (int i = 0; i < args.size(); i++) {
                 switch (args.get(i)) {
@@ -312,6 +372,7 @@ public final class OrbitMain {
                     case "--speed" -> speed = Double.parseDouble(args.get(++i));
                     case "--at" -> at = Double.parseDouble(args.get(++i));
                     case "--fly" -> fly = args.get(++i);
+                    case "--go" -> go = args.get(++i);
                     default -> {
                         if (args.get(i).startsWith("--")) {
                             System.err.println("Неизвестный параметр: " + args.get(i));
@@ -324,7 +385,7 @@ public final class OrbitMain {
             if (speed <= 0) {
                 throw new IllegalArgumentException("--speed должен быть больше 0");
             }
-            return new Options(account, vault, profile, headless, port, direct, out, speed, at, fly, List.copyOf(positional));
+            return new Options(account, vault, profile, headless, port, direct, out, speed, at, fly, go, List.copyOf(positional));
         }
     }
 }

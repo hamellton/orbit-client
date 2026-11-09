@@ -29,11 +29,13 @@ import orbit.protocol.gen.GroupMemberUpdateCommand;
 import orbit.protocol.gen.HealthModule;
 import orbit.protocol.gen.HitpointInfoCommand;
 import orbit.protocol.gen.InventoryItemUpdatedCommand;
+import orbit.protocol.gen.JumpInitiatedCommand;
 import orbit.protocol.gen.JumpgateCreateCommand;
 import orbit.protocol.gen.LegacyModule;
 import orbit.protocol.gen.LevelModule;
 import orbit.protocol.gen.LocationModule;
 import orbit.protocol.gen.MapAddPOICommand;
+import orbit.protocol.gen.MapAssetActionAvailableCommand;
 import orbit.protocol.gen.MapRemovePOICommand;
 import orbit.protocol.gen.MemberLoggedOutModule;
 import orbit.protocol.gen.MenuCategoryInitializationCommand;
@@ -156,6 +158,10 @@ public final class World {
     private final Map<String, Zone> zones = new LinkedHashMap<>();
     private Group group = Group.NONE;
     private WorldSnapshot.Pet pet = WorldSnapshot.Pet.NONE;
+    /** Map assets (portals, stations…) whose action the server currently offers: id → since when. */
+    private final Map<Integer, Long> activatable = new LinkedHashMap<>();
+    /** Map of a jump the server has started ({@code JumpInitiatedCommand}), 0 if none. */
+    private int jumpingTo;
     private final Map<String, WorldSnapshot.Item> items = new LinkedHashMap<>();
     private final Map<Integer, Double> ores = new LinkedHashMap<>();
     private final Map<String, Double> resources = new LinkedHashMap<>();
@@ -257,6 +263,14 @@ public final class World {
             case GroupInitializationCommand p -> initGroup(p);
             case GroupMemberUpdateCommand p -> updateGroupMember(p);
             case GroupCloseCommand p -> group = Group.NONE;
+            case MapAssetActionAvailableCommand p -> {
+                if (p.activatable) {
+                    activatable.putIfAbsent(p.mapAssetId, nanos);
+                } else {
+                    activatable.remove(p.mapAssetId);
+                }
+            }
+            case JumpInitiatedCommand p -> jumpingTo = p.mapId;
             case UserSettingsCommand p -> {
                 if (p.windowSettingsModule != null && p.windowSettingsModule.minmapScale > 0) {
                     hero.minimapScale = p.windowSettingsModule.minmapScale;
@@ -315,7 +329,8 @@ public final class World {
         }
         return new WorldSnapshot(nanos, h, Map.copyOf(shipViews), Map.copyOf(collectables), Map.copyOf(portals),
                 Map.copyOf(assets), Map.copyOf(zones), group, Map.copyOf(items),
-                new WorldSnapshot.Inventory(Map.copyOf(ores), Map.copyOf(resources), Map.copyOf(bootyKeys)), pet);
+                new WorldSnapshot.Inventory(Map.copyOf(ores), Map.copyOf(resources), Map.copyOf(bootyKeys)), pet,
+                Map.copyOf(activatable), jumpingTo);
     }
 
     /** Ships shooting lasers at the hero now, or that hit it within {@link #ATTACKER_MEMORY_NANOS}. */
@@ -754,6 +769,8 @@ public final class World {
 
     /** Everything that belongs to the current map; the hero and the group survive a map change. */
     private void clearMap() {
+        activatable.clear();
+        jumpingTo = 0;
         ships.clear();
         collectables.clear();
         portals.clear();

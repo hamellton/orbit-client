@@ -7,10 +7,15 @@ import java.util.Map;
 /**
  * Immutable view of the map around the hero at one moment ({@code nanos}, {@code System.nanoTime()}).
  * Positions of moving objects are interpolated to that moment.
+ *
+ * <p>{@code activatable}: map assets (portals, stations…) whose action the server offers now
+ * ({@code MapAssetActionAvailableCommand}), id → since when; a portal becomes jumpable about
+ * 300–500 units away. {@code jumpingTo}: map of a jump the server started, 0 if none.
  */
 public record WorldSnapshot(long nanos, Hero hero, Map<Integer, Ship> ships, Map<String, Collectable> collectables,
                             Map<Integer, Portal> portals, Map<Integer, Asset> assets, Map<String, Zone> zones,
-                            Group group, Map<String, Item> items, Inventory inventory, Pet pet) {
+                            Group group, Map<String, Item> items, Inventory inventory, Pet pet,
+                            Map<Integer, Long> activatable, int jumpingTo) {
 
     /** The player's own ship. {@code id == 0} until {@code ShipInitializationCommand} arrives. */
     /**
