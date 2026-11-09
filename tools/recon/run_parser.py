@@ -8,7 +8,22 @@ writes the successful results to <out_json> and prints failure statistics.
 import collections
 import json
 import os
+import re
 import sys
+
+# FFDec writes "public static const NAME:int = 5;"; the upstream parser only knows the older
+# "const const" form, so integer constants are collected here.
+CONST_RE = re.compile(r"^\s*public static const (\w+):int = (-?\d+);\s*$")
+
+
+def int_constants(path: str) -> list:
+    out = []
+    with open(path, encoding="utf-8") as fh:
+        for line in fh:
+            m = CONST_RE.match(line)
+            if m:
+                out.append({"name": m.group(1), "type": "int", "value": m.group(2)})
+    return out
 
 
 def main() -> int:
@@ -29,6 +44,8 @@ def main() -> int:
                     skipped += 1
                     continue
                 res["file"] = os.path.relpath(path, module_dir)
+                if not res.get("constants"):
+                    res["constants"] = int_constants(path)
                 packets.append(res)
             except Exception as e:  # parser raises bare RuntimeError on unknown syntax
                 failures.append((os.path.relpath(path, module_dir), str(e).splitlines()[0][:160]))

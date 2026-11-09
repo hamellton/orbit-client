@@ -55,7 +55,11 @@ record ProtocolModel(List<Module> modules, Map<String, Module> byName) {
     record Step(Kind kind, String field, Prim prim, int rotateLeft, String moduleType, Prim lengthType) {
     }
 
-    record Module(String name, short id, String parent, List<Step> steps) {
+    /** Named integer constant of the client class (enum-like values such as {@code POITYPE_RADIATION}). */
+    record Constant(String name, int value) {
+    }
+
+    record Module(String name, short id, String parent, List<Step> steps, List<Constant> constants) {
     }
 
     static ProtocolModel from(JsonNode packets) {
@@ -117,7 +121,20 @@ record ProtocolModel(List<Module> modules, Map<String, Module> byName) {
                     }
                 }
             }
-            Module m = new Module(name, id, parent, List.copyOf(steps));
+            List<Constant> constants = new ArrayList<>();
+            Set<String> fieldNames = new java.util.HashSet<>();
+            steps.forEach(st -> fieldNames.add(st.field()));
+            for (JsonNode c : p.path("constants")) {
+                String cn = c.get("name").asText();
+                if (!cn.matches("[A-Za-z_][A-Za-z0-9_]*") || JAVA_KEYWORDS.contains(cn) || fieldNames.contains(cn)) {
+                    throw new IllegalArgumentException(name + ": unusable constant name " + cn);
+                }
+                if (!"int".equals(c.path("type").asText())) {
+                    continue;
+                }
+                constants.add(new Constant(cn, Integer.parseInt(c.get("value").asText())));
+            }
+            Module m = new Module(name, id, parent, List.copyOf(steps), List.copyOf(constants));
             modules.add(m);
             byName.put(name, m);
         }

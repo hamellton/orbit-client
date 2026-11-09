@@ -36,6 +36,12 @@ final class JavaEmitter {
         sb.append("@SuppressWarnings(\"all\")\n");
         sb.append("public class ").append(m.name()).append(" extends ").append(superclass).append(" {\n\n");
         sb.append("    public static final short MODULE_ID = ").append(m.id()).append(";\n\n");
+        for (ProtocolModel.Constant c : m.constants()) {
+            sb.append("    public static final int ").append(c.name()).append(" = ").append(c.value()).append(";\n");
+        }
+        if (!m.constants().isEmpty()) {
+            sb.append('\n');
+        }
 
         Set<String> declared = new LinkedHashSet<>();
         for (Step s : m.steps()) {
