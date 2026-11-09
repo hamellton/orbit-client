@@ -8,7 +8,7 @@ import ch.qos.logback.classic.spi.ILoggingEvent;
  * {@code IOException} can quote a URL with a token). Use in {@code logback.xml}:
  *
  * <pre>
- *   &lt;conversionRule conversionWord="ex" converterClass="orbit.secrets.MaskingThrowableConverter"/&gt;
+ *   &lt;conversionRule conversionWord="ex" class="orbit.secrets.MaskingThrowableConverter"/&gt;
  * </pre>
  * and end the pattern with {@code %ex} so logback does not append its own unmasked trace.
  */

@@ -7,7 +7,7 @@ import ch.qos.logback.classic.spi.ILoggingEvent;
  * Logback {@code %msg} replacement that hides registered secrets. Use in {@code logback.xml}:
  *
  * <pre>
- *   &lt;conversionRule conversionWord="msg" converterClass="orbit.secrets.MaskingConverter"/&gt;
+ *   &lt;conversionRule conversionWord="msg" class="orbit.secrets.MaskingConverter"/&gt;
  * </pre>
  */
 public class MaskingConverter extends MessageConverter {
