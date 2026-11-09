@@ -7,11 +7,15 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 import orbit.protocol.gen.BeaconCommand;
+import orbit.protocol.gen.MapAddPOICommand;
+import orbit.protocol.gen.POITypeModule;
 import orbit.protocol.gen.MoveRequest;
 import orbit.protocol.gen.ShipInitializationCommand;
 import orbit.protocol.gen.UserSettingsCommand;
 import orbit.protocol.gen.WindowSettingsModule;
 import orbit.world.World;
+import orbit.world.WorldSnapshot;
+import orbit.world.maps.ZoneGeometry;
 import orbit.world.maps.MapCatalog;
 import org.junit.jupiter.api.Test;
 
@@ -103,6 +107,34 @@ class NavigatorTest {
         assertEquals(1, sent.size());
         MoveRequest m = sent.getFirst();
         assertTrue(Math.hypot(m.targetX - 10500, m.targetY - 6300) <= Navigator.CLICK_SPREAD + 1);
+    }
+
+    @Test
+    void fliesAroundANoAccessZone() {
+        Navigator nav = navigator(9, 3000, 6500);
+        MapAddPOICommand poi = new MapAddPOICommand();
+        poi.poiId = "wall";
+        poi.poiType = new POITypeModule();
+        poi.poiType.typeValue = (short) POITypeModule.POITYPE_NO_ACCESS;
+        poi.shape = (short) MapAddPOICommand.SHAPETYPE_CIRCLE;
+        poi.shapeCoordinates = List.of(10500, 6500, 2500);
+        poi.active = true;
+        world.apply(poi, now);
+        WorldSnapshot.Zone zone = world.snapshot(now).zones().get("wall");
+
+        nav.moveTo(18000, 6500, false);
+        for (long t = 0; t < 120_000 && !nav.idle(); t += 100) {
+            nav.tick();
+            now += 100 * MS;
+            WorldSnapshot.Hero h = world.snapshot(now).hero();
+            assertTrue(Math.hypot(h.x() - 10500, h.y() - 6500) > 2500 + 20, "inside the zone at " + h.x() + "," + h.y());
+            assertTrue(!ZoneGeometry.contains(zone, h.x(), h.y()));
+        }
+        assertTrue(nav.idle(), "arrived");
+        assertTrue(sent.size() >= 3, "a turn at each corner: " + sent.size());
+        for (int i = 1; i < sentAt.size(); i++) {
+            assertTrue(sentAt.get(i) - sentAt.get(i - 1) >= Navigator.MIN_INTERVAL_MS * MS);
+        }
     }
 
     @Test

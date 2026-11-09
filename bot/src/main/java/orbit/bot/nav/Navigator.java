@@ -1,5 +1,6 @@
 package orbit.bot.nav;
 
+import java.util.List;
 import java.util.Random;
 import java.util.function.Consumer;
 import java.util.function.LongSupplier;
@@ -18,7 +19,9 @@ import org.slf4j.LoggerFactory;
  *       minimap's pixel grid, {@code 10 × minimap zoom × map scale} units (all 178 recorded far moves,
  *       client {@code MiniMap.handleMouseDown});</li>
  *   <li>near — one click in space at the point, a few units off like a mouse;</li>
- *   <li>a precise destination (a box, a portal) gets a second, near click once the ship is close.</li>
+ *   <li>a precise destination (a box, a portal) gets a second, near click once the ship is close;</li>
+ *   <li>no-access, radiation and damage zones are flown around ({@link PathFinder}); the next corner
+ *       is clicked shortly before the current one, like a player steering.</li>
  * </ul>
  * Each request carries the position the client would show, i.e. the world model's prediction
  * (within ~8 units of the real client), so the server never sees a jump. Requests are at least
@@ -39,6 +42,8 @@ public final class Navigator {
     /** Pause before clicking again when the ship stopped short or was moved by the server. */
     static final long RETRY_MIN_MS = 350;
     static final long RETRY_MAX_MS = 900;
+    /** Next corner of a way around is clicked this far before the current one. */
+    static final double TURN_AHEAD = 150;
 
     private final Supplier<WorldSnapshot> world;
     private final Consumer<Packet> sender;
@@ -52,6 +57,8 @@ public final class Navigator {
     private long lastSendNanos = Long.MIN_VALUE / 2;
     private long retryAtNanos;
     private int clicks;
+    /** The last click was a corner of a way around a zone, not the destination. */
+    private boolean viaWaypoint;
 
     /** Where to go; {@code precise} destinations are approached with a final near click. */
     public record Destination(double x, double y, boolean precise) {
@@ -121,34 +128,67 @@ public final class Navigator {
             return;
         }
         boolean flyingToClick = h.moving() && h.targetX() == clickX && h.targetY() == clickY;
-        boolean refine = flyingToClick && d.precise() && clicks > 0 && dist <= FAR
+        boolean refine = flyingToClick && d.precise() && clicks > 0 && dist <= FAR && !viaWaypoint
                 && Math.hypot(clickX - d.x(), clickY - d.y()) > CLICK_SPREAD * 2;
-        if (flyingToClick && !refine) {
+        // around a zone: click the next corner shortly before reaching this one, like a player steering
+        boolean turn = flyingToClick && viaWaypoint && Math.hypot(clickX - h.x(), clickY - h.y()) < TURN_AHEAD;
+        if (flyingToClick && !refine && !turn) {
             return; // on course
         }
-        if (now < retryAtNanos || now - lastSendNanos < MIN_INTERVAL_MS * 1_000_000) {
+        if (now - lastSendNanos < MIN_INTERVAL_MS * 1_000_000 || (now < retryAtNanos && !turn)) {
             return;
         }
-        click(w, d, dist);
+        PathFinder paths = PathFinder.of(w, catalog, false);
+        List<double[]> route = paths.path(h.x(), h.y(), d.x(), d.y());
+        if (route.isEmpty()) {
+            log.warn("Нет пути к {}/{}", (int) d.x() / 100, (int) d.y() / 100);
+            destination = null;
+            return;
+        }
+        double[] next = route.getFirst();
+        viaWaypoint = route.size() > 1;
+        click(w, paths, next[0], next[1], Math.hypot(next[0] - h.x(), next[1] - h.y()), viaWaypoint);
         lastSendNanos = now;
         // if the ship does not start (or stops short), click again after a human pause
         retryAtNanos = now + (RETRY_MIN_MS + (long) (random.nextDouble() * (RETRY_MAX_MS - RETRY_MIN_MS))) * 1_000_000;
     }
 
-    private void click(WorldSnapshot w, Destination d, double dist) {
+    /**
+     * One click towards (x, y): on the minimap grid when far and the straight flight there is clear,
+     * otherwise at the point (exactly for a corner of a way around, with a mouse's spread otherwise).
+     */
+    private void click(WorldSnapshot w, PathFinder paths, double x, double y, double dist, boolean waypoint) {
         WorldSnapshot.Hero h = w.hero();
         MapCatalog.MapInfo map = catalog.info(h.mapId());
-        double tx;
-        double ty;
+        double tx = x;
+        double ty = y;
+        boolean onGrid = false;
         if (dist > FAR) {
             double grid = minimapGrid(h, map);
-            tx = Math.round(d.x() / grid) * grid;
-            ty = Math.round(d.y() / grid) * grid;
-        } else {
+            double best = Double.MAX_VALUE;
+            for (int i = -1; i <= 1; i++) {
+                for (int j = -1; j <= 1; j++) {
+                    double gx = (Math.round(x / grid) + i) * grid;
+                    double gy = (Math.round(y / grid) + j) * grid;
+                    double off = Math.hypot(gx - x, gy - y);
+                    if (off < best && paths.free(gx, gy) && paths.clear(h.x(), h.y(), gx, gy)) {
+                        best = off;
+                        tx = gx;
+                        ty = gy;
+                        onGrid = true;
+                    }
+                }
+            }
+        }
+        if (!onGrid && !waypoint) {
             double angle = random.nextDouble() * Math.PI * 2;
             double r = random.nextDouble() * CLICK_SPREAD;
-            tx = d.x() + Math.cos(angle) * r;
-            ty = d.y() + Math.sin(angle) * r;
+            double sx = x + Math.cos(angle) * r;
+            double sy = y + Math.sin(angle) * r;
+            if (paths.free(sx, sy) && paths.clear(h.x(), h.y(), sx, sy)) {
+                tx = sx;
+                ty = sy;
+            }
         }
         clickX = (int) Math.round(Math.max(0, Math.min(map.width(), tx)));
         clickY = (int) Math.round(Math.max(0, Math.min(map.height(), ty)));
