@@ -14,8 +14,11 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
+import java.util.StringJoiner;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.InflaterInputStream;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Minimal HTTP client for one account: its own cookie store, optional proxy, gzip and
@@ -25,6 +28,7 @@ import java.util.zip.InflaterInputStream;
  */
 public final class HttpSession {
 
+    private static final Logger log = LoggerFactory.getLogger(HttpSession.class);
     private static final int MAX_REDIRECTS = 10;
     private static final int TIMEOUT_MS = 30_000;
 
@@ -104,10 +108,9 @@ public final class HttpSession {
             if (referer != null) {
                 conn.setRequestProperty("Referer", referer);
             }
-            for (Map.Entry<String, List<String>> e : cookies.get(uri, Map.of()).entrySet()) {
-                for (String v : e.getValue()) {
-                    conn.addRequestProperty(e.getKey(), v);
-                }
+            String cookieHeader = cookieHeader(uri);
+            if (!cookieHeader.isEmpty()) {
+                conn.setRequestProperty("Cookie", cookieHeader);
             }
             if (body != null) {
                 conn.setDoOutput(true);
@@ -122,6 +125,19 @@ public final class HttpSession {
             cookies.put(uri, headers);
 
             String location = conn.getHeaderField("Location");
+            // host and path only: queries may carry dosid or one-time tokens
+            log.debug("HTTP {} {}{} -> {}", method, uri.getHost(), uri.getPath(), status);
+            if (System.getenv("ORBIT_HTTP_TRACE") != null) {
+                log.debug("  query keys: {}", uri.getRawQuery() == null ? "" : uri.getRawQuery().replaceAll("=[^&]*", ""));
+                log.debug("  sent cookies: {}", cookieHeader.replaceAll("=[^;]*", ""));
+                if (location != null && location.contains("loginError")) {
+                    log.debug("  loginError: {}", location.replaceAll(".*loginError=([^&]*).*", "$1"));
+                }
+                log.debug("  location: {}", location == null ? "" : location.replaceAll("=[^&]*", "=…"));
+                for (String sc : headers.getOrDefault("Set-Cookie", List.of())) {
+                    log.debug("  set-cookie: {}", sc.replaceFirst("=[^;]*", "=…"));
+                }
+            }
             if (status >= 300 && status < 400 && location != null) {
                 drain(conn);
                 referer = uri.toString();
@@ -135,6 +151,33 @@ public final class HttpSession {
             return new Response(status, uri, headers, readBody(conn));
         }
         throw new IOException("слишком много переадресаций, последняя: " + uri.getHost());
+    }
+
+    /**
+     * Builds the {@code Cookie} header as browsers do: {@code name=value; name=value}.
+     *
+     * <p>{@link CookieManager#get} cannot be used: a single {@code Set-Cookie} with {@code Max-Age}
+     * (the CDN's {@code acw_tc}) makes it switch to RFC 2965 output with {@code $Version}, quoted
+     * values and {@code $Path}, and the site then reads {@code dosid} with the quotes and rejects it.
+     */
+    String cookieHeader(URI uri) {
+        String path = uri.getPath() == null || uri.getPath().isEmpty() ? "/" : uri.getPath();
+        boolean https = "https".equalsIgnoreCase(uri.getScheme());
+        StringJoiner header = new StringJoiner("; ");
+        for (HttpCookie c : cookies.getCookieStore().get(uri)) {
+            if (c.hasExpired() || (c.getSecure() && !https) || !pathMatches(path, c.getPath())) {
+                continue;
+            }
+            header.add(c.getName() + "=" + c.getValue());
+        }
+        return header.toString();
+    }
+
+    private static boolean pathMatches(String requestPath, String cookiePath) {
+        if (cookiePath == null || cookiePath.isEmpty() || cookiePath.equals("/")) {
+            return true;
+        }
+        return requestPath.equals(cookiePath) || requestPath.startsWith(cookiePath.endsWith("/") ? cookiePath : cookiePath + "/");
     }
 
     private static String readBody(HttpURLConnection conn) throws IOException {

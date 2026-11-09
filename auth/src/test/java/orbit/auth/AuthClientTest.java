@@ -41,6 +41,7 @@ class AuthClientTest {
         server.createContext("/sas/auth", this::sasAuth);
         server.createContext("/ProjectApi/Authentication", ex -> redirect(ex, "/indexInternal.es?action=internalStart"));
         server.createContext("/indexInternal.es", this::internal);
+        server.createContext("/index.es", ex -> send(ex, 200, "<html>home</html>", false));
         server.createContext("/spacemap/xml/maps.php", ex -> send(ex, 200, """
                 <maps>
                   <map id="1"><gameserverIP>gs-1.example:6003</gameserverIP></map>
@@ -109,6 +110,17 @@ class AuthClientTest {
     void expiredDosidIsReported() {
         AuthException e = assertThrows(AuthException.class, () -> client().loginWithDosid("int1", "stale"));
         assertEquals(AuthException.Reason.SESSION_EXPIRED, e.reason());
+        assertTrue(e.getMessage().contains("loginError=95"), e.getMessage());
+    }
+
+    @Test
+    void cookiesAreSentInBrowserFormat() throws Exception {
+        HttpSession http = new HttpSession("test", Proxy.NO_PROXY, null);
+        http.get(origin + "/");
+        http.setCookie(origin + "/", "dosid", DOSID);
+        String header = http.cookieHeader(java.net.URI.create(origin + "/indexInternal.es"));
+        assertFalse(header.contains("$") || header.contains("\""), header);
+        assertTrue(java.util.List.of(header.split("; ")).containsAll(java.util.List.of("acw_tc=w4f", "dosid=" + DOSID)), header);
     }
 
     @Test
@@ -133,6 +145,8 @@ class AuthClientTest {
             send(ex, 404, "not found", false);
             return;
         }
+        // like the real CDN: Max-Age makes java.net.CookieManager emit RFC 2965 cookies with quoted values
+        ex.getResponseHeaders().add("Set-Cookie", "acw_tc=w4f;path=/;HttpOnly;Max-Age=1800");
         send(ex, 200, landingHtml(false), true);
     }
 
@@ -163,8 +177,8 @@ class AuthClientTest {
 
     private void internal(HttpExchange ex) throws IOException {
         String cookie = String.valueOf(ex.getRequestHeaders().getFirst("Cookie"));
-        if (!cookie.contains("dosid=" + DOSID)) {
-            redirect(ex, "/");
+        if (!java.util.List.of(cookie.split(";\\s*")).contains("dosid=" + DOSID)) {
+            redirect(ex, "/index.es?action=externalHome&loginError=95");
             return;
         }
         String ua = String.valueOf(ex.getRequestHeaders().getFirst("User-Agent"));

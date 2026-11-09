@@ -84,8 +84,9 @@ public final class AuthClient {
             String origin = result.url().getScheme() + "://" + result.url().getAuthority();
             String dosid = http.cookie(origin + "/", "dosid");
             if (dosid != null) {
-                log.info("Вход выполнен, сервер аккаунта: {}", host);
-                return loadGameSession(origin, dosid);
+                // the site hands out a dosid to anonymous visitors too; only the game page proves the login
+                log.info("Пароль принят, сервер аккаунта: {}", host);
+                return loadGameSession(origin, dosid, true);
             }
         }
         throw classifyLoginFailure(result);
@@ -101,17 +102,32 @@ public final class AuthClient {
         String origin = endpoints.accountOrigin(server);
         http.setCookie(origin + "/", "dosid", dosid);
         log.info("Вход по dosid на {}", URI.create(origin).getHost());
-        return loadGameSession(origin, dosid);
+        return loadGameSession(origin, dosid, false);
     }
 
-    /** Reads the game page and the map table for an already authenticated session. */
-    GameSession loadGameSession(String origin, String dosid) throws AuthException {
+    /**
+     * Reads the game page and the map table for an already authenticated session.
+     *
+     * @param afterPasswordLogin whether the session was just created by a password login (then a
+     *                           rejected session is our bug or a site change, not an expired dosid)
+     */
+    GameSession loadGameSession(String origin, String dosid, boolean afterPasswordLogin) throws AuthException {
         HttpSession.Response page = request(() -> http.get(origin + "/indexInternal.es?action=internalMapRevolution"));
         Map<String, String> vars = FlashVars.parse(page.body());
         if (!vars.containsKey("sessionID") || !vars.containsKey("userID")) {
-            if (!endpoints.accountHost().matcher(page.url().getHost()).matches() || LOGIN_FORM.matcher(page.body()).find()) {
+            String loginError = queryParam(page.url(), "loginError");
+            boolean rejected = loginError != null
+                    || !endpoints.accountHost().matcher(page.url().getHost()).matches()
+                    || LOGIN_FORM.matcher(page.body()).find();
+            String code = loginError == null ? "" : " (loginError=" + loginError + ")";
+            if (rejected && afterPasswordLogin) {
+                throw new AuthException(AuthException.Reason.UNEXPECTED_PAGE,
+                        "Пароль принят, но сайт не открыл страницу игры" + code
+                                + " — вероятно, изменился порядок входа на сайте.");
+            }
+            if (rejected) {
                 throw new AuthException(AuthException.Reason.SESSION_EXPIRED,
-                        "Сессия сайта недействительна или истекла (dosid). Войдите заново.");
+                        "Сессия сайта недействительна или истекла (dosid)" + code + ". Войдите заново.");
             }
             throw new AuthException(AuthException.Reason.UNEXPECTED_PAGE,
                     "Страница игры не содержит параметров запуска — сайт изменился, либо аккаунт ещё "
@@ -207,6 +223,19 @@ public final class AuthClient {
         } catch (NumberFormatException e) {
             throw new AuthException(AuthException.Reason.UNEXPECTED_PAGE, "Параметр " + key + " не число.");
         }
+    }
+
+    private static String queryParam(URI uri, String name) {
+        String q = uri.getRawQuery();
+        if (q == null) {
+            return null;
+        }
+        for (String pair : q.split("&")) {
+            if (pair.startsWith(name + "=")) {
+                return pair.substring(name.length() + 1);
+            }
+        }
+        return null;
     }
 
     private static String htmlUnescape(String s) {
