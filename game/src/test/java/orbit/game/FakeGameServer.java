@@ -16,7 +16,12 @@ import orbit.net.Frames;
 import orbit.protocol.Packet;
 import orbit.protocol.PacketCodec;
 import orbit.protocol.gen.LoginRequest;
+import orbit.protocol.gen.KillScreenOptionModule;
+import orbit.protocol.gen.KillScreenOptionTypeModule;
+import orbit.protocol.gen.KillScreenPostCommand;
+import orbit.protocol.gen.KillScreenRepairRequest;
 import orbit.protocol.gen.LoginResponse;
+import orbit.protocol.gen.PriceModule;
 import orbit.protocol.gen.ShipInitializationCommand;
 import orbit.protocol.gen.VersionCommand;
 import orbit.protocol.gen.VersionRequest;
@@ -24,7 +29,7 @@ import orbit.protocol.gen.VersionRequest;
 /** Minimal imitation of a game server for connection tests. */
 final class FakeGameServer implements AutoCloseable {
 
-    enum Mode { NORMAL, OUTDATED, REJECT_LOGIN }
+    enum Mode { NORMAL, OUTDATED, REJECT_LOGIN, DEAD }
 
     final ServerSocket ss;
     final List<Packet> received = new CopyOnWriteArrayList<>();
@@ -99,12 +104,30 @@ final class FakeGameServer implements AutoCloseable {
                     if (mode == Mode.REJECT_LOGIN && rejectsLeft.getAndDecrement() > 0) {
                         return;
                     }
+                    if (mode == Mode.DEAD) {
+                        KillScreenPostCommand ks = new KillScreenPostCommand();
+                        ks.killerName = "..::{ Boss Kristallin }::..";
+                        KillScreenOptionModule free = new KillScreenOptionModule();
+                        free.repairType = new KillScreenOptionTypeModule();
+                        free.repairType.repairTypeValue = (short) KillScreenOptionTypeModule.OPTIONTYPE_BASIC_REPAIR;
+                        free.price = new PriceModule();
+                        free.affordableForPlayer = true;
+                        ks.options = List.of(free);
+                        send.accept(ks);
+                        send.accept(new LoginResponse());
+                        continue;
+                    }
                     ShipInitializationCommand si = new ShipInitializationCommand();
                     si.userName = "Tester";
                     si.mapId = 1;
                     send.accept(si);
                     send.accept(new LoginResponse());
                     afterLogin.accept(send);
+                } else if (p instanceof KillScreenRepairRequest) {
+                    ShipInitializationCommand si = new ShipInitializationCommand();
+                    si.userName = "Tester";
+                    si.mapId = 9;
+                    send.accept(si);
                 }
             }
         } catch (IOException e) {

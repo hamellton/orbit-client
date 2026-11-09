@@ -13,6 +13,8 @@ public interface GameListener {
         CONNECTING,
         /** Logged in on a map. */
         ONLINE,
+        /** The ship is destroyed: the kill screen is shown until a repair is chosen. */
+        DEAD,
         /** Changing server after the game asked for it. */
         CHANGING_SERVER,
         /** Lost connection, waiting before the next attempt. */

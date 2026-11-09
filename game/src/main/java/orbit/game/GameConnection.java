@@ -24,6 +24,9 @@ import orbit.protocol.PacketCodec;
 import orbit.protocol.ProtocolOutdatedException;
 import orbit.protocol.gen.ChannelCloseRequest;
 import orbit.protocol.gen.KeepAlive;
+import orbit.protocol.gen.KillScreenOptionTypeModule;
+import orbit.protocol.gen.KillScreenPostCommand;
+import orbit.protocol.gen.KillScreenRepairRequest;
 import orbit.protocol.gen.LegacyModule;
 import orbit.protocol.gen.LoginRequest;
 import orbit.protocol.gen.LoginResponse;
@@ -60,6 +63,8 @@ public final class GameConnection implements AutoCloseable {
     private final AtomicBoolean closed = new AtomicBoolean();
 
     private volatile Socket socket;
+    /** Website session of the current TCP session (for requests that repeat the login, e.g. a repair). */
+    private volatile GameSession currentSession;
     private volatile OutputStream out;
     private volatile Thread runner;
     /** Incremented per TCP session; delayed sends of an old session are dropped. */
@@ -121,6 +126,31 @@ public final class GameConnection implements AutoCloseable {
                 answerJumpCpuNotice(sessionSeq.get());
             }
         }
+    }
+
+    /**
+     * Chooses a way back from the kill screen, as the client's {@code Killscreen} does: the option
+     * and the login data again ({@code userID}, {@code sessionID}, faction; version empty).
+     *
+     * @param optionType {@code KillScreenOptionTypeModule} value offered in the kill screen
+     * @param factionId  the hero's faction (1 MMO, 2 EIC, 3 VRU)
+     */
+    public void repair(int optionType, int factionId) {
+        GameSession session = currentSession;
+        if (session == null) {
+            return;
+        }
+        KillScreenRepairRequest r = new KillScreenRepairRequest();
+        r.selection = new KillScreenOptionTypeModule();
+        r.selection.repairTypeValue = (short) optionType;
+        r.requestModule = new LoginRequest();
+        r.requestModule.userID = session.userId();
+        r.requestModule.sessionID = session.sessionId();
+        r.requestModule.factionID = (short) factionId;
+        r.requestModule.version = "";
+        r.requestModule.instanceId = 0;
+        r.requestModule.isMiniClient = false;
+        send(r);
     }
 
     public void sendKeepAlive() {
@@ -218,6 +248,7 @@ public final class GameConnection implements AutoCloseable {
      */
     private Relogin serve(GameSession session, MapServers.Address server) throws IOException, InterruptedException {
         listener.onState(GameListener.State.CONNECTING, "Подключение к " + server);
+        currentSession = session;
         if (settings.policyRequest()) {
             requestPolicy(server);
         }
@@ -244,6 +275,7 @@ public final class GameConnection implements AutoCloseable {
         jumpCpuNoticePending = false;
         boolean compression = false;
         boolean shipReady = false;
+        boolean dead = false;
         UserSettingsCommand userSettings = null;
         int seq = sessionSeq.incrementAndGet();
         Thread keepAlive = null;
@@ -278,6 +310,22 @@ public final class GameConnection implements AutoCloseable {
                         ProtocolOutdatedException.check(vc);
                         sendLogin(session);
                         compression = true;
+                    } else if (p instanceof KillScreenPostCommand ks) {
+                        // logged in dead, or destroyed now: no ship until a repair is chosen
+                        dead = true;
+                        shipReady = true;
+                        s.setSoTimeout(0);
+                        listener.onState(GameListener.State.DEAD, "Корабль уничтожен" + (ks.killerName.isBlank() ? "" : ": " + ks.killerName));
+                    } else if (p instanceof ShipInitializationCommand && dead) {
+                        // repaired on this connection: the ship is back, the client re-reports its UI
+                        dead = false;
+                        listener.onState(GameListener.State.ONLINE, "В игре, корабль восстановлен, сервер " + server);
+                        if (startupThread != null) {
+                            startupThread.interrupt();
+                        }
+                        loginFlagSent = false;
+                        StartupSequence.Context ctx = new StartupSequence.Context(false, userSettings, true);
+                        startupThread = Thread.ofVirtual().name("startup").start(() -> runStartup(ctx));
                     } else if (p instanceof ShipInitializationCommand && startupThread != null) {
                         // portal jump to a map on the same server: the client re-sends its UI state at once
                         startupThread.interrupt();

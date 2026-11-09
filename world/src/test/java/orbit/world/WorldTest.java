@@ -14,6 +14,9 @@ import orbit.protocol.gen.BeaconCommand;
 import orbit.protocol.gen.ClanRelationModule;
 import orbit.protocol.gen.CooldownTypeModule;
 import orbit.protocol.gen.JumpgateCreateCommand;
+import orbit.protocol.gen.KillScreenOptionModule;
+import orbit.protocol.gen.KillScreenOptionTypeModule;
+import orbit.protocol.gen.KillScreenPostCommand;
 import orbit.protocol.gen.LegacyModule;
 import orbit.protocol.gen.MapAddPOICommand;
 import orbit.protocol.gen.MenuCategoryInitializationCommand;
@@ -32,6 +35,7 @@ import orbit.protocol.gen.PetHeroActivationCommand;
 import orbit.protocol.gen.PetHitpointsUpdateCommand;
 import orbit.protocol.gen.PetInitializationCommand;
 import orbit.protocol.gen.PetStatusCommand;
+import orbit.protocol.gen.PriceModule;
 import orbit.protocol.gen.ReloginCommand;
 import orbit.protocol.gen.RemoveCollectableCommand;
 import orbit.protocol.gen.ShipCreateCommand;
@@ -259,6 +263,37 @@ class WorldTest {
         off.petId = 55;
         w.apply(off, 0);
         assertFalse(w.snapshot(0).pet().active());
+    }
+
+    @Test
+    void killScreenAndRespawn() {
+        World w = withHero();
+        KillScreenPostCommand ks = new KillScreenPostCommand();
+        ks.killerName = "..::{ Boss Kristallin }::..";
+        KillScreenOptionModule paid = new KillScreenOptionModule();
+        paid.repairType = new KillScreenOptionTypeModule();
+        paid.repairType.repairTypeValue = (short) KillScreenOptionTypeModule.OPTIONTYPE_AT_DEATHLOCATION_REPAIR;
+        paid.price = new PriceModule();
+        paid.price.amount = 500;
+        paid.affordableForPlayer = true;
+        KillScreenOptionModule free = new KillScreenOptionModule();
+        free.repairType = new KillScreenOptionTypeModule();
+        free.repairType.repairTypeValue = (short) KillScreenOptionTypeModule.OPTIONTYPE_BASIC_REPAIR;
+        free.price = new PriceModule();
+        free.affordableForPlayer = true;
+        ks.options = List.of(paid, free);
+        w.apply(ks, 0);
+        WorldSnapshot s = w.snapshot(0);
+        assertFalse(s.hero().alive());
+        assertEquals("..::{ Boss Kristallin }::..", s.death().killer());
+        assertEquals(KillScreenOptionTypeModule.OPTIONTYPE_BASIC_REPAIR, s.death().freeRepair().type());
+
+        ShipInitializationCommand back = new ShipInitializationCommand();
+        back.userId = HERO;
+        back.mapId = 9;
+        w.apply(back, 0);
+        assertTrue(w.snapshot(0).hero().alive());
+        assertEquals(null, w.snapshot(0).death());
     }
 
     @Test

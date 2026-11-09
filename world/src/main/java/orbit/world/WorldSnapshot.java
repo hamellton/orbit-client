@@ -15,7 +15,7 @@ import java.util.Map;
 public record WorldSnapshot(long nanos, Hero hero, Map<Integer, Ship> ships, Map<String, Collectable> collectables,
                             Map<Integer, Portal> portals, Map<Integer, Asset> assets, Map<String, Zone> zones,
                             Group group, Map<String, Item> items, Inventory inventory, Pet pet,
-                            Map<Integer, Long> activatable, int jumpingTo) {
+                            Map<Integer, Long> activatable, int jumpingTo, Death death) {
 
     /** The player's own ship. {@code id == 0} until {@code ShipInitializationCommand} arrives. */
     /**
@@ -84,6 +84,28 @@ public record WorldSnapshot(long nanos, Hero hero, Map<Integer, Ship> ships, Map
                       Health health, int fuel, int fuelMax, double heat, double heatMax, int gear) {
 
         static final Pet NONE = new Pet(false, false, false, false, 0, "", 0, Health.UNKNOWN, -1, -1, -1, -1, -1);
+    }
+
+    /**
+     * The kill screen ({@code KillScreenPostCommand}): who destroyed the hero and how it can be
+     * repaired. {@code null} while the ship is alive.
+     */
+    public record Death(String killer, int cause, List<RepairOption> options) {
+
+        /** The first option that costs nothing and is available now, or {@code null}. */
+        public RepairOption freeRepair() {
+            return options.stream().filter(o -> o.affordable() && o.price() == 0 && o.cooldownSeconds() == 0)
+                    .findFirst().orElse(null);
+        }
+    }
+
+    /**
+     * One way to come back ({@code KillScreenOptionModule}).
+     *
+     * @param type      {@code KillScreenOptionTypeModule} value, e.g. {@code OPTIONTYPE_BASIC_REPAIR}
+     * @param priceType {@code PriceModule.type} (currency), {@code price} its amount
+     */
+    public record RepairOption(int type, int priceType, int price, boolean affordable, int cooldownSeconds, String button) {
     }
 
     /** Area flags from the last {@code BeaconCommand} (sent about once a second). */

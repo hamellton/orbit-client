@@ -58,6 +58,15 @@ public final class WorldFeed {
                 }
             }
             case JumpInitiatedCommand j -> log.info("Прыжок на карту {}", maps.info(j.mapId).name());
+            case orbit.protocol.gen.KillScreenPostCommand k -> {
+                WorldSnapshot.Death d = world.snapshot(now()).death();
+                log.warn("Корабль уничтожен ({}). Варианты: {}", k.killerName, d == null ? "—"
+                        : d.options().stream().map(o -> o.button() + (o.price() > 0 ? " за " + o.price() : "")
+                                + (o.cooldownSeconds() > 0 ? " через " + o.cooldownSeconds() + " с" : "")).toList());
+                if (!mode.startsWith("бот")) {
+                    state = "Корабль уничтожен";
+                }
+            }
             case ReloginCommand r -> log.info("Переход на карту {} (другой сервер)", maps.info(r.mapID).name());
             case ShipDestroyedCommand d when d.destroyedUserId == heroId && heroId != 0 -> {
                 log.warn("Корабль уничтожен");

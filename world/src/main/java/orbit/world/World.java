@@ -31,6 +31,9 @@ import orbit.protocol.gen.HitpointInfoCommand;
 import orbit.protocol.gen.InventoryItemUpdatedCommand;
 import orbit.protocol.gen.JumpInitiatedCommand;
 import orbit.protocol.gen.JumpgateCreateCommand;
+import orbit.protocol.gen.KillScreenOptionModule;
+import orbit.protocol.gen.KillScreenPostCommand;
+import orbit.protocol.gen.KillScreenUpdateCommand;
 import orbit.protocol.gen.LegacyModule;
 import orbit.protocol.gen.LevelModule;
 import orbit.protocol.gen.LocationModule;
@@ -162,6 +165,8 @@ public final class World {
     private final Map<Integer, Long> activatable = new LinkedHashMap<>();
     /** Map of a jump the server has started ({@code JumpInitiatedCommand}), 0 if none. */
     private int jumpingTo;
+    /** The kill screen while the hero is destroyed, {@code null} otherwise. */
+    private WorldSnapshot.Death death;
     private final Map<String, WorldSnapshot.Item> items = new LinkedHashMap<>();
     private final Map<Integer, Double> ores = new LinkedHashMap<>();
     private final Map<String, Double> resources = new LinkedHashMap<>();
@@ -271,6 +276,17 @@ public final class World {
                 }
             }
             case JumpInitiatedCommand p -> jumpingTo = p.mapId;
+            case KillScreenPostCommand p -> {
+                hero.alive = false;
+                hero.selectedId = 0;
+                hero.attackTargetId = 0;
+                death = new WorldSnapshot.Death(p.killerName, p.cause != null ? p.cause.cause : -1, options(p.options));
+            }
+            case KillScreenUpdateCommand p -> {
+                if (death != null) {
+                    death = new WorldSnapshot.Death(death.killer(), death.cause(), options(p.options));
+                }
+            }
             case UserSettingsCommand p -> {
                 if (p.windowSettingsModule != null && p.windowSettingsModule.minmapScale > 0) {
                     hero.minimapScale = p.windowSettingsModule.minmapScale;
@@ -330,7 +346,7 @@ public final class World {
         return new WorldSnapshot(nanos, h, Map.copyOf(shipViews), Map.copyOf(collectables), Map.copyOf(portals),
                 Map.copyOf(assets), Map.copyOf(zones), group, Map.copyOf(items),
                 new WorldSnapshot.Inventory(Map.copyOf(ores), Map.copyOf(resources), Map.copyOf(bootyKeys)), pet,
-                Map.copyOf(activatable), jumpingTo);
+                Map.copyOf(activatable), jumpingTo, death);
     }
 
     /** Ships shooting lasers at the hero now, or that hit it within {@link #ATTACKER_MEMORY_NANOS}. */
@@ -354,7 +370,18 @@ public final class World {
 
     // ---- hero ----
 
+    private static List<WorldSnapshot.RepairOption> options(List<KillScreenOptionModule> list) {
+        List<WorldSnapshot.RepairOption> out = new ArrayList<>();
+        for (KillScreenOptionModule o : list) {
+            out.add(new WorldSnapshot.RepairOption(o.repairType != null ? o.repairType.repairTypeValue : -1,
+                    o.price != null ? o.price.type : -1, o.price != null ? o.price.amount : -1, o.affordableForPlayer,
+                    o.cooldownTime, o.buttonKey != null ? o.buttonKey.baseKey : ""));
+        }
+        return List.copyOf(out);
+    }
+
     private void initHero(ShipInitializationCommand p, long nanos) {
+        death = null;
         // sent on every login (and on respawn); the server then lists the map contents again
         clearMap();
         hero.id = p.userId;

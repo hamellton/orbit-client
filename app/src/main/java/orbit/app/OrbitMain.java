@@ -39,6 +39,7 @@ import org.slf4j.LoggerFactory;
  *   orbit bot --account main [--headless] [--profile local/client-profile.json] [--vault local/vault.bin]
  *             [--fly 105/65]   # development: fly to a point of the current map once in game
  *             [--go 3-7:40/40] # development: travel to a map (and a point) through portals
+ *             [--repair-free [--faction 3]]  # development: take a free repair on the kill screen
  *   orbit observe [--port 1080] [--direct IP:6001-6007] [--out recordings]   # watch the official client
  *   orbit replay recordings/session-….dorec [--speed 2]
  *   orbit render recordings/session-….dorec --at 30 [--out minimap.png]   # minimap at second 30 as PNG
@@ -145,6 +146,9 @@ public final class OrbitMain {
         if (o.go != null) {
             startTravelTest(feed, conn, o.go);
         }
+        if (o.repairFree) {
+            startFreeRepair(feed, conn, o.faction);
+        }
         runUntilClosed(feed, o.headless, conn::close, runner);
     }
 
@@ -237,6 +241,41 @@ public final class OrbitMain {
                 log.info("Тест перелёта: {} — {} {}/{}, прыжков {}{}", traveler.state(), catalog.info(h.mapId()).name(),
                         h.x() / 100, h.y() / 100, traveler.jumps(), traveler.failure().isEmpty() ? "" : " (" + traveler.failure() + ")");
                 feed.setAction(null);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        });
+    }
+
+    /**
+     * Development: on the kill screen, takes a repair that costs nothing (after a few seconds, like a
+     * player reading the screen). Paid options are never chosen.
+     */
+    private static void startFreeRepair(WorldFeed feed, GameConnection conn, int faction) {
+        java.util.Random random = new java.util.Random();
+        Thread.ofPlatform().name("repair").daemon().start(() -> {
+            try {
+                while (true) {
+                    var w = feed.snapshot();
+                    var d = w.death();
+                    if (d != null) {
+                        var free = d.freeRepair();
+                        int f = w.hero().factionId() != 0 ? w.hero().factionId() : faction;
+                        if (free == null) {
+                            log.warn("Бесплатного ремонта нет — жду решения игрока");
+                        } else if (f == 0) {
+                            log.warn("Фракция неизвестна — укажите --faction 1|2|3");
+                        } else {
+                            Thread.sleep(3_000 + random.nextInt(5_000));
+                            log.info("Ремонт: {}", free.button());
+                            conn.repair(free.type(), f);
+                            Thread.sleep(15_000);
+                            continue;
+                        }
+                        Thread.sleep(30_000);
+                    }
+                    Thread.sleep(500);
+                }
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
@@ -345,7 +384,8 @@ public final class OrbitMain {
 
     /** Command-line options shared by the modes. */
     record Options(String account, Path vault, Path profile, boolean headless, int port, String direct, Path out,
-                   double speed, double at, String fly, String go, List<String> positional) {
+                   double speed, double at, String fly, String go, boolean repairFree, int faction,
+                   List<String> positional) {
 
         static Options parse(List<String> args) {
             String account = null;
@@ -359,6 +399,8 @@ public final class OrbitMain {
             double at = -1;
             String fly = null;
             String go = null;
+            boolean repairFree = false;
+            int faction = 0;
             List<String> positional = new java.util.ArrayList<>();
             for (int i = 0; i < args.size(); i++) {
                 switch (args.get(i)) {
@@ -373,6 +415,8 @@ public final class OrbitMain {
                     case "--at" -> at = Double.parseDouble(args.get(++i));
                     case "--fly" -> fly = args.get(++i);
                     case "--go" -> go = args.get(++i);
+                    case "--repair-free" -> repairFree = true;
+                    case "--faction" -> faction = Integer.parseInt(args.get(++i));
                     default -> {
                         if (args.get(i).startsWith("--")) {
                             System.err.println("Неизвестный параметр: " + args.get(i));
@@ -385,7 +429,8 @@ public final class OrbitMain {
             if (speed <= 0) {
                 throw new IllegalArgumentException("--speed должен быть больше 0");
             }
-            return new Options(account, vault, profile, headless, port, direct, out, speed, at, fly, go, List.copyOf(positional));
+            return new Options(account, vault, profile, headless, port, direct, out, speed, at, fly, go, repairFree, faction,
+                    List.copyOf(positional));
         }
     }
 }

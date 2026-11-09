@@ -197,6 +197,30 @@ class GameConnectionTest {
     }
 
     @Test
+    void loggingInDeadShowsTheKillScreenAndRepairBringsTheShipBack() throws Exception {
+        try (FakeGameServer gs = new FakeGameServer()) {
+            gs.mode = FakeGameServer.Mode.DEAD;
+            Listener l = new Listener();
+            GameConnection c = new GameConnection(new Source(gs.port(), 0), l, fast(), (conn, ctx) -> { });
+            Thread t = Thread.ofVirtual().start(c::run);
+            await(() -> l.states.stream().anyMatch(st -> st.startsWith("DEAD")), 5);
+            Thread.sleep(2_500); // longer than the login timeout of fast(): no reconnect while dead
+            assertEquals(1, gs.gameConnections.get(), "stays connected on the kill screen");
+            assertTrue(l.states.stream().anyMatch(st -> st.contains("Boss Kristallin")), l.states.toString());
+
+            c.repair(orbit.protocol.gen.KillScreenOptionTypeModule.OPTIONTYPE_BASIC_REPAIR, 3);
+            await(() -> l.states.stream().anyMatch(st -> st.startsWith("ONLINE")), 5);
+            orbit.protocol.gen.KillScreenRepairRequest r = gs.receivedOf(orbit.protocol.gen.KillScreenRepairRequest.class).getFirst();
+            assertEquals(orbit.protocol.gen.KillScreenOptionTypeModule.OPTIONTYPE_BASIC_REPAIR, r.selection.repairTypeValue);
+            assertEquals("sess-1", r.requestModule.sessionID);
+            assertEquals(3, r.requestModule.factionID);
+            assertEquals("", r.requestModule.version, "as the client sends it");
+            c.close();
+            t.join(3000);
+        }
+    }
+
+    @Test
     void outdatedProtocolStopsWithClearMessage() throws Exception {
         try (FakeGameServer gs = new FakeGameServer()) {
             gs.mode = FakeGameServer.Mode.OUTDATED;
