@@ -10,7 +10,7 @@ dependencies {
 }
 
 val gameCheck by tasks.registering(JavaExec::class) {
-    description = "Live game connection check: --args='--creds creds.txt --seconds 60'"
+    description = "Live game connection check: --args='--creds creds.txt --seconds 60' (or ORBIT_DOSID env)"
     classpath = sourceSets.main.get().runtimeClasspath + configurations.testRuntimeClasspath.get()
     mainClass.set("orbit.game.GameCheck")
     workingDir = rootProject.projectDir

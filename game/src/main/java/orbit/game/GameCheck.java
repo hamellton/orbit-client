@@ -24,6 +24,7 @@ import org.slf4j.LoggerFactory;
  *
  * <pre>
  *   game-check --creds creds.txt [--seconds 60]
+ *   ORBIT_DOSID=... game-check --server int1 [--seconds 60]   # when the site asks for a captcha
  * </pre>
  */
 public final class GameCheck {
@@ -38,10 +39,12 @@ public final class GameCheck {
 
     public static void main(String[] args) throws Exception {
         Path creds = Path.of("creds.txt");
+        String server = "int1";
         int seconds = 60;
         for (int i = 0; i < args.length; i++) {
             switch (args[i]) {
                 case "--creds" -> creds = Path.of(args[++i]);
+                case "--server" -> server = args[++i];
                 case "--seconds" -> seconds = Integer.parseInt(args[++i]);
                 default -> {
                     System.err.println("Неизвестный параметр: " + args[i]);
@@ -49,15 +52,24 @@ public final class GameCheck {
                 }
             }
         }
-        List<String> lines = Files.readAllLines(creds);
-        String user = lines.get(0).strip();
-        String password = lines.get(1).strip();
+        String envDosid = System.getenv("ORBIT_DOSID");
+        String dosid = envDosid == null || envDosid.isBlank() ? null : envDosid.strip();
+        String user = null;
+        String password = null;
+        if (dosid == null) {
+            List<String> lines = Files.readAllLines(creds);
+            user = lines.get(0).strip();
+            password = lines.get(1).strip();
+        }
+        String accountServer = server;
+        String username = user;
+        String secret = password;
 
         AuthClient auth = new AuthClient(new HttpSession("", Proxy.NO_PROXY, null), AuthClient.Endpoints.production());
         SessionSource source = new SessionSource() {
             @Override
             public GameSession fresh() throws AuthException {
-                return auth.loginWithPassword(user, password);
+                return dosid != null ? auth.loginWithDosid(accountServer, dosid) : auth.loginWithPassword(username, secret);
             }
 
             @Override
