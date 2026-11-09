@@ -1,0 +1,2436 @@
+{
+ "source": "client graphics/maps-config.xml",
+ "hash": "c7e242bdeb31c21c7b92fff4938b4000",
+ "maps": [
+  {
+   "id": 1,
+   "name": "1-1",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "normal",
+   "homeFaction": 1,
+   "group": ""
+  },
+  {
+   "id": 2,
+   "name": "1-2",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "normal",
+   "homeFaction": 0,
+   "group": ""
+  },
+  {
+   "id": 3,
+   "name": "1-3",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "normal",
+   "homeFaction": 0,
+   "group": ""
+  },
+  {
+   "id": 4,
+   "name": "1-4",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "normal",
+   "homeFaction": 0,
+   "group": ""
+  },
+  {
+   "id": 5,
+   "name": "2-1",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "normal",
+   "homeFaction": 2,
+   "group": ""
+  },
+  {
+   "id": 6,
+   "name": "2-2",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "normal",
+   "homeFaction": 0,
+   "group": ""
+  },
+  {
+   "id": 7,
+   "name": "2-3",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "normal",
+   "homeFaction": 0,
+   "group": ""
+  },
+  {
+   "id": 8,
+   "name": "2-4",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "normal",
+   "homeFaction": 0,
+   "group": ""
+  },
+  {
+   "id": 9,
+   "name": "3-1",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "normal",
+   "homeFaction": 3,
+   "group": ""
+  },
+  {
+   "id": 10,
+   "name": "3-2",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "normal",
+   "homeFaction": 0,
+   "group": ""
+  },
+  {
+   "id": 11,
+   "name": "3-3",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "normal",
+   "homeFaction": 0,
+   "group": ""
+  },
+  {
+   "id": 12,
+   "name": "3-4",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "normal",
+   "homeFaction": 0,
+   "group": ""
+  },
+  {
+   "id": 13,
+   "name": "4-1",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "normal",
+   "homeFaction": 0,
+   "group": ""
+  },
+  {
+   "id": 14,
+   "name": "4-2",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "normal",
+   "homeFaction": 0,
+   "group": ""
+  },
+  {
+   "id": 15,
+   "name": "4-3",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "normal",
+   "homeFaction": 0,
+   "group": ""
+  },
+  {
+   "id": 16,
+   "name": "4-4",
+   "scale": 2.0,
+   "width": 42000,
+   "height": 26200,
+   "type": "normal",
+   "homeFaction": 0,
+   "group": ""
+  },
+  {
+   "id": 17,
+   "name": "1-5",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "normal",
+   "homeFaction": 0,
+   "group": ""
+  },
+  {
+   "id": 18,
+   "name": "1-6",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "normal",
+   "homeFaction": 0,
+   "group": ""
+  },
+  {
+   "id": 19,
+   "name": "1-7",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "normal",
+   "homeFaction": 0,
+   "group": ""
+  },
+  {
+   "id": 20,
+   "name": "1-8",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": ""
+  },
+  {
+   "id": 21,
+   "name": "2-5",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "normal",
+   "homeFaction": 0,
+   "group": ""
+  },
+  {
+   "id": 22,
+   "name": "2-6",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "normal",
+   "homeFaction": 0,
+   "group": ""
+  },
+  {
+   "id": 23,
+   "name": "2-7",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "normal",
+   "homeFaction": 0,
+   "group": ""
+  },
+  {
+   "id": 24,
+   "name": "2-8",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "normal",
+   "homeFaction": 0,
+   "group": ""
+  },
+  {
+   "id": 25,
+   "name": "3-5",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "normal",
+   "homeFaction": 0,
+   "group": ""
+  },
+  {
+   "id": 26,
+   "name": "3-6",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "normal",
+   "homeFaction": 0,
+   "group": ""
+  },
+  {
+   "id": 27,
+   "name": "3-7",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "normal",
+   "homeFaction": 0,
+   "group": ""
+  },
+  {
+   "id": 28,
+   "name": "3-8",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "normal",
+   "homeFaction": 0,
+   "group": ""
+  },
+  {
+   "id": 29,
+   "name": "4-5",
+   "scale": 2.0,
+   "width": 42000,
+   "height": 26200,
+   "type": "normal",
+   "homeFaction": 0,
+   "group": ""
+  },
+  {
+   "id": 30,
+   "name": "Tiered Arena (Low)",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "normal",
+   "homeFaction": 0,
+   "group": ""
+  },
+  {
+   "id": 31,
+   "name": "Tiered Arena (High)",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "normal",
+   "homeFaction": 0,
+   "group": ""
+  },
+  {
+   "id": 42,
+   "name": "???",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": ""
+  },
+  {
+   "id": 51,
+   "name": "GG Alpha",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "GG"
+  },
+  {
+   "id": 52,
+   "name": "GG Beta",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "GG"
+  },
+  {
+   "id": 53,
+   "name": "GG Gamma",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "GG"
+  },
+  {
+   "id": 54,
+   "name": "GG NC",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "GG"
+  },
+  {
+   "id": 55,
+   "name": "GG Delta",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "GG"
+  },
+  {
+   "id": 56,
+   "name": "GG Orb",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "GG"
+  },
+  {
+   "id": 57,
+   "name": "GG Y6",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "GG"
+  },
+  {
+   "id": 58,
+   "name": "HSG",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": ""
+  },
+  {
+   "id": 61,
+   "name": "MMO Invasion",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "I:MMO"
+  },
+  {
+   "id": 62,
+   "name": "EIC Invasion",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "I:EIC"
+  },
+  {
+   "id": 63,
+   "name": "VRU Invasion",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "I:VRU"
+  },
+  {
+   "id": 64,
+   "name": "MMO Invasion",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "I:MMO"
+  },
+  {
+   "id": 65,
+   "name": "EIC Invasion",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "I:EIC"
+  },
+  {
+   "id": 66,
+   "name": "VRU Invasion",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "I:VRU"
+  },
+  {
+   "id": 67,
+   "name": "MMO Invasion",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "I:MMO"
+  },
+  {
+   "id": 68,
+   "name": "EIC Invasion",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "I:EIC"
+  },
+  {
+   "id": 69,
+   "name": "VRU Invasion",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "I:VRU"
+  },
+  {
+   "id": 70,
+   "name": "GG EPSILON",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "GG"
+  },
+  {
+   "id": 71,
+   "name": "GG ζ 1",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "GG"
+  },
+  {
+   "id": 72,
+   "name": "GG ζ 2",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "GG"
+  },
+  {
+   "id": 73,
+   "name": "GG Zeta",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "GG"
+  },
+  {
+   "id": 74,
+   "name": "GG Kappa",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "GG"
+  },
+  {
+   "id": 75,
+   "name": "GG LAMBDA",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "GG"
+  },
+  {
+   "id": 76,
+   "name": "GG Kronos",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "GG"
+  },
+  {
+   "id": 77,
+   "name": "GG Cold Wave (Easy)",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "GG"
+  },
+  {
+   "id": 78,
+   "name": "GG Cold Wave (Hard)",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "GG"
+  },
+  {
+   "id": 81,
+   "name": "TDM I",
+   "scale": 0.5,
+   "width": 10500,
+   "height": 6550,
+   "type": "",
+   "homeFaction": 0,
+   "group": "TDM"
+  },
+  {
+   "id": 82,
+   "name": "TDM II",
+   "scale": 0.5,
+   "width": 10500,
+   "height": 6550,
+   "type": "",
+   "homeFaction": 0,
+   "group": "TDM"
+  },
+  {
+   "id": 91,
+   "name": "5-1",
+   "scale": 2.0,
+   "width": 42000,
+   "height": 26200,
+   "type": "pirate",
+   "homeFaction": 0,
+   "group": ""
+  },
+  {
+   "id": 92,
+   "name": "5-2",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "pirate",
+   "homeFaction": 0,
+   "group": ""
+  },
+  {
+   "id": 93,
+   "name": "5-3",
+   "scale": 2.0,
+   "width": 42000,
+   "height": 26200,
+   "type": "pirate",
+   "homeFaction": 0,
+   "group": ""
+  },
+  {
+   "id": 94,
+   "name": "5-4",
+   "scale": 2.0,
+   "width": 42000,
+   "height": 26200,
+   "type": "pirate",
+   "homeFaction": 0,
+   "group": ""
+  },
+  {
+   "id": 101,
+   "name": "JP",
+   "scale": 0.5,
+   "width": 10500,
+   "height": 6550,
+   "type": "",
+   "homeFaction": 0,
+   "group": ""
+  },
+  {
+   "id": 102,
+   "name": "JP",
+   "scale": 0.5,
+   "width": 10500,
+   "height": 6550,
+   "type": "",
+   "homeFaction": 0,
+   "group": ""
+  },
+  {
+   "id": 103,
+   "name": "JP",
+   "scale": 0.5,
+   "width": 10500,
+   "height": 6550,
+   "type": "",
+   "homeFaction": 0,
+   "group": ""
+  },
+  {
+   "id": 104,
+   "name": "JP",
+   "scale": 0.5,
+   "width": 10500,
+   "height": 6550,
+   "type": "",
+   "homeFaction": 0,
+   "group": ""
+  },
+  {
+   "id": 105,
+   "name": "JP",
+   "scale": 0.5,
+   "width": 10500,
+   "height": 6550,
+   "type": "",
+   "homeFaction": 0,
+   "group": ""
+  },
+  {
+   "id": 106,
+   "name": "JP",
+   "scale": 0.5,
+   "width": 10500,
+   "height": 6550,
+   "type": "",
+   "homeFaction": 0,
+   "group": ""
+  },
+  {
+   "id": 107,
+   "name": "JP",
+   "scale": 0.5,
+   "width": 10500,
+   "height": 6550,
+   "type": "",
+   "homeFaction": 0,
+   "group": ""
+  },
+  {
+   "id": 108,
+   "name": "JP",
+   "scale": 0.5,
+   "width": 10500,
+   "height": 6550,
+   "type": "",
+   "homeFaction": 0,
+   "group": ""
+  },
+  {
+   "id": 109,
+   "name": "JP",
+   "scale": 0.5,
+   "width": 10500,
+   "height": 6550,
+   "type": "",
+   "homeFaction": 0,
+   "group": ""
+  },
+  {
+   "id": 110,
+   "name": "JP",
+   "scale": 0.5,
+   "width": 10500,
+   "height": 6550,
+   "type": "",
+   "homeFaction": 0,
+   "group": ""
+  },
+  {
+   "id": 111,
+   "name": "JP",
+   "scale": 0.5,
+   "width": 10500,
+   "height": 6550,
+   "type": "",
+   "homeFaction": 0,
+   "group": ""
+  },
+  {
+   "id": 112,
+   "name": "UBA",
+   "scale": 0.5,
+   "width": 10500,
+   "height": 6550,
+   "type": "",
+   "homeFaction": 0,
+   "group": ""
+  },
+  {
+   "id": 113,
+   "name": "UBA",
+   "scale": 0.5,
+   "width": 10500,
+   "height": 6550,
+   "type": "",
+   "homeFaction": 0,
+   "group": ""
+  },
+  {
+   "id": 114,
+   "name": "UBA",
+   "scale": 0.5,
+   "width": 10500,
+   "height": 6550,
+   "type": "",
+   "homeFaction": 0,
+   "group": ""
+  },
+  {
+   "id": 115,
+   "name": "UBA",
+   "scale": 0.5,
+   "width": 10500,
+   "height": 6550,
+   "type": "",
+   "homeFaction": 0,
+   "group": ""
+  },
+  {
+   "id": 116,
+   "name": "UBA",
+   "scale": 0.5,
+   "width": 10500,
+   "height": 6550,
+   "type": "",
+   "homeFaction": 0,
+   "group": ""
+  },
+  {
+   "id": 117,
+   "name": "UBA",
+   "scale": 0.5,
+   "width": 10500,
+   "height": 6550,
+   "type": "",
+   "homeFaction": 0,
+   "group": ""
+  },
+  {
+   "id": 118,
+   "name": "UBA",
+   "scale": 0.5,
+   "width": 10500,
+   "height": 6550,
+   "type": "",
+   "homeFaction": 0,
+   "group": ""
+  },
+  {
+   "id": 119,
+   "name": "UBA",
+   "scale": 0.5,
+   "width": 10500,
+   "height": 6550,
+   "type": "",
+   "homeFaction": 0,
+   "group": ""
+  },
+  {
+   "id": 120,
+   "name": "UBA",
+   "scale": 0.5,
+   "width": 10500,
+   "height": 6550,
+   "type": "",
+   "homeFaction": 0,
+   "group": ""
+  },
+  {
+   "id": 121,
+   "name": "UBA",
+   "scale": 0.5,
+   "width": 10500,
+   "height": 6550,
+   "type": "",
+   "homeFaction": 0,
+   "group": ""
+  },
+  {
+   "id": 150,
+   "name": "R-Zone 1",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "R-Z"
+  },
+  {
+   "id": 151,
+   "name": "R-Zone 2",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "R-Z"
+  },
+  {
+   "id": 152,
+   "name": "R-Zone 3",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "R-Z"
+  },
+  {
+   "id": 153,
+   "name": "R-Zone 4",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "R-Z"
+  },
+  {
+   "id": 154,
+   "name": "R-Zone 5",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "R-Z"
+  },
+  {
+   "id": 155,
+   "name": "R-Zone 6",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "R-Z"
+  },
+  {
+   "id": 156,
+   "name": "R-Zone 7",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "R-Z"
+  },
+  {
+   "id": 157,
+   "name": "R-Zone 8",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "R-Z"
+  },
+  {
+   "id": 158,
+   "name": "R-Zone 9",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "R-Z"
+  },
+  {
+   "id": 159,
+   "name": "R-Zone 10",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "R-Z"
+  },
+  {
+   "id": 200,
+   "name": "LoW",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": ""
+  },
+  {
+   "id": 201,
+   "name": "SC-1",
+   "scale": 0.5,
+   "width": 10500,
+   "height": 6550,
+   "type": "",
+   "homeFaction": 0,
+   "group": ""
+  },
+  {
+   "id": 202,
+   "name": "SC-2",
+   "scale": 0.5,
+   "width": 10500,
+   "height": 6550,
+   "type": "",
+   "homeFaction": 0,
+   "group": ""
+  },
+  {
+   "id": 203,
+   "name": "GG Hades",
+   "scale": 0.5,
+   "width": 10500,
+   "height": 6550,
+   "type": "",
+   "homeFaction": 0,
+   "group": "HG"
+  },
+  {
+   "id": 223,
+   "name": "Devolarium Attack",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "DA"
+  },
+  {
+   "id": 224,
+   "name": "Custom Tournament",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "C-T"
+  },
+  {
+   "id": 225,
+   "name": "GG PET Attack (easy)",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "GG"
+  },
+  {
+   "id": 226,
+   "name": "GG PET Attack (hard)",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": ""
+  },
+  {
+   "id": 227,
+   "name": "GG Trial of Terror",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "GG"
+  },
+  {
+   "id": 228,
+   "name": "Permafrost Fissure",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "GG"
+  },
+  {
+   "id": 229,
+   "name": "Quarantine Zone",
+   "scale": 0.5,
+   "width": 10500,
+   "height": 6550,
+   "type": "",
+   "homeFaction": 0,
+   "group": "GG"
+  },
+  {
+   "id": 230,
+   "name": "GG Trial of Terror",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "GG"
+  },
+  {
+   "id": 231,
+   "name": "GG Trial of Terror",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "GG"
+  },
+  {
+   "id": 232,
+   "name": "GG Trial of Terror",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "GG"
+  },
+  {
+   "id": 233,
+   "name": "GG Trial of Terror",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "GG"
+  },
+  {
+   "id": 234,
+   "name": "GG Trial of Terror",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "GG"
+  },
+  {
+   "id": 235,
+   "name": "GG Trial of Terror",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "GG"
+  },
+  {
+   "id": 236,
+   "name": "GG Trial of Terror",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "GG"
+  },
+  {
+   "id": 300,
+   "name": "GG ς 1",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "GG"
+  },
+  {
+   "id": 301,
+   "name": "GG ς 2",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "GG"
+  },
+  {
+   "id": 302,
+   "name": "GG ς 3",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "GG"
+  },
+  {
+   "id": 303,
+   "name": "GG ς 4",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "GG"
+  },
+  {
+   "id": 304,
+   "name": "GG ς 5",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "GG"
+  },
+  {
+   "id": 305,
+   "name": "Compromising Invasion",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "GG"
+  },
+  {
+   "id": 306,
+   "name": "1-BL",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "normal",
+   "homeFaction": 0,
+   "group": "1BL"
+  },
+  {
+   "id": 307,
+   "name": "2-BL",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "normal",
+   "homeFaction": 0,
+   "group": "2BL"
+  },
+  {
+   "id": 308,
+   "name": "3-BL",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "normal",
+   "homeFaction": 0,
+   "group": "3BL"
+  },
+  {
+   "id": 401,
+   "name": "Experiment Zone 1",
+   "scale": 0.5,
+   "width": 10500,
+   "height": 6550,
+   "type": "",
+   "homeFaction": 0,
+   "group": "EX1"
+  },
+  {
+   "id": 402,
+   "name": "Experiment Zone 2-1",
+   "scale": 0.5,
+   "width": 10500,
+   "height": 6550,
+   "type": "",
+   "homeFaction": 0,
+   "group": "EX2"
+  },
+  {
+   "id": 403,
+   "name": "Experiment Zone 2-2",
+   "scale": 0.5,
+   "width": 10500,
+   "height": 6550,
+   "type": "",
+   "homeFaction": 0,
+   "group": "EX2"
+  },
+  {
+   "id": 404,
+   "name": "Experiment Zone 2-3",
+   "scale": 0.5,
+   "width": 10500,
+   "height": 6550,
+   "type": "",
+   "homeFaction": 0,
+   "group": "EX2"
+  },
+  {
+   "id": 410,
+   "name": "Gauntlet Of Plutus (Normal)",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "GOP (N)"
+  },
+  {
+   "id": 411,
+   "name": "Gauntlet Of Plutus (Normal)",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "GOP (N)"
+  },
+  {
+   "id": 412,
+   "name": "Gauntlet Of Plutus (Normal)",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "GOP (N)"
+  },
+  {
+   "id": 413,
+   "name": "Gauntlet Of Plutus (Normal)",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "GOP (N)"
+  },
+  {
+   "id": 414,
+   "name": "Gauntlet Of Plutus (Normal)",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "GOP (N)"
+  },
+  {
+   "id": 415,
+   "name": "Gauntlet Of Plutus Boss (Normal)",
+   "scale": 0.5,
+   "width": 10500,
+   "height": 6550,
+   "type": "",
+   "homeFaction": 0,
+   "group": "GOP (N)"
+  },
+  {
+   "id": 420,
+   "name": "WarGame 1",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "WG 2"
+  },
+  {
+   "id": 421,
+   "name": "WarGame 2",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "WG 1"
+  },
+  {
+   "id": 422,
+   "name": "WarGame 3",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "WG 3"
+  },
+  {
+   "id": 423,
+   "name": "WarGame 4",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "WG 4"
+  },
+  {
+   "id": 424,
+   "name": "WarGame 5",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "WG 5"
+  },
+  {
+   "id": 425,
+   "name": "WarGame 6",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "WG 6"
+  },
+  {
+   "id": 430,
+   "name": "Escort VRU 1",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "PayloadEscort"
+  },
+  {
+   "id": 431,
+   "name": "Escort VRU 2",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "PayloadEscort"
+  },
+  {
+   "id": 432,
+   "name": "Escort VRU 3",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "PayloadEscort"
+  },
+  {
+   "id": 433,
+   "name": "Escort MMO 1",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "PayloadEscort"
+  },
+  {
+   "id": 434,
+   "name": "Escort MMO 2",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "PayloadEscort"
+  },
+  {
+   "id": 435,
+   "name": "Escort MMO 3",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "PayloadEscort"
+  },
+  {
+   "id": 436,
+   "name": "Escort EIC 1",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "PayloadEscort"
+  },
+  {
+   "id": 437,
+   "name": "Escort EIC 2",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "PayloadEscort"
+  },
+  {
+   "id": 438,
+   "name": "Escort EIC 3",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "PayloadEscort"
+  },
+  {
+   "id": 439,
+   "name": "Eternal Gate",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "Eternal Gate"
+  },
+  {
+   "id": 440,
+   "name": "Eternal Gate",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "Eternal Gate"
+  },
+  {
+   "id": 441,
+   "name": "Eternal Gate",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "Eternal Gate"
+  },
+  {
+   "id": 442,
+   "name": "Eternal Gate",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "Eternal Gate"
+  },
+  {
+   "id": 443,
+   "name": "Eternal Gate",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "Eternal Gate"
+  },
+  {
+   "id": 444,
+   "name": "Eternal Gate",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "Eternal Gate"
+  },
+  {
+   "id": 445,
+   "name": "Eternal Gate",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "Eternal Gate"
+  },
+  {
+   "id": 450,
+   "name": "Gauntlet Of Plutus (Easy)",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "GOP (E)"
+  },
+  {
+   "id": 451,
+   "name": "Gauntlet Of Plutus (Easy)",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "GOP (E)"
+  },
+  {
+   "id": 452,
+   "name": "Gauntlet Of Plutus (Easy)",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "GOP (E)"
+  },
+  {
+   "id": 453,
+   "name": "Gauntlet Of Plutus (Easy)",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "GOP (E)"
+  },
+  {
+   "id": 454,
+   "name": "Gauntlet Of Plutus (Easy)",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "GOP (E)"
+  },
+  {
+   "id": 455,
+   "name": "Gauntlet Of Plutus Boss (Easy)",
+   "scale": 0.5,
+   "width": 10500,
+   "height": 6550,
+   "type": "",
+   "homeFaction": 0,
+   "group": "GOP (E)"
+  },
+  {
+   "id": 460,
+   "name": "Eternal Blacklight",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "Eternal Blacklight"
+  },
+  {
+   "id": 461,
+   "name": "Eternal Blacklight",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "Eternal Blacklight"
+  },
+  {
+   "id": 462,
+   "name": "Eternal Blacklight",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "Eternal Blacklight"
+  },
+  {
+   "id": 463,
+   "name": "Eternal Blacklight",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "Eternal Blacklight"
+  },
+  {
+   "id": 464,
+   "name": "Eternal Blacklight",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "Eternal Blacklight"
+  },
+  {
+   "id": 465,
+   "name": "Eternal Blacklight",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "Eternal Blacklight"
+  },
+  {
+   "id": 466,
+   "name": "Astral Ascension",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "Rougelite"
+  },
+  {
+   "id": 467,
+   "name": "Astral Ascension",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "Rougelite"
+  },
+  {
+   "id": 468,
+   "name": "Astral Ascension",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "Rougelite"
+  },
+  {
+   "id": 469,
+   "name": "Plutus' Trove of Riches (Normal)",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "GOP Bonus (N)"
+  },
+  {
+   "id": 470,
+   "name": "Plutus' Trove of Riches (Easy)",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "GOP Bonus (E)"
+  },
+  {
+   "id": 471,
+   "name": "Treacherous Domain (Easy)",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "World Boss (E)"
+  },
+  {
+   "id": 472,
+   "name": "Treacherous Domain",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "World Boss (N)"
+  },
+  {
+   "id": 473,
+   "name": "Command Hall",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "E1"
+  },
+  {
+   "id": 474,
+   "name": "DSE 1",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "DSE 1"
+  },
+  {
+   "id": 475,
+   "name": "DSE 2",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": ""
+  },
+  {
+   "id": 476,
+   "name": "DSE 3",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "normal",
+   "homeFaction": 0,
+   "group": ""
+  },
+  {
+   "id": 477,
+   "name": "DSE 4",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": ""
+  },
+  {
+   "id": 478,
+   "name": "DSE 5",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "normal",
+   "homeFaction": 0,
+   "group": ""
+  },
+  {
+   "id": 479,
+   "name": "DSE 6",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "normal",
+   "homeFaction": 0,
+   "group": ""
+  },
+  {
+   "id": 480,
+   "name": "DSE 7",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "pirate",
+   "homeFaction": 0,
+   "group": ""
+  },
+  {
+   "id": 481,
+   "name": "DSE 8",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "pirate",
+   "homeFaction": 0,
+   "group": ""
+  },
+  {
+   "id": 482,
+   "name": "Treacherous Domain",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "World Boss"
+  },
+  {
+   "id": 483,
+   "name": "Vortex of Greed I",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "SAE"
+  },
+  {
+   "id": 484,
+   "name": "Vortex of Greed II",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "SAE"
+  },
+  {
+   "id": 485,
+   "name": "Vortex of Greed III",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "SAE"
+  },
+  {
+   "id": 486,
+   "name": "Vortex of Greed IV",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "SAE"
+  },
+  {
+   "id": 487,
+   "name": "Vortex of Greed V",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "SAE"
+  },
+  {
+   "id": 488,
+   "name": "Vortex of Greed VI",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "SAE"
+  },
+  {
+   "id": 489,
+   "name": "Vortex of Greed VII",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "SAE"
+  },
+  {
+   "id": 490,
+   "name": "Vortex of Greed VIII",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "SAE"
+  },
+  {
+   "id": 491,
+   "name": "Vortex of Greed IX",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "SAE"
+  },
+  {
+   "id": 492,
+   "name": "Vortex of Greed X",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "SAE"
+  },
+  {
+   "id": 493,
+   "name": "Vortex of Greed X",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "SAE"
+  },
+  {
+   "id": 494,
+   "name": "Fiesta I",
+   "scale": 0.5,
+   "width": 10500,
+   "height": 6550,
+   "type": "",
+   "homeFaction": 0,
+   "group": ""
+  },
+  {
+   "id": 495,
+   "name": "Fiesta II",
+   "scale": 0.5,
+   "width": 10500,
+   "height": 6550,
+   "type": "",
+   "homeFaction": 0,
+   "group": ""
+  },
+  {
+   "id": 496,
+   "name": "Fiesta III",
+   "scale": 0.5,
+   "width": 10500,
+   "height": 6550,
+   "type": "",
+   "homeFaction": 0,
+   "group": ""
+  },
+  {
+   "id": 497,
+   "name": "Fiesta IV",
+   "scale": 0.5,
+   "width": 10500,
+   "height": 6550,
+   "type": "",
+   "homeFaction": 0,
+   "group": ""
+  },
+  {
+   "id": 498,
+   "name": "Fiesta V",
+   "scale": 0.5,
+   "width": 10500,
+   "height": 6550,
+   "type": "",
+   "homeFaction": 0,
+   "group": ""
+  },
+  {
+   "id": 499,
+   "name": "Hellfire I",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": ""
+  },
+  {
+   "id": 500,
+   "name": "Hellfire II",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": ""
+  },
+  {
+   "id": 501,
+   "name": "Hellfire III",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": ""
+  },
+  {
+   "id": 502,
+   "name": "Hellfire IV",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": ""
+  },
+  {
+   "id": 503,
+   "name": "Hellfire V",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": ""
+  },
+  {
+   "id": 504,
+   "name": "Genome I",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": ""
+  },
+  {
+   "id": 505,
+   "name": "Genome II",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": ""
+  },
+  {
+   "id": 506,
+   "name": "Genome III",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": ""
+  },
+  {
+   "id": 507,
+   "name": "Genome IV",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": ""
+  },
+  {
+   "id": 508,
+   "name": "Genome V",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": ""
+  },
+  {
+   "id": 509,
+   "name": "Voyager Map",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": ""
+  },
+  {
+   "id": 510,
+   "name": "Kristallon Apotheosis",
+   "scale": 0.5,
+   "width": 10500,
+   "height": 6550,
+   "type": "",
+   "homeFaction": 0,
+   "group": "Kristallon Apotheosis"
+  },
+  {
+   "id": 511,
+   "name": "Kristallon Apotheosis",
+   "scale": 0.5,
+   "width": 10500,
+   "height": 6550,
+   "type": "",
+   "homeFaction": 0,
+   "group": "Kristallon Apotheosis"
+  },
+  {
+   "id": 512,
+   "name": "Kristallon Apotheosis",
+   "scale": 0.5,
+   "width": 10500,
+   "height": 6550,
+   "type": "",
+   "homeFaction": 0,
+   "group": "Kristallon Apotheosis"
+  },
+  {
+   "id": 513,
+   "name": "Kristallon Apotheosis",
+   "scale": 0.5,
+   "width": 10500,
+   "height": 6550,
+   "type": "",
+   "homeFaction": 0,
+   "group": "Kristallon Apotheosis"
+  },
+  {
+   "id": 514,
+   "name": "Kristallon Apotheosis",
+   "scale": 0.5,
+   "width": 10500,
+   "height": 6550,
+   "type": "",
+   "homeFaction": 0,
+   "group": "Kristallon Apotheosis"
+  },
+  {
+   "id": 515,
+   "name": "Kristallon Apotheosis",
+   "scale": 0.5,
+   "width": 10500,
+   "height": 6550,
+   "type": "",
+   "homeFaction": 0,
+   "group": "Kristallon Apotheosis"
+  },
+  {
+   "id": 516,
+   "name": "Kristallon Apotheosis",
+   "scale": 0.5,
+   "width": 10500,
+   "height": 6550,
+   "type": "",
+   "homeFaction": 0,
+   "group": "Kristallon Apotheosis"
+  },
+  {
+   "id": 517,
+   "name": "Kristallon Apotheosis",
+   "scale": 0.5,
+   "width": 10500,
+   "height": 6550,
+   "type": "",
+   "homeFaction": 0,
+   "group": "Kristallon Apotheosis"
+  },
+  {
+   "id": 518,
+   "name": "Kristallon Apotheosis",
+   "scale": 0.5,
+   "width": 10500,
+   "height": 6550,
+   "type": "",
+   "homeFaction": 0,
+   "group": "Kristallon Apotheosis"
+  },
+  {
+   "id": 519,
+   "name": "Kristallon Apotheosis",
+   "scale": 0.5,
+   "width": 10500,
+   "height": 6550,
+   "type": "",
+   "homeFaction": 0,
+   "group": "Kristallon Apotheosis"
+  },
+  {
+   "id": 666,
+   "name": "",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": ""
+  },
+  {
+   "id": 1439,
+   "name": "Escort VRU 4",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "PayloadEscort"
+  },
+  {
+   "id": 1440,
+   "name": "Escort VRU 5",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "PayloadEscort"
+  },
+  {
+   "id": 1441,
+   "name": "Escort VRU 6",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "PayloadEscort"
+  },
+  {
+   "id": 1442,
+   "name": "Escort VRU 7",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "PayloadEscort"
+  },
+  {
+   "id": 1443,
+   "name": "Escort VRU 8",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "PayloadEscort"
+  },
+  {
+   "id": 1444,
+   "name": "Escort VRU 9",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "PayloadEscort"
+  },
+  {
+   "id": 1445,
+   "name": "Escort VRU 10",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "PayloadEscort"
+  },
+  {
+   "id": 1446,
+   "name": "Escort MMO 4",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "PayloadEscort"
+  },
+  {
+   "id": 1447,
+   "name": "Escort MMO 5",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "PayloadEscort"
+  },
+  {
+   "id": 1448,
+   "name": "Escort MMO 6",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "PayloadEscort"
+  },
+  {
+   "id": 1449,
+   "name": "Escort MMO 7",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "PayloadEscort"
+  },
+  {
+   "id": 1450,
+   "name": "Escort MMO 8",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "PayloadEscort"
+  },
+  {
+   "id": 1451,
+   "name": "Escort MMO 9",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "PayloadEscort"
+  },
+  {
+   "id": 1452,
+   "name": "Escort MMO 10",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "PayloadEscort"
+  },
+  {
+   "id": 1453,
+   "name": "Escort EIC 4",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "PayloadEscort"
+  },
+  {
+   "id": 1454,
+   "name": "Escort EIC 5",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "PayloadEscort"
+  },
+  {
+   "id": 1455,
+   "name": "Escort EIC 6",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "PayloadEscort"
+  },
+  {
+   "id": 1456,
+   "name": "Escort EIC 7",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "PayloadEscort"
+  },
+  {
+   "id": 1457,
+   "name": "Escort EIC 8",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "PayloadEscort"
+  },
+  {
+   "id": 1458,
+   "name": "Escort EIC 9",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "PayloadEscort"
+  },
+  {
+   "id": 1459,
+   "name": "Escort EIC 10",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "PayloadEscort"
+  },
+  {
+   "id": 11501,
+   "name": "New Map 3",
+   "scale": 1.0,
+   "width": 21000,
+   "height": 13100,
+   "type": "",
+   "homeFaction": 0,
+   "group": "E1"
+  }
+ ]
+}
