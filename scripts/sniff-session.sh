@@ -31,7 +31,9 @@ else
 fi
 
 echo "Запускаю клиент через socks5://127.0.0.1:$PORT"
-"$APP/Contents/MacOS/DarkOrbit Client" \
+# Terminals inside VSCode/Electron apps inherit ELECTRON_RUN_AS_NODE=1, which turns the
+# client into a plain Node process that rejects Chromium switches.
+env -u ELECTRON_RUN_AS_NODE "$APP/Contents/MacOS/DarkOrbit Client" \
   --proxy-server="socks5://127.0.0.1:$PORT" \
   --proxy-bypass-list="<-loopback>" || true
 

@@ -109,7 +109,7 @@ final class Socks5Server {
             if (isGameTarget.test(target)) {
                 new GameRelay(client, upstream, target, names, recordDir).run();
             } else {
-                log.debug("Прозрачный туннель к {}", target);
+                log.info("Туннель к {}", target);
                 pipe(client, upstream);
             }
         } catch (IOException e) {
