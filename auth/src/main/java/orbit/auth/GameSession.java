@@ -12,9 +12,10 @@ package orbit.auth;
  * @param gameHost    game server host for that map
  * @param gamePort    game server port for that map
  * @param platform    {@code platform} flashvar; {@code PC_CLIENT} means {@code isMiniClient=true}
+ * @param mapsUrl     {@code maps.php} location, to find the server after a map change
  */
 public record GameSession(String host, String dosid, int userId, String sessionId, int instanceId,
-                          int mapId, String gameHost, int gamePort, String platform) {
+                          int mapId, String gameHost, int gamePort, String platform, String mapsUrl) {
 
     /** Mirrors the client: the downloadable client logs in with {@code isMiniClient = true}. */
     public boolean isMiniClient() {

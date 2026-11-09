@@ -134,9 +134,19 @@ public final class AuthClient {
                     "Не найден игровой сервер для карты " + mapId + " (в maps.php " + servers.size() + " карт).");
         }
         GameSession s = new GameSession(origin, dosid, userId, vars.get("sessionID"), instanceId, mapId,
-                addr.host(), addr.port(), vars.getOrDefault("platform", ""));
+                addr.host(), addr.port(), vars.getOrDefault("platform", ""), mapsUrl);
         log.info("Параметры игры получены: карта {}, сервер {}", mapId, addr);
         return s;
+    }
+
+    /** Looks up the game server of a map, e.g. after {@code ReloginCommand}. */
+    public MapServers.Address serverForMap(GameSession session, int mapId) throws AuthException {
+        MapServers servers = MapServers.parse(request(() -> http.get(session.mapsUrl())).body());
+        MapServers.Address addr = servers.forMap(mapId);
+        if (addr == null) {
+            throw new AuthException(AuthException.Reason.UNEXPECTED_PAGE, "Не найден игровой сервер для карты " + mapId + ".");
+        }
+        return addr;
     }
 
     private AuthException classifyLoginFailure(HttpSession.Response result) {

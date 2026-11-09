@@ -1,3 +1,3 @@
 rootProject.name = "orbit-client"
 
-include("net", "protocol-gen", "protocol", "auth", "sniffer")
+include("net", "protocol-gen", "protocol", "auth", "game", "sniffer")

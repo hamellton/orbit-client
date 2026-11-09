@@ -77,6 +77,14 @@ class AuthClientTest {
     }
 
     @Test
+    void serverForMapUsesMapsTable() throws Exception {
+        AuthClient c = client();
+        GameSession s = c.loginWithDosid("int1", DOSID);
+        assertEquals(new MapServers.Address("gs-1.example", 6003), c.serverForMap(s, 1));
+        assertThrows(AuthException.class, () -> c.serverForMap(s, 777));
+    }
+
+    @Test
     void wrongPasswordIsReported() {
         AuthException e = assertThrows(AuthException.class, () -> client().loginWithPassword("pilot", "wrong"));
         assertEquals(AuthException.Reason.INVALID_CREDENTIALS, e.reason());

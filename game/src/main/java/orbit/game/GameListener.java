@@ -1,0 +1,32 @@
+package orbit.game;
+
+import orbit.protocol.Packet;
+
+/** Receives everything a {@link GameConnection} sees. Called from the connection's reader thread. */
+public interface GameListener {
+
+    /** Connection lifecycle as shown to the user. */
+    enum State {
+        /** Logging in on the website. */
+        AUTHENTICATING,
+        /** TCP connect + version check + login. */
+        CONNECTING,
+        /** Logged in on a map. */
+        ONLINE,
+        /** Changing server after the game asked for it. */
+        CHANGING_SERVER,
+        /** Lost connection, waiting before the next attempt. */
+        RECONNECTING,
+        /** Stopped for good (outdated protocol, wrong password, closed by user). */
+        STOPPED
+    }
+
+    /** Every decoded server packet. */
+    void onPacket(Packet packet);
+
+    /**
+     * @param reason human-readable explanation in Russian (never contains secrets)
+     */
+    default void onState(State state, String reason) {
+    }
+}
