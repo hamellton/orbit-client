@@ -94,6 +94,9 @@ final class Hud {
         if (h.attackTargetId() != 0) {
             return "В бою";
         }
+        if (!h.attackers().isEmpty()) {
+            return "Под атакой";
+        }
         if (h.moving()) {
             return "В полёте";
         }
@@ -112,20 +115,54 @@ final class Hud {
                 lines.add(String.format("Трюм %d/%d", h.cargoMax() - h.cargoFree(), h.cargoMax()));
             }
         }
-        if (w.group().exists()) {
-            lines.add("Группа (" + w.group().members().size() + "):");
-            for (WorldSnapshot.Member m : w.group().members()) {
-                String hp = m.health().known() ? String.format("  %.0f%%", m.health().hpPercent() * 100) : "";
-                lines.add("  " + m.name() + (m.id() == w.group().leaderId() ? " ★" : "") + hp
-                        + (m.mapId() != h.mapId() && m.mapId() != 0 ? "  (" + MapCatalog.bundled().info(m.mapId()).name() + ")" : ""));
-            }
-        }
         g.setFont(base.deriveFont(Font.PLAIN, 12f));
+        FontMetrics fm = g.getFontMetrics();
+        int textWidth = lines.stream().mapToInt(fm::stringWidth).max().orElse(0);
+        g.setColor(CARD_BACKGROUND);
+        g.fillRoundRect(MARGIN - 6, MARGIN - 2, textWidth + 12, lines.size() * 16 + 8, 8, 8);
         int y = MARGIN + 12;
         for (String line : lines) {
             g.setColor(y == MARGIN + 12 ? TEXT : DIM);
             g.drawString(line, MARGIN, y);
             y += 16;
+        }
+        paintGroup(g, MARGIN, y + 6, w);
+    }
+
+    /** One card per other group member: name (★ leader), level, map if elsewhere, hull and shield. */
+    private void paintGroup(Graphics2D g, int x, int y, WorldSnapshot w) {
+        WorldSnapshot.Group group = w.group();
+        if (!group.exists()) {
+            return;
+        }
+        WorldSnapshot.Hero h = w.hero();
+        g.setFont(base.deriveFont(Font.PLAIN, 10f));
+        g.setColor(DIM);
+        g.drawString("Группа (" + group.members().size() + ")" + (group.leaderId() == h.id() ? " — вы лидер" : ""), x, y + 10);
+        y += 16;
+        for (WorldSnapshot.Member m : group.members()) {
+            if (m.id() == h.id()) {
+                continue;
+            }
+            int cardHeight = 50;
+            card(g, x, y, cardHeight, m.loggedOut() ? Color.GRAY : MinimapPanel.ALLY);
+            g.setFont(base.deriveFont(Font.BOLD, 12f));
+            g.setColor(m.loggedOut() ? DIM : TEXT);
+            g.drawString(clip(g, m.name() + (m.id() == group.leaderId() ? " ★" : ""), CARD_WIDTH - 90), x + 10, y + 15);
+            g.setFont(base.deriveFont(Font.PLAIN, 10f));
+            g.setColor(DIM);
+            String where = m.loggedOut() ? "не в игре"
+                    : m.mapId() != h.mapId() && m.mapId() != 0 ? MapCatalog.bundled().info(m.mapId()).name()
+                    : String.format("%,.0f", Math.hypot(m.x() - h.x(), m.y() - h.y()));
+            String right = (m.level() > 0 ? "ур. " + m.level() + "   " : "") + where + (m.cloaked() ? "  невид." : "");
+            FontMetrics fm = g.getFontMetrics();
+            g.drawString(right, x + CARD_WIDTH - 10 - fm.stringWidth(right), y + 15);
+            if (m.health().known()) {
+                bars(g, x + 10, y + 21, m.health());
+            } else {
+                g.drawString("HP неизвестно", x + 10, y + 33);
+            }
+            y += cardHeight + 6;
         }
     }
 
