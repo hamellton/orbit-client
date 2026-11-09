@@ -9,9 +9,12 @@ import org.slf4j.LoggerFactory;
 /**
  * Entry point. Usage:
  * <pre>
- *   sniffer [--port 1080] [--packets reference/protocol/packets-*.json] [--out recordings]
+ *   sniffer [--port 1080] [--direct 170.33.12.50:6001-6007]
+ *           [--packets reference/protocol/packets-*.json] [--out recordings]
  * </pre>
- * Then start the official client with {@code --proxy-server=socks5://127.0.0.1:1080}.
+ * Web traffic goes through the SOCKS5 port ({@code --proxy-server=socks5://127.0.0.1:1080}).
+ * The Flash plugin ignores the proxy, so game sockets are captured in direct mode: the client
+ * is started with {@code --host-resolver-rules="MAP *.prod.darkorbit.com 127.0.0.1"}.
  */
 public final class SnifferMain {
 
@@ -28,9 +31,11 @@ public final class SnifferMain {
         int port = 1080;
         Path packets = null;
         Path out = Path.of("recordings");
+        String direct = null;
         for (int i = 0; i < args.length; i++) {
             switch (args[i]) {
                 case "--port" -> port = Integer.parseInt(args[++i]);
+                case "--direct" -> direct = args[++i];
                 case "--packets" -> packets = Path.of(args[++i]);
                 case "--out" -> out = Path.of(args[++i]);
                 default -> {
@@ -44,6 +49,15 @@ public final class SnifferMain {
         }
         PacketNames names = PacketNames.load(packets);
         log.info("Загружено {} описаний пакетов из {}", names.size(), packets);
+        if (direct != null) {
+            int colon = direct.lastIndexOf(':');
+            if (colon <= 0) {
+                System.err.println("Формат --direct: IP:порты, например 170.33.12.50:6001-6007");
+                System.exit(2);
+            }
+            new DirectForwarder(direct.substring(0, colon),
+                    DirectForwarder.parsePorts(direct.substring(colon + 1)), names, out).start();
+        }
         new Socks5Server(port, names, out, t -> GAME_TARGET.matcher(t).matches()).serve();
     }
 
