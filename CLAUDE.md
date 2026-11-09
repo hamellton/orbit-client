@@ -2,7 +2,7 @@
 
 Packet bot for DarkOrbit (Java 21, Gradle Kotlin DSL, multi-module). Personal use only.
 
-Status: Stage 1 (sniffer) done, awaiting review. See `docs/PLAN.md` for the full task list and
+Status: Stage 2 (protocol codegen) done, awaiting review. See `docs/PLAN.md` for the full task list and
 `docs/recon/` for protocol findings (`REPORT.md` = stage 0, `STAGE1.md` = live traffic).
 
 ## Rules
@@ -21,9 +21,12 @@ Status: Stage 1 (sniffer) done, awaiting review. See `docs/PLAN.md` for the full
 - JDK 21 (Temurin) for the build; JDK 17 also installed.
 
 ## Modules
-- `net` — framing (uint24 length), downstream LZ4 envelopes (`DOB3`/`DOL4`, CRC32).
-- `sniffer` — SOCKS5 + direct-port relay, session recording (`.dorec`), JSON-driven field decoder
-  (temporary until stage 2 codegen), `session-report` tool.
+- `net` — framing (uint24 length), downstream LZ4 envelopes (`DOB3`/`DOL4`, CRC32), `.dorec` reader.
+- `protocol-gen` — generator: `reference/protocol/{meta,packets}-*.json` → Java sources (newest meta wins).
+- `protocol` — runtime (`PacketInput/Output`, rotations, `PacketCodec`, `ProtocolOutdatedException`) +
+  generated `orbit.protocol.gen.*` (build output, not in git). Generated classes mirror client
+  inheritance; field codecs are static `writeFields/readFields` to replay `super.write`.
+- `sniffer` — SOCKS5 + direct-port relay, session recording, `session-report` tool; uses generated classes.
 
 ## Build
 Gradle needs JDK 21 (`export JAVA_HOME=$(/usr/libexec/java_home -v 21)`; the default `java` here is 17).
@@ -31,6 +34,9 @@ Gradle needs JDK 21 (`export JAVA_HOME=$(/usr/libexec/java_home -v 21)`; the def
 - `./gradlew :sniffer:installDist` — builds `sniffer/build/install/sniffer/bin/{sniffer,session-report}`.
 - `scripts/sniff-session.sh` — sniffer + official client (direct mode via `--host-resolver-rules`).
   Terminals inside VSCode set `ELECTRON_RUN_AS_NODE=1`; the script unsets it.
+- `scripts/update-protocol.sh [--force]` — after a game patch: download swf, decompile selected
+  packages, parse, validate, diff, regenerate, build. Logic in `tools/update_protocol.py`.
+- `RecordedTrafficTest` reads `recordings/` (local only) and requires byte-exact round trips.
 
 ## Protocol facts worth remembering
 - Flash ignores the browser proxy; game sockets are captured only by redirecting `*.prod.darkorbit.com`.
