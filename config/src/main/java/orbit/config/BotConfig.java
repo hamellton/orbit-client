@@ -81,6 +81,26 @@ public record BotConfig(
         return new BotConfig(schema, description, module, general, npcs, loot, collect, pet, s, zones, safetySpots, modules, extra);
     }
 
+    public BotConfig withDescription(String d) {
+        return new BotConfig(schema, d, module, general, npcs, loot, collect, pet, safety, zones, safetySpots, modules, extra);
+    }
+
+    public BotConfig withLoot(Loot l) {
+        return new BotConfig(schema, description, module, general, npcs, l, collect, pet, safety, zones, safetySpots, modules, extra);
+    }
+
+    public BotConfig withCollect(Collect c) {
+        return new BotConfig(schema, description, module, general, npcs, loot, c, pet, safety, zones, safetySpots, modules, extra);
+    }
+
+    public BotConfig withPet(Pet p) {
+        return new BotConfig(schema, description, module, general, npcs, loot, collect, p, safety, zones, safetySpots, modules, extra);
+    }
+
+    public BotConfig withZones(Map<Integer, Zones> z) {
+        return new BotConfig(schema, description, module, general, npcs, loot, collect, pet, safety, z, safetySpots, modules, extra);
+    }
+
     public BotConfig withModuleSettings(String key, JsonNode settings) {
         Map<String, JsonNode> m = new TreeMap<>(modules);
         m.put(key, settings);

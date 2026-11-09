@@ -46,7 +46,16 @@ public final class MainWindow {
 
         JSplitPane split = new JSplitPane(JSplitPane.VERTICAL_SPLIT, minimap, logScroll);
         split.setResizeWeight(0.85);
-        frame.setContentPane(split);
+        javax.swing.JToolBar bar = new javax.swing.JToolBar();
+        bar.setFloatable(false);
+        javax.swing.JButton configs = new javax.swing.JButton("Конфиги…");
+        configs.addActionListener(e -> orbit.app.gui.config.ConfigWindow.open(orbit.config.ConfigStore.openDefault(),
+                orbit.config.AccountSettings.DEFAULT_FILE, null));
+        bar.add(configs);
+        javax.swing.JPanel content = new javax.swing.JPanel(new java.awt.BorderLayout());
+        content.add(bar, java.awt.BorderLayout.NORTH);
+        content.add(split, java.awt.BorderLayout.CENTER);
+        frame.setContentPane(content);
         frame.pack();
         frame.setLocationByPlatform(true);
 

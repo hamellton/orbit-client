@@ -45,6 +45,7 @@ import org.slf4j.LoggerFactory;
  *   orbit observe [--port 1080] [--direct IP:6001-6007] [--out recordings]   # watch the official client
  *   orbit replay recordings/session-….dorec [--speed 2]
  *   orbit render recordings/session-….dorec --at 30 [--out minimap.png]   # minimap at second 30 as PNG
+ *   orbit configs                                                          # config, account and timetable window
  * </pre>
  * The bot itself does nothing in game yet: it logs in, keeps the connection and builds the world model.
  */
@@ -69,6 +70,7 @@ public final class OrbitMain {
             case "observe" -> observe(o);
             case "replay" -> replay(o);
             case "render" -> render(o);
+            case "configs" -> configs();
             default -> usage();
         }
     }
@@ -79,8 +81,19 @@ public final class OrbitMain {
                   orbit bot --account <имя> [--headless]   бот входит в игру сам
                   orbit observe [--direct IP:порты]        окно бота по трафику официального клиента (через сниффер)
                   orbit replay <запись.dorec> [--speed N]  проиграть запись сниффера
-                  orbit render <запись.dorec> --at <сек> [--out файл.png]  мини-карта на момент записи""");
+                  orbit render <запись.dorec> --at <сек> [--out файл.png]  мини-карта на момент записи
+                  orbit configs                            окно конфигов, аккаунтов и расписания""");
         System.exit(2);
+    }
+
+    // ---- configs ----
+
+    private static void configs() throws InterruptedException {
+        CountDownLatch closed = new CountDownLatch(1);
+        orbit.app.gui.config.ConfigWindow.open(orbit.config.ConfigStore.openDefault(),
+                orbit.config.AccountSettings.DEFAULT_FILE, closed::countDown);
+        closed.await();
+        System.exit(0);
     }
 
     // ---- bot ----
