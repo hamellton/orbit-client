@@ -47,6 +47,10 @@ public final class GameCheck {
     private GameCheck() {
     }
 
+    private static String itemText(WorldSnapshot.Item i) {
+        return i == null ? "-" : String.format("%s ×%.0f", i.id().replaceFirst("^ammunition_[a-z]+_", ""), i.counter());
+    }
+
     /** One-line summary of the world model for the log. */
     static String describe(WorldSnapshot w) {
         WorldSnapshot.Hero h = w.hero();
@@ -54,9 +58,13 @@ public final class GameCheck {
         long boxes = w.collectables().values().stream().filter(c -> c.kind() == WorldSnapshot.CollectableKind.BOX).count();
         String nearest = npcs.isEmpty() ? "нет" : String.format("%s в %.0f", npcs.getFirst().name(),
                 npcs.getFirst().distanceTo(h.x(), h.y()));
-        return String.format("Мир: карта %d, герой %d,%d%s, HP %.0f%%; игроков %d, NPC %d (ближайший: %s), "
+        WorldSnapshot.Item laser = w.selected("lasers");
+        WorldSnapshot.Item rocket = w.selected("rockets");
+        return String.format("Мир: карта %d, герой %d,%d%s, HP %.0f%%, конфиг %d, трюм свободно %d из %d, "
+                        + "лазер %s, ракеты %s, предметов %d; игроков %d, NPC %d (ближайший: %s), "
                         + "питомцев %d, ящиков %d, руды %d, порталов %d, объектов %d, зон %d%s",
-                h.mapId(), h.x(), h.y(), h.moving() ? " (летит)" : "", h.health().hpPercent() * 100,
+                h.mapId(), h.x(), h.y(), h.moving() ? " (летит)" : "", h.health().hpPercent() * 100, h.config(),
+                h.cargoFree(), h.cargoMax(), itemText(laser), itemText(rocket), w.items().size(),
                 w.nearest(WorldSnapshot.ShipKind.PLAYER).size(), npcs.size(), nearest,
                 w.nearest(WorldSnapshot.ShipKind.PET).size(), boxes, w.collectables().size() - boxes,
                 w.portals().size(), w.assets().size(), w.zones().size(),
