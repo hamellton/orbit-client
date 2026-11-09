@@ -130,33 +130,34 @@ public interface StartupSequence {
         }
 
         /**
-         * Cold start (3 recordings): loading 1–9 s, the fixed loading part, then the settings requests
+         * Cold start (4 recordings): loading 1–9 s, the fixed loading part, then the settings requests
          * of independent UI parts in any order (audio settings not always), then the keep-alive.
          */
         private static List<List<Step>> cold(ClientProfile profile, Context ctx, String view) {
             List<Step> prefix = new ArrayList<>();
+            // pauses: the envelope of four recorded cold starts with some room; they vary a lot
             prefix.add(new Step("HangarListRequest", 900, 9_500, HangarListRequest::new));
-            prefix.add(new Step("SpaceSearchRequest", 25, 70, () -> spaceSearch(0)));
-            prefix.add(new Step("SpaceSearchRequest", 0, 55, () -> spaceSearch(4)));
-            prefix.add(new Step("SpaceSearchRequest", 0, 85, () -> spaceSearch(2)));
-            prefix.add(new Step("LabUpdateRequest", 0, 40, LabUpdateRequest::new));
-            prefix.add(new Step("ReadyRequest", 1, 85, () -> ready(view, ReadyType.MAP_LOADED)));
-            prefix.add(new Step("ReadyRequest", 30, 80, () -> ready(view, ReadyType.UI_READY)));
-            prefix.add(new Step("LegacyModule", 65, 220, () -> legacy("LF|w")));
+            prefix.add(new Step("SpaceSearchRequest", 10, 100, () -> spaceSearch(0)));
+            prefix.add(new Step("SpaceSearchRequest", 0, 100, () -> spaceSearch(4)));
+            prefix.add(new Step("SpaceSearchRequest", 0, 100, () -> spaceSearch(2)));
+            prefix.add(new Step("LabUpdateRequest", 0, 60, LabUpdateRequest::new));
+            prefix.add(new Step("ReadyRequest", 1, 100, () -> ready(view, ReadyType.MAP_LOADED)));
+            prefix.add(new Step("ReadyRequest", 10, 100, () -> ready(view, ReadyType.UI_READY)));
+            prefix.add(new Step("LegacyModule", 0, 250, () -> legacy("LF|w")));
 
             List<Step> settings = List.of(
-                    new Step("CommandCenterGetDontShowRequest", 0, 200, CommandCenterGetDontShowRequest::new),
-                    new Step("UserKeyBindingsUpdate", 0, 200, profile::keyBindingsPacket),
-                    new Step("GalaxyGateBuilderInfoRequest", 0, 200, GalaxyGateBuilderInfoRequest::new));
+                    new Step("CommandCenterGetDontShowRequest", 0, 250, CommandCenterGetDontShowRequest::new),
+                    new Step("UserKeyBindingsUpdate", 0, 250, profile::keyBindingsPacket),
+                    new Step("GalaxyGateBuilderInfoRequest", 0, 250, GalaxyGateBuilderInfoRequest::new));
             List<List<Step>> variants = new ArrayList<>();
             for (boolean audio : new boolean[] {true, false}) {
                 for (List<Step> order : permutations(settings)) {
                     List<Step> v = new ArrayList<>(prefix);
                     if (audio) {
-                        v.add(new Step("AudioSettingsRequest", 0, 60, () -> audio(ctx.settings())));
+                        v.add(new Step("AudioSettingsRequest", 0, 100, () -> audio(ctx.settings())));
                     }
                     v.addAll(order);
-                    v.add(new Step("KeepAlive", 40, 800, StartupSequence.ClientLike::keepAlive));
+                    v.add(new Step("KeepAlive", 0, 800, StartupSequence.ClientLike::keepAlive));
                     variants.add(List.copyOf(v));
                 }
             }
