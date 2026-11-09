@@ -37,6 +37,7 @@ import org.slf4j.LoggerFactory;
  *
  * <pre>
  *   orbit bot --account main [--headless] [--profile local/client-profile.json] [--vault local/vault.bin]
+ *             [--fly 105/65]   # development: fly to a point of the current map once in game
  *   orbit observe [--port 1080] [--direct IP:6001-6007] [--out recordings]   # watch the official client
  *   orbit replay recordings/session-….dorec [--speed 2]
  *   orbit render recordings/session-….dorec --at 30 [--out minimap.png]   # minimap at second 30 as PNG
@@ -137,7 +138,50 @@ public final class OrbitMain {
                 StartupSequence.clientLike(profile));
         Thread runner = Thread.ofPlatform().name("game").start(conn::run);
         Runtime.getRuntime().addShutdownHook(new Thread(conn::close));
+        if (o.fly != null) {
+            startFlightTest(feed, conn, o.fly);
+        }
         runUntilClosed(feed, o.headless, conn::close, runner);
+    }
+
+    /**
+     * Development check of the navigator: once in game, waits a few seconds like a player looking
+     * around, flies to the point (game coordinates, e.g. {@code 105/65}) and logs the flight.
+     */
+    private static void startFlightTest(WorldFeed feed, GameConnection conn, String target) {
+        String[] xy = target.split("[/,]");
+        double x = Double.parseDouble(xy[0].trim()) * 100;
+        double y = Double.parseDouble(xy[1].trim()) * 100;
+        java.util.Random random = new java.util.Random();
+        orbit.bot.nav.Navigator nav = new orbit.bot.nav.Navigator(feed::snapshot, conn::send,
+                orbit.world.maps.MapCatalog.bundled(), random, System::nanoTime);
+        Thread.ofPlatform().name("bot-loop").daemon().start(() -> {
+            try {
+                while (feed.snapshot().hero().id() == 0) {
+                    Thread.sleep(500);
+                }
+                Thread.sleep(4_000 + random.nextInt(3_000));
+                log.info("Тест полёта: лечу к {}/{}", (int) x / 100, (int) y / 100);
+                feed.setAction("лечу к " + (int) x / 100 + "/" + (int) y / 100);
+                nav.moveTo(x, y, false);
+                long nextLog = 0;
+                while (!nav.idle()) {
+                    nav.tick();
+                    if (System.currentTimeMillis() > nextLog) {
+                        var h = feed.snapshot().hero();
+                        log.info("Полёт: {}/{}, осталось {}, кликов {}", h.x() / 100, h.y() / 100,
+                                (int) nav.remaining(), nav.clicks());
+                        nextLog = System.currentTimeMillis() + 5_000;
+                    }
+                    Thread.sleep(100);
+                }
+                var h = feed.snapshot().hero();
+                log.info("Тест полёта: прибыл в {}/{} ({} кликов)", h.x() / 100, h.y() / 100, nav.clicks());
+                feed.setAction(null);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        });
     }
 
     // ---- observer ----
@@ -242,7 +286,7 @@ public final class OrbitMain {
 
     /** Command-line options shared by the modes. */
     record Options(String account, Path vault, Path profile, boolean headless, int port, String direct, Path out,
-                   double speed, double at, List<String> positional) {
+                   double speed, double at, String fly, List<String> positional) {
 
         static Options parse(List<String> args) {
             String account = null;
@@ -254,6 +298,7 @@ public final class OrbitMain {
             Path out = Path.of("recordings");
             double speed = 1;
             double at = -1;
+            String fly = null;
             List<String> positional = new java.util.ArrayList<>();
             for (int i = 0; i < args.size(); i++) {
                 switch (args.get(i)) {
@@ -266,6 +311,7 @@ public final class OrbitMain {
                     case "--out" -> out = Path.of(args.get(++i));
                     case "--speed" -> speed = Double.parseDouble(args.get(++i));
                     case "--at" -> at = Double.parseDouble(args.get(++i));
+                    case "--fly" -> fly = args.get(++i);
                     default -> {
                         if (args.get(i).startsWith("--")) {
                             System.err.println("Неизвестный параметр: " + args.get(i));
@@ -278,7 +324,7 @@ public final class OrbitMain {
             if (speed <= 0) {
                 throw new IllegalArgumentException("--speed должен быть больше 0");
             }
-            return new Options(account, vault, profile, headless, port, direct, out, speed, at, List.copyOf(positional));
+            return new Options(account, vault, profile, headless, port, direct, out, speed, at, fly, List.copyOf(positional));
         }
     }
 }

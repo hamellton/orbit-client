@@ -2,6 +2,7 @@ plugins { application }
 
 dependencies {
     implementation(project(":game"))
+    implementation(project(":bot"))
     implementation(project(":sniffer"))
     implementation(libs.flatlaf)
     implementation(libs.logback.classic)
