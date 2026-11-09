@@ -59,7 +59,8 @@ public interface StartupSequence {
     /** Order and pauses of the official client (recordings of 2026-11-09, see docs/recon/STAGE3.md). */
     static StartupSequence clientLike(ClientProfile profile) {
         return (c, ctx) -> {
-            for (Step s : ClientLike.steps(profile, ctx)) {
+            List<List<Step>> variants = ClientLike.variants(profile, ctx);
+            for (Step s : variants.get(c.random().nextInt(variants.size()))) {
                 Thread.sleep(s.delayMs(c.random()));
                 Packet p = s.packet().get();
                 if (p != null) {
@@ -114,46 +115,91 @@ public interface StartupSequence {
         private ClientLike() {
         }
 
+        /** The first variant; see {@link #variants}. */
         static List<Step> steps(ClientProfile profile, Context ctx) {
-            List<Step> s = new ArrayList<>();
+            return variants(profile, ctx).getFirst();
+        }
+
+        /**
+         * Orders the client was seen to use. The cold start is not fixed: the settings requests are
+         * sent by independent parts of the UI as they finish loading (recordings of 2026-11-09:
+         * 18:26 with audio settings, 21:13 without them and with the key table first).
+         */
+        static List<List<Step>> variants(ClientProfile profile, Context ctx) {
             String view = profile.readyTypeStr();
-            if (ctx.firstConnect()) {
-                // the client loads the hangar, the map and the UI; ~9 s on a desktop with a warm cache
-                s.add(new Step("HangarListRequest", 5_000, 9_500, HangarListRequest::new));
-                s.add(new Step("SpaceSearchRequest", 25, 45, () -> spaceSearch(0)));
-                s.add(new Step("SpaceSearchRequest", 30, 45, () -> spaceSearch(4)));
-                s.add(new Step("SpaceSearchRequest", 0, 10, () -> spaceSearch(2)));
-                s.add(new Step("LabUpdateRequest", 5, 12, LabUpdateRequest::new));
-                s.add(new Step("ReadyRequest", 1, 5, () -> ready(view, ReadyType.MAP_LOADED)));
-                s.add(new Step("ReadyRequest", 45, 65, () -> ready(view, ReadyType.UI_READY)));
-                s.add(new Step("LegacyModule", 150, 220, () -> legacy("LF|w")));
-                s.add(new Step("AudioSettingsRequest", 35, 60, () -> audio(ctx.settings())));
-                s.add(new Step("CommandCenterGetDontShowRequest", 8, 20, CommandCenterGetDontShowRequest::new));
-                s.add(new Step("UserKeyBindingsUpdate", 35, 60, profile::keyBindingsPacket));
-                s.add(new Step("GalaxyGateBuilderInfoRequest", 20, 35, GalaxyGateBuilderInfoRequest::new));
-                s.add(new Step("KeepAlive", 550, 800, StartupSequence.ClientLike::keepAlive));
-            } else {
-                // the UI already exists: it reports its layout, no hangar/lab reload. After a jump on the
-                // same server the client answers the new ShipInitializationCommand right away (30 ms in
-                // the one recorded jump), otherwise ~1 s after LoginResponse
-                s.add(ctx.portalJump()
-                        ? new Step("SpaceSearchRequest", 20, 60, () -> spaceSearch(0))
-                        : new Step("SpaceSearchRequest", 700, 1_800, () -> spaceSearch(0)));
-                s.add(new Step("SpaceSearchRequest", 12, 45, () -> spaceSearch(4)));
-                s.add(new Step("SpaceSearchRequest", 1, 45, () -> spaceSearch(2)));
-                s.add(new Step("WindowSettingsRequest", 15, 65, profile::windowSettingsPacket));
-                s.add(new Step("ReadyRequest", 0, 30, 280, () -> ready(view, ReadyType.MAP_LOADED)));
-                s.add(new Step("ReadyRequest", 15, 70, () -> ready(view, ReadyType.UI_READY)));
-                s.add(new Step("LegacyModule", 5, 40, 280, () -> legacy("LF|w")));
-                s.add(new Step("AudioSettingsRequest", 0, 40, () -> audio(ctx.settings())));
-                s.add(new Step("UserKeyBindingsUpdate", 10, 60, 265, profile::keyBindingsPacket));
-                if (!ctx.portalJump()) {
-                    // not sent after the recorded jump: the connection and its keep-alive cycle go on
-                    s.add(new Step("KeepAlive", 10, 45, 475, StartupSequence.ClientLike::keepAlive));
-                    s.add(new Step("CommandCenterGetDontShowRequest", 0, 60, 480, CommandCenterGetDontShowRequest::new));
-                }
+            return ctx.firstConnect() ? cold(profile, ctx, view) : warm(profile, ctx, view);
+        }
+
+        /** Cold start (2 recordings): loading 2–9 s, then two orders of the settings requests. */
+        private static List<List<Step>> cold(ClientProfile profile, Context ctx, String view) {
+            List<Step> prefix = new ArrayList<>();
+            prefix.add(new Step("HangarListRequest", 1_900, 9_500, HangarListRequest::new));
+            prefix.add(new Step("SpaceSearchRequest", 25, 70, () -> spaceSearch(0)));
+            prefix.add(new Step("SpaceSearchRequest", 0, 45, () -> spaceSearch(4)));
+            prefix.add(new Step("SpaceSearchRequest", 0, 85, () -> spaceSearch(2)));
+            prefix.add(new Step("LabUpdateRequest", 0, 12, LabUpdateRequest::new));
+            prefix.add(new Step("ReadyRequest", 1, 55, () -> ready(view, ReadyType.MAP_LOADED)));
+            prefix.add(new Step("ReadyRequest", 45, 80, () -> ready(view, ReadyType.UI_READY)));
+            prefix.add(new Step("LegacyModule", 115, 220, () -> legacy("LF|w")));
+
+            List<Step> withAudio = new ArrayList<>(prefix);
+            withAudio.add(new Step("AudioSettingsRequest", 35, 60, () -> audio(ctx.settings())));
+            withAudio.add(new Step("CommandCenterGetDontShowRequest", 8, 20, CommandCenterGetDontShowRequest::new));
+            withAudio.add(new Step("UserKeyBindingsUpdate", 35, 60, profile::keyBindingsPacket));
+            withAudio.add(new Step("GalaxyGateBuilderInfoRequest", 20, 35, GalaxyGateBuilderInfoRequest::new));
+            withAudio.add(new Step("KeepAlive", 80, 800, StartupSequence.ClientLike::keepAlive));
+
+            List<Step> keysFirst = new ArrayList<>(prefix);
+            keysFirst.add(new Step("UserKeyBindingsUpdate", 0, 10, profile::keyBindingsPacket));
+            keysFirst.add(new Step("CommandCenterGetDontShowRequest", 100, 200, CommandCenterGetDontShowRequest::new));
+            keysFirst.add(new Step("GalaxyGateBuilderInfoRequest", 10, 35, GalaxyGateBuilderInfoRequest::new));
+            keysFirst.add(new Step("KeepAlive", 80, 800, StartupSequence.ClientLike::keepAlive));
+            return List.of(List.copyOf(withAudio), List.copyOf(keysFirst));
+        }
+
+        /**
+         * Map change, reconnect or portal jump (11 map changes, 2 jumps): the UI already exists and
+         * reports its layout. The tail comes in two orders: key table first, or keep-alive first.
+         */
+        private static List<List<Step>> warm(ClientProfile profile, Context ctx, String view) {
+            List<Step> prefix = new ArrayList<>();
+            // after a jump on the same server the client answers the new ShipInitializationCommand at once
+            // (2–30 ms); otherwise up to 2.2 s after LoginResponse (which itself may come late)
+            prefix.add(ctx.portalJump()
+                    ? new Step("SpaceSearchRequest", 0, 60, () -> spaceSearch(0))
+                    : new Step("SpaceSearchRequest", 70, 1_500, 2_200, () -> spaceSearch(0)));
+            prefix.add(new Step("SpaceSearchRequest", 5, 45, 230, () -> spaceSearch(4)));
+            prefix.add(new Step("SpaceSearchRequest", 0, 45, 85, () -> spaceSearch(2)));
+            prefix.add(new Step("WindowSettingsRequest", 0, 65, 110, profile::windowSettingsPacket));
+            prefix.add(new Step("ReadyRequest", 0, 30, 280, () -> ready(view, ReadyType.MAP_LOADED)));
+            prefix.add(new Step("ReadyRequest", 3, 70, 80, () -> ready(view, ReadyType.UI_READY)));
+            prefix.add(new Step("LegacyModule", 2, 40, 280, () -> legacy("LF|w")));
+            prefix.add(new Step("AudioSettingsRequest", 0, 40, 240, () -> audio(ctx.settings())));
+            if (ctx.portalJump()) {
+                // two recorded jumps: the key table ends it, the keep-alive cycle simply goes on;
+                // once the client sent a single space search and reported the layout later
+                List<Step> jump = new ArrayList<>(prefix);
+                jump.add(new Step("UserKeyBindingsUpdate", 10, 60, 265, profile::keyBindingsPacket));
+                List<Step> single = new ArrayList<>();
+                single.add(new Step("SpaceSearchRequest", 0, 30, () -> spaceSearch(0)));
+                single.add(new Step("WindowSettingsRequest", 100, 200, profile::windowSettingsPacket));
+                single.add(new Step("ReadyRequest", 0, 60, () -> ready(view, ReadyType.MAP_LOADED)));
+                single.add(new Step("ReadyRequest", 15, 130, () -> ready(view, ReadyType.UI_READY)));
+                single.add(new Step("LegacyModule", 5, 40, () -> legacy("LF|w")));
+                single.add(new Step("AudioSettingsRequest", 0, 40, () -> audio(ctx.settings())));
+                single.add(new Step("UserKeyBindingsUpdate", 10, 60, 265, profile::keyBindingsPacket));
+                return List.of(List.copyOf(jump), List.copyOf(single));
             }
-            return s;
+            List<Step> keysFirst = new ArrayList<>(prefix);
+            keysFirst.add(new Step("UserKeyBindingsUpdate", 0, 60, 265, profile::keyBindingsPacket));
+            keysFirst.add(new Step("KeepAlive", 0, 45, 480, StartupSequence.ClientLike::keepAlive));
+            keysFirst.add(new Step("CommandCenterGetDontShowRequest", 0, 60, 480, CommandCenterGetDontShowRequest::new));
+
+            List<Step> keysLast = new ArrayList<>(prefix);
+            keysLast.add(new Step("KeepAlive", 0, 15, 50, StartupSequence.ClientLike::keepAlive));
+            keysLast.add(new Step("CommandCenterGetDontShowRequest", 0, 20, 50, CommandCenterGetDontShowRequest::new));
+            keysLast.add(new Step("UserKeyBindingsUpdate", 0, 60, 400, profile::keyBindingsPacket));
+            return List.of(List.copyOf(keysFirst), List.copyOf(keysLast));
         }
 
         private static SpaceSearchRequest spaceSearch(int action) {

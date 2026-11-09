@@ -93,22 +93,40 @@ class StartupSequenceTest {
             for (int k = 0; k < anchors.size(); k++) {
                 StartupSequence.Context ctx = contexts.get(k);
                 String label = f.getFileName() + " " + (ctx.portalJump() ? "jump" : cold ? "cold" : "warm");
-                List<StartupSequence.Step> steps = StartupSequence.ClientLike.steps(profile, ctx);
-                List<Timed> recorded = recordedStartup(packets, steps, anchors.get(k));
-                List<String> expected = steps.stream().map(StartupSequence.Step::name).toList();
-                assertEquals(expected, recorded.stream().map(Timed::name).toList(), label + " order");
-
-                for (int i = 0; i < steps.size(); i++) {
-                    StartupSequence.Step s = steps.get(i);
-                    long gap = recorded.get(i).gapMs();
-                    if (gap < s.minDelayMs() - TOLERANCE_MS || gap > s.stallMaxMs() + TOLERANCE_MS) {
-                        violations.add(label + " #" + i + " " + s.name() + " pause " + gap + " ms, expected "
-                                + s.minDelayMs() + "–" + s.maxDelayMs() + " (stalls up to " + s.stallMaxMs() + ")");
+                // the recording must match one of the observed variants in order and pauses
+                List<String> attempts = new ArrayList<>();
+                boolean matched = false;
+                for (List<StartupSequence.Step> steps : StartupSequence.ClientLike.variants(profile, ctx)) {
+                    List<Timed> recorded = recordedStartup(packets, steps, anchors.get(k));
+                    List<String> expected = steps.stream().map(StartupSequence.Step::name).toList();
+                    List<String> got = recorded.stream().map(Timed::name).toList();
+                    if (!expected.equals(got)) {
+                        attempts.add("order " + got);
+                        continue;
                     }
+                    List<String> bad = new ArrayList<>();
+                    for (int i = 0; i < steps.size(); i++) {
+                        StartupSequence.Step s = steps.get(i);
+                        long gap = recorded.get(i).gapMs();
+                        if (gap < s.minDelayMs() - TOLERANCE_MS || gap > s.stallMaxMs() + TOLERANCE_MS) {
+                            bad.add("#" + i + " " + s.name() + " pause " + gap + " ms, expected " + s.minDelayMs() + "–"
+                                    + s.maxDelayMs() + " (stalls up to " + s.stallMaxMs() + ")");
+                        }
+                    }
+                    int audioAt = expected.indexOf("AudioSettingsRequest");
+                    if (audioAt >= 0 && !String.valueOf(packet(steps, "AudioSettingsRequest"))
+                            .equals(String.valueOf(recorded.get(audioAt).packet()))) {
+                        bad.add("audio settings differ");
+                    }
+                    if (bad.isEmpty()) {
+                        matched = true;
+                        break;
+                    }
+                    attempts.add(String.join("; ", bad));
                 }
-                Packet audio = packet(steps, "AudioSettingsRequest");
-                assertEquals(String.valueOf(audio), String.valueOf(recorded.get(expected.indexOf("AudioSettingsRequest")).packet()),
-                        label + " audio settings");
+                if (!matched) {
+                    violations.add(label + ": " + String.join(" | ", attempts));
+                }
                 checked++;
             }
         }
