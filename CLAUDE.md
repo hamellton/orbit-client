@@ -32,6 +32,8 @@ Status: Stage 2 done; stage 3 in progress (login, game connection, vault, client
 - `auth` — website login (`AuthClient`), `AccountLogin` (saved dosid first, then password; stores new dosid).
 - `world` — map model from server packets (`World.apply`) and own `MoveRequest`s (`applyOutgoing`);
   immutable `WorldSnapshot` with interpolated positions. Hero is dead-reckoned, beacons only fix jumps.
+  `orbit.world.maps`: `MapCatalog` (sizes from client maps-config, portal graph from DarkBot facts,
+  `reference/maps/*.json` bundled as resources), `ZoneGeometry` (POI zone point tests).
 - `game` — game connection (`GameConnection`), client-like `StartupSequence` (cold start vs map change,
   checked against recordings by `StartupSequenceTest`), `ClientProfile` (UI state replayed from a
   recording: `client-profile` → `local/client-profile.json`), `game-check` live tool.
@@ -43,6 +45,7 @@ Gradle needs JDK 21 (`export JAVA_HOME=$(/usr/libexec/java_home -v 21)`; the def
 - `./gradlew :sniffer:installDist` — builds `sniffer/build/install/sniffer/bin/{sniffer,session-report}`.
 - `scripts/sniff-session.sh` — sniffer + official client (direct mode via `--host-resolver-rules`).
   Terminals inside VSCode set `ELECTRON_RUN_AS_NODE=1`; the script unsets it.
+- `scripts/update-maps.sh` — refresh `reference/maps/maps.json` from the client's maps-config.
 - `scripts/update-protocol.sh [--force]` — after a game patch: download swf, decompile selected
   packages, parse, validate, diff, regenerate, build. Logic in `tools/update_protocol.py`.
 - `RecordedTrafficTest` reads `recordings/` (local only) and requires byte-exact round trips.

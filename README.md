@@ -76,6 +76,16 @@ game/build/install/game-check/bin/game-check --account main --seconds 60
 Исходящие пакеты официального клиента в начале сессии:
 `sniffer/build/install/sniffer/bin/session-report --upstream 20 recordings`.
 
+## Данные карт
+
+`reference/maps/maps.json` — размеры и типы карт из клиента, `reference/maps/portals.json` — куда ведут
+порталы (факты из DarkBot: сама игра этого не сообщает). После патча игры:
+
+```sh
+scripts/update-maps.sh            # macOS / Linux
+scripts\update-maps.ps1           # Windows (PowerShell)
+```
+
 ## Обновление протокола после патча игры
 
 Когда игра обновилась, бот (и сниффер) сообщит: «Версия протокола устарела… запустите регенерацию».

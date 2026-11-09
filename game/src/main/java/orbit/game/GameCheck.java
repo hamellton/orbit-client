@@ -22,6 +22,7 @@ import orbit.secrets.Vault;
 import orbit.secrets.VaultTool;
 import orbit.world.World;
 import orbit.world.WorldSnapshot;
+import orbit.world.maps.MapCatalog;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -60,10 +61,11 @@ public final class GameCheck {
                 npcs.getFirst().distanceTo(h.x(), h.y()));
         WorldSnapshot.Item laser = w.selected("lasers");
         WorldSnapshot.Item rocket = w.selected("rockets");
-        return String.format("Мир: карта %d, герой %d,%d%s, HP %.0f%%, конфиг %d, трюм свободно %d из %d, "
+        MapCatalog.MapInfo map = MapCatalog.bundled().info(h.mapId());
+        return String.format("Мир: карта %s (%dx%d), герой %d,%d%s, HP %.0f%%, конфиг %d, трюм свободно %d из %d, "
                         + "лазер %s, ракеты %s, предметов %d; игроков %d, NPC %d (ближайший: %s), "
                         + "питомцев %d, ящиков %d, руды %d, порталов %d, объектов %d, зон %d%s",
-                h.mapId(), h.x(), h.y(), h.moving() ? " (летит)" : "", h.health().hpPercent() * 100, h.config(),
+                map.name(), map.width(), map.height(), h.x(), h.y(), h.moving() ? " (летит)" : "", h.health().hpPercent() * 100, h.config(),
                 h.cargoFree(), h.cargoMax(), itemText(laser), itemText(rocket), w.items().size(),
                 w.nearest(WorldSnapshot.ShipKind.PLAYER).size(), npcs.size(), nearest,
                 w.nearest(WorldSnapshot.ShipKind.PET).size(), boxes, w.collectables().size() - boxes,
