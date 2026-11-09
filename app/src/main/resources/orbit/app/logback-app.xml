@@ -24,6 +24,8 @@
 
   <!-- every relayed packet is logged at INFO by the sniffer; in the window that is noise -->
   <logger name="orbit.sniffer.GameRelay" level="WARN"/>
+  <!-- one line per proxied website request -->
+  <logger name="orbit.sniffer.Socks5Server" level="WARN"/>
 
   <root level="INFO">
     <appender-ref ref="CONSOLE"/>

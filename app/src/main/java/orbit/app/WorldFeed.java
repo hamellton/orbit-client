@@ -3,14 +3,23 @@ package orbit.app;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.LongSupplier;
 import orbit.protocol.Packet;
+import orbit.protocol.gen.JumpInitiatedCommand;
+import orbit.protocol.gen.ReloginCommand;
+import orbit.protocol.gen.ShipDestroyedCommand;
+import orbit.protocol.gen.ShipInitializationCommand;
 import orbit.world.World;
 import orbit.world.WorldSnapshot;
+import orbit.world.maps.MapCatalog;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * What the window shows: the world model plus the connection state, fed by whichever source runs
  * (the bot's own connection, the sniffer in observer mode, or a recording).
  */
 public final class WorldFeed {
+
+    private static final Logger log = LoggerFactory.getLogger(WorldFeed.class);
 
     private final World world = new World();
     private final AtomicLong packets = new AtomicLong();
@@ -25,7 +34,33 @@ public final class WorldFeed {
 
     public void onPacket(Packet p, long nanos) {
         packets.incrementAndGet();
+        int heroBefore = world.snapshot(nanos).hero().id();
         world.apply(p, nanos);
+        logEvent(p, heroBefore);
+    }
+
+    /** Events worth a line in the window's log; the state line follows them in observer and replay modes. */
+    private void logEvent(Packet p, int heroId) {
+        MapCatalog maps = MapCatalog.bundled();
+        switch (p) {
+            case ShipInitializationCommand si -> {
+                String where = maps.info(si.mapId).name();
+                log.info("Корабль {} на карте {} ({}/{})", si.userName, where, si.x / 100, si.y / 100);
+                if (!mode.startsWith("бот")) {
+                    state = "В игре: " + where;
+                }
+            }
+            case JumpInitiatedCommand j -> log.info("Прыжок на карту {}", maps.info(j.mapId).name());
+            case ReloginCommand r -> log.info("Переход на карту {} (другой сервер)", maps.info(r.mapID).name());
+            case ShipDestroyedCommand d when d.destroyedUserId == heroId && heroId != 0 -> {
+                log.warn("Корабль уничтожен");
+                if (!mode.startsWith("бот")) {
+                    state = "Корабль уничтожен";
+                }
+            }
+            default -> {
+            }
+        }
     }
 
     public void onSent(Packet p, long nanos) {

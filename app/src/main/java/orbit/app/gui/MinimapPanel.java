@@ -52,7 +52,7 @@ final class MinimapPanel extends JPanel {
     MinimapPanel(WorldFeed feed) {
         this.feed = feed;
         setBackground(BACKGROUND);
-        setPreferredSize(new Dimension(840, 524));
+        setPreferredSize(new Dimension(900, 562));
     }
 
     /** Draws the minimap of the feed's current state into an image (no window needed). */
@@ -95,7 +95,8 @@ final class MinimapPanel extends JPanel {
         g.setStroke(new BasicStroke(1f));
         g.draw(new Rectangle2D.Double(ox, oy, map.width() * scale, map.height() * scale));
         g.setFont(getFont().deriveFont(Font.PLAIN, 11f));
-        g.drawString(hero.id() == 0 ? "нет данных" : map.name() + "  " + hero.x() + "," + hero.y(), (int) ox + 4, (int) oy + 14);
+        g.drawString(hero.id() == 0 ? "нет данных" : map.name() + "  " + hero.x() / 100 + "/" + hero.y() / 100,
+                (int) ox + 4, (int) oy + 14);
 
         for (WorldSnapshot.Zone z : w.zones().values()) {
             if (!z.active()) {

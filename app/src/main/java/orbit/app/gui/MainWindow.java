@@ -53,22 +53,23 @@ public final class MainWindow {
             }
         });
 
-        JPanel status = new JPanel(new GridLayout(2, 4, 12, 2));
+        JPanel status = new JPanel(new GridLayout(3, 2, 12, 2));
         status.setBorder(BorderFactory.createEmptyBorder(6, 10, 6, 10));
         status.add(state);
         status.add(place);
         status.add(labeled("HP", hp));
         status.add(labeled("Щит", shield));
-        status.add(cargo);
         status.add(ammo);
-        status.add(counts);
-        status.add(new JLabel());
+        status.add(cargo);
+        JPanel countsRow = new JPanel(new BorderLayout());
+        countsRow.add(counts, BorderLayout.WEST);
+        status.add(countsRow);
 
         log.setEditable(false);
         log.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
         ((DefaultCaret) log.getCaret()).setUpdatePolicy(DefaultCaret.ALWAYS_UPDATE);
         JScrollPane logScroll = new JScrollPane(log);
-        logScroll.setPreferredSize(new Dimension(840, 180));
+        logScroll.setPreferredSize(new Dimension(900, 180));
 
         JPanel top = new JPanel(new BorderLayout());
         top.add(status, BorderLayout.NORTH);
@@ -102,15 +103,16 @@ public final class MainWindow {
         WorldSnapshot.Hero h = w.hero();
         state.setText(feed.state());
         MapCatalog.MapInfo map = MapCatalog.bundled().info(h.mapId());
-        place.setText(h.id() == 0 ? "—" : String.format("%s  %d, %d%s", map.name(), h.x(), h.y(),
+        // the game shows coordinates in hundreds ("74/76")
+        place.setText(h.id() == 0 ? "—" : String.format("%s  %d/%d  (%d, %d)%s", map.name(), h.x() / 100, h.y() / 100, h.x(), h.y(),
                 h.beacon().inStation() ? "  станция" : h.beacon().inRadiationZone() ? "  РАДИАЦИЯ" : ""));
         setBar(hp, h.health().hp(), h.health().hpMax());
         setBar(shield, h.health().shield(), h.health().shieldMax());
         cargo.setText(h.cargoMax() > 0 ? String.format("Трюм: свободно %d из %d", h.cargoFree(), h.cargoMax()) : "Трюм: —");
         WorldSnapshot.Item laser = w.selected("lasers");
         WorldSnapshot.Item rocket = w.selected("rockets");
-        ammo.setText("Лазер " + item(laser) + "   Ракеты " + item(rocket));
-        counts.setText(String.format("NPC %d  Игроки %d  Ящики %d  Пакетов %d", w.nearest(WorldSnapshot.ShipKind.NPC).size(),
+        ammo.setText("<html>Лазер <b>" + item(laser) + "</b> &nbsp; Ракеты <b>" + item(rocket) + "</b></html>");
+        counts.setText(String.format("NPC %d   Игроки %d   Ящики %d   Пакетов %,d", w.nearest(WorldSnapshot.ShipKind.NPC).size(),
                 w.nearest(WorldSnapshot.ShipKind.PLAYER).size(), w.collectables().size(), feed.packets()));
         minimap.repaint();
     }
