@@ -30,3 +30,18 @@ val gameCheck by tasks.registering(JavaExec::class) {
     javaLauncher.set(javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(21)) })
 }
 
+
+tasks.named<Test>("test") {
+    systemProperty("orbit.recordings", rootProject.layout.projectDirectory.dir("recordings").asFile.absolutePath)
+}
+
+val clientProfileScript by tasks.registering(CreateStartScripts::class) {
+    mainClass.set("orbit.game.ClientProfileTool")
+    applicationName = "client-profile"
+    outputDir = layout.buildDirectory.dir("client-profile-scripts").get().asFile
+    classpath = tasks.named<Jar>("jar").get().outputs.files + configurations.runtimeClasspath.get()
+}
+
+distributions.named("main") {
+    contents { from(clientProfileScript) { into("bin") } }
+}

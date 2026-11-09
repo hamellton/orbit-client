@@ -30,15 +30,13 @@ import org.slf4j.LoggerFactory;
  * <pre>
  *   game-check --account main [--seconds 60]                  # credentials from local/vault.bin
  *   game-check --creds creds.txt [--seconds 60]
+ *   options: --profile local/client-profile.json (UI state of the official client, see ClientProfileTool)
  *   ORBIT_DOSID=... game-check --server int1 [--seconds 60]   # when the site asks for a captcha
  * </pre>
  */
 public final class GameCheck {
 
     private static final Logger log = LoggerFactory.getLogger(GameCheck.class);
-    /** Observed in the official client's ReadyRequest (2D renderer, window size, UI path). */
-    static final String READY_TYPE_STR =
-            "2D 1920x1022 .root1.instance469.MainClientApplication0.ApplicationSkin2.Group3.Group4.Main5.instance65124";
 
     private interface Login {
         GameSession run() throws AuthException;
@@ -49,6 +47,7 @@ public final class GameCheck {
 
     public static void main(String[] args) throws Exception {
         Path creds = Path.of("creds.txt");
+        Path profileFile = Path.of("local", "client-profile.json");
         Path vaultFile = VaultTool.DEFAULT_FILE;
         String account = null;
         String server = "int1";
@@ -60,11 +59,23 @@ public final class GameCheck {
                 case "--creds" -> creds = Path.of(args[++i]);
                 case "--server" -> server = args[++i];
                 case "--seconds" -> seconds = Integer.parseInt(args[++i]);
+                case "--profile" -> profileFile = Path.of(args[++i]);
                 default -> {
                     System.err.println("Неизвестный параметр: " + args[i]);
                     System.exit(2);
                 }
             }
+        }
+
+        ClientProfile profile;
+        if (Files.exists(profileFile)) {
+            profile = ClientProfile.load(profileFile);
+            log.info("Профиль клиента: {} (раскладка окон: {}, клавиши: {})", profileFile,
+                    profile.windowSettings() != null ? "есть" : "нет", profile.keyBindings() != null ? "есть" : "нет");
+        } else {
+            profile = ClientProfile.minimal();
+            log.warn("Профиль клиента {} не найден — раскладка окон и клавиши отправляться не будут. "
+                    + "Создайте его из записи сниффера: client-profile recordings", profileFile);
         }
 
         AuthClient auth = new AuthClient(new HttpSession("", Proxy.NO_PROXY, null), AuthClient.Endpoints.production());
@@ -122,7 +133,7 @@ public final class GameCheck {
         };
 
         GameConnection conn = new GameConnection(source, listener, ConnectionSettings.defaults(Proxy.NO_PROXY),
-                StartupSequence.minimal(READY_TYPE_STR));
+                StartupSequence.clientLike(profile));
         Thread runner = Thread.ofPlatform().name("game").start(conn::run);
         long end = System.currentTimeMillis() + Duration.ofSeconds(seconds).toMillis();
         while (System.currentTimeMillis() < end && runner.isAlive()) {

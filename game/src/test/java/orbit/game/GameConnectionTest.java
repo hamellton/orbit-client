@@ -1,6 +1,7 @@
 package orbit.game;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.net.Proxy;
@@ -14,7 +15,9 @@ import orbit.auth.AuthException;
 import orbit.auth.GameSession;
 import orbit.auth.MapServers;
 import orbit.protocol.Packet;
+import orbit.protocol.gen.ChannelCloseRequest;
 import orbit.protocol.gen.KeepAlive;
+import orbit.protocol.gen.LegacyModule;
 import orbit.protocol.gen.LoginRequest;
 import orbit.protocol.gen.ProtocolVersion;
 import orbit.protocol.gen.ReadyRequest;
@@ -127,6 +130,44 @@ class GameConnectionTest {
             assertEquals(1, src.logins.get(), "a server change keeps the website session");
             assertEquals("sess-1", b.receivedOf(LoginRequest.class).getFirst().sessionID);
             assertTrue(l.states.stream().anyMatch(s -> s.startsWith("CHANGING_SERVER")), l.states.toString());
+            c.close();
+            t.join(3000);
+        }
+    }
+
+    @Test
+    void mapChangeIsWarmClosesChannelAndAnswersJumpCpuNotice() throws Exception {
+        try (FakeGameServer a = new FakeGameServer(); FakeGameServer b = new FakeGameServer()) {
+            a.afterLogin = send -> {
+                ReloginCommand rc = new ReloginCommand();
+                rc.mapID = 12;
+                send.accept(rc);
+            };
+            b.afterLogin = send -> {
+                LegacyModule notice = new LegacyModule();
+                notice.message = "0|7|HS";
+                send.accept(notice);
+            };
+            List<StartupSequence.Context> contexts = new CopyOnWriteArrayList<>();
+            Listener l = new Listener();
+            GameConnection c = new GameConnection(new Source(a.port(), b.port()), l, fast(), (conn, ctx) -> {
+                contexts.add(ctx);
+                Thread.sleep(300); // the notice arrives before the UI is up; the answer must wait for LF|w
+                LegacyModule flag = new LegacyModule();
+                flag.message = "LF|w";
+                conn.send(flag);
+            });
+            Thread t = Thread.ofVirtual().start(c::run);
+
+            await(() -> b.receivedOf(LegacyModule.class).stream().anyMatch(m -> m.message.equals("JCPU|GET")), 6);
+            List<String> legacy = b.receivedOf(LegacyModule.class).stream().map(m -> m.message).toList();
+            assertEquals(List.of("LF|w", "JCPU|GET"), legacy, "answer only after the login flag");
+            List<ChannelCloseRequest> closes = a.receivedOf(ChannelCloseRequest.class);
+            assertEquals(1, closes.size(), "the client closes its channel on a relogin");
+            assertTrue(closes.getFirst().close);
+            assertEquals(2, contexts.size());
+            assertTrue(contexts.get(0).firstConnect(), "first connection starts the client cold");
+            assertFalse(contexts.get(1).firstConnect(), "after a map change the client UI already exists");
             c.close();
             t.join(3000);
         }

@@ -64,8 +64,17 @@ $V list
 Проверка входа и игрового подключения (бот ничего не делает в игре, только держит связь):
 
 ```sh
+game/build/install/game-check/bin/client-profile recordings   # один раз: состояние UI клиента из записей
 game/build/install/game-check/bin/game-check --account main --seconds 60
 ```
+
+После входа бот отправляет те же пакеты, что официальный клиент, в том же порядке и с теми же
+паузами (`docs/recon/STAGE3.md`). Раскладку окон, таблицу клавиш и строку `ReadyRequest` клиент
+берёт из своего локального состояния, поэтому бот повторяет их из записи сниффера этого аккаунта:
+`client-profile` сохраняет их в `local/client-profile.json`. Без профиля эти пакеты не отправляются.
+
+Исходящие пакеты официального клиента в начале сессии:
+`sniffer/build/install/sniffer/bin/session-report --upstream 20 recordings`.
 
 ## Обновление протокола после патча игры
 

@@ -12,6 +12,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import orbit.auth.AuthException;
 import orbit.auth.GameSession;
 import orbit.auth.MapServers;
@@ -21,13 +22,16 @@ import orbit.net.ProtocolException;
 import orbit.protocol.Packet;
 import orbit.protocol.PacketCodec;
 import orbit.protocol.ProtocolOutdatedException;
+import orbit.protocol.gen.ChannelCloseRequest;
 import orbit.protocol.gen.KeepAlive;
+import orbit.protocol.gen.LegacyModule;
 import orbit.protocol.gen.LoginRequest;
 import orbit.protocol.gen.LoginResponse;
 import orbit.protocol.gen.Packets;
 import orbit.protocol.gen.ProtocolVersion;
 import orbit.protocol.gen.ReloginCommand;
 import orbit.protocol.gen.ShipInitializationCommand;
+import orbit.protocol.gen.UserSettingsCommand;
 import orbit.protocol.gen.VersionCommand;
 import orbit.protocol.gen.VersionRequest;
 import org.slf4j.Logger;
@@ -42,6 +46,10 @@ import org.slf4j.LoggerFactory;
 public final class GameConnection implements AutoCloseable {
 
     private static final Logger log = LoggerFactory.getLogger(GameConnection.class);
+    /** Legacy server command {@code CLIENT_SETTING} ("7") with the jump CPU part ("HS"). */
+    private static final String CLIENT_SETTING_HS = "0|7|HS";
+    /** Sent by the client right after its {@code ReadyRequest}s ({@code ServerCommands.LOGIN_FLAG}). */
+    static final String LOGIN_FLAG = "LF|w";
     private static final byte[] POLICY_REQUEST = "<policy-file-request/>\0".getBytes(StandardCharsets.US_ASCII);
 
     private final SessionSource source;
@@ -54,6 +62,14 @@ public final class GameConnection implements AutoCloseable {
     private volatile Socket socket;
     private volatile OutputStream out;
     private volatile Thread runner;
+    /** Incremented per TCP session; delayed sends of an old session are dropped. */
+    private final AtomicInteger sessionSeq = new AtomicInteger();
+    /** Whether a connection of this run already reached the game (the client UI would exist). */
+    private boolean connectedBefore;
+    /** {@code LF|w} sent in the current session: the client UI is up and handles server notices. */
+    private volatile boolean loginFlagSent;
+    /** A jump CPU notice arrived before {@code LF|w}; answered once the flag is sent. */
+    private volatile boolean jumpCpuNoticePending;
 
     /** Raised inside a session when the server moves us to another map/server. */
     private record Relogin(int mapId, int delayMillis) {
@@ -87,12 +103,21 @@ public final class GameConnection implements AutoCloseable {
             return;
         }
         byte[] bytes = PacketCodec.encode(p);
+        log.debug("→ {}", p.getClass().getSimpleName());
         synchronized (this) {
             try {
                 Frames.write(o, bytes);
             } catch (IOException e) {
                 log.debug("Отправка не удалась: {}", e.getMessage());
                 closeSocket();
+                return;
+            }
+        }
+        if (p instanceof LegacyModule lm && LOGIN_FLAG.equals(lm.message)) {
+            loginFlagSent = true;
+            if (jumpCpuNoticePending) {
+                jumpCpuNoticePending = false;
+                answerJumpCpuNotice(sessionSeq.get());
             }
         }
     }
@@ -214,8 +239,12 @@ public final class GameConnection implements AutoCloseable {
         vr.version = ProtocolVersion.VERSION_HASH;
         send(vr);
 
+        loginFlagSent = false;
+        jumpCpuNoticePending = false;
         boolean compression = false;
         boolean shipReady = false;
+        UserSettingsCommand userSettings = null;
+        int seq = sessionSeq.incrementAndGet();
         Thread keepAlive = null;
         Thread startupThread = null;
         try {
@@ -252,11 +281,26 @@ public final class GameConnection implements AutoCloseable {
                         shipReady = true;
                         s.setSoTimeout(0);
                         listener.onState(GameListener.State.ONLINE, "В игре, сервер " + server);
+                    } else if (p instanceof UserSettingsCommand us) {
+                        userSettings = us;
                     } else if (p instanceof LoginResponse && startupThread == null) {
-                        startupThread = Thread.ofVirtual().name("startup").start(() -> runStartup());
+                        StartupSequence.Context ctx = new StartupSequence.Context(!connectedBefore, userSettings);
+                        connectedBefore = true;
+                        startupThread = Thread.ofVirtual().name("startup").start(() -> runStartup(ctx));
                         keepAlive = Thread.ofVirtual().name("keepalive").start(this::keepAliveLoop);
+                    } else if (p instanceof LegacyModule lm && CLIENT_SETTING_HS.equals(lm.message)) {
+                        if (loginFlagSent) {
+                            answerJumpCpuNotice(seq);
+                        } else {
+                            jumpCpuNoticePending = true;
+                        }
                     } else if (p instanceof ReloginCommand rc) {
                         listener.onPacket(p);
+                        // the client closes its channel a few milliseconds later, before reconnecting
+                        Thread.sleep(3 + random.nextInt(8));
+                        ChannelCloseRequest close = new ChannelCloseRequest();
+                        close.close = true;
+                        send(close);
                         return new Relogin(rc.mapID, rc.delayInMillis);
                     }
                     listener.onPacket(p);
@@ -285,9 +329,38 @@ public final class GameConnection implements AutoCloseable {
         send(lr);
     }
 
-    private void runStartup() {
+    /**
+     * The client answers the jump CPU notice ({@code 0|7|HS}) with a status query, always after its
+     * own {@code LF|w}: 0.15–1.3 s later, sometimes up to 3.6 s (recordings of 2026-11-09).
+     */
+    private void answerJumpCpuNotice(int seq) {
+        boolean slow = random.nextDouble() < 0.2;
+        sendLater(seq, legacy("JCPU|GET"), slow ? 1_300 : 150, slow ? 3_600 : 1_300);
+    }
+
+    /** Sends {@code p} after a random pause unless the session has changed meanwhile. */
+    private void sendLater(int seq, Packet p, int minMs, int maxMs) {
+        Thread.ofVirtual().name("delayed-send").start(() -> {
+            try {
+                Thread.sleep(minMs + random.nextInt(maxMs - minMs + 1));
+                if (sessionSeq.get() == seq) {
+                    send(p);
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        });
+    }
+
+    private static LegacyModule legacy(String message) {
+        LegacyModule m = new LegacyModule();
+        m.message = message;
+        return m;
+    }
+
+    private void runStartup(StartupSequence.Context ctx) {
         try {
-            startup.afterLogin(this);
+            startup.afterLogin(this, ctx);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         } catch (RuntimeException e) {

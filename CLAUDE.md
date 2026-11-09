@@ -2,8 +2,9 @@
 
 Packet bot for DarkOrbit (Java 21, Gradle Kotlin DSL, multi-module). Personal use only.
 
-Status: Stage 2 (protocol codegen) done, awaiting review. See `docs/PLAN.md` for the full task list and
-`docs/recon/` for protocol findings (`REPORT.md` = stage 0, `STAGE1.md` = live traffic).
+Status: Stage 2 done; stage 3 in progress (login, game connection, vault, client-like startup). See `docs/PLAN.md` for the full task list and
+`docs/recon/` for protocol findings (`REPORT.md` = stage 0, `STAGE1.md` = live traffic,
+`STAGE3.md` = website login and client startup sequence).
 
 ## Rules
 - Never use AstraBot code or binaries. `reference/astra-config.json` is only a reference of user-visible options.
@@ -29,7 +30,9 @@ Status: Stage 2 (protocol codegen) done, awaiting review. See `docs/PLAN.md` for
 - `secrets` — encrypted account vault `local/vault.bin` (AES-GCM, PBKDF2 master password,
   `ORBIT_MASTER_PASSWORD` for headless), `SecretMask` + logback converters, `vault` CLI.
 - `auth` — website login (`AuthClient`), `AccountLogin` (saved dosid first, then password; stores new dosid).
-- `game` — game connection (`GameConnection`), `game-check` live tool.
+- `game` — game connection (`GameConnection`), client-like `StartupSequence` (cold start vs map change,
+  checked against recordings by `StartupSequenceTest`), `ClientProfile` (UI state replayed from a
+  recording: `client-profile` → `local/client-profile.json`), `game-check` live tool.
 - `sniffer` — SOCKS5 + direct-port relay, session recording, `session-report` tool; uses generated classes.
 
 ## Build
