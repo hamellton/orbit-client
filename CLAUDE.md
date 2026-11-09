@@ -37,13 +37,16 @@ Status: Stage 2 done; stage 3 in progress (login, game connection, vault, client
 - `game` — game connection (`GameConnection`), client-like `StartupSequence` (cold start vs map change,
   checked against recordings by `StartupSequenceTest`), `ClientProfile` (UI state replayed from a
   recording: `client-profile` → `local/client-profile.json`), `game-check` live tool.
+- `app` — the bot application `orbit` (FlatLaf window: minimap, status, log; modes bot / observe /
+  replay / render; `--headless`). Logging config `orbit/app/logback-app.xml` (masking, `logs/orbit.log`).
 - `sniffer` — SOCKS5 + direct-port relay, session recording, `session-report` tool; uses generated classes.
 
 ## Build
 Gradle needs JDK 21 (`export JAVA_HOME=$(/usr/libexec/java_home -v 21)`; the default `java` here is 17).
 - `./gradlew test` — all tests.
 - `./gradlew :sniffer:installDist` — builds `sniffer/build/install/sniffer/bin/{sniffer,session-report}`.
-- `scripts/sniff-session.sh` — sniffer + official client (direct mode via `--host-resolver-rules`).
+- `./gradlew :app:installDist` — `app/build/install/orbit/bin/orbit`.
+- `scripts/sniff-session.sh [--observe]` — sniffer (or the bot window in observer mode) + official client (direct mode via `--host-resolver-rules`).
   Terminals inside VSCode set `ELECTRON_RUN_AS_NODE=1`; the script unsets it.
 - `scripts/update-maps.sh` — refresh `reference/maps/maps.json` from the client's maps-config.
 - `scripts/update-protocol.sh [--force]` — after a game patch: download swf, decompile selected
