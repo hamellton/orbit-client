@@ -128,6 +128,11 @@ public final class GameConnection implements AutoCloseable {
         }
     }
 
+    /** The website session of the current connection, or {@code null} before connecting. */
+    public GameSession session() {
+        return currentSession;
+    }
+
     /**
      * Chooses a way back from the kill screen, as the client's {@code Killscreen} does: the option
      * and the login data again ({@code userID}, {@code sessionID}, faction; version empty).

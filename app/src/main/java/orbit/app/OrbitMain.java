@@ -40,6 +40,7 @@ import org.slf4j.LoggerFactory;
  *             [--fly 105/65]   # development: fly to a point of the current map once in game
  *             [--go "3-3;3-1:188/125"] # development: travel through portals, legs separated by ';'
  *             [--repair-free [--faction 3]]  # development: take a free repair on the kill screen
+ *             [--hunt 2[:streuner]]          # development: kill NPCs and pick up their boxes, then --go
  *   orbit observe [--port 1080] [--direct IP:6001-6007] [--out recordings]   # watch the official client
  *   orbit replay recordings/session-….dorec [--speed 2]
  *   orbit render recordings/session-….dorec --at 30 [--out minimap.png]   # minimap at second 30 as PNG
@@ -143,8 +144,8 @@ public final class OrbitMain {
         if (o.fly != null) {
             startFlightTest(feed, conn, o.fly);
         }
-        if (o.go != null) {
-            startTravelTest(feed, conn, o.go);
+        if (o.go != null || o.hunt != null) {
+            startTravelTest(feed, conn, o.go == null ? "" : o.go, o.hunt, profile);
         }
         if (o.repairFree) {
             startFreeRepair(feed, conn, o.faction);
@@ -196,12 +197,16 @@ public final class OrbitMain {
      * Development check of map travel: once in game, goes to {@code MAP[:X/Y]} (e.g. {@code 3-7} or
      * {@code 3-7:40/40}) through portals and logs each jump.
      */
-    private static void startTravelTest(WorldFeed feed, GameConnection conn, String targets) {
+    private static void startTravelTest(WorldFeed feed, GameConnection conn, String targets, String hunt,
+                                        ClientProfile profile) {
         orbit.world.maps.MapCatalog catalog = orbit.world.maps.MapCatalog.bundled();
         record Leg(orbit.world.maps.MapCatalog.MapInfo map, double x, double y) {
         }
         List<Leg> legs = new java.util.ArrayList<>();
         for (String target : targets.split(";")) {
+            if (target.isBlank()) {
+                continue;
+            }
             String[] parts = target.trim().split(":");
             orbit.world.maps.MapCatalog.MapInfo map = catalog.byName(parts[0].trim());
             if (map == null) {
@@ -227,6 +232,34 @@ public final class OrbitMain {
                     Thread.sleep(500);
                 }
                 Thread.sleep(4_000 + random.nextInt(3_000));
+                if (hunt != null) {
+                    String[] h = hunt.split(":", 2);
+                    int count = Integer.parseInt(h[0].trim());
+                    String name = h.length > 1 ? h[1].trim().toLowerCase() : "";
+                    orbit.bot.act.Actions actions = new orbit.bot.act.Actions(feed::snapshot, conn::send, () -> {
+                        var session = conn.session();
+                        return new orbit.bot.act.Actions.Login(session.userId(), session.sessionId());
+                    }, orbit.bot.act.Actions.Screen.fromReadyString(profile.readyTypeStr()), random);
+                    orbit.bot.act.Hunter hunter = new orbit.bot.act.Hunter(feed::snapshot, actions, nav, random, System::nanoTime,
+                            s -> s.name().toLowerCase().contains(name), count);
+                    log.info("Тест охоты: {} NPC{}", count, name.isEmpty() ? "" : " «" + name + "»");
+                    feed.setAction("охота");
+                    long nextLog = 0;
+                    long until = System.currentTimeMillis() + 10 * 60_000;
+                    while (hunter.state() == orbit.bot.act.Hunter.State.HUNTING && System.currentTimeMillis() < until
+                            && feed.snapshot().hero().alive()) {
+                        hunter.tick();
+                        if (System.currentTimeMillis() > nextLog) {
+                            var hero = feed.snapshot().hero();
+                            log.info("Охота: убито {}, ящиков {}, HP {}%", hunter.kills(), hunter.boxes(),
+                                    (int) (hero.health().hpPercent() * 100));
+                            nextLog = System.currentTimeMillis() + 10_000;
+                        }
+                        Thread.sleep(100);
+                    }
+                    log.info("Тест охоты: {} — убито {}, ящиков {}", hunter.state(), hunter.kills(), hunter.boxes());
+                    nav.stop();
+                }
                 for (Leg leg : legs) {
                     log.info("Тест перелёта: на {}{}", leg.map().name(),
                             Double.isNaN(leg.x()) ? "" : " " + (int) leg.x() / 100 + "/" + (int) leg.y() / 100);
@@ -396,7 +429,7 @@ public final class OrbitMain {
 
     /** Command-line options shared by the modes. */
     record Options(String account, Path vault, Path profile, boolean headless, int port, String direct, Path out,
-                   double speed, double at, String fly, String go, boolean repairFree, int faction,
+                   double speed, double at, String fly, String go, boolean repairFree, int faction, String hunt,
                    List<String> positional) {
 
         static Options parse(List<String> args) {
@@ -413,6 +446,7 @@ public final class OrbitMain {
             String go = null;
             boolean repairFree = false;
             int faction = 0;
+            String hunt = null;
             List<String> positional = new java.util.ArrayList<>();
             for (int i = 0; i < args.size(); i++) {
                 switch (args.get(i)) {
@@ -429,6 +463,7 @@ public final class OrbitMain {
                     case "--go" -> go = args.get(++i);
                     case "--repair-free" -> repairFree = true;
                     case "--faction" -> faction = Integer.parseInt(args.get(++i));
+                    case "--hunt" -> hunt = args.get(++i);
                     default -> {
                         if (args.get(i).startsWith("--")) {
                             System.err.println("Неизвестный параметр: " + args.get(i));
@@ -442,7 +477,7 @@ public final class OrbitMain {
                 throw new IllegalArgumentException("--speed должен быть больше 0");
             }
             return new Options(account, vault, profile, headless, port, direct, out, speed, at, fly, go, repairFree, faction,
-                    List.copyOf(positional));
+                    hunt, List.copyOf(positional));
         }
     }
 }
