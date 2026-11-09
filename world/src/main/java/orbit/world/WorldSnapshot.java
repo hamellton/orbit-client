@@ -11,11 +11,13 @@ import java.util.Map;
  * <p>{@code activatable}: map assets (portals, stations…) whose action the server offers now
  * ({@code MapAssetActionAvailableCommand}), id → since when; a portal becomes jumpable about
  * 300–500 units away. {@code jumpingTo}: map of a jump the server started, 0 if none.
+ * {@code slotItems}: items on the slot bars (used with a key; others are clicked in the item bar).
  */
 public record WorldSnapshot(long nanos, Hero hero, Map<Integer, Ship> ships, Map<String, Collectable> collectables,
                             Map<Integer, Portal> portals, Map<Integer, Asset> assets, Map<String, Zone> zones,
                             Group group, Map<String, Item> items, Inventory inventory, Pet pet,
-                            Map<Integer, Long> activatable, int jumpingTo, Death death) {
+                            Map<Integer, Long> activatable, int jumpingTo, Death death,
+                            java.util.Set<String> slotItems) {
 
     /** The player's own ship. {@code id == 0} until {@code ShipInitializationCommand} arrives. */
     /**

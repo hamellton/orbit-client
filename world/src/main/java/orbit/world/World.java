@@ -70,6 +70,8 @@ import orbit.protocol.gen.ShipDestroyedCommand;
 import orbit.protocol.gen.ShipInitializationCommand;
 import orbit.protocol.gen.ShipRemoveCommand;
 import orbit.protocol.gen.ShipSelectionCommand;
+import orbit.protocol.gen.SlotBarInitializationCommand;
+import orbit.protocol.gen.SlotInfoCommand;
 import orbit.protocol.gen.TimerStateModule;
 import orbit.protocol.gen.UserSettingsCommand;
 import orbit.world.WorldSnapshot.Asset;
@@ -168,6 +170,8 @@ public final class World {
     /** The kill screen while the hero is destroyed, {@code null} otherwise. */
     private WorldSnapshot.Death death;
     private final Map<String, WorldSnapshot.Item> items = new LinkedHashMap<>();
+    /** Items placed on the slot bars (keys 1–0 and the extra bars). */
+    private final java.util.Set<String> slotItems = new java.util.LinkedHashSet<>();
     private final Map<Integer, Double> ores = new LinkedHashMap<>();
     private final Map<String, Double> resources = new LinkedHashMap<>();
     private final Map<String, Integer> bootyKeys = new LinkedHashMap<>();
@@ -346,7 +350,7 @@ public final class World {
         return new WorldSnapshot(nanos, h, Map.copyOf(shipViews), Map.copyOf(collectables), Map.copyOf(portals),
                 Map.copyOf(assets), Map.copyOf(zones), group, Map.copyOf(items),
                 new WorldSnapshot.Inventory(Map.copyOf(ores), Map.copyOf(resources), Map.copyOf(bootyKeys)), pet,
-                Map.copyOf(activatable), jumpingTo, death);
+                Map.copyOf(activatable), jumpingTo, death, java.util.Set.copyOf(slotItems));
     }
 
     /** Ships shooting lasers at the hero now, or that hit it within {@link #ATTACKER_MEMORY_NANOS}. */
@@ -523,6 +527,16 @@ public final class World {
     // ---- item bar ----
 
     private void initItems(MenuInitializationCommand p, long nanos) {
+        if (!p.slotBars.isEmpty()) {
+            slotItems.clear();
+            for (SlotBarInitializationCommand bar : p.slotBars) {
+                for (SlotInfoCommand slot : bar.slots) {
+                    if (!slot.menuItemId.isBlank()) {
+                        slotItems.add(slot.menuItemId);
+                    }
+                }
+            }
+        }
         if (p.categories.isEmpty()) {
             // sent again with slot bars only (seen while the player opened windows): the items stay
             return;
