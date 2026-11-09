@@ -31,13 +31,23 @@ public record WorldSnapshot(long nanos, Hero hero, Map<Integer, Ship> ships, Map
      *
      * @param category    {@code MenuInitializationCommand} category, e.g. {@code lasers}, {@code rockets}
      * @param counter     amount (ammunition) or charges
-     * @param timerState  {@code TimerStateModule} value (ready, active, cooling down)
-     * @param timerTime   remaining time as sent; the unit is not verified yet
-     * @param timerNanos  when the timer was received
+     * @param timerState    {@code TimerStateModule} value (ready, active, cooling down)
+     * @param timerTime     remaining milliseconds when received (the client feeds it to a flash {@code Timer})
+     * @param timerNanos    when the timer was received
+     * @param cooldownGroup {@code CooldownTypeModule} value shared with other items, -1 if none;
+     *                      {@code MenuItemCooldownGroupTimerCommand} restarts the timer of the whole group
      */
     public record Item(String id, String category, double counter, double maxCounter, boolean selected,
                        boolean available, boolean activatable, boolean buyable, boolean blocked, boolean visible,
-                       int timerState, double timerTime, double timerMax, long timerNanos) {
+                       int timerState, double timerTime, double timerMax, long timerNanos, int cooldownGroup) {
+
+        /** Milliseconds until the item is ready again (active effect or cooldown), 0 when ready. */
+        public long remainingMs(long nowNanos) {
+            if (timerState == orbit.protocol.gen.TimerStateModule.TIMERSTATE_READY || timerTime <= 0) {
+                return 0;
+            }
+            return Math.max(0, (long) timerTime - (nowNanos - timerNanos) / 1_000_000);
+        }
     }
 
     /**

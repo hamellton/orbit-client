@@ -104,8 +104,18 @@
   `AttributeOreCountUpdateCommand` (полный список), ресурсы — `InventoryItemUpdatedCommand`.
 - Предметы (боеприпасы, ракеты, мины, CPU, технологии, способности): полный список с категориями — в
   `MenuInitializationCommand` при входе, дальше изменения в `MenuItemStatusCommand` (`counterValue`,
-  `selected`, `available`…) и перезарядка в `MenuItemTimerCommand` (единицы `time` не проверены: в
-  записях только нулевые таймеры).
+  `selected`, `available`…). Перезарядка: `MenuItemTimerCommand` для одного предмета и
+  `MenuItemCooldownGroupTimerCommand` для всех предметов с тем же `cooldownGroup`
+  (`UpdateMenuItemCooldownGroupTimerCommand`). `time` — миллисекунды: клиент передаёт его во флэшевый
+  `Timer` и сравнивает с `getTimer()` (`ItemTimerVO`, `CountDownTimer`). Вживую не проверено: в записях
+  только нулевые таймеры; `LiveFactsReplayTest` проверит, как только появится запись с перезарядкой.
+- Урон: `AttackHitCommand` несёт абсолютные HP, щит и нанокорпус цели (для героя тоже, `AttackHitHandler`),
+  `AttackHitNoLockCommand` — ещё и максимумы. `AttributeHitpointUpdateCommand` клиент не обрабатывает.
+  Максимум щита героя меняется `AttributeShieldUpdateCommand` (смена конфигурации: 263 900 ↔ 343 070);
+  попадание может прийти на доли миллисекунды раньше нового максимума. Сверено на записи `-8`: 39
+  попаданий по герою до его гибели.
+- `sessionID` клиент повторяет открытым текстом при смене конфигурации (`S|CFG|<n>|<userID>|<sessionID>`).
+  Сниффер маскирует его во всех исходящих пакетах соединения (до исправления — только в `LoginRequest`).
 
 ### Сообщения `LegacyModule` в модели
 
@@ -124,7 +134,7 @@
 мини-карты. `0|l` — сервер завершает сессию (клиент закрывается).
 
 Внимание: клиент меняет конфигурацию командой `S|CFG|<n>|<userID>|<sessionID>` — в ней `sessionID`,
-такие пакеты нельзя писать в журнал как есть.
+такие пакеты нельзя писать в журнал как есть (бот регистрирует `sessionID` в `SecretMask`).
 
 ### Прыжок через портал на том же сервере
 

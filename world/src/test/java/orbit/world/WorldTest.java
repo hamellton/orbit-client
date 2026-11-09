@@ -8,14 +8,17 @@ import java.util.List;
 import orbit.protocol.gen.AddBoxCommand;
 import orbit.protocol.gen.AddOreCommand;
 import orbit.protocol.gen.AttackHitCommand;
+import orbit.protocol.gen.AttackHitNoLockCommand;
 import orbit.protocol.gen.AttackLaserRunCommand;
 import orbit.protocol.gen.BeaconCommand;
 import orbit.protocol.gen.ClanRelationModule;
+import orbit.protocol.gen.CooldownTypeModule;
 import orbit.protocol.gen.JumpgateCreateCommand;
 import orbit.protocol.gen.LegacyModule;
 import orbit.protocol.gen.MapAddPOICommand;
 import orbit.protocol.gen.MenuCategoryInitializationCommand;
 import orbit.protocol.gen.MenuInitializationCommand;
+import orbit.protocol.gen.MenuItemCooldownGroupTimerCommand;
 import orbit.protocol.gen.MenuItemInitializationCommand;
 import orbit.protocol.gen.MenuItemStatusCommand;
 import orbit.protocol.gen.MoveCommand;
@@ -30,6 +33,7 @@ import orbit.protocol.gen.ShipDestroyedCommand;
 import orbit.protocol.gen.ShipInitializationCommand;
 import orbit.protocol.gen.ShipRemoveCommand;
 import orbit.protocol.gen.ShipSelectionCommand;
+import orbit.protocol.gen.TimerStateModule;
 import org.junit.jupiter.api.Test;
 
 class WorldTest {
@@ -212,6 +216,54 @@ class WorldTest {
         assertFalse(s.items().get("ammunition_laser_lcb-10").selected());
         assertEquals(49, s.items().get("ammunition_laser_ucb-100").counter());
         assertEquals("lasers", s.items().get("ammunition_laser_ucb-100").category());
+    }
+
+    @Test
+    void cooldownGroupsAndRemainingTime() {
+        World w = withHero();
+        MenuInitializationCommand init = new MenuInitializationCommand();
+        MenuCategoryInitializationCommand cat = new MenuCategoryInitializationCommand();
+        cat.categoryId = "special_items";
+        MenuItemInitializationCommand emp = item("ammunition_specialammo_emp-01", 10, false);
+        emp.cooldownGroup = new CooldownTypeModule();
+        emp.cooldownGroup.typeValue = 7;
+        MenuItemInitializationCommand ish = item("equipment_extra_cpu_ish-01", 10, false);
+        ish.cooldownGroup = new CooldownTypeModule();
+        ish.cooldownGroup.typeValue = 7;
+        MenuItemInitializationCommand other = item("ammunition_mine_acm-01", 10, false);
+        cat.menuItems = List.of(emp, ish, other);
+        init.categories = List.of(cat);
+        w.apply(init, 0);
+
+        MenuItemCooldownGroupTimerCommand t = new MenuItemCooldownGroupTimerCommand();
+        t.cooldownType = new CooldownTypeModule();
+        t.cooldownType.typeValue = 7;
+        t.timerState = new TimerStateModule();
+        t.timerState.timerStateValue = (short) TimerStateModule.TIMERSTATE_COOLING_DOWN;
+        t.time = 30_000;
+        t.maxTime = 30_000;
+        w.apply(t, 0);
+
+        WorldSnapshot s = w.snapshot(10 * S);
+        assertEquals(20_000, s.items().get("ammunition_specialammo_emp-01").remainingMs(10 * S));
+        assertEquals(20_000, s.items().get("equipment_extra_cpu_ish-01").remainingMs(10 * S), "same group");
+        assertEquals(0, s.items().get("ammunition_mine_acm-01").remainingMs(10 * S), "other group");
+        assertEquals(0, s.items().get("ammunition_specialammo_emp-01").remainingMs(40 * S));
+    }
+
+    @Test
+    void areaHitsCarryMaximumValues() {
+        World w = withHero();
+        AttackHitNoLockCommand hit = new AttackHitNoLockCommand();
+        hit.victimId = HERO;
+        hit.victimHitpoints = 300;
+        hit.victimMaxHitpoints = 1200;
+        hit.victimShield = 10;
+        hit.victimMaxShield = 100;
+        w.apply(hit, 0);
+        Health h = w.snapshot(0).hero().health();
+        assertEquals(0.25, h.hpPercent(), 1e-9);
+        assertEquals(0.1, h.shieldPercent(), 1e-9);
     }
 
     private static MenuItemInitializationCommand item(String id, double count, boolean selected) {

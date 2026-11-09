@@ -12,6 +12,7 @@ import orbit.protocol.gen.AssetCreateCommand;
 import orbit.protocol.gen.AssetRemoveCommand;
 import orbit.protocol.gen.AttackAbortLaserCommand;
 import orbit.protocol.gen.AttackHitCommand;
+import orbit.protocol.gen.AttackHitNoLockCommand;
 import orbit.protocol.gen.AttackLaserRunCommand;
 import orbit.protocol.gen.AttributeCreditsUpdateCommand;
 import orbit.protocol.gen.AttributeHitpointUpdateCommand;
@@ -37,6 +38,7 @@ import orbit.protocol.gen.MapRemovePOICommand;
 import orbit.protocol.gen.MemberLoggedOutModule;
 import orbit.protocol.gen.MenuCategoryInitializationCommand;
 import orbit.protocol.gen.MenuInitializationCommand;
+import orbit.protocol.gen.MenuItemCooldownGroupTimerCommand;
 import orbit.protocol.gen.MenuItemInitializationCommand;
 import orbit.protocol.gen.MenuItemStatusCommand;
 import orbit.protocol.gen.MenuItemTimerCommand;
@@ -204,6 +206,8 @@ public final class World {
             case MenuInitializationCommand p -> initItems(p, nanos);
             case MenuItemStatusCommand p -> updateItem(p);
             case MenuItemTimerCommand p -> updateTimer(p, nanos);
+            case MenuItemCooldownGroupTimerCommand p -> updateGroupTimer(p, nanos);
+            case AttackHitNoLockCommand p -> hitNoLock(p);
             case AttributeOreCountUpdateCommand p -> {
                 ores.clear();
                 for (OreCountModule o : p.oreCountList) {
@@ -397,7 +401,8 @@ public final class World {
                 items.putIfAbsent(st.menuItemId, new WorldSnapshot.Item(st.menuItemId, c.categoryId, st.counterValue,
                         st.maxCounterValue, st.selected, st.available, st.activatable, st.buyable, st.blocked, st.visible,
                         t != null && t.timerState != null ? t.timerState.timerStateValue : TimerStateModule.TIMERSTATE_READY,
-                        t != null ? t.time : 0, t != null ? t.maxTime : 0, nanos));
+                        t != null ? t.time : 0, t != null ? t.maxTime : 0, nanos,
+                        i.cooldownGroup != null ? i.cooldownGroup.typeValue : -1));
             }
         }
     }
@@ -413,13 +418,31 @@ public final class World {
         items.put(st.menuItemId, new WorldSnapshot.Item(st.menuItemId, category, st.counterValue, st.maxCounterValue,
                 st.selected, st.available, st.activatable, st.buyable, st.blocked, st.visible,
                 old != null ? old.timerState() : TimerStateModule.TIMERSTATE_READY, old != null ? old.timerTime() : 0,
-                old != null ? old.timerMax() : 0, old != null ? old.timerNanos() : 0));
+                old != null ? old.timerMax() : 0, old != null ? old.timerNanos() : 0, old != null ? old.cooldownGroup() : -1));
     }
 
     private static WorldSnapshot.Item withSelected(WorldSnapshot.Item i, boolean selected) {
         return new WorldSnapshot.Item(i.id(), i.category(), i.counter(), i.maxCounter(), selected, i.available(),
                 i.activatable(), i.buyable(), i.blocked(), i.visible(), i.timerState(), i.timerTime(), i.timerMax(),
-                i.timerNanos());
+                i.timerNanos(), i.cooldownGroup());
+    }
+
+    private static WorldSnapshot.Item withTimer(WorldSnapshot.Item i, boolean activatable, TimerStateModule state,
+                                                double time, double maxTime, long nanos) {
+        return new WorldSnapshot.Item(i.id(), i.category(), i.counter(), i.maxCounter(), i.selected(), i.available(),
+                activatable, i.buyable(), i.blocked(), i.visible(),
+                state != null ? state.timerStateValue : TimerStateModule.TIMERSTATE_READY, time, maxTime, nanos,
+                i.cooldownGroup());
+    }
+
+    /** Like the client's {@code UpdateMenuItemCooldownGroupTimerCommand}: every item of the group gets the timer. */
+    private void updateGroupTimer(MenuItemCooldownGroupTimerCommand t, long nanos) {
+        if (t.cooldownType == null) {
+            return;
+        }
+        int group = t.cooldownType.typeValue;
+        items.replaceAll((k, v) -> v.cooldownGroup() == group
+                ? withTimer(v, v.activatable(), t.timerState, t.time, t.maxTime, nanos) : v);
     }
 
     private void updateTimer(MenuItemTimerCommand t, long nanos) {
@@ -427,10 +450,7 @@ public final class World {
         if (i == null) {
             return;
         }
-        items.put(t.menuItemId, new WorldSnapshot.Item(i.id(), i.category(), i.counter(), i.maxCounter(), i.selected(),
-                i.available(), t.activatable, i.buyable(), i.blocked(), i.visible(),
-                t.timerState != null ? t.timerState.timerStateValue : TimerStateModule.TIMERSTATE_READY, t.time,
-                t.maxTime, nanos));
+        items.put(t.menuItemId, withTimer(i, t.activatable, t.timerState, t.time, t.maxTime, nanos));
     }
 
     // ---- legacy text commands ("0|A|c|1600"), see docs/recon/STAGE3.md ----
@@ -507,6 +527,20 @@ public final class World {
             return Integer.parseInt(s.trim());
         } catch (NumberFormatException e) {
             return fallback;
+        }
+    }
+
+    /** Area hits (no target lock) also carry the maximum values (client: {@code AttackHitNoLockCommandHandler}). */
+    private void hitNoLock(AttackHitNoLockCommand p) {
+        if (p.victimId == hero.id) {
+            hero.health = hero.health.withHp(p.victimHitpoints, p.victimMaxHitpoints)
+                    .withShield(p.victimShield, p.victimMaxShield).withNanoHull(p.victimNanoHull, p.victimMaxNanohull);
+            return;
+        }
+        ShipState s = ships.get(p.victimId);
+        if (s != null) {
+            s.health = s.health.withHp(p.victimHitpoints, p.victimMaxHitpoints)
+                    .withShield(p.victimShield, p.victimMaxShield).withNanoHull(p.victimNanoHull, p.victimMaxNanohull);
         }
     }
 
