@@ -32,6 +32,44 @@ final class Secrets {
         return copy;
     }
 
+    /** The sessionID bytes of a {@code LoginRequest}, or {@code null} for any other packet. */
+    static byte[] sessionId(byte[] packet) {
+        if (packet.length < 10 || id(packet) != LOGIN_REQUEST_ID) {
+            return null;
+        }
+        int lenPos = 2 + 4 + 2;
+        int len = (packet[lenPos] & 0xFF) << 8 | packet[lenPos + 1] & 0xFF;
+        if (len == 0 || lenPos + 2 + len > packet.length) {
+            return null;
+        }
+        return Arrays.copyOfRange(packet, lenPos + 2, lenPos + 2 + len);
+    }
+
+    /**
+     * Replaces every occurrence of {@code secret} with {@code 'x'} (same length). The client
+     * repeats the sessionID in other packets, e.g. the configuration switch
+     * {@code LegacyModule "S|CFG|<n>|<userID>|<sessionID>"}.
+     */
+    static byte[] maskAll(byte[] packet, byte[] secret) {
+        if (secret == null || secret.length < 8 || packet.length < secret.length) {
+            return packet;
+        }
+        byte[] copy = null;
+        outer:
+        for (int i = 0; i + secret.length <= packet.length; i++) {
+            for (int j = 0; j < secret.length; j++) {
+                if (packet[i + j] != secret[j]) {
+                    continue outer;
+                }
+            }
+            if (copy == null) {
+                copy = packet.clone();
+            }
+            Arrays.fill(copy, i, i + secret.length, (byte) 'x');
+        }
+        return copy != null ? copy : packet;
+    }
+
     /** Reads the {@code version} string of a {@code LoginRequest}, or {@code null}. */
     static String loginVersion(byte[] packet) {
         if (packet.length < 10 || id(packet) != LOGIN_REQUEST_ID) {

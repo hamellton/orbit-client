@@ -38,6 +38,8 @@ final class GameRelay {
     private final long id = IDS.incrementAndGet();
 
     private volatile boolean compressionOffered;
+    /** sessionID of this connection, masked wherever the client repeats it. */
+    private volatile byte[] sessionSecret;
     private final Stats stats = new Stats();
 
     GameRelay(Socket client, Socket server, String target, Path recordDir) {
@@ -138,7 +140,11 @@ final class GameRelay {
                 log.info("[#{}] LoginRequest: версия «{}», сжатие {}", id, version,
                         compressionOffered ? "включено" : "выключено");
             }
-            byte[] masked = Secrets.maskSession(payload);
+            byte[] sid = Secrets.sessionId(payload);
+            if (sid != null) {
+                sessionSecret = sid;
+            }
+            byte[] masked = Secrets.maskAll(Secrets.maskSession(payload), sessionSecret);
             rec.record(dir, masked);
             logPacket(arrow, masked, false);
             return;
