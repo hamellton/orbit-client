@@ -141,28 +141,15 @@ public record BotConfig(
         }
     }
 
-    /** Ship configuration (1 or 2) and drone formation, by slot key or item id. */
+    /**
+     * Ship configuration (1 or 2) and drone formation (item id, e.g. {@code drone_formation_f-09-mo};
+     * {@code null} = leave as it is). Items are used by id, wherever they are in the game's bars.
+     */
     @JsonInclude(JsonInclude.Include.NON_NULL)
-    public record ShipMode(int config, ItemRef formation) {
+    public record ShipMode(int config, String formation) {
 
         public ShipMode {
             config = config == 2 ? 2 : 1;
-        }
-    }
-
-    /**
-     * An item the bot uses: by slot bar key ({@code "1"}–{@code "0"}, as DarkBot stores it) or by item
-     * id ({@code ammunition_laser_ucb-100}). The id wins when both are set.
-     */
-    @JsonInclude(JsonInclude.Include.NON_NULL)
-    public record ItemRef(String key, String item) {
-
-        public static ItemRef key(String key) {
-            return key == null || key.isBlank() ? null : new ItemRef(key, null);
-        }
-
-        public static ItemRef item(String item) {
-            return new ItemRef(null, item);
         }
     }
 
@@ -198,10 +185,10 @@ public record BotConfig(
      * @param kill     attack it at all
      * @param flags    {@link NpcFlag} names; unknown imported flags are kept as they were
      * @param maps     map ids where the rule applies; empty = everywhere
-     * @param ammo     ammunition for this NPC; {@code null} = {@link Loot#ammo}
+     * @param ammo     ammunition item id for this NPC; {@code null} = {@link Loot#ammo}
      */
     @JsonInclude(JsonInclude.Include.NON_EMPTY)
-    public record NpcRule(double radius, int priority, boolean kill, Set<String> flags, Set<Integer> maps, ItemRef ammo) {
+    public record NpcRule(double radius, int priority, boolean kill, Set<String> flags, Set<Integer> maps, String ammo) {
 
         public NpcRule {
             // sorted, so saved files do not change from run to run
@@ -239,7 +226,10 @@ public record BotConfig(
     }
 
     /**
-     * @param ammo        default laser ammunition
+     * Items are menu item ids ({@code ammunition_laser_ucb-100}): the bot uses them with a packet,
+     * no slot bar keys involved.
+     *
+     * @param ammo        default laser ammunition; {@code null} = whatever is selected in the game
      * @param sab         shield-absorbing ammunition when the own shield is low
      * @param sabBelow    use SAB while the shield is below this fraction
      * @param sabNpcShieldMin only against NPCs with at least this much shield
@@ -248,7 +238,7 @@ public record BotConfig(
      * @param ignoreFartherThan ignore NPCs farther than this
      */
     @JsonInclude(JsonInclude.Include.NON_NULL)
-    public record Loot(ItemRef ammo, ItemRef sab, double sabBelow, int sabNpcShieldMin, ItemRef rsb,
+    public record Loot(String ammo, String sab, double sabBelow, int sabNpcShieldMin, String rsb,
                        boolean groupNpcs, int ignoreFartherThan) {
 
         public static final Loot DEFAULT = new Loot(null, null, 0, 0, null, true, 0);

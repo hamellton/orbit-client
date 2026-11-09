@@ -24,7 +24,7 @@ final class NpcTable extends AbstractTableModel {
         int radius;
         Set<Integer> maps;
         Set<String> flags;
-        BotConfig.ItemRef ammo;
+        String ammo;
     }
 
     private final MapCatalog catalog;

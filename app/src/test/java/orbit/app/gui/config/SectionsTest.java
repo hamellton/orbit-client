@@ -44,17 +44,17 @@ class SectionsTest {
         }
         BotConfig c = BotConfig.empty()
                 .withModule(BotConfig.Module.CUBIKON)
-                .withGeneral(new BotConfig.General(26, new BotConfig.ShipMode(1, BotConfig.ItemRef.key("6")),
-                        new BotConfig.ShipMode(2, BotConfig.ItemRef.item("drone_formation_f-09-mo")),
+                .withGeneral(new BotConfig.General(26, new BotConfig.ShipMode(1, "drone_formation_f-01-tu"),
+                        new BotConfig.ShipMode(2, "drone_formation_f-09-mo"),
                         new BotConfig.ShipMode(2, null), true, false, 300, false, true))
                 .withNpcs(Map.of(
                         "-=[ Cubikon ]=-", new BotConfig.NpcRule(550, -100, true, Set.of("IGNORE_OWNERSHIP", "K"), Set.of(18, 22, 26, -1), null),
-                        "-=[ Protegit ]=-", new BotConfig.NpcRule(500, 50, false, Set.of("PASSIVE"), Set.of(), BotConfig.ItemRef.key("3"))))
-                .withLoot(new BotConfig.Loot(BotConfig.ItemRef.key("1"), BotConfig.ItemRef.item("ammunition_laser_sab-50"),
+                        "-=[ Protegit ]=-", new BotConfig.NpcRule(500, 50, false, Set.of("PASSIVE"), Set.of(), "ammunition_laser_mcb-50")))
+                .withLoot(new BotConfig.Loot("ammunition_laser_ucb-100", "ammunition_laser_sab-50",
                         0.92, 120_000, null, true, 15_500))
                 .withCollect(new BotConfig.Collect(Map.of("BONUS_BOX", new BotConfig.BoxRule(true, 150, 1)), 400, true, true))
                 .withPet(new BotConfig.Pet(true, "ENEMY_LOCATOR"))
-                .withSafety(new BotConfig.Safety(0.5, 0.65, 0.05, 0.45, new BotConfig.ShipMode(2, BotConfig.ItemRef.key("9")),
+                .withSafety(new BotConfig.Safety(0.5, 0.65, 0.05, 0.45, new BotConfig.ShipMode(2, "some_future_formation"),
                         new BotConfig.Heal(0.6, -1, -1), 1000, "BASE", 10, 10))
                 .withZones(Map.of(26, new BotConfig.Zones(null, new BotConfig.ZoneGrid(30, rows))))
                 .withModuleSettings("cubikon", Json.MAPPER.readTree("""

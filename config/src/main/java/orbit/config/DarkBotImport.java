@@ -26,12 +26,16 @@ import java.util.TreeMap;
  * <p>DarkBot facts used (its config format): NPC extras are class-qualified enum names
  * ({@code …NpcExtraIGNORE_OWNERSHIP}); zones are {@code resolution × resolution} bit grids, row
  * major, bit {@code i} = bit {@code i % 8} of byte {@code i / 8} (Java {@code BitSet}); box wait
- * times are in milliseconds; formations are slot bar keys.
+ * times are in milliseconds; ammunition and formations are slot bar keys — not carried over, since
+ * the bot uses items by id and the profile does not say which item is on a key.
  */
 public final class DarkBotImport {
 
     /** Spawn spots of Cubikons on the x-6 maps (the user's working GE5 Cubi Camp profile). */
     static final int[][] CUBIKON_SPOTS = {{7500, 3900}, {13400, 3900}, {13400, 7900}, {7500, 7900}};
+
+    static final String SAB = "ammunition_laser_sab-50";
+    static final String RSB = "ammunition_laser_rsb-75";
 
     public record Result(BotConfig config, List<String> report) {
     }
@@ -107,6 +111,9 @@ public final class DarkBotImport {
         Map<Integer, List<BotConfig.SafetySpot>> spots = safetySpots(root.path("SAFETY"));
         moduleSettings(module, moduleClass, root.path("CUSTOM_CONFIGS"));
         keepRest(root, enabled, moduleClass);
+        report.add("Патроны и формации в DarkBot заданы клавишами панели, а боту клавиши не нужны — выберите "
+                + "их по названию (вкладки «Общее», «Атака», «Безопасность»); пока не выбраны, бот берёт то, что "
+                + "выбрано в игре");
         report.add(0, "Модуль " + module + ", рабочая карта " + g.workingMap() + ", NPC " + npcs.size()
                 + ", ящиков " + collect.boxes().size() + ", карт с зонами " + zones.size()
                 + ", карт с точками безопасности " + spots.size());
@@ -161,7 +168,7 @@ public final class DarkBotImport {
         if (m.isMissingNode()) {
             return null;
         }
-        return new BotConfig.ShipMode(m.path("CONFIG").asInt(1), BotConfig.ItemRef.key(textOrNull(m.path("FORMATION"))));
+        return new BotConfig.ShipMode(m.path("CONFIG").asInt(1), null);
     }
 
     private Map<String, BotConfig.NpcRule> npcs(JsonNode infos) {
@@ -179,9 +186,8 @@ public final class DarkBotImport {
             }
             Set<Integer> maps = new LinkedHashSet<>();
             n.path("mapList").forEach(m -> maps.add(m.asInt()));
-            BotConfig.ItemRef ammo = BotConfig.ItemRef.key(textOrNull(n.path("attackKey")));
             out.put(e.getKey(), new BotConfig.NpcRule(n.path("radius").asDouble(500), n.path("priority").asInt(0),
-                    n.path("kill").asBoolean(false), flags, maps, ammo));
+                    n.path("kill").asBoolean(false), flags, maps, null));
         });
         if (!unknownFlags.isEmpty()) {
             report.add("Флаги NPC без поддержки (сохранены): " + String.join(", ", unknownFlags));
@@ -213,10 +219,12 @@ public final class DarkBotImport {
     private static BotConfig.Loot loot(JsonNode l) {
         JsonNode sab = l.path("SAB");
         JsonNode rsb = l.path("RSB");
-        return new BotConfig.Loot(BotConfig.ItemRef.key(textOrNull(l.path("AMMO_KEY"))),
-                sab.path("ENABLED").asBoolean(false) ? BotConfig.ItemRef.key(textOrNull(sab.path("KEY"))) : null,
+        // DarkBot names items by slot bar keys; which item sits on a key is not in the profile, so the
+        // items are left to be chosen by name (the "use SAB" choice and its thresholds are kept)
+        return new BotConfig.Loot(null,
+                sab.path("ENABLED").asBoolean(false) ? SAB : null,
                 sab.path("PERCENT").asDouble(0), sab.path("NPC_AMOUNT").asInt(0),
-                rsb.path("ENABLED").asBoolean(false) ? BotConfig.ItemRef.key(textOrNull(rsb.path("KEY"))) : null,
+                rsb.path("ENABLED").asBoolean(false) ? RSB : null,
                 l.path("GROUP_NPCS").asBoolean(true), l.path("NPC_DISTANCE_IGNORE").asInt(0));
     }
 

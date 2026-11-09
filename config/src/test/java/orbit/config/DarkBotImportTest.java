@@ -81,7 +81,7 @@ class DarkBotImportTest {
         assertEquals(BotConfig.Module.KILL_COLLECT, c.module());
         assertEquals("заметки", c.description());
         assertEquals(26, c.general().workingMap());
-        assertEquals(new BotConfig.ShipMode(2, BotConfig.ItemRef.key("7")), c.general().roam());
+        assertEquals(new BotConfig.ShipMode(2, null), c.general().roam(), "slot keys are not carried over");
         assertEquals(120, c.general().rememberEnemiesSec());
         assertTrue(c.general().roamSequential());
 
@@ -95,8 +95,10 @@ class DarkBotImportTest {
         assertTrue(c.npc("-=[ Calm ]=-").appliesOn(5));
         assertTrue(r.report().stream().anyMatch(l -> l.contains("ODD")));
 
-        assertEquals(BotConfig.ItemRef.key("1"), c.loot().ammo());
-        assertEquals(BotConfig.ItemRef.key("2"), c.loot().sab());
+        assertNull(c.loot().ammo(), "ammunition is chosen by name, not by key");
+        assertEquals("ammunition_laser_sab-50", c.loot().sab());
+        assertEquals(0.8, c.loot().sabBelow());
+        assertTrue(r.report().stream().anyMatch(l -> l.contains("клавишами")));
         assertNull(c.loot().rsb());
         assertFalse(c.loot().groupNpcs());
 

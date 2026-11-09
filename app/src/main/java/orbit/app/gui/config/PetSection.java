@@ -36,12 +36,12 @@ final class PetSection implements Section {
     @Override
     public void load(BotConfig c) {
         enabled.setSelected(c.pet().enabled());
-        gear.setId(c.pet().gear());
+        gear.set(c.pet().gear());
         gear.setEnabled(c.pet().enabled());
     }
 
     @Override
     public BotConfig apply(BotConfig c) {
-        return c.withPet(new BotConfig.Pet(enabled.isSelected(), gear.id()));
+        return c.withPet(new BotConfig.Pet(enabled.isSelected(), gear.get()));
     }
 }

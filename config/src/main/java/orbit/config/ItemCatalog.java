@@ -75,21 +75,18 @@ public final class ItemCatalog {
         return java.util.Arrays.stream(names).map(n -> new Item(prefix + n, n.toUpperCase())).toList();
     }
 
-    /** A readable name of an item reference: the catalog label, the raw id, or the DarkBot slot key. */
-    public static String label(BotConfig.ItemRef ref) {
-        if (ref == null) {
+    /** A readable name of an item id: the catalog label or the raw id; {@code —} for none. */
+    public static String label(String id) {
+        if (id == null) {
             return "—";
         }
-        if (ref.item() != null) {
-            for (List<Item> list : List.of(LASERS, ROCKETS, LAUNCHER, FORMATIONS, PET_GEARS)) {
-                for (Item i : list) {
-                    if (i.id().equals(ref.item())) {
-                        return i.label();
-                    }
+        for (List<Item> list : List.of(LASERS, ROCKETS, LAUNCHER, FORMATIONS, PET_GEARS)) {
+            for (Item i : list) {
+                if (i.id().equals(id)) {
+                    return i.label();
                 }
             }
-            return ref.item();
         }
-        return "клавиша " + ref.key() + " (из DarkBot)";
+        return id;
     }
 }

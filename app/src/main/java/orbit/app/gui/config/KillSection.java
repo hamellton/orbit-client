@@ -119,11 +119,11 @@ final class KillSection implements Section {
         loaded = l;
         ammo.set(l.ammo());
         useSab.setSelected(l.sab() != null);
-        sab.set(l.sab() != null ? l.sab() : BotConfig.ItemRef.item("ammunition_laser_sab-50"));
+        sab.set(l.sab() != null ? l.sab() : "ammunition_laser_sab-50");
         Form.setFraction(sabBelow, l.sab() != null ? l.sabBelow() : 0.5);
         Form.set(sabNpcShield, l.sabNpcShieldMin());
         useRsb.setSelected(l.rsb() != null);
-        rsb.set(l.rsb() != null ? l.rsb() : BotConfig.ItemRef.item("ammunition_laser_rsb-75"));
+        rsb.set(l.rsb() != null ? l.rsb() : "ammunition_laser_rsb-75");
         groupNpcs.setSelected(l.groupNpcs());
         Form.set(ignoreFarther, l.ignoreFartherThan());
         npcs.load(c.npcs());
