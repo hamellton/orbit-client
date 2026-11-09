@@ -24,3 +24,4 @@ tools/external/
 # Credentials (never commit)
 creds.txt
 *.creds
+reference/client/_download/
