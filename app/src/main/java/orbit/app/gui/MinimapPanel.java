@@ -40,6 +40,7 @@ final class MinimapPanel extends JPanel {
     static final Color BOX = new Color(0xffd84d);
     static final Color ORE = new Color(0x5ee6d0);
     static final Color PORTAL = new Color(0xf2f2f2);
+    static final Color PORTAL_LABEL = new Color(0xa0aec0);
     static final Color ZONE_DANGER = new Color(255, 60, 60, 60);
     static final Color ZONE_BLOCKED = new Color(160, 160, 160, 70);
     static final Color ZONE_OTHER = new Color(120, 160, 255, 28);
@@ -48,12 +49,14 @@ final class MinimapPanel extends JPanel {
 
     private final WorldFeed feed;
     private final MapCatalog catalog = MapCatalog.bundled();
+    private final Hud hud;
 
     MinimapPanel(WorldFeed feed) {
         this.feed = feed;
         setBackground(BACKGROUND);
         setToolTipText(""); // enables getToolTipText(MouseEvent)
-        setPreferredSize(new Dimension(900, 562));
+        hud = new Hud(getFont());
+        setPreferredSize(new Dimension(1000, 624));
     }
 
     /** Draws the minimap of the feed's current state into an image (no window needed). */
@@ -95,9 +98,7 @@ final class MinimapPanel extends JPanel {
         g.setColor(BORDER);
         g.setStroke(new BasicStroke(1f));
         g.draw(new Rectangle2D.Double(ox, oy, map.width() * scale, map.height() * scale));
-        g.setFont(getFont().deriveFont(Font.PLAIN, 11f));
-        g.drawString(hero.id() == 0 ? "нет данных" : map.name() + "  " + hero.x() / 100 + "/" + hero.y() / 100,
-                (int) ox + 4, (int) oy + 14);
+        hud.paintBackground(g, getWidth(), getHeight(), w, catalog);
 
         for (WorldSnapshot.Zone z : w.zones().values()) {
             if (!z.active()) {
@@ -127,10 +128,21 @@ final class MinimapPanel extends JPanel {
             g.setColor(FACTION[a.factionId() >= 0 && a.factionId() < FACTION.length ? a.factionId() : 0]);
             g.fill(new Rectangle2D.Double(p.x(a.x()) - 3, p.y(a.y()) - 3, 6, 6));
         }
-        g.setColor(PORTAL);
+        g.setFont(getFont().deriveFont(Font.PLAIN, 10f));
         for (WorldSnapshot.Portal portal : w.portals().values()) {
-            if (portal.visibleOnMinimap()) {
-                g.draw(new Ellipse2D.Double(p.x(portal.x()) - 6, p.y(portal.y()) - 6, 12, 12));
+            if (!portal.visibleOnMinimap()) {
+                continue;
+            }
+            double px = p.x(portal.x());
+            double py = p.y(portal.y());
+            g.setColor(PORTAL);
+            g.draw(new Ellipse2D.Double(px - 6, py - 6, 12, 12));
+            // where it leads (known for regular portals); gates and event portals stay unlabelled
+            MapCatalog.Portal known = catalog.portalNear(hero.mapId(), portal.x(), portal.y(), 50);
+            if (known != null) {
+                g.setColor(PORTAL_LABEL);
+                int tw = g.getFontMetrics().stringWidth(known.toName());
+                g.drawString(known.toName(), (float) (px - tw / 2.0), (float) py - 9);
             }
         }
         for (WorldSnapshot.Collectable c : w.collectables().values()) {
@@ -211,150 +223,12 @@ final class MinimapPanel extends JPanel {
             }
             g.setColor(hero.alive() ? HERO : Color.GRAY);
             g.fill(new Ellipse2D.Double(hx - 4, hy - 4, 8, 8));
-            paintFightPanel(g, w);
         }
+        hud.paint(g, getWidth(), getHeight(), w, feed);
     }
 
-    private static final int CARD_WIDTH = 230;
-    private static final Color CARD_BACKGROUND = new Color(16, 20, 26, 215);
-    private static final Color HP_BAR = new Color(0x43a047);
-    private static final Color SHIELD_BAR = new Color(0x1e88e5);
-    private static final Color BAR_TRACK = new Color(0x2d3748);
-    private static final int MAX_ATTACKER_ROWS = 5;
     /** Up to this many attackers get a name on the map; a swarm is listed in the corner panel only. */
     private static final int MAX_ATTACKER_LABELS = 3;
-
-    /** Top-right corner: the hero's target and its attackers with hull and shield, NPCs and players alike. */
-    private void paintFightPanel(Graphics2D g, WorldSnapshot w) {
-        WorldSnapshot.Hero hero = w.hero();
-        int x = getWidth() - CARD_WIDTH - 18;
-        int y = 18;
-        int targetId = hero.attackTargetId() != 0 ? hero.attackTargetId() : hero.selectedId();
-        Ship target = w.ships().get(targetId);
-        if (target != null) {
-            y = paintCard(g, x, y, (hero.attackTargetId() != 0 ? "Атакую" : "Цель выбрана"), target, NPC);
-        }
-        // attackers grouped by name (NPCs come in swarms); bars of the most damaged one with known health
-        java.util.Map<String, List<Ship>> byName = new java.util.LinkedHashMap<>();
-        for (int id : hero.attackers()) {
-            Ship a = w.ships().get(id);
-            if (a != null) {
-                byName.computeIfAbsent(label(a), k -> new java.util.ArrayList<>()).add(a);
-            }
-        }
-        if (byName.isEmpty()) {
-            return;
-        }
-        int rows = Math.min(byName.size(), MAX_ATTACKER_ROWS);
-        int h = 16 + rows * 30 + (byName.size() > rows ? 14 : 0);
-        g.setColor(CARD_BACKGROUND);
-        g.fillRoundRect(x, y, CARD_WIDTH, h, 8, 8);
-        g.setColor(ENEMY);
-        g.fillRect(x, y + 4, 3, h - 8);
-        g.setFont(getFont().deriveFont(Font.PLAIN, 10f));
-        g.setColor(Color.LIGHT_GRAY);
-        g.drawString("Атакуют меня: " + hero.attackers().size(), x + 9, y + 13);
-        int ry = y + 18;
-        int row = 0;
-        for (java.util.Map.Entry<String, List<Ship>> e : byName.entrySet()) {
-            if (row++ == rows) {
-                g.setColor(Color.LIGHT_GRAY);
-                g.setFont(getFont().deriveFont(Font.PLAIN, 10f));
-                g.drawString("… и ещё " + (byName.size() - rows), x + 9, ry + 10);
-                break;
-            }
-            List<Ship> group = e.getValue();
-            g.setFont(getFont().deriveFont(Font.BOLD, 10f));
-            g.setColor(Color.WHITE);
-            String name = e.getKey() + (group.size() > 1 ? "  ×" + group.size() : "");
-            g.drawString(clip(g, name, CARD_WIDTH - 18), x + 9, ry + 9);
-            Ship weakest = group.stream().filter(a -> a.health().known())
-                    .min(java.util.Comparator.comparingDouble(a -> a.health().hpPercent())).orElse(null);
-            if (weakest != null) {
-                miniBar(g, x + 9, ry + 13, weakest.health().hp(), weakest.health().hpMax(), HP_BAR);
-                miniBar(g, x + 9 + (CARD_WIDTH - 18) / 2 + 2, ry + 13, weakest.health().shield(),
-                        weakest.health().shieldMax(), SHIELD_BAR);
-            } else {
-                g.setFont(getFont().deriveFont(Font.PLAIN, 9f));
-                g.setColor(Color.GRAY);
-                g.drawString("HP неизвестно", x + 9, ry + 21);
-            }
-            ry += 30;
-        }
-    }
-
-    private void miniBar(Graphics2D g, int x, int y, double now, double max, Color color) {
-        int w = (CARD_WIDTH - 18) / 2 - 2;
-        g.setColor(BAR_TRACK);
-        g.fillRect(x, y, w, 9);
-        if (max > 0 && now >= 0) {
-            g.setColor(color);
-            g.fillRect(x, y, (int) Math.round(w * Math.min(1, now / max)), 9);
-            g.setColor(Color.WHITE);
-            g.setFont(getFont().deriveFont(Font.PLAIN, 8f));
-            g.drawString(String.format("%.0f%%", 100 * Math.min(1, now / max)), x + 3, y + 8);
-        }
-    }
-
-    /** One card: title, name and kind, hull and shield bars; returns the y below it. */
-    private int paintCard(Graphics2D g, int x, int y, String title, Ship s, Color accent) {
-        Font small = getFont().deriveFont(Font.PLAIN, 10f);
-        Font bold = getFont().deriveFont(Font.BOLD, 11f);
-        int h = (title != null ? 14 : 0) + 50;
-        g.setColor(CARD_BACKGROUND);
-        g.fillRoundRect(x, y, CARD_WIDTH, h, 8, 8);
-        g.setColor(accent);
-        g.fillRect(x, y + 4, 3, h - 8);
-        int ty = y + 13;
-        if (title != null) {
-            g.setFont(small);
-            g.setColor(Color.LIGHT_GRAY);
-            g.drawString(title, x + 9, ty);
-            ty += 14;
-        }
-        g.setFont(bold);
-        g.setColor(Color.WHITE);
-        g.drawString(clip(g, label(s), CARD_WIDTH - 18), x + 9, ty);
-        g.setFont(small);
-        g.setColor(Color.LIGHT_GRAY);
-        String kind = (s.kind() == ShipKind.NPC ? "NPC" : s.kind() == ShipKind.PET ? "питомец" : "игрок")
-                + (s.typeId().isBlank() ? "" : " · " + s.typeId());
-        g.drawString(clip(g, kind, CARD_WIDTH - 18), x + 9, ty + 12);
-        orbit.world.Health health = s.health();
-        int by = ty + 18;
-        if (health.known()) {
-            bar(g, x + 9, by, health.hp(), health.hpMax(), HP_BAR);
-            bar(g, x + 9, by + 11, health.shield(), health.shieldMax(), SHIELD_BAR);
-        } else {
-            g.setColor(Color.GRAY);
-            g.drawString("HP неизвестно", x + 9, by + 9);
-        }
-        return y + h + 6;
-    }
-
-    private void bar(Graphics2D g, int x, int y, double now, double max, Color color) {
-        int w = CARD_WIDTH - 18;
-        g.setColor(BAR_TRACK);
-        g.fillRect(x, y, w, 9);
-        if (max > 0 && now >= 0) {
-            g.setColor(color);
-            g.fillRect(x, y, (int) Math.round(w * Math.min(1, now / max)), 9);
-            g.setColor(Color.WHITE);
-            g.setFont(getFont().deriveFont(Font.PLAIN, 9f));
-            g.drawString(String.format("%,.0f / %,.0f", now, max), x + 4, y + 8);
-        }
-    }
-
-    private static String clip(Graphics2D g, String text, int width) {
-        if (g.getFontMetrics().stringWidth(text) <= width) {
-            return text;
-        }
-        String t = text;
-        while (t.length() > 1 && g.getFontMetrics().stringWidth(t + "…") > width) {
-            t = t.substring(0, t.length() - 1);
-        }
-        return t + "…";
-    }
 
     static String label(Ship s) {
         String tag = s.clanTag() == null || s.clanTag().isBlank() ? "" : "[" + s.clanTag() + "] ";

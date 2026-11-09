@@ -217,7 +217,7 @@ public final class OrbitMain {
         }
         feed.setClock(() -> at);
         Path out = o.out.toString().endsWith(".png") ? o.out : Path.of("minimap.png");
-        javax.imageio.ImageIO.write(MainWindow.renderMinimap(feed, 840, 524), "png", out.toFile());
+        javax.imageio.ImageIO.write(MainWindow.renderMinimap(feed, 1000, 624), "png", out.toFile());
         System.out.println(GameCheck.describe(feed.snapshot()));
         System.out.println("Сохранено: " + out);
     }

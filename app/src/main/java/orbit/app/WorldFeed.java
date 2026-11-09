@@ -25,6 +25,8 @@ public final class WorldFeed {
     private final AtomicLong packets = new AtomicLong();
     private final String mode;
     private volatile String state = "Запуск";
+    /** When the first ship initialisation arrived (session start), 0 before. */
+    private volatile long sessionStart;
     /** What the bot is doing; set by the behaviour modules (stage 4–5), none yet. */
     private volatile String action;
     /** Time base of the model: real time, or the replay clock. */
@@ -38,6 +40,9 @@ public final class WorldFeed {
         packets.incrementAndGet();
         int heroBefore = world.snapshot(nanos).hero().id();
         world.apply(p, nanos);
+        if (sessionStart == 0 && p instanceof ShipInitializationCommand) {
+            sessionStart = nanos;
+        }
         logEvent(p, heroBefore);
     }
 
@@ -75,6 +80,11 @@ public final class WorldFeed {
 
     public String state() {
         return state;
+    }
+
+    /** {@link #now()} when the session started, 0 before the ship is known. */
+    public long sessionStartNanos() {
+        return sessionStart;
     }
 
     public void setAction(String action) {
