@@ -14,8 +14,9 @@ import org.slf4j.LoggerFactory;
 /**
  * Kills NPCs on the current map and picks up the boxes they drop, the way the player does in the
  * recordings: click the ship, press the laser ammunition key 0.8–1.5 s later (the server starts the
- * attack), stay in range, fly onto the box and pick it up. Repairs with the repair robot when hurt
- * and nobody attacks. The basis of the KILL module (stage 5).
+ * attack), stay in range, fly onto the box and pick it up. With no target in sight it roams the map
+ * (the server only sends nearby ships). Repairs with the repair robot when hurt and nobody attacks.
+ * The basis of the KILL module (stage 5).
  *
  * <p>Call {@link #tick} about ten times a second; it owns the {@link Navigator} meanwhile.
  */
@@ -51,6 +52,8 @@ public final class Hunter {
     private long repairedAt = Long.MIN_VALUE / 2;
     private int kills;
     private int boxes;
+    private double[] roamTo;
+    private long roamUntil;
 
     /**
      * @param wanted which NPCs to hunt (e.g. by name); free NPCs only (not shot at by other players)
@@ -107,8 +110,10 @@ public final class Hunter {
                     .filter(s -> s.kind() == WorldSnapshot.ShipKind.NPC && !s.lockedByOther() && !s.cloaked() && wanted.test(s))
                     .min(Comparator.comparingDouble(s -> s.distanceTo(h.x(), h.y()))).orElse(null);
             if (next == null) {
+                roam(w, now);
                 return;
             }
+            roamTo = null;
             targetId = next.id();
             selectAt = now + ms(300, 900);
             pressAt = 0;
@@ -149,6 +154,24 @@ public final class Hunter {
             }
             pressedAt = now;
         }
+    }
+
+    /**
+     * No target in sight: the server only sends ships near the hero, so fly around the map like a
+     * player looking for NPCs — random points, kept away from the border.
+     */
+    private void roam(WorldSnapshot w, long now) {
+        WorldSnapshot.Hero h = w.hero();
+        if (roamTo == null || nav.idle() || now > roamUntil) {
+            orbit.world.maps.MapCatalog.MapInfo map = orbit.world.maps.MapCatalog.bundled().info(h.mapId());
+            double margin = Math.min(map.width(), map.height()) * 0.1;
+            roamTo = new double[] {margin + random.nextDouble() * (map.width() - 2 * margin),
+                    margin + random.nextDouble() * (map.height() - 2 * margin)};
+            roamUntil = now + 90_000_000_000L;
+            nav.moveTo(roamTo[0], roamTo[1], false);
+            log.info("Целей не видно — облетаю карту, к {}/{}", (int) roamTo[0] / 100, (int) roamTo[1] / 100);
+        }
+        nav.tick();
     }
 
     private void approach(WorldSnapshot.Hero h, Ship t, double dist, long now) {

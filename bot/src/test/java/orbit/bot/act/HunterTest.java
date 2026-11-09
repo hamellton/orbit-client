@@ -63,6 +63,30 @@ class HunterTest {
     }
 
     @Test
+    void roamsTheMapWhenNoTargetIsInSight() {
+        ShipInitializationCommand si = new ShipInitializationCommand();
+        si.userId = 1;
+        si.mapId = 26;
+        si.x = 2000;
+        si.y = 2000;
+        si.speed = 400;
+        world.apply(si, now);
+        Random random = new Random(4);
+        Navigator nav = new Navigator(() -> world.snapshot(now), this::receive, MapCatalog.bundled(), random, () -> now);
+        Actions actions = new Actions(() -> world.snapshot(now), this::receive, () -> new Actions.Login(1, "s"),
+                Actions.Screen.DEFAULT, random);
+        Hunter hunter = new Hunter(() -> world.snapshot(now), actions, nav, random, () -> now, s -> true, 1);
+        for (int t = 0; t < 50; t++) {
+            hunter.tick();
+            now += 100 * MS;
+        }
+        assertTrue(world.snapshot(now).hero().moving(), "flies somewhere to find NPCs");
+        var h = world.snapshot(now).hero();
+        assertTrue(h.targetX() > 2000 && h.targetX() < 19000 && h.targetY() > 1300 && h.targetY() < 11800,
+                "inside the map, away from the border");
+    }
+
+    @Test
     void killsAnNpcAndPicksUpItsBox() {
         ShipInitializationCommand si = new ShipInitializationCommand();
         si.userId = 1;

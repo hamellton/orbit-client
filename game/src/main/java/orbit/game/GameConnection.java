@@ -51,6 +51,8 @@ public final class GameConnection implements AutoCloseable {
     private static final Logger log = LoggerFactory.getLogger(GameConnection.class);
     /** Legacy server command {@code CLIENT_SETTING} ("7") with the jump CPU part ("HS"). */
     private static final String CLIENT_SETTING_HS = "0|7|HS";
+    /** The server ends the session after a logout ({@code ServerCommands.LOGOUT}). */
+    private static final String LOGOUT = "0|l";
     /** Sent by the client right after its {@code ReadyRequest}s ({@code ServerCommands.LOGIN_FLAG}). */
     static final String LOGIN_FLAG = "LF|w";
     private static final byte[] POLICY_REQUEST = "<policy-file-request/>\0".getBytes(StandardCharsets.US_ASCII);
@@ -348,6 +350,12 @@ public final class GameConnection implements AutoCloseable {
                         connectedBefore = true;
                         startupThread = Thread.ofVirtual().name("startup").start(() -> runStartup(ctx));
                         keepAlive = Thread.ofVirtual().name("keepalive").start(this::keepAliveLoop);
+                    } else if (p instanceof LegacyModule lm && LOGOUT.equals(lm.message)) {
+                        // the logout we asked for: the server ends the session, nothing to reconnect
+                        listener.onPacket(p);
+                        listener.onState(GameListener.State.STOPPED, "Выход из игры");
+                        closed.set(true);
+                        return null;
                     } else if (p instanceof LegacyModule lm && CLIENT_SETTING_HS.equals(lm.message)) {
                         if (loginFlagSent) {
                             answerJumpCpuNotice(seq);

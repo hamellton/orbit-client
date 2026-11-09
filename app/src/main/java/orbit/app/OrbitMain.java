@@ -246,7 +246,7 @@ public final class OrbitMain {
             try {
                 waitAlive(feed);
                 Thread.sleep(4_000 + random.nextInt(3_000));
-                if (!travel(feed, traveler, before, catalog)) {
+                if (!travel(feed, traveler, before, catalog, actions)) {
                     return;
                 }
                 if (hunt != null) {
@@ -269,7 +269,7 @@ public final class OrbitMain {
                         if (hero.mapId() != huntMap) {
                             // destroyed and repaired elsewhere: back to the hunting ground
                             log.info("Не на карте охоты — лечу обратно на {}", catalog.info(huntMap).name());
-                            if (!travel(feed, traveler, List.of(new Leg(catalog.info(huntMap), Double.NaN, Double.NaN)), catalog)) {
+                            if (!travel(feed, traveler, List.of(new Leg(catalog.info(huntMap), Double.NaN, Double.NaN)), catalog, actions)) {
                                 return;
                             }
                             continue;
@@ -285,7 +285,7 @@ public final class OrbitMain {
                     log.info("Охота: {} — убито {}, ящиков {}", hunter.state(), hunter.kills(), hunter.boxes());
                     nav.stop();
                 }
-                if (!travel(feed, traveler, after, catalog)) {
+                if (!travel(feed, traveler, after, catalog, actions)) {
                     return;
                 }
                 if (logout) {
@@ -315,10 +315,49 @@ public final class OrbitMain {
         }
     }
 
+    /** Below this hull share the ship is repaired before flying on (a jump may land among enemies). */
+    static final double TRAVEL_MIN_HP = 0.7;
+
+    /**
+     * Repairs with the repair robot up to 90 % before a trip, when hurt and nobody attacks; gives up
+     * after three minutes or when the robot is not available.
+     */
+    private static void healUp(WorldFeed feed, orbit.bot.act.Actions actions) throws InterruptedException {
+        var h = feed.snapshot().hero();
+        if (h.health().hpPercent() < 0 || h.health().hpPercent() >= TRAVEL_MIN_HP) {
+            return;
+        }
+        var bot = feed.snapshot().items().get("equipment_extra_repbot_rep");
+        if (bot == null || !bot.available()) {
+            log.warn("Прочность {}%, робота-ремонтника нет — лечу так", (int) (h.health().hpPercent() * 100));
+            return;
+        }
+        log.info("Прочность {}% — чинюсь перед перелётом", (int) (h.health().hpPercent() * 100));
+        feed.setAction("ремонт");
+        long until = System.currentTimeMillis() + 3 * 60_000;
+        long pressed = 0;
+        while (System.currentTimeMillis() < until) {
+            var w = feed.snapshot();
+            if (w.hero().health().hpPercent() >= 0.9 || !w.hero().alive()) {
+                break;
+            }
+            var item = w.items().get("equipment_extra_repbot_rep");
+            if (w.hero().attackers().isEmpty() && item != null && item.remainingMs(feed.now()) == 0
+                    && System.currentTimeMillis() - pressed > 10_000) {
+                actions.useItem("equipment_extra_repbot_rep");
+                pressed = System.currentTimeMillis();
+            }
+            Thread.sleep(500);
+        }
+        log.info("Прочность {}%", (int) (feed.snapshot().hero().health().hpPercent() * 100));
+    }
+
     /** Runs legs one after another; waits through a death and repair. False if a leg cannot be done. */
     private static boolean travel(WorldFeed feed, orbit.bot.nav.Traveler traveler, List<Leg> legs,
-                                  orbit.world.maps.MapCatalog catalog) throws InterruptedException {
+                                  orbit.world.maps.MapCatalog catalog, orbit.bot.act.Actions actions)
+            throws InterruptedException {
         for (Leg leg : legs) {
+            healUp(feed, actions);
             log.info("Перелёт на {}{}", leg.map().name(),
                     Double.isNaN(leg.x()) ? "" : " " + (int) leg.x() / 100 + "/" + (int) leg.y() / 100);
             feed.setAction("перелёт на " + leg.map().name());
@@ -327,6 +366,7 @@ public final class OrbitMain {
             while (traveler.state() == orbit.bot.nav.Traveler.State.TRAVELLING) {
                 if (!feed.snapshot().hero().alive()) {
                     waitAlive(feed);
+                    healUp(feed, actions);
                     traveler.travel(leg.map().id(), leg.x(), leg.y()); // repaired somewhere: plan again
                 }
                 traveler.tick();
