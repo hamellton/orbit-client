@@ -19,7 +19,8 @@ class VaultTest {
 
     /** Low iteration count keeps tests fast; production uses {@link Vault#DEFAULT_ITERATIONS}. */
     private static final int FAST = 10_000;
-    private static final String PASSWORD = "KoLYa[$D†O$]p@ss";
+    /** Non-ASCII on purpose: the vault must keep any password intact. */
+    private static final String PASSWORD = "Te5t[ä†]p@ss";
 
     @TempDir
     Path dir;
