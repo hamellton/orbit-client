@@ -121,40 +121,64 @@ public interface StartupSequence {
         }
 
         /**
-         * Orders the client was seen to use. The cold start is not fixed: the settings requests are
-         * sent by independent parts of the UI as they finish loading (recordings of 2026-11-09:
-         * 18:26 with audio settings, 21:13 without them and with the key table first).
+         * Orders the client was seen to use. Neither start is fixed: the settings requests are sent by
+         * independent parts of the UI as they finish loading (14 sessions recorded on 2026-11-09).
          */
         static List<List<Step>> variants(ClientProfile profile, Context ctx) {
             String view = profile.readyTypeStr();
             return ctx.firstConnect() ? cold(profile, ctx, view) : warm(profile, ctx, view);
         }
 
-        /** Cold start (2 recordings): loading 2–9 s, then two orders of the settings requests. */
+        /**
+         * Cold start (3 recordings): loading 1–9 s, the fixed loading part, then the settings requests
+         * of independent UI parts in any order (audio settings not always), then the keep-alive.
+         */
         private static List<List<Step>> cold(ClientProfile profile, Context ctx, String view) {
             List<Step> prefix = new ArrayList<>();
-            prefix.add(new Step("HangarListRequest", 1_900, 9_500, HangarListRequest::new));
+            prefix.add(new Step("HangarListRequest", 900, 9_500, HangarListRequest::new));
             prefix.add(new Step("SpaceSearchRequest", 25, 70, () -> spaceSearch(0)));
-            prefix.add(new Step("SpaceSearchRequest", 0, 45, () -> spaceSearch(4)));
+            prefix.add(new Step("SpaceSearchRequest", 0, 55, () -> spaceSearch(4)));
             prefix.add(new Step("SpaceSearchRequest", 0, 85, () -> spaceSearch(2)));
-            prefix.add(new Step("LabUpdateRequest", 0, 12, LabUpdateRequest::new));
-            prefix.add(new Step("ReadyRequest", 1, 55, () -> ready(view, ReadyType.MAP_LOADED)));
-            prefix.add(new Step("ReadyRequest", 45, 80, () -> ready(view, ReadyType.UI_READY)));
-            prefix.add(new Step("LegacyModule", 115, 220, () -> legacy("LF|w")));
+            prefix.add(new Step("LabUpdateRequest", 0, 40, LabUpdateRequest::new));
+            prefix.add(new Step("ReadyRequest", 1, 85, () -> ready(view, ReadyType.MAP_LOADED)));
+            prefix.add(new Step("ReadyRequest", 30, 80, () -> ready(view, ReadyType.UI_READY)));
+            prefix.add(new Step("LegacyModule", 65, 220, () -> legacy("LF|w")));
 
-            List<Step> withAudio = new ArrayList<>(prefix);
-            withAudio.add(new Step("AudioSettingsRequest", 35, 60, () -> audio(ctx.settings())));
-            withAudio.add(new Step("CommandCenterGetDontShowRequest", 8, 20, CommandCenterGetDontShowRequest::new));
-            withAudio.add(new Step("UserKeyBindingsUpdate", 35, 60, profile::keyBindingsPacket));
-            withAudio.add(new Step("GalaxyGateBuilderInfoRequest", 20, 35, GalaxyGateBuilderInfoRequest::new));
-            withAudio.add(new Step("KeepAlive", 80, 800, StartupSequence.ClientLike::keepAlive));
+            List<Step> settings = List.of(
+                    new Step("CommandCenterGetDontShowRequest", 0, 200, CommandCenterGetDontShowRequest::new),
+                    new Step("UserKeyBindingsUpdate", 0, 200, profile::keyBindingsPacket),
+                    new Step("GalaxyGateBuilderInfoRequest", 0, 200, GalaxyGateBuilderInfoRequest::new));
+            List<List<Step>> variants = new ArrayList<>();
+            for (boolean audio : new boolean[] {true, false}) {
+                for (List<Step> order : permutations(settings)) {
+                    List<Step> v = new ArrayList<>(prefix);
+                    if (audio) {
+                        v.add(new Step("AudioSettingsRequest", 0, 60, () -> audio(ctx.settings())));
+                    }
+                    v.addAll(order);
+                    v.add(new Step("KeepAlive", 40, 800, StartupSequence.ClientLike::keepAlive));
+                    variants.add(List.copyOf(v));
+                }
+            }
+            return List.copyOf(variants);
+        }
 
-            List<Step> keysFirst = new ArrayList<>(prefix);
-            keysFirst.add(new Step("UserKeyBindingsUpdate", 0, 10, profile::keyBindingsPacket));
-            keysFirst.add(new Step("CommandCenterGetDontShowRequest", 100, 200, CommandCenterGetDontShowRequest::new));
-            keysFirst.add(new Step("GalaxyGateBuilderInfoRequest", 10, 35, GalaxyGateBuilderInfoRequest::new));
-            keysFirst.add(new Step("KeepAlive", 80, 800, StartupSequence.ClientLike::keepAlive));
-            return List.of(List.copyOf(withAudio), List.copyOf(keysFirst));
+        private static <T> List<List<T>> permutations(List<T> items) {
+            if (items.size() <= 1) {
+                return List.of(items);
+            }
+            List<List<T>> out = new ArrayList<>();
+            for (int i = 0; i < items.size(); i++) {
+                List<T> rest = new ArrayList<>(items);
+                T head = rest.remove(i);
+                for (List<T> tail : permutations(rest)) {
+                    List<T> p = new ArrayList<>();
+                    p.add(head);
+                    p.addAll(tail);
+                    out.add(p);
+                }
+            }
+            return out;
         }
 
         /**
