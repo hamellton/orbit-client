@@ -20,3 +20,7 @@ recordings/
 logs/
 *.log
 tools/external/
+
+# Credentials (never commit)
+creds.txt
+*.creds
