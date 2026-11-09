@@ -66,6 +66,7 @@ import orbit.protocol.gen.ShipInitializationCommand;
 import orbit.protocol.gen.ShipRemoveCommand;
 import orbit.protocol.gen.ShipSelectionCommand;
 import orbit.protocol.gen.TimerStateModule;
+import orbit.protocol.gen.UserSettingsCommand;
 import orbit.world.WorldSnapshot.Asset;
 import orbit.world.WorldSnapshot.Beacon;
 import orbit.world.WorldSnapshot.Collectable;
@@ -128,6 +129,8 @@ public final class World {
         int cargoMax = -1;
         int config;
         int enemyWarning = -1;
+        /** The client's minimap zoom ({@code WindowSettingsModule.minmapScale}); 8 is the client's default. */
+        int minimapScale = 8;
         boolean premium;
         boolean cloaked;
         boolean alive = true;
@@ -254,6 +257,11 @@ public final class World {
             case GroupInitializationCommand p -> initGroup(p);
             case GroupMemberUpdateCommand p -> updateGroupMember(p);
             case GroupCloseCommand p -> group = Group.NONE;
+            case UserSettingsCommand p -> {
+                if (p.windowSettingsModule != null && p.windowSettingsModule.minmapScale > 0) {
+                    hero.minimapScale = p.windowSettingsModule.minmapScale;
+                }
+            }
             case MenuInitializationCommand p -> initItems(p, nanos);
             case MenuItemStatusCommand p -> updateItem(p);
             case MenuItemTimerCommand p -> updateTimer(p, nanos);
@@ -297,7 +305,7 @@ public final class World {
                 (int) Math.round(m.toX()), (int) Math.round(m.toY()), hero.speed, hero.health, hero.factionId,
                 hero.clanId, hero.level, hero.credits, hero.uridium, hero.experience, hero.honor, hero.cargoFree, hero.cargoMax, hero.premium,
                 hero.cloaked, hero.alive, hero.selectedId, hero.attackTargetId, attackers(nanos), hero.petId, hero.config,
-                hero.enemyWarning, hero.beacon);
+                hero.enemyWarning, hero.minimapScale, hero.beacon);
         Map<Integer, WorldSnapshot.Ship> shipViews = new LinkedHashMap<>();
         for (ShipState s : ships.values()) {
             shipViews.put(s.id, new WorldSnapshot.Ship(s.id, s.kind, s.name, s.typeId, s.factionId, s.clanId,
