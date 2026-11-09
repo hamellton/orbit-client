@@ -25,7 +25,13 @@ import orbit.protocol.gen.MoveCommand;
 import orbit.protocol.gen.MoveRequest;
 import orbit.protocol.gen.OreTypeModule;
 import orbit.protocol.gen.POITypeModule;
+import orbit.protocol.gen.PetDeactivationCommand;
+import orbit.protocol.gen.PetGearSelectCommand;
+import orbit.protocol.gen.PetGearTypeModule;
 import orbit.protocol.gen.PetHeroActivationCommand;
+import orbit.protocol.gen.PetHitpointsUpdateCommand;
+import orbit.protocol.gen.PetInitializationCommand;
+import orbit.protocol.gen.PetStatusCommand;
 import orbit.protocol.gen.ReloginCommand;
 import orbit.protocol.gen.RemoveCollectableCommand;
 import orbit.protocol.gen.ShipCreateCommand;
@@ -196,6 +202,63 @@ class WorldTest {
         own.message = "0|n|LSH|7|" + HERO;
         w.apply(own, 0);
         assertFalse(w.snapshot(0).ships().get(7).lockedByOther(), "our own attack does not grey it out");
+    }
+
+    @Test
+    void ownPetIsTrackedAndOtherPetsAreNotTakenForIt() {
+        World w = withHero();
+        PetInitializationCommand init = new PetInitializationCommand();
+        init.hasPet = true;
+        init.petIsAlive = true;
+        init.hasFuel = true;
+        w.apply(init, 0);
+        PetStatusCommand other = new PetStatusCommand();
+        other.petId = 900;
+        other.petName = "HOBBIT";
+        other.petHitPoints = 1;
+        other.petHitPointsMax = 2;
+        w.apply(other, 0);
+        assertEquals(0, w.snapshot(0).pet().id(), "another player's pet is not ours");
+        assertTrue(w.snapshot(0).pet().owned());
+        assertFalse(w.snapshot(0).pet().active());
+
+        PetHeroActivationCommand mine = new PetHeroActivationCommand();
+        mine.petId = 55;
+        mine.ownerId = HERO;
+        mine.petName = "P.E.T.";
+        mine.petLevel = 3;
+        w.apply(mine, 0);
+        PetStatusCommand status = new PetStatusCommand();
+        status.petId = 55;
+        status.petHitPoints = 40_000;
+        status.petHitPointsMax = 50_000;
+        status.petShieldEnergyNow = 10_000;
+        status.petShieldEnergyMax = 20_000;
+        status.petCurrentFuel = 60_000;
+        status.petMaxFuel = 100_000;
+        w.apply(status, 0);
+        PetGearSelectCommand gear = new PetGearSelectCommand();
+        gear.gearType = new PetGearTypeModule();
+        gear.gearType.typeValue = (short) PetGearTypeModule.PETGEARTYPE_GUARD;
+        w.apply(gear, 0);
+        WorldSnapshot.Pet pet = w.snapshot(0).pet();
+        assertTrue(pet.active());
+        assertEquals("P.E.T.", pet.name());
+        assertEquals(0.8, pet.health().hpPercent(), 1e-9);
+        assertEquals(60_000, pet.fuel());
+        assertEquals(PetGearTypeModule.PETGEARTYPE_GUARD, pet.gear());
+
+        PetHitpointsUpdateCommand hp = new PetHitpointsUpdateCommand();
+        hp.hitpointsNow = 25_000;
+        hp.hitpointsMax = 50_000;
+        w.apply(hp, 0);
+        assertEquals(0.5, w.snapshot(0).pet().health().hpPercent(), 1e-9);
+        assertEquals(0.5, w.snapshot(0).ships().get(55).health().hpPercent(), 1e-9, "the pet on the map too");
+
+        PetDeactivationCommand off = new PetDeactivationCommand();
+        off.petId = 55;
+        w.apply(off, 0);
+        assertFalse(w.snapshot(0).pet().active());
     }
 
     @Test

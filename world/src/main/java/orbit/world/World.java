@@ -47,7 +47,15 @@ import orbit.protocol.gen.MoveRequest;
 import orbit.protocol.gen.OreCountModule;
 import orbit.protocol.gen.PetActivationCommand;
 import orbit.protocol.gen.PetDeactivationCommand;
+import orbit.protocol.gen.PetFuelUpdateCommand;
+import orbit.protocol.gen.PetGearSelectCommand;
+import orbit.protocol.gen.PetHeatUpdateCommand;
 import orbit.protocol.gen.PetHeroActivationCommand;
+import orbit.protocol.gen.PetHitpointsUpdateCommand;
+import orbit.protocol.gen.PetInitializationCommand;
+import orbit.protocol.gen.PetLevelUpdateCommand;
+import orbit.protocol.gen.PetShieldUpdateCommand;
+import orbit.protocol.gen.PetStatusCommand;
 import orbit.protocol.gen.PlayerAttributeModule;
 import orbit.protocol.gen.ReloginCommand;
 import orbit.protocol.gen.RemoveCollectableCommand;
@@ -144,6 +152,7 @@ public final class World {
     private final Map<Integer, Asset> assets = new LinkedHashMap<>();
     private final Map<String, Zone> zones = new LinkedHashMap<>();
     private Group group = Group.NONE;
+    private WorldSnapshot.Pet pet = WorldSnapshot.Pet.NONE;
     private final Map<String, WorldSnapshot.Item> items = new LinkedHashMap<>();
     private final Map<Integer, Double> ores = new LinkedHashMap<>();
     private final Map<String, Double> resources = new LinkedHashMap<>();
@@ -159,14 +168,37 @@ public final class World {
             case MoveCommand p -> moveShip(p, nanos);
             case ShipRemoveCommand p -> removeShip(p.userId);
             case ShipDestroyedCommand p -> destroyed(p.destroyedUserId);
-            case PetHeroActivationCommand p -> activatePet(p.petId, p.ownerId, p.petName, p.factionId, p.clanId,
-                    p.clanTag, 0, p.x, p.y, nanos);
+            case PetHeroActivationCommand p -> {
+                activatePet(p.petId, p.ownerId, p.petName, p.factionId, p.clanId, p.clanTag, 0, p.x, p.y, nanos);
+                pet = pet(true, pet.alive() || pet.id() == 0, pet.hasFuel(), true, p.petId, p.petName, p.petLevel,
+                        pet.health(), pet.fuel(), pet.fuelMax(), pet.heat(), pet.heatMax(), pet.gear());
+            }
+            case PetInitializationCommand p -> pet = pet(p.hasPet, p.petIsAlive, p.hasFuel, pet.active() && p.petIsAlive,
+                    pet.id(), pet.name(), pet.level(), pet.health(), pet.fuel(), pet.fuelMax(), pet.heat(), pet.heatMax(),
+                    pet.gear());
+            case PetHitpointsUpdateCommand p -> pet = withPetHealth(pet.health().withHp(p.hitpointsNow, p.hitpointsMax));
+            case PetShieldUpdateCommand p -> pet = withPetHealth(pet.health().withShield(p.petShieldNow, p.petShieldMax));
+            case PetFuelUpdateCommand p -> pet = pet(pet.owned(), pet.alive(), p.petFuelNow > 0, pet.active(), pet.id(),
+                    pet.name(), pet.level(), pet.health(), p.petFuelNow, p.petFuelMax, pet.heat(), pet.heatMax(), pet.gear());
+            case PetHeatUpdateCommand p -> pet = pet(pet.owned(), pet.alive(), pet.hasFuel(), pet.active(), pet.id(),
+                    pet.name(), pet.level(), pet.health(), pet.fuel(), pet.fuelMax(), p.petHeatAmount, p.petHeatAmountMax,
+                    pet.gear());
+            case PetGearSelectCommand p -> pet = pet(pet.owned(), pet.alive(), pet.hasFuel(), pet.active(), pet.id(),
+                    pet.name(), pet.level(), pet.health(), pet.fuel(), pet.fuelMax(), pet.heat(), pet.heatMax(),
+                    p.gearType != null ? p.gearType.typeValue : -1);
+            case PetLevelUpdateCommand p -> pet = pet(pet.owned(), pet.alive(), pet.hasFuel(), pet.active(), pet.id(),
+                    pet.name(), p.petLevel, pet.health(), pet.fuel(), pet.fuelMax(), pet.heat(), pet.heatMax(), pet.gear());
+            case PetStatusCommand p -> petStatus(p);
             case PetActivationCommand p -> activatePet(p.petId, p.ownerId, p.petName, p.petFactionId, p.petClanID,
                     p.clanTag, p.clanRelationship != null ? p.clanRelationship.type : 0, p.x, p.y, nanos);
             case PetDeactivationCommand p -> {
                 removeShip(p.petId);
                 if (hero.petId == p.petId) {
                     hero.petId = 0;
+                }
+                if (pet.id() == p.petId) {
+                    pet = pet(pet.owned(), pet.alive(), pet.hasFuel(), false, pet.id(), pet.name(), pet.level(),
+                            pet.health(), pet.fuel(), pet.fuelMax(), pet.heat(), pet.heatMax(), pet.gear());
                 }
             }
             case AddBoxCommand p -> collectables.put(p.hash,
@@ -275,7 +307,7 @@ public final class World {
         }
         return new WorldSnapshot(nanos, h, Map.copyOf(shipViews), Map.copyOf(collectables), Map.copyOf(portals),
                 Map.copyOf(assets), Map.copyOf(zones), group, Map.copyOf(items),
-                new WorldSnapshot.Inventory(Map.copyOf(ores), Map.copyOf(resources), Map.copyOf(bootyKeys)));
+                new WorldSnapshot.Inventory(Map.copyOf(ores), Map.copyOf(resources), Map.copyOf(bootyKeys)), pet);
     }
 
     /** Ships shooting lasers at the hero now, or that hit it within {@link #ATTACKER_MEMORY_NANOS}. */
@@ -633,6 +665,39 @@ public final class World {
         if (s != null) {
             s.health = s.health.withHp(p.victimHitpoints, p.victimMaxHitpoints)
                     .withShield(p.victimShield, p.victimMaxShield).withNanoHull(p.victimNanoHull, p.victimMaxNanohull);
+        }
+    }
+
+    // ---- own pet ----
+
+    private static WorldSnapshot.Pet pet(boolean owned, boolean alive, boolean hasFuel, boolean active, int id, String name,
+                                         int level, Health health, int fuel, int fuelMax, double heat, double heatMax,
+                                         int gear) {
+        return new WorldSnapshot.Pet(owned, alive, hasFuel, active, id, name, level, health, fuel, fuelMax, heat, heatMax,
+                gear);
+    }
+
+    private WorldSnapshot.Pet withPetHealth(Health h) {
+        ShipState s = ships.get(pet.id());
+        if (s != null) {
+            s.health = h;
+        }
+        return pet(true, pet.alive(), pet.hasFuel(), pet.active(), pet.id(), pet.name(), pet.level(), h, pet.fuel(),
+                pet.fuelMax(), pet.heat(), pet.heatMax(), pet.gear());
+    }
+
+    /** Full status of a pet: the own one (known from {@code PetHeroActivationCommand}) or another player's. */
+    private void petStatus(PetStatusCommand p) {
+        Health h = new Health(p.petHitPoints, p.petHitPointsMax, p.petShieldEnergyNow, p.petShieldEnergyMax, -1, -1);
+        ShipState s = ships.get(p.petId);
+        if (s != null) {
+            s.health = h;
+        }
+        // statuses of other players' pets arrive too, even before the own pet is launched
+        if (pet.id() != 0 && p.petId == pet.id()) {
+            pet = pet(true, pet.alive(), p.petCurrentFuel > 0, pet.active(), p.petId,
+                    p.petName.isEmpty() ? pet.name() : p.petName, p.petLevel, h, p.petCurrentFuel, p.petMaxFuel,
+                    pet.heat(), pet.heatMax(), pet.gear());
         }
     }
 

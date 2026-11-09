@@ -10,7 +10,7 @@ import java.util.Map;
  */
 public record WorldSnapshot(long nanos, Hero hero, Map<Integer, Ship> ships, Map<String, Collectable> collectables,
                             Map<Integer, Portal> portals, Map<Integer, Asset> assets, Map<String, Zone> zones,
-                            Group group, Map<String, Item> items, Inventory inventory) {
+                            Group group, Map<String, Item> items, Inventory inventory, Pet pet) {
 
     /** The player's own ship. {@code id == 0} until {@code ShipInitializationCommand} arrives. */
     /**
@@ -62,6 +62,21 @@ public record WorldSnapshot(long nanos, Hero hero, Map<Integer, Ship> ships, Map
      * @param bootyKeys  legacy key code ({@code BK}, {@code BKB}, …) → count
      */
     public record Inventory(Map<Integer, Double> ores, Map<String, Double> resources, Map<String, Integer> bootyKeys) {
+    }
+
+    /**
+     * The hero's own P.E.T.
+     *
+     * @param owned   the account has a pet ({@code PetInitializationCommand.hasPet})
+     * @param active  launched and on the map ({@code PetHeroActivationCommand} … {@code PetDeactivationCommand})
+     * @param gear    selected mode ({@code PetGearTypeModule}, e.g. {@code PETGEARTYPE_GUARD}), -1 if unknown
+     * @param fuel    current fuel, -1 if unknown
+     * @param heat    overheating of the combo gears, -1 if unknown
+     */
+    public record Pet(boolean owned, boolean alive, boolean hasFuel, boolean active, int id, String name, int level,
+                      Health health, int fuel, int fuelMax, double heat, double heatMax, int gear) {
+
+        static final Pet NONE = new Pet(false, false, false, false, 0, "", 0, Health.UNKNOWN, -1, -1, -1, -1, -1);
     }
 
     /** Area flags from the last {@code BeaconCommand} (sent about once a second). */

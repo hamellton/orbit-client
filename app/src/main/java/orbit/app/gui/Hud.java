@@ -57,6 +57,7 @@ final class Hud {
             return;
         }
         paintHero(g, height, hero);
+        paintPet(g, height - MARGIN - 52 - 6, w.pet());
         paintTargetAndAttackers(g, width, height, w);
     }
 
@@ -198,6 +199,70 @@ final class Hud {
         FontMetrics fm = g.getFontMetrics();
         g.drawString(right, x + CARD_WIDTH - 10 - fm.stringWidth(right), y + 15);
         bars(g, x + 10, y + 22, h.health());
+    }
+
+    /** The own P.E.T. above the hero card: name, level, mode, hull, shield, fuel. */
+    private void paintPet(Graphics2D g, int bottom, WorldSnapshot.Pet pet) {
+        if (!pet.owned()) {
+            return;
+        }
+        int x = MARGIN;
+        if (!pet.active() || pet.id() == 0) {
+            int y = bottom - 22;
+            card(g, x, y, 22, MinimapPanel.PET);
+            g.setFont(base.deriveFont(Font.PLAIN, 11f));
+            g.setColor(DIM);
+            String why = !pet.alive() ? "питомец уничтожен" : !pet.hasFuel() ? "питомец: нет топлива" : "питомец не выпущен";
+            g.drawString(why, x + 10, y + 15);
+            return;
+        }
+        int h = 64;
+        int y = bottom - h;
+        card(g, x, y, h, MinimapPanel.PET);
+        g.setFont(base.deriveFont(Font.BOLD, 12f));
+        g.setColor(TEXT);
+        g.drawString(clip(g, pet.name(), CARD_WIDTH - 110), x + 10, y + 15);
+        g.setFont(base.deriveFont(Font.PLAIN, 10f));
+        g.setColor(DIM);
+        String right = gearName(pet.gear()) + (pet.level() > 0 ? "   ур. " + pet.level() : "");
+        FontMetrics fm = g.getFontMetrics();
+        g.drawString(right, x + CARD_WIDTH - 10 - fm.stringWidth(right), y + 15);
+        if (pet.health().known()) {
+            bars(g, x + 10, y + 21, pet.health());
+        } else {
+            g.drawString("HP неизвестно", x + 10, y + 33);
+        }
+        if (pet.fuel() >= 0) {
+            g.setColor(DIM);
+            g.drawString(String.format("топливо %,d / %,d", pet.fuel(), pet.fuelMax())
+                    + (pet.heatMax() > 0 ? String.format("   нагрев %.0f / %.0f", pet.heat(), pet.heatMax()) : ""), x + 10, y + 58);
+        }
+    }
+
+    /** Russian names of the P.E.T. modes ({@code PetGearTypeModule}). */
+    static String gearName(int gear) {
+        return switch (gear) {
+            case 1 -> "пассивный";
+            case 2 -> "защита";
+            case 4 -> "сбор ящиков";
+            case 5 -> "сбор ресурсов";
+            case 6 -> "поиск врагов";
+            case 7 -> "поиск ресурсов";
+            case 8 -> "торговля";
+            case 9 -> "саморемонт";
+            case 10 -> "камикадзе";
+            case 11 -> "ремонт корабля";
+            case 12 -> "комбо-защита";
+            case 14 -> "жертва";
+            case 15 -> "перенацеливание";
+            case 16 -> "HP-связь";
+            case 17 -> "мега-мина";
+            case 18 -> "боевой маяк";
+            case 19 -> "маяк HP";
+            case 20 -> "сброс нагрева";
+            case -1 -> "";
+            default -> "режим " + gear;
+        };
     }
 
     private void paintTargetAndAttackers(Graphics2D g, int width, int height, WorldSnapshot w) {
