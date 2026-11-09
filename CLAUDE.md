@@ -26,6 +26,10 @@ Status: Stage 2 (protocol codegen) done, awaiting review. See `docs/PLAN.md` for
 - `protocol` — runtime (`PacketInput/Output`, rotations, `PacketCodec`, `ProtocolOutdatedException`) +
   generated `orbit.protocol.gen.*` (build output, not in git). Generated classes mirror client
   inheritance; field codecs are static `writeFields/readFields` to replay `super.write`.
+- `secrets` — encrypted account vault `local/vault.bin` (AES-GCM, PBKDF2 master password,
+  `ORBIT_MASTER_PASSWORD` for headless), `SecretMask` + logback converters, `vault` CLI.
+- `auth` — website login (`AuthClient`), `AccountLogin` (saved dosid first, then password; stores new dosid).
+- `game` — game connection (`GameConnection`), `game-check` live tool.
 - `sniffer` — SOCKS5 + direct-port relay, session recording, `session-report` tool; uses generated classes.
 
 ## Build
@@ -42,4 +46,7 @@ Gradle needs JDK 21 (`export JAVA_HOME=$(/usr/libexec/java_home -v 21)`; the def
 - Flash ignores the browser proxy; game sockets are captured only by redirecting `*.prod.darkorbit.com`.
 - GE1 = cluster 22, `170.33.12.50`, ports 6001–6007. Map change = `ReloginCommand` + reconnect.
 - `super.write` writes the parent's id again before the parent's fields.
-- Website login is protected by hCaptcha.
+- Website login is protected by hCaptcha; ~4 password logins in a few minutes trigger it per IP.
+- The site's CDN sets `acw_tc` with `Max-Age`; `java.net.CookieManager` then emits RFC 2965 cookies
+  (quoted values) and the site rejects `dosid` with `loginError=95`. `HttpSession` builds the header itself.
+- The site gives every visitor a `dosid`; only the game page (flashvars) proves a login.

@@ -6,6 +6,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import orbit.secrets.SecretMask;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -65,6 +66,7 @@ public final class AuthClient {
 
     /** Logs in with username and password. */
     public GameSession loginWithPassword(String username, String password) throws AuthException {
+        SecretMask.register(password);
         useClientUserAgent();
         HttpSession.Response landing = request(() -> http.get(endpoints.landingUrl()));
         Matcher form = LOGIN_FORM.matcher(landing.body());
@@ -84,6 +86,7 @@ public final class AuthClient {
             String origin = result.url().getScheme() + "://" + result.url().getAuthority();
             String dosid = http.cookie(origin + "/", "dosid");
             if (dosid != null) {
+                SecretMask.register(dosid);
                 // the site hands out a dosid to anonymous visitors too; only the game page proves the login
                 log.info("Пароль принят, сервер аккаунта: {}", host);
                 return loadGameSession(origin, dosid, true);
@@ -98,6 +101,7 @@ public final class AuthClient {
      * @param server account server code, e.g. {@code int1} for GE1
      */
     public GameSession loginWithDosid(String server, String dosid) throws AuthException {
+        SecretMask.register(dosid);
         useClientUserAgent();
         String origin = endpoints.accountOrigin(server);
         http.setCookie(origin + "/", "dosid", dosid);
@@ -133,6 +137,7 @@ public final class AuthClient {
                     "Страница игры не содержит параметров запуска — сайт изменился, либо аккаунт ещё "
                             + "не прошёл начальную настройку в браузере.");
         }
+        SecretMask.register(vars.get("sessionID"));
         int userId = parseInt(vars, "userID");
         int instanceId = parseInt(vars, "pid");
         int mapId = parseInt(vars, "mapID");
@@ -148,6 +153,12 @@ public final class AuthClient {
         if (addr == null) {
             throw new AuthException(AuthException.Reason.UNEXPECTED_PAGE,
                     "Не найден игровой сервер для карты " + mapId + " (в maps.php " + servers.size() + " карт).");
+        }
+        // the site may rotate the cookie; keep the one the browser would have now
+        String currentDosid = http.cookie(origin + "/", "dosid");
+        if (currentDosid != null && !currentDosid.equals(dosid)) {
+            SecretMask.register(currentDosid);
+            dosid = currentDosid;
         }
         GameSession s = new GameSession(origin, dosid, userId, vars.get("sessionID"), instanceId, mapId,
                 addr.host(), addr.port(), vars.getOrDefault("platform", ""), mapsUrl);

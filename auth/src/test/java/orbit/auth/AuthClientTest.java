@@ -30,6 +30,7 @@ class AuthClientTest {
     private static final String SESSION = "s3ssion-secret";
 
     private HttpServer server;
+    private int sasPosts;
     private String origin;
 
     @BeforeEach
@@ -124,6 +125,24 @@ class AuthClientTest {
     }
 
     @Test
+    void accountLoginPrefersSavedDosidAndFallsBackToPassword(@org.junit.jupiter.api.io.TempDir java.nio.file.Path dir)
+            throws Exception {
+        orbit.secrets.Vault vault = orbit.secrets.Vault.open(dir.resolve("vault.bin"), "master".toCharArray());
+        vault.put("main", new orbit.secrets.Account("pilot", "right", "int1", "stale-dosid", null));
+        int before = sasPosts;
+
+        AccountLogin login = new AccountLogin(client(), vault, "main");
+        GameSession s = login.login();
+        assertEquals(SESSION, s.sessionId());
+        assertEquals(before + 1, sasPosts, "stale dosid → one password login");
+        assertEquals(DOSID, vault.get("main").dosid(), "fresh dosid is stored");
+        assertEquals(DOSID, orbit.secrets.Vault.open(dir.resolve("vault.bin"), "master".toCharArray()).get("main").dosid());
+
+        new AccountLogin(client(), vault, "main").login();
+        assertEquals(before + 1, sasPosts, "valid saved dosid → no password login");
+    }
+
+    @Test
     void mapServersParseDefaultPortAndWhitespace() {
         MapServers m = MapServers.parse("<maps><map id=\"42\"><gameserverIP>old.example</gameserverIP></map>"
                 + "<map id=\"9\">\n <gameserverIP>gs.example:6005</gameserverIP></map></maps>");
@@ -163,6 +182,7 @@ class AuthClientTest {
             send(ex, 400, "bad request", false);
             return;
         }
+        sasPosts++;
         Map<String, String> form = parseForm(new String(ex.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
         if ("captcha".equals(form.get("username"))) {
             send(ex, 200, landingHtml(true), false);
