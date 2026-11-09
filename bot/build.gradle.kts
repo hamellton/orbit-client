@@ -1,7 +1,7 @@
 plugins { `java-library` }
 
 dependencies {
-    api(project(":world"))
+    api(project(":config"))
     implementation(libs.slf4j.api)
     testImplementation(platform(libs.junit.bom))
     testImplementation(libs.junit.jupiter)
