@@ -25,3 +25,4 @@ tools/external/
 creds.txt
 *.creds
 reference/client/_download/
+__pycache__/
