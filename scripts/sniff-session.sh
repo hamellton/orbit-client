@@ -25,6 +25,8 @@ if lsof -nP -iTCP:"$PORT" -sTCP:LISTEN >/dev/null 2>&1; then
 else
   sniffer/build/install/sniffer/bin/sniffer --port "$PORT" &
   SNIFFER_PID=$!
+  # stop the sniffer on Ctrl+C or any exit, not only after the client closes
+  trap 'kill "$SNIFFER_PID" 2>/dev/null || true' EXIT INT TERM
   sleep 2
 fi
 
@@ -33,7 +35,4 @@ echo "Запускаю клиент через socks5://127.0.0.1:$PORT"
   --proxy-server="socks5://127.0.0.1:$PORT" \
   --proxy-bypass-list="<-loopback>" || true
 
-if [[ -n "$SNIFFER_PID" ]]; then
-  kill "$SNIFFER_PID" 2>/dev/null || true
-fi
 echo "Готово. Записи: $ROOT/recordings"
