@@ -40,7 +40,8 @@ import org.slf4j.LoggerFactory;
  *             [--fly 105/65]   # development: fly to a point of the current map once in game
  *             [--go "3-3;3-1:188/125"] # development: travel through portals, legs separated by ';'
  *             [--repair-free [--faction 3]]  # development: take a free repair on the kill screen
- *             [--hunt 2[:streuner]]          # development: kill NPCs and pick up their boxes, then --go
+ *             [--hunt 1:[ kristallin ]]      # development: after --go, kill NPCs (name part) and pick up boxes
+ *             [--then "3-6:20/20"] [--logout] [--repair-at portal]  # then fly on, log out; repair choice
  *   orbit observe [--port 1080] [--direct IP:6001-6007] [--out recordings]   # watch the official client
  *   orbit replay recordings/session-….dorec [--speed 2]
  *   orbit render recordings/session-….dorec --at 30 [--out minimap.png]   # minimap at second 30 as PNG
@@ -144,11 +145,11 @@ public final class OrbitMain {
         if (o.fly != null) {
             startFlightTest(feed, conn, o.fly);
         }
-        if (o.go != null || o.hunt != null) {
-            startTravelTest(feed, conn, o.go == null ? "" : o.go, o.hunt, profile);
+        if (o.go != null || o.hunt != null || o.then != null || o.logout) {
+            startTravelTest(feed, conn, o.go, o.hunt, o.then, o.logout, profile);
         }
-        if (o.repairFree) {
-            startFreeRepair(feed, conn, o.faction);
+        if (o.repairFree || o.repairAt != null) {
+            startFreeRepair(feed, conn, o.faction, o.repairAt);
         }
         runUntilClosed(feed, o.headless, conn::close, runner);
     }
@@ -193,98 +194,114 @@ public final class OrbitMain {
         });
     }
 
+    /** One leg of a test route: a map and optionally a point on it (game coordinates ×100). */
+    private record Leg(orbit.world.maps.MapCatalog.MapInfo map, double x, double y) {
+
+        static List<Leg> parse(String spec) {
+            orbit.world.maps.MapCatalog catalog = orbit.world.maps.MapCatalog.bundled();
+            List<Leg> legs = new java.util.ArrayList<>();
+            if (spec == null) {
+                return legs;
+            }
+            for (String target : spec.split(";")) {
+                if (target.isBlank()) {
+                    continue;
+                }
+                String[] parts = target.trim().split(":");
+                orbit.world.maps.MapCatalog.MapInfo map = catalog.byName(parts[0].trim());
+                if (map == null) {
+                    throw new IllegalArgumentException("неизвестная карта: " + parts[0]);
+                }
+                double x = Double.NaN;
+                double y = Double.NaN;
+                if (parts.length > 1) {
+                    String[] xy = parts[1].split("[/,]");
+                    x = Double.parseDouble(xy[0].trim()) * 100;
+                    y = Double.parseDouble(xy[1].trim()) * 100;
+                }
+                legs.add(new Leg(map, x, y));
+            }
+            return legs;
+        }
+    }
+
     /**
-     * Development check of map travel: once in game, goes to {@code MAP[:X/Y]} (e.g. {@code 3-7} or
-     * {@code 3-7:40/40}) through portals and logs each jump.
+     * Development scenario: {@code --go} legs, then {@code --hunt} on the last map, then {@code --then}
+     * legs, then {@code --logout}. Survives a death: after the repair it flies back and carries on.
      */
-    private static void startTravelTest(WorldFeed feed, GameConnection conn, String targets, String hunt,
-                                        ClientProfile profile) {
+    private static void startTravelTest(WorldFeed feed, GameConnection conn, String go, String hunt, String then,
+                                        boolean logout, ClientProfile profile) {
+        List<Leg> before = Leg.parse(go);
+        List<Leg> after = Leg.parse(then);
         orbit.world.maps.MapCatalog catalog = orbit.world.maps.MapCatalog.bundled();
-        record Leg(orbit.world.maps.MapCatalog.MapInfo map, double x, double y) {
-        }
-        List<Leg> legs = new java.util.ArrayList<>();
-        for (String target : targets.split(";")) {
-            if (target.isBlank()) {
-                continue;
-            }
-            String[] parts = target.trim().split(":");
-            orbit.world.maps.MapCatalog.MapInfo map = catalog.byName(parts[0].trim());
-            if (map == null) {
-                log.error("Неизвестная карта: {}", parts[0]);
-                return;
-            }
-            double x = Double.NaN;
-            double y = Double.NaN;
-            if (parts.length > 1) {
-                String[] xy = parts[1].split("[/,]");
-                x = Double.parseDouble(xy[0].trim()) * 100;
-                y = Double.parseDouble(xy[1].trim()) * 100;
-            }
-            legs.add(new Leg(map, x, y));
-        }
         java.util.Random random = new java.util.Random();
         orbit.bot.nav.Navigator nav = new orbit.bot.nav.Navigator(feed::snapshot, conn::send, catalog, random, System::nanoTime);
         orbit.bot.nav.Traveler traveler = new orbit.bot.nav.Traveler(feed::snapshot, conn::send, nav, catalog, random,
                 System::nanoTime);
+        orbit.bot.act.Actions actions = new orbit.bot.act.Actions(feed::snapshot, conn::send, () -> {
+            var session = conn.session();
+            return new orbit.bot.act.Actions.Login(session.userId(), session.sessionId());
+        }, orbit.bot.act.Actions.Screen.fromReadyString(profile.readyTypeStr()), random);
         Thread.ofPlatform().name("bot-loop").daemon().start(() -> {
             try {
-                while (feed.snapshot().hero().id() == 0 || !feed.snapshot().hero().alive()) {
-                    Thread.sleep(500);
-                }
+                waitAlive(feed);
                 Thread.sleep(4_000 + random.nextInt(3_000));
+                if (!travel(feed, traveler, before, catalog)) {
+                    return;
+                }
                 if (hunt != null) {
+                    int huntMap = before.isEmpty() ? feed.snapshot().hero().mapId() : before.getLast().map().id();
                     String[] h = hunt.split(":", 2);
                     int count = Integer.parseInt(h[0].trim());
                     String name = h.length > 1 ? h[1].trim().toLowerCase() : "";
-                    orbit.bot.act.Actions actions = new orbit.bot.act.Actions(feed::snapshot, conn::send, () -> {
-                        var session = conn.session();
-                        return new orbit.bot.act.Actions.Login(session.userId(), session.sessionId());
-                    }, orbit.bot.act.Actions.Screen.fromReadyString(profile.readyTypeStr()), random);
-                    orbit.bot.act.Hunter hunter = new orbit.bot.act.Hunter(feed::snapshot, actions, nav, random, System::nanoTime,
-                            s -> s.name().toLowerCase().contains(name), count);
-                    log.info("Тест охоты: {} NPC{}", count, name.isEmpty() ? "" : " «" + name + "»");
+                    orbit.bot.act.Hunter hunter = new orbit.bot.act.Hunter(feed::snapshot, actions, nav, random,
+                            System::nanoTime, ship -> ship.name().toLowerCase().contains(name), count);
+                    log.info("Охота: {} NPC{}", count, name.isEmpty() ? "" : " «" + name + "»");
                     feed.setAction("охота");
                     long nextLog = 0;
-                    long until = System.currentTimeMillis() + 10 * 60_000;
-                    while (hunter.state() == orbit.bot.act.Hunter.State.HUNTING && System.currentTimeMillis() < until
-                            && feed.snapshot().hero().alive()) {
+                    long until = System.currentTimeMillis() + 15 * 60_000;
+                    while (hunter.state() == orbit.bot.act.Hunter.State.HUNTING && System.currentTimeMillis() < until) {
+                        var hero = feed.snapshot().hero();
+                        if (!hero.alive()) {
+                            Thread.sleep(500);
+                            continue;
+                        }
+                        if (hero.mapId() != huntMap) {
+                            // destroyed and repaired elsewhere: back to the hunting ground
+                            log.info("Не на карте охоты — лечу обратно на {}", catalog.info(huntMap).name());
+                            if (!travel(feed, traveler, List.of(new Leg(catalog.info(huntMap), Double.NaN, Double.NaN)), catalog)) {
+                                return;
+                            }
+                            continue;
+                        }
                         hunter.tick();
                         if (System.currentTimeMillis() > nextLog) {
-                            var hero = feed.snapshot().hero();
                             log.info("Охота: убито {}, ящиков {}, HP {}%", hunter.kills(), hunter.boxes(),
                                     (int) (hero.health().hpPercent() * 100));
                             nextLog = System.currentTimeMillis() + 10_000;
                         }
                         Thread.sleep(100);
                     }
-                    log.info("Тест охоты: {} — убито {}, ящиков {}", hunter.state(), hunter.kills(), hunter.boxes());
+                    log.info("Охота: {} — убито {}, ящиков {}", hunter.state(), hunter.kills(), hunter.boxes());
                     nav.stop();
                 }
-                for (Leg leg : legs) {
-                    log.info("Тест перелёта: на {}{}", leg.map().name(),
-                            Double.isNaN(leg.x()) ? "" : " " + (int) leg.x() / 100 + "/" + (int) leg.y() / 100);
-                    feed.setAction("перелёт на " + leg.map().name());
-                    traveler.travel(leg.map().id(), leg.x(), leg.y());
-                    long nextLog = 0;
-                    while (traveler.state() == orbit.bot.nav.Traveler.State.TRAVELLING) {
-                        traveler.tick();
-                        if (System.currentTimeMillis() > nextLog) {
-                            var h = feed.snapshot().hero();
-                            log.info("Перелёт: {} {}/{}, прыжков {}", catalog.info(h.mapId()).name(), h.x() / 100,
-                                    h.y() / 100, traveler.jumps());
-                            nextLog = System.currentTimeMillis() + 5_000;
-                        }
-                        Thread.sleep(100);
-                    }
-                    var h = feed.snapshot().hero();
-                    log.info("Тест перелёта: {} — {} {}/{}, прыжков {}{}", traveler.state(), catalog.info(h.mapId()).name(),
-                            h.x() / 100, h.y() / 100, traveler.jumps(),
-                            traveler.failure().isEmpty() ? "" : " (" + traveler.failure() + ")");
-                    if (traveler.state() != orbit.bot.nav.Traveler.State.ARRIVED) {
-                        break;
-                    }
+                if (!travel(feed, traveler, after, catalog)) {
+                    return;
                 }
-                log.info("Тест перелёта: все этапы пройдены");
+                if (logout) {
+                    Thread.sleep(1_000 + random.nextInt(2_000));
+                    log.info("Выход из игры");
+                    feed.setAction("выход");
+                    actions.logout();
+                    long until = System.currentTimeMillis() + 60_000;
+                    while (!feed.loggedOut() && System.currentTimeMillis() < until) {
+                        Thread.sleep(200);
+                    }
+                    log.info(feed.loggedOut() ? "Выход выполнен" : "Сервер не завершил сессию за минуту");
+                    conn.close();
+                    System.exit(0);
+                }
+                log.info("Сценарий завершён");
                 feed.setAction(null);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
@@ -292,11 +309,50 @@ public final class OrbitMain {
         });
     }
 
+    private static void waitAlive(WorldFeed feed) throws InterruptedException {
+        while (feed.snapshot().hero().id() == 0 || !feed.snapshot().hero().alive()) {
+            Thread.sleep(500);
+        }
+    }
+
+    /** Runs legs one after another; waits through a death and repair. False if a leg cannot be done. */
+    private static boolean travel(WorldFeed feed, orbit.bot.nav.Traveler traveler, List<Leg> legs,
+                                  orbit.world.maps.MapCatalog catalog) throws InterruptedException {
+        for (Leg leg : legs) {
+            log.info("Перелёт на {}{}", leg.map().name(),
+                    Double.isNaN(leg.x()) ? "" : " " + (int) leg.x() / 100 + "/" + (int) leg.y() / 100);
+            feed.setAction("перелёт на " + leg.map().name());
+            traveler.travel(leg.map().id(), leg.x(), leg.y());
+            long nextLog = 0;
+            while (traveler.state() == orbit.bot.nav.Traveler.State.TRAVELLING) {
+                if (!feed.snapshot().hero().alive()) {
+                    waitAlive(feed);
+                    traveler.travel(leg.map().id(), leg.x(), leg.y()); // repaired somewhere: plan again
+                }
+                traveler.tick();
+                if (System.currentTimeMillis() > nextLog) {
+                    var h = feed.snapshot().hero();
+                    log.info("Перелёт: {} {}/{}, прыжков {}", catalog.info(h.mapId()).name(), h.x() / 100, h.y() / 100,
+                            traveler.jumps());
+                    nextLog = System.currentTimeMillis() + 10_000;
+                }
+                Thread.sleep(100);
+            }
+            if (traveler.state() != orbit.bot.nav.Traveler.State.ARRIVED) {
+                log.warn("Перелёт не удался: {}", traveler.failure());
+                return false;
+            }
+            var h = feed.snapshot().hero();
+            log.info("Прибыл: {} {}/{}", catalog.info(h.mapId()).name(), h.x() / 100, h.y() / 100);
+        }
+        return true;
+    }
+
     /**
      * Development: on the kill screen, takes a repair that costs nothing (after a few seconds, like a
      * player reading the screen). Paid options are never chosen.
      */
-    private static void startFreeRepair(WorldFeed feed, GameConnection conn, int faction) {
+    private static void startFreeRepair(WorldFeed feed, GameConnection conn, int faction, String prefer) {
         java.util.Random random = new java.util.Random();
         Thread.ofPlatform().name("repair").daemon().start(() -> {
             try {
@@ -305,6 +361,20 @@ public final class OrbitMain {
                     var d = w.death();
                     if (d != null) {
                         var free = d.freeRepair();
+                        if ("portal".equals(prefer)) {
+                            // repair at the jump gate if offered and free; a paid one is never taken
+                            var gate = d.options().stream()
+                                    .filter(op -> op.type() == orbit.protocol.gen.KillScreenOptionTypeModule.OPTIONTYPE_AT_JUMPGATE_REPAIR)
+                                    .findFirst().orElse(null);
+                            if (gate != null && gate.affordable() && gate.price() == 0 && gate.cooldownSeconds() == 0) {
+                                free = gate;
+                            } else if (gate != null) {
+                                log.warn("Ремонт у портала: цена {}, ожидание {} с — не беру, выбираю бесплатный", gate.price(),
+                                        gate.cooldownSeconds());
+                            } else {
+                                log.info("Ремонта у портала нет — беру бесплатный");
+                            }
+                        }
                         int f = w.hero().factionId() != 0 ? w.hero().factionId() : faction;
                         if (free == null) {
                             log.warn("Бесплатного ремонта нет — жду решения игрока");
@@ -430,7 +500,7 @@ public final class OrbitMain {
     /** Command-line options shared by the modes. */
     record Options(String account, Path vault, Path profile, boolean headless, int port, String direct, Path out,
                    double speed, double at, String fly, String go, boolean repairFree, int faction, String hunt,
-                   List<String> positional) {
+                   String then, boolean logout, String repairAt, List<String> positional) {
 
         static Options parse(List<String> args) {
             String account = null;
@@ -447,6 +517,9 @@ public final class OrbitMain {
             boolean repairFree = false;
             int faction = 0;
             String hunt = null;
+            String then = null;
+            boolean logout = false;
+            String repairAt = null;
             List<String> positional = new java.util.ArrayList<>();
             for (int i = 0; i < args.size(); i++) {
                 switch (args.get(i)) {
@@ -464,6 +537,9 @@ public final class OrbitMain {
                     case "--repair-free" -> repairFree = true;
                     case "--faction" -> faction = Integer.parseInt(args.get(++i));
                     case "--hunt" -> hunt = args.get(++i);
+                    case "--then" -> then = args.get(++i);
+                    case "--logout" -> logout = true;
+                    case "--repair-at" -> repairAt = args.get(++i);
                     default -> {
                         if (args.get(i).startsWith("--")) {
                             System.err.println("Неизвестный параметр: " + args.get(i));
@@ -477,7 +553,7 @@ public final class OrbitMain {
                 throw new IllegalArgumentException("--speed должен быть больше 0");
             }
             return new Options(account, vault, profile, headless, port, direct, out, speed, at, fly, go, repairFree, faction,
-                    hunt, List.copyOf(positional));
+                    hunt, then, logout, repairAt, List.copyOf(positional));
         }
     }
 }

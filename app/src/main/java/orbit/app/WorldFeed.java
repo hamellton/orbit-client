@@ -25,6 +25,8 @@ public final class WorldFeed {
     private final AtomicLong packets = new AtomicLong();
     private final String mode;
     private volatile String state = "Запуск";
+    /** The server ended the session after a logout ({@code 0|l}). */
+    private volatile boolean loggedOut;
     /** When the first ship initialisation arrived (session start), 0 before. */
     private volatile long sessionStart;
     /** What the bot is doing; set by the behaviour modules (stage 4–5), none yet. */
@@ -58,6 +60,10 @@ public final class WorldFeed {
                 }
             }
             case JumpInitiatedCommand j -> log.info("Прыжок на карту {}", maps.info(j.mapId).name());
+            case orbit.protocol.gen.LegacyModule m when "0|l".equals(m.message) -> {
+                loggedOut = true;
+                log.info("Сервер завершил сессию (выход)");
+            }
             case orbit.protocol.gen.KillScreenPostCommand k -> {
                 WorldSnapshot.Death d = world.snapshot(now()).death();
                 log.warn("Корабль уничтожен ({}). Варианты: {}", k.killerName, d == null ? "—"
@@ -89,6 +95,10 @@ public final class WorldFeed {
 
     public String state() {
         return state;
+    }
+
+    public boolean loggedOut() {
+        return loggedOut;
     }
 
     /** {@link #now()} when the session started, 0 before the ship is known. */

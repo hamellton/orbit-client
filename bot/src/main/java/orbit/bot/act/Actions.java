@@ -16,6 +16,7 @@ import orbit.protocol.gen.PetGearActivationRequest;
 import orbit.protocol.gen.PetGearTypeModule;
 import orbit.protocol.gen.PetRequest;
 import orbit.protocol.gen.ShipSelectRequest;
+import orbit.protocol.gen.UIButtonTriggerRequest;
 import orbit.world.WorldSnapshot;
 
 /**
@@ -168,6 +169,16 @@ public final class Actions {
         LegacyModule m = new LegacyModule();
         m.message = "S|CFG|" + config + "|" + l.userId() + "|" + l.sessionId();
         sender.accept(m);
+    }
+
+    /**
+     * Presses the logout button of the features menu ({@code UIButtonTriggerRequest("logout")}); the
+     * server counts down and ends the session with {@code 0|l}. Moving cancels it.
+     */
+    public void logout() {
+        UIButtonTriggerRequest r = new UIButtonTriggerRequest();
+        r.itemId = "logout";
+        sender.accept(r);
     }
 
     /** {@code PetRequest}: launch, deactivate, toggle, repair the destroyed pet… ({@code PETREQUESTTYPE_*}). */
