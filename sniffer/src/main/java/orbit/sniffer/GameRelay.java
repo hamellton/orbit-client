@@ -28,6 +28,7 @@ import org.slf4j.LoggerFactory;
 final class GameRelay {
 
     private static final Logger log = LoggerFactory.getLogger(GameRelay.class);
+    private static final String UP_ARROW = "→";
     private static final AtomicLong IDS = new AtomicLong();
     private static final int MAX_LOG_CHARS = 400;
 
@@ -100,7 +101,7 @@ final class GameRelay {
     }
 
     private void pump(boolean upstream, InputStream in, SessionRecorder rec) {
-        String arrow = upstream ? "→" : "←";
+        String arrow = upstream ? UP_ARROW : "←";
         try {
             OutputStream out = new BufferedOutputStream((upstream ? server : client).getOutputStream());
             byte dir = upstream ? SessionRecorder.UP : SessionRecorder.DOWN;
@@ -164,6 +165,7 @@ final class GameRelay {
         short pid = Downstream.packetId(packet);
         boolean known = Packets.known(pid);
         stats.count(known);
+        publish(arrow, packet);
         if (!log.isInfoEnabled()) {
             return;
         }
@@ -184,6 +186,27 @@ final class GameRelay {
             text = nameOf(pid);
         }
         log.info("[#{}] {} {} ({} байт{})", id, arrow, text, packet.length, fromEnvelope ? ", lz4" : "");
+    }
+
+    private static void publish(String arrow, byte[] packet) {
+        if (PacketTap.TAPS.isEmpty()) {
+            return;
+        }
+        Packet decoded;
+        try {
+            decoded = PacketCodec.decode(packet);
+        } catch (RuntimeException e) {
+            return; // logged by logPacket
+        }
+        long now = System.nanoTime();
+        boolean upstream = UP_ARROW.equals(arrow);
+        for (PacketTap tap : PacketTap.TAPS) {
+            try {
+                tap.onPacket(upstream, decoded, now);
+            } catch (RuntimeException e) {
+                log.warn("Ошибка обработчика пакетов: {}", e.toString());
+            }
+        }
     }
 
     private static String nameOf(short pid) {

@@ -1,5 +1,6 @@
 package orbit.sniffer;
 
+import java.io.IOException;
 import java.nio.file.Path;
 import java.util.regex.Pattern;
 import orbit.protocol.gen.ProtocolVersion;
@@ -42,16 +43,33 @@ public final class SnifferMain {
                 }
             }
         }
+        if (direct != null && direct.lastIndexOf(':') <= 0) {
+            System.err.println("Формат --direct: IP:порты, например 170.33.12.50:6001-6007");
+            System.exit(2);
+        }
+        start(port, direct, out).join();
+    }
+
+    /**
+     * Starts the SOCKS5 server (and the direct-port relay when {@code direct} is {@code IP:ports})
+     * in the background, e.g. inside the bot window's observer mode. Packets reach {@link PacketTap}s.
+     *
+     * @return the thread serving SOCKS5 connections
+     */
+    public static Thread start(int port, String direct, Path out) throws IOException {
         log.info("Протокол: сборка клиента {}, {} пакетов", ProtocolVersion.BUILD, ProtocolVersion.PACKET_COUNT);
         if (direct != null) {
             int colon = direct.lastIndexOf(':');
-            if (colon <= 0) {
-                System.err.println("Формат --direct: IP:порты, например 170.33.12.50:6001-6007");
-                System.exit(2);
-            }
             new DirectForwarder(direct.substring(0, colon),
                     DirectForwarder.parsePorts(direct.substring(colon + 1)), out).start();
         }
-        new Socks5Server(port, out, t -> GAME_TARGET.matcher(t).matches()).serve();
+        Socks5Server socks = new Socks5Server(port, out, t -> GAME_TARGET.matcher(t).matches());
+        return Thread.ofPlatform().name("socks5").start(() -> {
+            try {
+                socks.serve();
+            } catch (IOException e) {
+                log.error("SOCKS5-сервер остановлен: {}", e.getMessage());
+            }
+        });
     }
 }
