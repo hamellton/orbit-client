@@ -38,6 +38,10 @@ public final class Recording {
     private Recording() {
     }
 
+    /**
+     * Reads all complete records. A file that is still being written, or whose recorder was
+     * killed, ends with a partial record: it is left out.
+     */
     public static List<Frame> readFrames(Path file) throws IOException {
         List<Frame> out = new ArrayList<>();
         try (DataInputStream in = new DataInputStream(new BufferedInputStream(Files.newInputStream(file)))) {
@@ -51,11 +55,20 @@ public final class Recording {
                 } catch (EOFException end) {
                     break;
                 }
-                boolean up = in.readByte() == UP;
-                int len = in.readInt();
+                boolean up;
+                int len;
+                try {
+                    up = in.readByte() == UP;
+                    len = in.readInt();
+                } catch (EOFException partial) {
+                    break;
+                }
+                if (len < 0) {
+                    throw new IOException("corrupt record length " + len + " in " + file);
+                }
                 byte[] payload = in.readNBytes(len);
                 if (payload.length != len) {
-                    throw new EOFException("truncated record in " + file);
+                    break; // partial last record
                 }
                 out.add(new Frame(nanos, up, payload));
             }
