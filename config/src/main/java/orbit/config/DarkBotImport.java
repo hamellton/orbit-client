@@ -323,6 +323,9 @@ public final class DarkBotImport {
                 boolean kristallins = custom.path(moduleClass).path("KRISTALLINS").asBoolean(false)
                         || camp.path("killWhileWaiting").asBoolean(false);
                 c.put("killWhileWaiting", kristallins);
+                c.put("waitKillRange", 1_500);
+                c.put("spotMode", "ROUND");
+                c.put("learnSpawns", true);
                 modules.put(BotConfig.Module.CUBIKON.key(), c);
                 report.add("Кубы: 4 спауна x-6, подлёт " + c.get("arriveDistance") + ", ожидание "
                         + c.get("waitSeconds") + " с, бить при ожидании: " + (kristallins ? "да" : "нет"));

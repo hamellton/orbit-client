@@ -233,7 +233,7 @@ public final class OrbitMain {
         }, orbit.bot.act.Actions.Screen.fromReadyString(profile.readyTypeStr()), random);
         orbit.bot.run.ShipSetup ship = new orbit.bot.run.ShipSetup(feed::snapshot, actions, System::nanoTime, random);
         orbit.bot.run.BotContext ctx = new orbit.bot.run.BotContext(feed::snapshot, () -> config, actions, nav, traveler,
-                catalog, random, System::nanoTime, conn::repair, ship);
+                catalog, random, System::nanoTime, conn::repair, ship, Path.of("local"));
         orbit.bot.run.BotRunner runner = new orbit.bot.run.BotRunner(ctx, feed::loggedOut, feed::setAction);
         java.util.concurrent.atomic.AtomicBoolean stopRequested = new java.util.concurrent.atomic.AtomicBoolean();
         CountDownLatch done = new CountDownLatch(1);
