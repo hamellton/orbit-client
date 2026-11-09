@@ -33,8 +33,10 @@ class SnifferRelayTest {
     @Test
     void relaysGameTrafficUnchangedAndRecordsMaskedSession() throws Exception {
         Path json = tmp.resolve("packets.json");
-        Files.writeString(json, "[{\"id\":7,\"name\":\"LoginRequest\"},{\"id\":667,\"name\":\"VersionCommand\"}]");
+        Files.writeString(json, "[{\"id\":7,\"name\":\"LoginRequest\",\"writeBody\":[]},"
+                + "{\"id\":667,\"name\":\"VersionCommand\",\"writeBody\":[]}]");
         PacketNames names = PacketNames.load(json);
+        PacketDecoder decoder = PacketDecoder.load(json);
 
         byte[] login = loginRequest(SESSION, "do-lz4-block-v3");
         byte[] reply = {0x02, (byte) 0x9B, 1}; // VersionCommand-like payload
@@ -52,7 +54,7 @@ class SnifferRelayTest {
                 }
             });
 
-            Socks5Server socks = new Socks5Server(0, names, tmp.resolve("rec"), t -> true);
+            Socks5Server socks = new Socks5Server(0, names, decoder, tmp.resolve("rec"), t -> true);
             try (ServerSocket ss = socks.bind()) {
                 Thread.ofVirtual().start(() -> {
                     try {

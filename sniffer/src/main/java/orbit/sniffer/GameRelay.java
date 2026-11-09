@@ -24,22 +24,26 @@ final class GameRelay {
 
     private static final Logger log = LoggerFactory.getLogger(GameRelay.class);
     private static final AtomicLong IDS = new AtomicLong();
+    private static final int MAX_LOG_CHARS = 400;
 
     private final Socket client;
     private final Socket server;
     private final String target;
     private final PacketNames names;
+    private final PacketDecoder decoder;
     private final Path recordDir;
     private final long id = IDS.incrementAndGet();
 
     private volatile boolean compressionOffered;
     private final Stats stats = new Stats();
 
-    GameRelay(Socket client, Socket server, String target, PacketNames names, Path recordDir) {
+    GameRelay(Socket client, Socket server, String target, PacketNames names, PacketDecoder decoder,
+            Path recordDir) {
         this.client = client;
         this.server = server;
         this.target = target;
         this.names = names;
+        this.decoder = decoder;
         this.recordDir = recordDir;
     }
 
@@ -154,10 +158,22 @@ final class GameRelay {
         short pid = Downstream.packetId(packet);
         boolean known = names.known(pid);
         stats.count(known);
-        if (log.isInfoEnabled()) {
-            log.info("[#{}] {} {}({}) {} байт{}", id, arrow, names.name(pid), pid, packet.length,
-                    fromEnvelope ? " [lz4]" : "");
+        if (!log.isInfoEnabled()) {
+            return;
         }
+        String text;
+        try {
+            text = abbreviate(decoder.decode(packet).toString());
+        } catch (RuntimeException e) {
+            stats.decodeErrors++;
+            log.warn("[#{}] {} {}({}): поля не разобраны — {}", id, arrow, names.name(pid), pid, e.getMessage());
+            text = names.name(pid);
+        }
+        log.info("[#{}] {} {} ({} байт{})", id, arrow, text, packet.length, fromEnvelope ? ", lz4" : "");
+    }
+
+    private static String abbreviate(String s) {
+        return s.length() <= MAX_LOG_CHARS ? s : s.substring(0, MAX_LOG_CHARS) + "…";
     }
 
     private static void closeQuietly(Socket s) {
@@ -172,6 +188,7 @@ final class GameRelay {
         long known;
         long unknown;
         long envelopes;
+        long decodeErrors;
 
         synchronized void count(boolean isKnown) {
             if (isKnown) {
@@ -184,8 +201,8 @@ final class GameRelay {
         synchronized String summary() {
             long total = known + unknown;
             double pct = total == 0 ? 0 : 100.0 * unknown / total;
-            return String.format("Пакетов: %d, неизвестных: %d (%.2f%%), сжатых блоков: %d",
-                    total, unknown, pct, envelopes);
+            return String.format("Пакетов: %d, неизвестных: %d (%.2f%%), ошибок разбора полей: %d, сжатых блоков: %d",
+                    total, unknown, pct, decodeErrors, envelopes);
         }
     }
 }

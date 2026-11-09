@@ -48,6 +48,7 @@ public final class SnifferMain {
             packets = latestPacketsJson(Path.of("reference/protocol"));
         }
         PacketNames names = PacketNames.load(packets);
+        PacketDecoder decoder = PacketDecoder.load(packets);
         log.info("Загружено {} описаний пакетов из {}", names.size(), packets);
         if (direct != null) {
             int colon = direct.lastIndexOf(':');
@@ -56,9 +57,9 @@ public final class SnifferMain {
                 System.exit(2);
             }
             new DirectForwarder(direct.substring(0, colon),
-                    DirectForwarder.parsePorts(direct.substring(colon + 1)), names, out).start();
+                    DirectForwarder.parsePorts(direct.substring(colon + 1)), names, decoder, out).start();
         }
-        new Socks5Server(port, names, out, t -> GAME_TARGET.matcher(t).matches()).serve();
+        new Socks5Server(port, names, decoder, out, t -> GAME_TARGET.matcher(t).matches()).serve();
     }
 
     private static Path latestPacketsJson(Path dir) throws Exception {
