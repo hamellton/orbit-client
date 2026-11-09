@@ -20,6 +20,7 @@ import orbit.protocol.gen.AudioSettingsModule;
 import orbit.protocol.gen.AudioSettingsRequest;
 import orbit.protocol.gen.LegacyModule;
 import orbit.protocol.gen.LoginResponse;
+import orbit.protocol.gen.ShipInitializationCommand;
 import orbit.protocol.gen.UserSettingsCommand;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
@@ -62,32 +63,57 @@ class StartupSequenceTest {
         assertNotNull(profile.keyBindings());
 
         int checked = 0;
+        int jumps = 0;
         List<String> violations = new ArrayList<>();
         for (Path f : files) {
             List<PacketRecord> packets = Recording.readPackets(f);
             boolean cold = packets.stream().filter(PacketRecord::up).map(StartupSequenceTest::name)
                     .takeWhile(n -> !n.equals("ReadyRequest")).anyMatch(n -> n.equals("HangarListRequest"));
-            List<StartupSequence.Step> steps = StartupSequence.ClientLike.steps(profile,
-                    new StartupSequence.Context(cold, settings(packets)));
-            List<Timed> recorded = recordedStartup(packets, steps);
-            List<String> expected = steps.stream().map(StartupSequence.Step::name).toList();
-            assertEquals(expected, recorded.stream().map(Timed::name).toList(), f.getFileName() + " order");
-
-            for (int i = 0; i < steps.size(); i++) {
-                StartupSequence.Step s = steps.get(i);
-                long gap = recorded.get(i).gapMs();
-                if (gap < s.minDelayMs() - TOLERANCE_MS || gap > s.stallMaxMs() + TOLERANCE_MS) {
-                    violations.add(f.getFileName() + ": " + (cold ? "cold" : "warm") + " #" + i + " " + s.name()
-                            + " pause " + gap + " ms, expected " + s.minDelayMs() + "–" + s.maxDelayMs()
-                            + " (stalls up to " + s.stallMaxMs() + ")");
+            // starts: after LoginResponse, and after every further ShipInitializationCommand (portal jump on the same server)
+            List<Integer> anchors = new ArrayList<>();
+            List<StartupSequence.Context> contexts = new ArrayList<>();
+            boolean shipSeen = false;
+            for (int i = 0; i < packets.size(); i++) {
+                PacketRecord r = packets.get(i);
+                if (r.up()) {
+                    continue;
+                }
+                Packet p = PacketCodec.decode(r.bytes());
+                if (p instanceof LoginResponse && anchors.isEmpty()) {
+                    anchors.add(i);
+                    contexts.add(new StartupSequence.Context(cold, settings(packets, i)));
+                } else if (p instanceof ShipInitializationCommand && shipSeen && !anchors.isEmpty()) {
+                    anchors.add(i);
+                    contexts.add(new StartupSequence.Context(false, settings(packets, i), true));
+                    jumps++;
+                } else if (p instanceof ShipInitializationCommand) {
+                    shipSeen = true;
                 }
             }
-            Packet audio = packet(steps, "AudioSettingsRequest");
-            assertEquals(String.valueOf(audio), String.valueOf(recorded.get(expected.indexOf("AudioSettingsRequest")).packet()),
-                    f.getFileName() + " audio settings");
-            checked++;
+            for (int k = 0; k < anchors.size(); k++) {
+                StartupSequence.Context ctx = contexts.get(k);
+                String label = f.getFileName() + " " + (ctx.portalJump() ? "jump" : cold ? "cold" : "warm");
+                List<StartupSequence.Step> steps = StartupSequence.ClientLike.steps(profile, ctx);
+                List<Timed> recorded = recordedStartup(packets, steps, anchors.get(k));
+                List<String> expected = steps.stream().map(StartupSequence.Step::name).toList();
+                assertEquals(expected, recorded.stream().map(Timed::name).toList(), label + " order");
+
+                for (int i = 0; i < steps.size(); i++) {
+                    StartupSequence.Step s = steps.get(i);
+                    long gap = recorded.get(i).gapMs();
+                    if (gap < s.minDelayMs() - TOLERANCE_MS || gap > s.stallMaxMs() + TOLERANCE_MS) {
+                        violations.add(label + " #" + i + " " + s.name() + " pause " + gap + " ms, expected "
+                                + s.minDelayMs() + "–" + s.maxDelayMs() + " (stalls up to " + s.stallMaxMs() + ")");
+                    }
+                }
+                Packet audio = packet(steps, "AudioSettingsRequest");
+                assertEquals(String.valueOf(audio), String.valueOf(recorded.get(expected.indexOf("AudioSettingsRequest")).packet()),
+                        label + " audio settings");
+                checked++;
+            }
         }
         assertTrue(checked > 0);
+        assertTrue(jumps > 0, "recordings contain a portal jump on the same server");
         assertTrue(violations.isEmpty(), String.join("\n", violations));
     }
 
@@ -95,20 +121,15 @@ class StartupSequenceTest {
     }
 
     /**
-     * Client packets after {@code LoginResponse} restricted to the kinds the sequence sends
-     * (UI reactions such as moves, chat and ship info queries are left out), cut to its length.
+     * Client packets after the server packet at {@code anchor}, restricted to the kinds the sequence
+     * sends (UI reactions such as moves, chat and ship info queries are left out), cut to its length.
      */
-    private static List<Timed> recordedStartup(List<PacketRecord> packets, List<StartupSequence.Step> steps) {
+    private static List<Timed> recordedStartup(List<PacketRecord> packets, List<StartupSequence.Step> steps, int anchor) {
         Set<String> kinds = steps.stream().map(StartupSequence.Step::name).collect(Collectors.toSet());
         List<Timed> out = new ArrayList<>();
-        long prev = -1;
-        for (PacketRecord r : packets) {
-            if (prev < 0) {
-                if (!r.up() && PacketCodec.decode(r.bytes()) instanceof LoginResponse) {
-                    prev = r.nanos();
-                }
-                continue;
-            }
+        long prev = packets.get(anchor).nanos();
+        for (int i = anchor + 1; i < packets.size() && out.size() < steps.size(); i++) {
+            PacketRecord r = packets.get(i);
             if (!r.up()) {
                 continue;
             }
@@ -119,20 +140,20 @@ class StartupSequenceTest {
             }
             out.add(new Timed(n, (r.nanos() - prev) / 1_000_000, p));
             prev = r.nanos();
-            if (out.size() == steps.size()) {
-                break;
-            }
         }
         return out;
     }
 
-    private static UserSettingsCommand settings(List<PacketRecord> packets) {
-        for (PacketRecord r : packets) {
+    /** The last {@code UserSettingsCommand} before {@code index}. */
+    private static UserSettingsCommand settings(List<PacketRecord> packets, int index) {
+        UserSettingsCommand last = null;
+        for (int i = 0; i < index; i++) {
+            PacketRecord r = packets.get(i);
             if (!r.up() && PacketCodec.decode(r.bytes()) instanceof UserSettingsCommand us) {
-                return us;
+                last = us;
             }
         }
-        return null;
+        return last;
     }
 
     private static Packet packet(List<StartupSequence.Step> steps, String name) {

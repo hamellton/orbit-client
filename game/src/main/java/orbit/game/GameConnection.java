@@ -278,6 +278,12 @@ public final class GameConnection implements AutoCloseable {
                         ProtocolOutdatedException.check(vc);
                         sendLogin(session);
                         compression = true;
+                    } else if (p instanceof ShipInitializationCommand && startupThread != null) {
+                        // portal jump to a map on the same server: the client re-sends its UI state at once
+                        startupThread.interrupt();
+                        loginFlagSent = false;
+                        StartupSequence.Context ctx = new StartupSequence.Context(false, userSettings, true);
+                        startupThread = Thread.ofVirtual().name("startup").start(() -> runStartup(ctx));
                     } else if (p instanceof ShipInitializationCommand) {
                         shipReady = true;
                         s.setSoTimeout(0);

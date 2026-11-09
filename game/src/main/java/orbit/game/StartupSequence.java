@@ -29,8 +29,14 @@ public interface StartupSequence {
      * @param firstConnect the first game connection of this run (the client is starting up, its
      *                     UI does not exist yet); {@code false} after a map change or reconnect
      * @param settings     the {@code UserSettingsCommand} of this connection, or {@code null}
+     * @param portalJump   a jump to a map on the same game server: the server re-initialises the
+     *                     ship on the open connection ({@code JumpToServerCommand}, no {@code LoginResponse})
      */
-    record Context(boolean firstConnect, UserSettingsCommand settings) {
+    record Context(boolean firstConnect, UserSettingsCommand settings, boolean portalJump) {
+
+        public Context(boolean firstConnect, UserSettingsCommand settings) {
+            this(firstConnect, settings, false);
+        }
     }
 
     void afterLogin(GameConnection connection, Context context) throws InterruptedException;
@@ -127,8 +133,12 @@ public interface StartupSequence {
                 s.add(new Step("GalaxyGateBuilderInfoRequest", 20, 35, GalaxyGateBuilderInfoRequest::new));
                 s.add(new Step("KeepAlive", 550, 800, StartupSequence.ClientLike::keepAlive));
             } else {
-                // the UI already exists: it reports its layout, no hangar/lab reload
-                s.add(new Step("SpaceSearchRequest", 700, 1_800, () -> spaceSearch(0)));
+                // the UI already exists: it reports its layout, no hangar/lab reload. After a jump on the
+                // same server the client answers the new ShipInitializationCommand right away (30 ms in
+                // the one recorded jump), otherwise ~1 s after LoginResponse
+                s.add(ctx.portalJump()
+                        ? new Step("SpaceSearchRequest", 20, 60, () -> spaceSearch(0))
+                        : new Step("SpaceSearchRequest", 700, 1_800, () -> spaceSearch(0)));
                 s.add(new Step("SpaceSearchRequest", 12, 45, () -> spaceSearch(4)));
                 s.add(new Step("SpaceSearchRequest", 1, 45, () -> spaceSearch(2)));
                 s.add(new Step("WindowSettingsRequest", 15, 65, profile::windowSettingsPacket));
@@ -137,8 +147,11 @@ public interface StartupSequence {
                 s.add(new Step("LegacyModule", 5, 40, 280, () -> legacy("LF|w")));
                 s.add(new Step("AudioSettingsRequest", 0, 40, () -> audio(ctx.settings())));
                 s.add(new Step("UserKeyBindingsUpdate", 10, 60, 265, profile::keyBindingsPacket));
-                s.add(new Step("KeepAlive", 10, 45, 475, StartupSequence.ClientLike::keepAlive));
-                s.add(new Step("CommandCenterGetDontShowRequest", 0, 60, 480, CommandCenterGetDontShowRequest::new));
+                if (!ctx.portalJump()) {
+                    // not sent after the recorded jump: the connection and its keep-alive cycle go on
+                    s.add(new Step("KeepAlive", 10, 45, 475, StartupSequence.ClientLike::keepAlive));
+                    s.add(new Step("CommandCenterGetDontShowRequest", 0, 60, 480, CommandCenterGetDontShowRequest::new));
+                }
             }
             return s;
         }

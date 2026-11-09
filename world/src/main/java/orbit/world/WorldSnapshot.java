@@ -10,13 +10,44 @@ import java.util.Map;
  */
 public record WorldSnapshot(long nanos, Hero hero, Map<Integer, Ship> ships, Map<String, Collectable> collectables,
                             Map<Integer, Portal> portals, Map<Integer, Asset> assets, Map<String, Zone> zones,
-                            Group group) {
+                            Group group, Map<String, Item> items, Inventory inventory) {
 
     /** The player's own ship. {@code id == 0} until {@code ShipInitializationCommand} arrives. */
+    /**
+     * The player's own ship. {@code id == 0} until {@code ShipInitializationCommand} arrives.
+     *
+     * @param cargoFree    free cargo space ({@code ShipInitializationCommand.cargoSpace}: it grows when ore is sold)
+     * @param config       selected configuration (1 or 2), 0 if unknown
+     * @param enemyWarning number of enemy players the client warns about ({@code 0|n|w}), -1 if unknown
+     */
     public record Hero(int id, String name, String shipType, int mapId, int x, int y, boolean moving, int targetX,
                        int targetY, int speed, Health health, int factionId, int clanId, int level, double credits,
-                       double uridium, int cargoLeft, boolean premium, boolean cloaked, boolean alive,
-                       int selectedId, int petId, Beacon beacon) {
+                       double uridium, int cargoFree, int cargoMax, boolean premium, boolean cloaked, boolean alive,
+                       int selectedId, int petId, int config, int enemyWarning, Beacon beacon) {
+    }
+
+    /**
+     * An entry of the item bar: ammunition, rockets, mines, CPUs, techs, abilities…
+     *
+     * @param category    {@code MenuInitializationCommand} category, e.g. {@code lasers}, {@code rockets}
+     * @param counter     amount (ammunition) or charges
+     * @param timerState  {@code TimerStateModule} value (ready, active, cooling down)
+     * @param timerTime   remaining time as sent; the unit is not verified yet
+     * @param timerNanos  when the timer was received
+     */
+    public record Item(String id, String category, double counter, double maxCounter, boolean selected,
+                       boolean available, boolean activatable, boolean buyable, boolean blocked, boolean visible,
+                       int timerState, double timerTime, double timerMax, long timerNanos) {
+    }
+
+    /**
+     * What the hero carries outside the item bar.
+     *
+     * @param ores       ore type ({@code OreTypeModule}) → amount, from {@code AttributeOreCountUpdateCommand}
+     * @param resources  loot id → amount, from {@code InventoryItemUpdatedCommand}
+     * @param bootyKeys  legacy key code ({@code BK}, {@code BKB}, …) → count
+     */
+    public record Inventory(Map<Integer, Double> ores, Map<String, Double> resources, Map<String, Integer> bootyKeys) {
     }
 
     /** Area flags from the last {@code BeaconCommand} (sent about once a second). */
@@ -34,10 +65,11 @@ public record WorldSnapshot(long nanos, Hero hero, Map<Integer, Ship> ships, Map
      * @param relation        {@code ClanRelationModule} type ({@code TYPE_ALLIED}, {@code TYPE_AT_WAR}, …)
      * @param attackTargetId  id it is shooting lasers at, or 0
      * @param ownerId         owner of a pet, 0 otherwise
+     * @param lockedByOther   another player (not in the group) attacks it; the client shows it grey
      */
     public record Ship(int id, ShipKind kind, String name, String typeId, int factionId, int clanId, String clanTag,
                        int relation, boolean cloaked, int x, int y, boolean moving, int targetX, int targetY,
-                       Health health, int attackTargetId, int ownerId) {
+                       Health health, int attackTargetId, int ownerId, boolean lockedByOther) {
 
         public boolean npc() {
             return kind == ShipKind.NPC;
@@ -88,6 +120,11 @@ public record WorldSnapshot(long nanos, Hero hero, Map<Integer, Ship> ships, Map
         public boolean exists() {
             return id != 0;
         }
+    }
+
+    /** The selected item of a category (e.g. the laser ammunition in use), or {@code null}. */
+    public Item selected(String category) {
+        return items.values().stream().filter(i -> i.selected() && category.equals(i.category())).findFirst().orElse(null);
     }
 
     /** Ships of the given kind sorted by distance to the hero, nearest first. */

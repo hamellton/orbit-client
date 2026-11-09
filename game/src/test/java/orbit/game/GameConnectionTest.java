@@ -174,6 +174,29 @@ class GameConnectionTest {
     }
 
     @Test
+    void portalJumpOnSameServerRestartsWarmSequence() throws Exception {
+        try (FakeGameServer gs = new FakeGameServer()) {
+            gs.afterLogin = send -> {
+                ShipInitializationCommand again = new ShipInitializationCommand();
+                again.userName = "Tester";
+                again.mapId = 2;
+                send.accept(again);
+            };
+            List<StartupSequence.Context> contexts = new CopyOnWriteArrayList<>();
+            GameConnection c = new GameConnection(new Source(gs.port(), 0), new Listener(), fast(),
+                    (conn, ctx) -> contexts.add(ctx));
+            Thread t = Thread.ofVirtual().start(c::run);
+            await(() -> contexts.size() >= 2, 5);
+            assertTrue(contexts.get(0).firstConnect());
+            assertTrue(contexts.get(1).portalJump());
+            assertFalse(contexts.get(1).firstConnect());
+            assertEquals(1, gs.gameConnections.get(), "the jump stays on the same connection");
+            c.close();
+            t.join(3000);
+        }
+    }
+
+    @Test
     void outdatedProtocolStopsWithClearMessage() throws Exception {
         try (FakeGameServer gs = new FakeGameServer()) {
             gs.mode = FakeGameServer.Mode.OUTDATED;

@@ -16,6 +16,7 @@ import orbit.protocol.gen.AttackLaserRunCommand;
 import orbit.protocol.gen.AttributeCreditsUpdateCommand;
 import orbit.protocol.gen.AttributeHitpointUpdateCommand;
 import orbit.protocol.gen.AttributeLevelUpUpdateCommand;
+import orbit.protocol.gen.AttributeOreCountUpdateCommand;
 import orbit.protocol.gen.AttributeShieldUpdateCommand;
 import orbit.protocol.gen.AttributeShipSpeedUpdateCommand;
 import orbit.protocol.gen.BeaconCommand;
@@ -26,14 +27,22 @@ import orbit.protocol.gen.GroupMemberInitializationCommand;
 import orbit.protocol.gen.GroupMemberUpdateCommand;
 import orbit.protocol.gen.HealthModule;
 import orbit.protocol.gen.HitpointInfoCommand;
+import orbit.protocol.gen.InventoryItemUpdatedCommand;
 import orbit.protocol.gen.JumpgateCreateCommand;
+import orbit.protocol.gen.LegacyModule;
 import orbit.protocol.gen.LevelModule;
 import orbit.protocol.gen.LocationModule;
 import orbit.protocol.gen.MapAddPOICommand;
 import orbit.protocol.gen.MapRemovePOICommand;
 import orbit.protocol.gen.MemberLoggedOutModule;
+import orbit.protocol.gen.MenuCategoryInitializationCommand;
+import orbit.protocol.gen.MenuInitializationCommand;
+import orbit.protocol.gen.MenuItemInitializationCommand;
+import orbit.protocol.gen.MenuItemStatusCommand;
+import orbit.protocol.gen.MenuItemTimerCommand;
 import orbit.protocol.gen.MoveCommand;
 import orbit.protocol.gen.MoveRequest;
+import orbit.protocol.gen.OreCountModule;
 import orbit.protocol.gen.PetActivationCommand;
 import orbit.protocol.gen.PetDeactivationCommand;
 import orbit.protocol.gen.PetHeroActivationCommand;
@@ -46,6 +55,7 @@ import orbit.protocol.gen.ShipDestroyedCommand;
 import orbit.protocol.gen.ShipInitializationCommand;
 import orbit.protocol.gen.ShipRemoveCommand;
 import orbit.protocol.gen.ShipSelectionCommand;
+import orbit.protocol.gen.TimerStateModule;
 import orbit.world.WorldSnapshot.Asset;
 import orbit.world.WorldSnapshot.Beacon;
 import orbit.world.WorldSnapshot.Collectable;
@@ -80,6 +90,7 @@ public final class World {
         Motion motion;
         Health health = Health.UNKNOWN;
         int attackTargetId;
+        boolean lockedByOther;
 
         ShipState(int id, ShipKind kind, Motion motion) {
             this.id = id;
@@ -101,7 +112,10 @@ public final class World {
         int level;
         double credits;
         double uridium;
-        int cargoLeft = -1;
+        int cargoFree = -1;
+        int cargoMax = -1;
+        int config;
+        int enemyWarning = -1;
         boolean premium;
         boolean cloaked;
         boolean alive = true;
@@ -120,6 +134,10 @@ public final class World {
     private final Map<Integer, Asset> assets = new LinkedHashMap<>();
     private final Map<String, Zone> zones = new LinkedHashMap<>();
     private Group group = Group.NONE;
+    private final Map<String, WorldSnapshot.Item> items = new LinkedHashMap<>();
+    private final Map<Integer, Double> ores = new LinkedHashMap<>();
+    private final Map<String, Double> resources = new LinkedHashMap<>();
+    private final Map<String, Integer> bootyKeys = new LinkedHashMap<>();
 
     /** Applies a packet received from the server at {@code nanos} ({@code System.nanoTime()}). */
     public synchronized void apply(Packet packet, long nanos) {
@@ -183,6 +201,21 @@ public final class World {
             case GroupInitializationCommand p -> initGroup(p);
             case GroupMemberUpdateCommand p -> updateGroupMember(p);
             case GroupCloseCommand p -> group = Group.NONE;
+            case MenuInitializationCommand p -> initItems(p, nanos);
+            case MenuItemStatusCommand p -> updateItem(p);
+            case MenuItemTimerCommand p -> updateTimer(p, nanos);
+            case AttributeOreCountUpdateCommand p -> {
+                ores.clear();
+                for (OreCountModule o : p.oreCountList) {
+                    ores.put(o.oreType != null ? (int) o.oreType.typeValue : -1, o.count);
+                }
+            }
+            case InventoryItemUpdatedCommand p -> {
+                if (p.item != null) {
+                    resources.put(p.item.lootId, p.item.amount);
+                }
+            }
+            case LegacyModule p -> legacy(p.message, nanos);
             default -> {
                 // not part of the world model
             }
@@ -202,17 +235,18 @@ public final class World {
         WorldSnapshot.Hero h = new WorldSnapshot.Hero(hero.id, hero.name, hero.shipType, hero.mapId,
                 (int) Math.round(m.x(nanos)), (int) Math.round(m.y(nanos)), m.moving(nanos),
                 (int) Math.round(m.toX()), (int) Math.round(m.toY()), hero.speed, hero.health, hero.factionId,
-                hero.clanId, hero.level, hero.credits, hero.uridium, hero.cargoLeft, hero.premium, hero.cloaked,
-                hero.alive, hero.selectedId, hero.petId, hero.beacon);
+                hero.clanId, hero.level, hero.credits, hero.uridium, hero.cargoFree, hero.cargoMax, hero.premium,
+                hero.cloaked, hero.alive, hero.selectedId, hero.petId, hero.config, hero.enemyWarning, hero.beacon);
         Map<Integer, WorldSnapshot.Ship> shipViews = new LinkedHashMap<>();
         for (ShipState s : ships.values()) {
             shipViews.put(s.id, new WorldSnapshot.Ship(s.id, s.kind, s.name, s.typeId, s.factionId, s.clanId,
                     s.clanTag, s.relation, s.cloaked, (int) Math.round(s.motion.x(nanos)),
                     (int) Math.round(s.motion.y(nanos)), s.motion.moving(nanos), (int) Math.round(s.motion.toX()),
-                    (int) Math.round(s.motion.toY()), s.health, s.attackTargetId, s.ownerId));
+                    (int) Math.round(s.motion.toY()), s.health, s.attackTargetId, s.ownerId, s.lockedByOther));
         }
         return new WorldSnapshot(nanos, h, Map.copyOf(shipViews), Map.copyOf(collectables), Map.copyOf(portals),
-                Map.copyOf(assets), Map.copyOf(zones), group);
+                Map.copyOf(assets), Map.copyOf(zones), group, Map.copyOf(items),
+                new WorldSnapshot.Inventory(Map.copyOf(ores), Map.copyOf(resources), Map.copyOf(bootyKeys)));
     }
 
     // ---- hero ----
@@ -232,7 +266,9 @@ public final class World {
         hero.level = p.level;
         hero.credits = p.credits;
         hero.uridium = p.uridium;
-        hero.cargoLeft = p.cargoSpaceMax - p.cargoSpace;
+        // cargoSpace is the free space: it grows by exactly the amount of ore sold (recordings)
+        hero.cargoFree = p.cargoSpace;
+        hero.cargoMax = p.cargoSpaceMax;
         hero.premium = p.premium;
         hero.cloaked = p.cloaked;
         hero.alive = true;
@@ -343,6 +379,134 @@ public final class World {
         if (s != null) {
             s.health = s.health.withHp(p.victimHitpoints, -1).withShield(p.victimShield, -1)
                     .withNanoHull(p.victimNanoHull, -1);
+        }
+    }
+
+    // ---- item bar ----
+
+    private void initItems(MenuInitializationCommand p, long nanos) {
+        items.clear();
+        for (MenuCategoryInitializationCommand c : p.categories) {
+            for (MenuItemInitializationCommand i : c.menuItems) {
+                if (i.status == null) {
+                    continue;
+                }
+                MenuItemStatusCommand st = i.status;
+                MenuItemTimerCommand t = i.timer;
+                // an item can sit in several categories ("buy_now" repeats ammunition): the first one wins
+                items.putIfAbsent(st.menuItemId, new WorldSnapshot.Item(st.menuItemId, c.categoryId, st.counterValue,
+                        st.maxCounterValue, st.selected, st.available, st.activatable, st.buyable, st.blocked, st.visible,
+                        t != null && t.timerState != null ? t.timerState.timerStateValue : TimerStateModule.TIMERSTATE_READY,
+                        t != null ? t.time : 0, t != null ? t.maxTime : 0, nanos));
+            }
+        }
+    }
+
+    private void updateItem(MenuItemStatusCommand st) {
+        WorldSnapshot.Item old = items.get(st.menuItemId);
+        String category = old != null ? old.category() : "";
+        if (st.selected && !category.isEmpty()) {
+            // one selected item per category, like the client's item bar
+            items.replaceAll((k, v) -> v.selected() && category.equals(v.category()) && !k.equals(st.menuItemId)
+                    ? withSelected(v, false) : v);
+        }
+        items.put(st.menuItemId, new WorldSnapshot.Item(st.menuItemId, category, st.counterValue, st.maxCounterValue,
+                st.selected, st.available, st.activatable, st.buyable, st.blocked, st.visible,
+                old != null ? old.timerState() : TimerStateModule.TIMERSTATE_READY, old != null ? old.timerTime() : 0,
+                old != null ? old.timerMax() : 0, old != null ? old.timerNanos() : 0));
+    }
+
+    private static WorldSnapshot.Item withSelected(WorldSnapshot.Item i, boolean selected) {
+        return new WorldSnapshot.Item(i.id(), i.category(), i.counter(), i.maxCounter(), selected, i.available(),
+                i.activatable(), i.buyable(), i.blocked(), i.visible(), i.timerState(), i.timerTime(), i.timerMax(),
+                i.timerNanos());
+    }
+
+    private void updateTimer(MenuItemTimerCommand t, long nanos) {
+        WorldSnapshot.Item i = items.get(t.menuItemId);
+        if (i == null) {
+            return;
+        }
+        items.put(t.menuItemId, new WorldSnapshot.Item(i.id(), i.category(), i.counter(), i.maxCounter(), i.selected(),
+                i.available(), t.activatable, i.buyable(), i.blocked(), i.visible(),
+                t.timerState != null ? t.timerState.timerStateValue : TimerStateModule.TIMERSTATE_READY, t.time,
+                t.maxTime, nanos));
+    }
+
+    // ---- legacy text commands ("0|A|c|1600"), see docs/recon/STAGE3.md ----
+
+    private void legacy(String message, long nanos) {
+        String[] a = message.split("\\|", -1);
+        if (a.length < 2) {
+            return;
+        }
+        switch (a[1]) {
+            case "A" -> {
+                if (a.length < 4) {
+                    return;
+                }
+                String key = a[2];
+                switch (key) {
+                    case "c" -> hero.cargoMax = parseInt(a[3], hero.cargoMax);
+                    case "CC" -> hero.config = parseInt(a[3], hero.config);
+                    case "v" -> setHeroSpeed(parseInt(a[3], hero.speed), nanos);
+                    default -> {
+                        if (key.startsWith("BK")) {
+                            bootyKeys.put(key, parseInt(a[3], 0));
+                        }
+                    }
+                }
+            }
+            case "S" -> {
+                if (a.length >= 4 && "CFG".equals(a[2])) {
+                    hero.config = parseInt(a[3], hero.config);
+                }
+            }
+            case "n" -> {
+                if (a.length < 4) {
+                    return;
+                }
+                switch (a[2]) {
+                    case "w" -> hero.enemyWarning = parseInt(a[3], hero.enemyWarning);
+                    case "INV" -> {
+                        ShipState s = a.length >= 5 ? ships.get(parseInt(a[3], 0)) : null;
+                        if (s != null) {
+                            s.cloaked = parseInt(a[4], 0) != 0;
+                        }
+                    }
+                    case "LSH" -> {
+                        ShipState s = a.length >= 5 ? ships.get(parseInt(a[3], 0)) : null;
+                        int attacker = a.length >= 5 ? parseInt(a[4], 0) : 0;
+                        if (s != null && attacker != hero.id && !inGroup(attacker)) {
+                            s.lockedByOther = true;
+                        }
+                    }
+                    case "USH" -> {
+                        ShipState s = ships.get(parseInt(a[3], 0));
+                        if (s != null) {
+                            s.lockedByOther = false;
+                        }
+                    }
+                    default -> {
+                        // titles, drones, messages: not part of the model
+                    }
+                }
+            }
+            default -> {
+                // other legacy commands are UI only
+            }
+        }
+    }
+
+    private boolean inGroup(int id) {
+        return group.members().stream().anyMatch(m -> m.id() == id);
+    }
+
+    private static int parseInt(String s, int fallback) {
+        try {
+            return Integer.parseInt(s.trim());
+        } catch (NumberFormatException e) {
+            return fallback;
         }
     }
 

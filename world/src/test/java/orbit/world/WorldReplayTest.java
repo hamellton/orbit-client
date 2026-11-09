@@ -34,6 +34,8 @@ class WorldReplayTest {
         int maxCollectables = 0;
         int maxPortals = 0;
         int maxZones = 0;
+        int lockedByOther = 0;
+        List<String> problems = new ArrayList<>();
         for (Path f : files) {
             World w = new World();
             for (PacketRecord r : Recording.readPackets(f)) {
@@ -58,13 +60,31 @@ class WorldReplayTest {
                 maxCollectables = Math.max(maxCollectables, s.collectables().size());
                 maxPortals = Math.max(maxPortals, s.portals().size());
                 maxZones = Math.max(maxZones, s.zones().size());
+                lockedByOther = Math.max(lockedByOther, (int) s.ships().values().stream().filter(WorldSnapshot.Ship::lockedByOther).count());
+            }
+            WorldSnapshot end = w.snapshot(Long.MAX_VALUE / 2);
+            WorldSnapshot.Hero h = end.hero();
+            if (end.selected("lasers") == null || end.selected("lasers").counter() <= 0) {
+                problems.add(f.getFileName() + ": no selected laser ammunition");
+            }
+            if (end.inventory().ores().isEmpty() || h.cargoMax() <= 0 || h.cargoFree() < 0 || h.cargoFree() > h.cargoMax()) {
+                problems.add(f.getFileName() + ": cargo " + h.cargoFree() + "/" + h.cargoMax() + ", ores " + end.inventory().ores());
+            }
+            if (h.config() != 1 && h.config() != 2) {
+                problems.add(f.getFileName() + ": config " + h.config());
+            }
+            if (end.inventory().bootyKeys().isEmpty()) {
+                problems.add(f.getFileName() + ": no booty keys");
             }
         }
         Collections.sort(errors);
         double median = errors.get(errors.size() / 2);
         double p90 = errors.get((int) (errors.size() * 0.9));
-        System.out.printf("moves=%d jumps=%d median=%.0f p90=%.0f max=%.0f ships=%d npcs=%d collectables=%d portals=%d zones=%d%n",
-                errors.size(), jumps, median, p90, errors.getLast(), maxShips, maxNpcs, maxCollectables, maxPortals, maxZones);
+        System.out.printf("moves=%d jumps=%d median=%.0f p90=%.0f max=%.0f ships=%d npcs=%d collectables=%d portals=%d zones=%d locked=%d%n",
+                errors.size(), jumps, median, p90, errors.getLast(), maxShips, maxNpcs, maxCollectables, maxPortals, maxZones,
+                lockedByOther);
+        assertTrue(problems.isEmpty(), String.join("\n", problems));
+        assertTrue(lockedByOther > 0, "recordings contain NPCs attacked by other players");
         assertTrue(errors.size() > 100, "too few moves: " + errors.size());
         assertTrue(jumps <= files.size(), "unexpected jumps: " + jumps);
         assertTrue(median < 20 && p90 < 80, "prediction too far from the client: median " + median + ", p90 " + p90);

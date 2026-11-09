@@ -12,7 +12,12 @@ import orbit.protocol.gen.AttackLaserRunCommand;
 import orbit.protocol.gen.BeaconCommand;
 import orbit.protocol.gen.ClanRelationModule;
 import orbit.protocol.gen.JumpgateCreateCommand;
+import orbit.protocol.gen.LegacyModule;
 import orbit.protocol.gen.MapAddPOICommand;
+import orbit.protocol.gen.MenuCategoryInitializationCommand;
+import orbit.protocol.gen.MenuInitializationCommand;
+import orbit.protocol.gen.MenuItemInitializationCommand;
+import orbit.protocol.gen.MenuItemStatusCommand;
 import orbit.protocol.gen.MoveCommand;
 import orbit.protocol.gen.MoveRequest;
 import orbit.protocol.gen.OreTypeModule;
@@ -159,6 +164,64 @@ class WorldTest {
         s = w.snapshot(0);
         assertTrue(s.collectables().isEmpty() && s.portals().isEmpty() && s.zones().isEmpty());
         assertEquals(HERO, s.hero().id(), "the hero survives a map change");
+    }
+
+    @Test
+    void legacyCommandsUpdateHeroAndShips() {
+        World w = withHero();
+        w.apply(ship(7, true, 0, 0), 0);
+        for (String m : List.of("0|A|c|1600", "0|A|CC|2", "0|S|CFG|1", "0|n|w|3", "0|A|BKB|5", "0|n|INV|7|1",
+                "0|n|LSH|7|555", "0|A|v|420", "garbage", "0|n|LSH|x")) {
+            LegacyModule lm = new LegacyModule();
+            lm.message = m;
+            w.apply(lm, 0);
+        }
+        WorldSnapshot s = w.snapshot(0);
+        assertEquals(1600, s.hero().cargoMax());
+        assertEquals(1, s.hero().config(), "S|CFG after A|CC wins");
+        assertEquals(3, s.hero().enemyWarning());
+        assertEquals(420, s.hero().speed());
+        assertEquals(5, s.inventory().bootyKeys().get("BKB"));
+        assertTrue(s.ships().get(7).cloaked());
+        assertTrue(s.ships().get(7).lockedByOther());
+
+        LegacyModule own = new LegacyModule();
+        own.message = "0|n|USH|7";
+        w.apply(own, 0);
+        assertFalse(w.snapshot(0).ships().get(7).lockedByOther());
+        own.message = "0|n|LSH|7|" + HERO;
+        w.apply(own, 0);
+        assertFalse(w.snapshot(0).ships().get(7).lockedByOther(), "our own attack does not grey it out");
+    }
+
+    @Test
+    void itemBarKeepsOneSelectedItemPerCategory() {
+        World w = withHero();
+        MenuInitializationCommand init = new MenuInitializationCommand();
+        MenuCategoryInitializationCommand lasers = new MenuCategoryInitializationCommand();
+        lasers.categoryId = "lasers";
+        lasers.menuItems = List.of(item("ammunition_laser_lcb-10", 1000, true), item("ammunition_laser_ucb-100", 50, false));
+        init.categories = List.of(lasers);
+        w.apply(init, 0);
+        assertEquals("ammunition_laser_lcb-10", w.snapshot(0).selected("lasers").id());
+
+        MenuItemStatusCommand st = item("ammunition_laser_ucb-100", 49, true).status;
+        w.apply(st, 0);
+        WorldSnapshot s = w.snapshot(0);
+        assertEquals("ammunition_laser_ucb-100", s.selected("lasers").id());
+        assertFalse(s.items().get("ammunition_laser_lcb-10").selected());
+        assertEquals(49, s.items().get("ammunition_laser_ucb-100").counter());
+        assertEquals("lasers", s.items().get("ammunition_laser_ucb-100").category());
+    }
+
+    private static MenuItemInitializationCommand item(String id, double count, boolean selected) {
+        MenuItemInitializationCommand i = new MenuItemInitializationCommand();
+        i.status = new MenuItemStatusCommand();
+        i.status.menuItemId = id;
+        i.status.counterValue = count;
+        i.status.selected = selected;
+        i.status.available = true;
+        return i;
     }
 
     @Test
