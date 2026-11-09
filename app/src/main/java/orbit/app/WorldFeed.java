@@ -25,6 +25,8 @@ public final class WorldFeed {
     private final AtomicLong packets = new AtomicLong();
     private final String mode;
     private volatile String state = "Запуск";
+    /** What the bot is doing; set by the behaviour modules (stage 4–5), none yet. */
+    private volatile String action;
     /** Time base of the model: real time, or the replay clock. */
     private volatile LongSupplier clock = System::nanoTime;
 
@@ -73,6 +75,19 @@ public final class WorldFeed {
 
     public String state() {
         return state;
+    }
+
+    public void setAction(String action) {
+        this.action = action;
+    }
+
+    /** Current bot action, or a note when the bot does not control the ship. */
+    public String action() {
+        String a = action;
+        if (a != null) {
+            return a;
+        }
+        return mode.startsWith("бот") ? "нет (бот пока только держит связь)" : "— (корабль ведёт игрок)";
     }
 
     public String mode() {

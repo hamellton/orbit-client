@@ -294,6 +294,12 @@ class WorldTest {
         laser.attackerId = 7;
         laser.targetId = HERO;
         w.apply(laser, 0);
+        assertEquals(List.of(7), w.snapshot(0).hero().attackers(), "the NPC shoots at the hero");
+        AttackLaserRunCommand mine = new AttackLaserRunCommand();
+        mine.attackerId = HERO;
+        mine.targetId = 7;
+        w.apply(mine, 0);
+        assertEquals(7, w.snapshot(0).hero().attackTargetId());
         AttackHitCommand hit = new AttackHitCommand();
         hit.victimId = 7;
         hit.victimHitpoints = 600;
@@ -316,6 +322,8 @@ class WorldTest {
         dead.destroyedUserId = 7;
         w.apply(dead, 0);
         assertEquals(0, w.snapshot(0).hero().selectedId());
+        assertEquals(0, w.snapshot(0).hero().attackTargetId(), "a destroyed target is no longer attacked");
+        assertTrue(w.snapshot(0).hero().attackers().isEmpty());
         assertFalse(w.snapshot(0).ships().containsKey(7));
 
         dead.destroyedUserId = HERO;

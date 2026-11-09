@@ -122,6 +122,7 @@ public final class World {
         boolean cloaked;
         boolean alive = true;
         int selectedId;
+        int attackTargetId;
         int petId;
         Beacon beacon = Beacon.NONE;
     }
@@ -129,7 +130,12 @@ public final class World {
     /** Distance between the predicted and the reported hero position that counts as a jump. */
     static final double BEACON_JUMP = 1_000;
 
+    /** A ship that hit the hero within this time still counts as attacking it. */
+    static final long ATTACKER_MEMORY_NANOS = 5_000_000_000L;
+
     private final HeroState hero = new HeroState();
+    /** Attacker id → last time it hit the hero (lasers, rockets, area hits). */
+    private final Map<Integer, Long> heroHitBy = new HashMap<>();
     private final Map<Integer, ShipState> ships = new HashMap<>();
     private final Map<String, Collectable> collectables = new LinkedHashMap<>();
     private final Map<Integer, Portal> portals = new LinkedHashMap<>();
@@ -188,18 +194,29 @@ public final class World {
             case ShipSelectionCommand p -> select(p);
             case ShipDeselectionCommand p -> hero.selectedId = 0;
             case AttackLaserRunCommand p -> {
+                if (p.attackerId == hero.id) {
+                    hero.attackTargetId = p.targetId;
+                }
                 ShipState s = ships.get(p.attackerId);
                 if (s != null) {
                     s.attackTargetId = p.targetId;
                 }
             }
             case AttackAbortLaserCommand p -> {
+                if (p.uid == hero.id) {
+                    hero.attackTargetId = 0;
+                }
                 ShipState s = ships.get(p.uid);
                 if (s != null) {
                     s.attackTargetId = 0;
                 }
             }
-            case AttackHitCommand p -> hit(p);
+            case AttackHitCommand p -> {
+                hit(p);
+                if (p.victimId == hero.id && p.attackerId != 0) {
+                    heroHitBy.put(p.attackerId, nanos);
+                }
+            }
             case GroupInitializationCommand p -> initGroup(p);
             case GroupMemberUpdateCommand p -> updateGroupMember(p);
             case GroupCloseCommand p -> group = Group.NONE;
@@ -207,7 +224,12 @@ public final class World {
             case MenuItemStatusCommand p -> updateItem(p);
             case MenuItemTimerCommand p -> updateTimer(p, nanos);
             case MenuItemCooldownGroupTimerCommand p -> updateGroupTimer(p, nanos);
-            case AttackHitNoLockCommand p -> hitNoLock(p);
+            case AttackHitNoLockCommand p -> {
+                hitNoLock(p);
+                if (p.victimId == hero.id && p.attackerId != 0) {
+                    heroHitBy.put(p.attackerId, nanos);
+                }
+            }
             case AttributeOreCountUpdateCommand p -> {
                 ores.clear();
                 for (OreCountModule o : p.oreCountList) {
@@ -240,7 +262,8 @@ public final class World {
                 (int) Math.round(m.x(nanos)), (int) Math.round(m.y(nanos)), m.moving(nanos),
                 (int) Math.round(m.toX()), (int) Math.round(m.toY()), hero.speed, hero.health, hero.factionId,
                 hero.clanId, hero.level, hero.credits, hero.uridium, hero.cargoFree, hero.cargoMax, hero.premium,
-                hero.cloaked, hero.alive, hero.selectedId, hero.petId, hero.config, hero.enemyWarning, hero.beacon);
+                hero.cloaked, hero.alive, hero.selectedId, hero.attackTargetId, attackers(nanos), hero.petId, hero.config,
+                hero.enemyWarning, hero.beacon);
         Map<Integer, WorldSnapshot.Ship> shipViews = new LinkedHashMap<>();
         for (ShipState s : ships.values()) {
             shipViews.put(s.id, new WorldSnapshot.Ship(s.id, s.kind, s.name, s.typeId, s.factionId, s.clanId,
@@ -251,6 +274,25 @@ public final class World {
         return new WorldSnapshot(nanos, h, Map.copyOf(shipViews), Map.copyOf(collectables), Map.copyOf(portals),
                 Map.copyOf(assets), Map.copyOf(zones), group, Map.copyOf(items),
                 new WorldSnapshot.Inventory(Map.copyOf(ores), Map.copyOf(resources), Map.copyOf(bootyKeys)));
+    }
+
+    /** Ships shooting lasers at the hero now, or that hit it within {@link #ATTACKER_MEMORY_NANOS}. */
+    private List<Integer> attackers(long nanos) {
+        if (hero.id == 0) {
+            return List.of();
+        }
+        java.util.Set<Integer> ids = new java.util.LinkedHashSet<>();
+        for (ShipState s : ships.values()) {
+            if (s.attackTargetId == hero.id) {
+                ids.add(s.id);
+            }
+        }
+        heroHitBy.forEach((id, at) -> {
+            if (nanos - at <= ATTACKER_MEMORY_NANOS) {
+                ids.add(id);
+            }
+        });
+        return List.copyOf(ids);
     }
 
     // ---- hero ----
@@ -362,12 +404,18 @@ public final class World {
                 s.attackTargetId = 0;
             }
         }
+        if (hero.attackTargetId == id) {
+            hero.attackTargetId = 0;
+        }
+        heroHitBy.remove(id);
     }
 
     private void destroyed(int id) {
         if (id == hero.id) {
             hero.alive = false;
             hero.selectedId = 0;
+            hero.attackTargetId = 0;
+            heroHitBy.clear();
             return;
         }
         removeShip(id);
@@ -465,6 +513,12 @@ public final class World {
             return;
         }
         switch (a[1]) {
+            case "v" -> {
+                // ROCKET_ATTACK: 0|v|attacker|target|H(hit)|…
+                if (a.length >= 4 && parseInt(a[3], 0) == hero.id && hero.id != 0) {
+                    heroHitBy.put(parseInt(a[2], 0), nanos);
+                }
+            }
             case "A" -> {
                 if (a.length < 4) {
                     return;
@@ -599,6 +653,8 @@ public final class World {
         assets.clear();
         zones.clear();
         hero.selectedId = 0;
+        hero.attackTargetId = 0;
+        heroHitBy.clear();
         hero.petId = 0;
         hero.beacon = Beacon.NONE;
     }

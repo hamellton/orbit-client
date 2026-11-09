@@ -37,6 +37,10 @@ public final class MainWindow {
     private final JLabel cargo = new JLabel();
     private final JLabel ammo = new JLabel();
     private final JLabel counts = new JLabel();
+    private final JLabel action = new JLabel();
+    private final JLabel target = new JLabel();
+    private final JLabel attackers = new JLabel();
+    private final JLabel group = new JLabel();
     private final JProgressBar hp = bar(new Color(0x43a047));
     private final JProgressBar shield = bar(new Color(0x1e88e5));
     private final JTextArea log = new JTextArea();
@@ -53,17 +57,21 @@ public final class MainWindow {
             }
         });
 
-        JPanel status = new JPanel(new GridLayout(3, 2, 12, 2));
+        JPanel status = new JPanel(new GridLayout(5, 2, 12, 2));
         status.setBorder(BorderFactory.createEmptyBorder(6, 10, 6, 10));
         status.add(state);
         status.add(place);
+        status.add(action);
+        status.add(target);
         status.add(labeled("HP", hp));
         status.add(labeled("Щит", shield));
         status.add(ammo);
         status.add(cargo);
-        JPanel countsRow = new JPanel(new BorderLayout());
-        countsRow.add(counts, BorderLayout.WEST);
-        status.add(countsRow);
+        status.add(attackers);
+        status.add(group);
+        JPanel south = new JPanel(new BorderLayout());
+        south.setBorder(BorderFactory.createEmptyBorder(0, 10, 4, 10));
+        south.add(counts, BorderLayout.WEST);
 
         log.setEditable(false);
         log.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
@@ -74,6 +82,7 @@ public final class MainWindow {
         JPanel top = new JPanel(new BorderLayout());
         top.add(status, BorderLayout.NORTH);
         top.add(minimap, BorderLayout.CENTER);
+        top.add(south, BorderLayout.SOUTH);
         JSplitPane split = new JSplitPane(JSplitPane.VERTICAL_SPLIT, top, logScroll);
         split.setResizeWeight(0.8);
         frame.setContentPane(split);
@@ -114,7 +123,45 @@ public final class MainWindow {
         ammo.setText("<html>Лазер <b>" + item(laser) + "</b> &nbsp; Ракеты <b>" + item(rocket) + "</b></html>");
         counts.setText(String.format("NPC %d   Игроки %d   Ящики %d   Пакетов %,d", w.nearest(WorldSnapshot.ShipKind.NPC).size(),
                 w.nearest(WorldSnapshot.ShipKind.PLAYER).size(), w.collectables().size(), feed.packets()));
+        action.setText("Действие: " + feed.action());
+        target.setText("Цель: " + targetText(w));
+        attackers.setText("Атакуют меня: " + attackersText(w));
+        group.setText("Группа: " + groupText(w));
         minimap.repaint();
+    }
+
+    private static String targetText(WorldSnapshot w) {
+        WorldSnapshot.Hero h = w.hero();
+        int id = h.attackTargetId() != 0 ? h.attackTargetId() : h.selectedId();
+        if (id == 0) {
+            return "—";
+        }
+        WorldSnapshot.Ship s = w.ships().get(id);
+        String name = s != null ? s.name() : "#" + id;
+        String state = h.attackTargetId() != 0 ? "атакую" : "выбрана";
+        String hp = s != null && s.health().known() ? String.format(", HP %.0f%%", s.health().hpPercent() * 100) : "";
+        String shield = s != null && s.health().shieldPercent() >= 0
+                ? String.format(", щит %.0f%%", s.health().shieldPercent() * 100) : "";
+        return name + " (" + state + hp + shield + ")";
+    }
+
+    private static String attackersText(WorldSnapshot w) {
+        List<Integer> ids = w.hero().attackers();
+        if (ids.isEmpty()) {
+            return "никто";
+        }
+        List<String> names = ids.stream().limit(3)
+                .map(id -> w.ships().containsKey(id) ? w.ships().get(id).name() : "#" + id).toList();
+        return ids.size() + " — " + String.join(", ", names) + (ids.size() > 3 ? "…" : "");
+    }
+
+    private static String groupText(WorldSnapshot w) {
+        WorldSnapshot.Group g = w.group();
+        if (!g.exists()) {
+            return "нет";
+        }
+        List<String> names = g.members().stream().map(m -> m.name() + (m.id() == g.leaderId() ? "★" : "")).toList();
+        return g.members().size() + " — " + String.join(", ", names);
     }
 
     private void append(String line) {

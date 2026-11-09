@@ -137,14 +137,46 @@ final class MinimapPanel extends JPanel {
             g.fill(new Rectangle2D.Double(p.x(c.x()) - 1.5, p.y(c.y()) - 1.5, 3, 3));
         }
         for (Ship s : w.ships().values()) {
-            g.setColor(shipColor(s, hero));
+            g.setColor(shipColor(s, hero, w.group()));
             double r = s.kind() == ShipKind.PET ? 2 : 3;
             g.fill(new Ellipse2D.Double(p.x(s.x()) - r, p.y(s.y()) - r, 2 * r, 2 * r));
+        }
+
+        // group members on this map (their own ships, or the position the group update reports)
+        for (WorldSnapshot.Member m : w.group().members()) {
+            if (m.id() == hero.id() || m.mapId() != hero.mapId() || m.loggedOut()) {
+                continue;
+            }
+            Ship s = w.ships().get(m.id());
+            double mx = p.x(s != null ? s.x() : m.x());
+            double my = p.y(s != null ? s.y() : m.y());
+            Path2D.Double diamond = new Path2D.Double();
+            diamond.moveTo(mx, my - 5);
+            diamond.lineTo(mx + 5, my);
+            diamond.lineTo(mx, my + 5);
+            diamond.lineTo(mx - 5, my);
+            diamond.closePath();
+            g.setColor(ALLY);
+            g.draw(diamond);
         }
 
         if (hero.id() != 0) {
             double hx = p.x(hero.x());
             double hy = p.y(hero.y());
+            g.setColor(ENEMY);
+            for (int id : hero.attackers()) {
+                Ship a = w.ships().get(id);
+                if (a != null) {
+                    g.draw(new Line2D.Double(p.x(a.x()), p.y(a.y()), hx, hy));
+                }
+            }
+            Ship attacked = w.ships().get(hero.attackTargetId());
+            if (attacked != null) {
+                g.setColor(NPC);
+                g.setStroke(new BasicStroke(2f));
+                g.draw(new Line2D.Double(hx, hy, p.x(attacked.x()), p.y(attacked.y())));
+                g.setStroke(new BasicStroke(1f));
+            }
             if (hero.moving()) {
                 g.setColor(new Color(HERO.getRed(), HERO.getGreen(), HERO.getBlue(), 120));
                 g.draw(new Line2D.Double(hx, hy, p.x(hero.targetX()), p.y(hero.targetY())));
@@ -159,7 +191,10 @@ final class MinimapPanel extends JPanel {
         }
     }
 
-    static Color shipColor(Ship s, WorldSnapshot.Hero hero) {
+    static Color shipColor(Ship s, WorldSnapshot.Hero hero, WorldSnapshot.Group group) {
+        if (group.members().stream().anyMatch(m -> m.id() == s.id())) {
+            return ALLY;
+        }
         return switch (s.kind()) {
             case PET -> PET;
             case NPC -> s.lockedByOther() ? NPC_TAKEN : NPC;

@@ -19,11 +19,15 @@ public record WorldSnapshot(long nanos, Hero hero, Map<Integer, Ship> ships, Map
      * @param cargoFree    free cargo space ({@code ShipInitializationCommand.cargoSpace}: it grows when ore is sold)
      * @param config       selected configuration (1 or 2), 0 if unknown
      * @param enemyWarning number of enemy players the client warns about ({@code 0|n|w}), -1 if unknown
+     * @param selectedId     ship selected as target (may be selected without shooting), 0 if none
+     * @param attackTargetId ship the hero shoots lasers at ({@code AttackLaserRunCommand}), 0 if none
+     * @param attackers      ships shooting at the hero now or that hit it in the last 5 seconds
      */
     public record Hero(int id, String name, String shipType, int mapId, int x, int y, boolean moving, int targetX,
                        int targetY, int speed, Health health, int factionId, int clanId, int level, double credits,
                        double uridium, int cargoFree, int cargoMax, boolean premium, boolean cloaked, boolean alive,
-                       int selectedId, int petId, int config, int enemyWarning, Beacon beacon) {
+                       int selectedId, int attackTargetId, List<Integer> attackers, int petId, int config,
+                       int enemyWarning, Beacon beacon) {
     }
 
     /**

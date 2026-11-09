@@ -124,6 +124,42 @@ class LiveFactsReplayTest {
         assertTrue(wrong.isEmpty(), String.join("\n", wrong));
     }
 
+    /**
+     * The hero's laser target and its attackers: the client shoots at the selected ship, and anyone
+     * who hit the hero is listed as an attacker.
+     */
+    @Test
+    void heroFightIsTracked() throws Exception {
+        int attacking = 0;
+        int attackingSelected = 0;
+        int attacked = 0;
+        int hitsWithoutAttacker = 0;
+        for (Path f : recordings()) {
+            World w = new World();
+            for (PacketRecord r : Recording.readPackets(f)) {
+                Packet p = PacketCodec.decode(r.bytes());
+                if (r.up()) {
+                    w.applyOutgoing(p, r.nanos());
+                    continue;
+                }
+                w.apply(p, r.nanos());
+                WorldSnapshot.Hero h = w.snapshot(r.nanos()).hero();
+                if (p instanceof orbit.protocol.gen.AttackLaserRunCommand l && l.attackerId == h.id()) {
+                    attacking++;
+                    attackingSelected += h.attackTargetId() == h.selectedId() ? 1 : 0;
+                }
+                if (p instanceof AttackHitCommand hit && hit.victimId == h.id() && h.id() != 0) {
+                    attacked++;
+                    hitsWithoutAttacker += h.attackers().contains(hit.attackerId) ? 0 : 1;
+                }
+            }
+        }
+        Assumptions.assumeTrue(attacking > 0 && attacked > 0, "no recording with the hero fighting");
+        System.out.printf("hero shots %d (at selected %d), hits on hero %d%n", attacking, attackingSelected, attacked);
+        assertTrue(attackingSelected >= attacking * 0.9, "the hero should shoot at its selected target");
+        assertTrue(hitsWithoutAttacker == 0, hitsWithoutAttacker + " hits whose attacker is not listed");
+    }
+
     @Test
     void groupIsParsed() throws Exception {
         int groups = 0;
