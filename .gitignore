@@ -1,0 +1,21 @@
+# Build
+.gradle/
+build/
+out/
+*.class
+
+# IDE / OS
+.idea/
+.vscode/
+*.iml
+.DS_Store
+
+# Game client artifacts and decompiled sources
+reference/client/
+reference/decompiled/
+
+# Local secrets, profiles, recordings, logs
+local/
+recordings/
+logs/
+*.log
