@@ -10,6 +10,9 @@ Status: Stage 0 (reconnaissance). See `docs/PLAN.md` for the full task list and 
 - Do not touch binaries in `../DO-files/lib` and `../DO-files/plugins`.
 - UI, logs, README in Russian; code and comments in English.
 - Commit small and often without asking; never push unless asked.
+- Git: development happens on `dev` (base branch); `main` is updated only on request.
+  Remote `origin` = `git@github-hamellton:hamellton/orbit-client.git` (personal account, private).
+  Repo-local identity `hamellton <hamelltonn@gmail.com>` — never commit here with the work email.
 - Never log passwords, dosid, sessionID or keys.
 
 ## Tools
