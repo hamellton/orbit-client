@@ -38,7 +38,7 @@ import org.slf4j.LoggerFactory;
  * <pre>
  *   orbit bot --account main [--headless] [--profile local/client-profile.json] [--vault local/vault.bin]
  *             [--fly 105/65]   # development: fly to a point of the current map once in game
- *             [--go 3-7:40/40] # development: travel to a map (and a point) through portals
+ *             [--go "3-3;3-1:188/125"] # development: travel through portals, legs separated by ';'
  *             [--repair-free [--faction 3]]  # development: take a free repair on the kill screen
  *   orbit observe [--port 1080] [--direct IP:6001-6007] [--out recordings]   # watch the official client
  *   orbit replay recordings/session-….dorec [--speed 2]
@@ -196,50 +196,62 @@ public final class OrbitMain {
      * Development check of map travel: once in game, goes to {@code MAP[:X/Y]} (e.g. {@code 3-7} or
      * {@code 3-7:40/40}) through portals and logs each jump.
      */
-    private static void startTravelTest(WorldFeed feed, GameConnection conn, String target) {
-        String[] parts = target.split(":");
+    private static void startTravelTest(WorldFeed feed, GameConnection conn, String targets) {
         orbit.world.maps.MapCatalog catalog = orbit.world.maps.MapCatalog.bundled();
-        orbit.world.maps.MapCatalog.MapInfo map = catalog.byName(parts[0].trim());
-        if (map == null) {
-            log.error("Неизвестная карта: {}", parts[0]);
-            return;
+        record Leg(orbit.world.maps.MapCatalog.MapInfo map, double x, double y) {
         }
-        double x = Double.NaN;
-        double y = Double.NaN;
-        if (parts.length > 1) {
-            String[] xy = parts[1].split("[/,]");
-            x = Double.parseDouble(xy[0].trim()) * 100;
-            y = Double.parseDouble(xy[1].trim()) * 100;
+        List<Leg> legs = new java.util.ArrayList<>();
+        for (String target : targets.split(";")) {
+            String[] parts = target.trim().split(":");
+            orbit.world.maps.MapCatalog.MapInfo map = catalog.byName(parts[0].trim());
+            if (map == null) {
+                log.error("Неизвестная карта: {}", parts[0]);
+                return;
+            }
+            double x = Double.NaN;
+            double y = Double.NaN;
+            if (parts.length > 1) {
+                String[] xy = parts[1].split("[/,]");
+                x = Double.parseDouble(xy[0].trim()) * 100;
+                y = Double.parseDouble(xy[1].trim()) * 100;
+            }
+            legs.add(new Leg(map, x, y));
         }
         java.util.Random random = new java.util.Random();
         orbit.bot.nav.Navigator nav = new orbit.bot.nav.Navigator(feed::snapshot, conn::send, catalog, random, System::nanoTime);
         orbit.bot.nav.Traveler traveler = new orbit.bot.nav.Traveler(feed::snapshot, conn::send, nav, catalog, random,
                 System::nanoTime);
-        double tx = x;
-        double ty = y;
         Thread.ofPlatform().name("bot-loop").daemon().start(() -> {
             try {
-                while (feed.snapshot().hero().id() == 0) {
+                while (feed.snapshot().hero().id() == 0 || !feed.snapshot().hero().alive()) {
                     Thread.sleep(500);
                 }
                 Thread.sleep(4_000 + random.nextInt(3_000));
-                log.info("Тест перелёта: на {}{}", map.name(), Double.isNaN(tx) ? "" : " " + (int) tx / 100 + "/" + (int) ty / 100);
-                feed.setAction("перелёт на " + map.name());
-                traveler.travel(map.id(), tx, ty);
-                long nextLog = 0;
-                while (traveler.state() == orbit.bot.nav.Traveler.State.TRAVELLING) {
-                    traveler.tick();
-                    if (System.currentTimeMillis() > nextLog) {
-                        var h = feed.snapshot().hero();
-                        log.info("Перелёт: {} {}/{}, прыжков {}", catalog.info(h.mapId()).name(), h.x() / 100, h.y() / 100,
-                                traveler.jumps());
-                        nextLog = System.currentTimeMillis() + 5_000;
+                for (Leg leg : legs) {
+                    log.info("Тест перелёта: на {}{}", leg.map().name(),
+                            Double.isNaN(leg.x()) ? "" : " " + (int) leg.x() / 100 + "/" + (int) leg.y() / 100);
+                    feed.setAction("перелёт на " + leg.map().name());
+                    traveler.travel(leg.map().id(), leg.x(), leg.y());
+                    long nextLog = 0;
+                    while (traveler.state() == orbit.bot.nav.Traveler.State.TRAVELLING) {
+                        traveler.tick();
+                        if (System.currentTimeMillis() > nextLog) {
+                            var h = feed.snapshot().hero();
+                            log.info("Перелёт: {} {}/{}, прыжков {}", catalog.info(h.mapId()).name(), h.x() / 100,
+                                    h.y() / 100, traveler.jumps());
+                            nextLog = System.currentTimeMillis() + 5_000;
+                        }
+                        Thread.sleep(100);
                     }
-                    Thread.sleep(100);
+                    var h = feed.snapshot().hero();
+                    log.info("Тест перелёта: {} — {} {}/{}, прыжков {}{}", traveler.state(), catalog.info(h.mapId()).name(),
+                            h.x() / 100, h.y() / 100, traveler.jumps(),
+                            traveler.failure().isEmpty() ? "" : " (" + traveler.failure() + ")");
+                    if (traveler.state() != orbit.bot.nav.Traveler.State.ARRIVED) {
+                        break;
+                    }
                 }
-                var h = feed.snapshot().hero();
-                log.info("Тест перелёта: {} — {} {}/{}, прыжков {}{}", traveler.state(), catalog.info(h.mapId()).name(),
-                        h.x() / 100, h.y() / 100, traveler.jumps(), traveler.failure().isEmpty() ? "" : " (" + traveler.failure() + ")");
+                log.info("Тест перелёта: все этапы пройдены");
                 feed.setAction(null);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();

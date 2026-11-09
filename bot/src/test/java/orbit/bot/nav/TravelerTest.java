@@ -162,7 +162,10 @@ class TravelerTest {
         Traveler t = new Traveler(() -> server.world.snapshot(server.now), server::receive, nav, catalog, new Random(5),
                 () -> server.now);
         t.travel(51, Double.NaN, Double.NaN); // a galaxy gate: not in the portal graph
-        t.tick();
+        for (int i = 0; i < 30 && t.state() == Traveler.State.TRAVELLING; i++) {
+            t.tick();
+            server.now += 100 * MS;
+        }
         assertEquals(Traveler.State.FAILED, t.state());
     }
 }

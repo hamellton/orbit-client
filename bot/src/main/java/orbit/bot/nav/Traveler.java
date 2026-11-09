@@ -41,6 +41,9 @@ public final class Traveler {
     /** Pause on a new map before flying on. */
     static final long ARRIVAL_MIN_MS = 800;
     static final long ARRIVAL_MAX_MS = 2_500;
+    /** Pause before a new travel starts (a fresh arrival pause, if longer, still applies). */
+    static final long DECIDE_MIN_MS = 300;
+    static final long DECIDE_MAX_MS = 1_200;
     /** A catalog portal and the server's portal object are the same within this distance. */
     static final double PORTAL_MATCH = 60;
 
@@ -87,6 +90,8 @@ public final class Traveler {
         pressedAtNanos = 0;
         jumps = 0;
         nav.stop();
+        // a moment to decide, like a player choosing the next destination
+        resumeAtNanos = Math.max(resumeAtNanos, clock.getAsLong() + ms(DECIDE_MIN_MS, DECIDE_MAX_MS));
     }
 
     public State state() {
