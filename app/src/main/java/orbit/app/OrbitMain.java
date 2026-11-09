@@ -36,7 +36,8 @@ import org.slf4j.LoggerFactory;
  * The bot application.
  *
  * <pre>
- *   orbit bot --account main [--headless] [--profile local/client-profile.json] [--vault local/vault.bin]
+ *   orbit bot --account main [--config CUBIKON] [--minutes 30] [--headless] [--profile local/client-profile.json]
+ *             [--vault local/vault.bin]   # runs the config's module (or the account's config); --minutes: then log out
  *             [--fly 105/65]   # development: fly to a point of the current map once in game
  *             [--go "3-3;3-1:188/125"] # development: travel through portals, legs separated by ';'
  *             [--repair-free [--faction 3]]  # development: take a free repair on the kill screen
@@ -47,7 +48,8 @@ import org.slf4j.LoggerFactory;
  *   orbit render recordings/session-….dorec --at 30 [--out minimap.png]   # minimap at second 30 as PNG
  *   orbit configs                                                          # config, account and timetable window
  * </pre>
- * The bot itself does nothing in game yet: it logs in, keeps the connection and builds the world model.
+ * With a config the bot runs its module ({@link orbit.bot.run.BotRunner}); closing the window or the end of
+ * {@code --minutes} makes it fly to a portal and log out.
  */
 public final class OrbitMain {
 
@@ -78,7 +80,8 @@ public final class OrbitMain {
     private static void usage() {
         System.err.println("""
                 Режимы:
-                  orbit bot --account <имя> [--headless]   бот входит в игру сам
+                  orbit bot --account <имя> [--config <конфиг>] [--minutes N] [--headless]
+                                                           бот входит в игру и работает по конфигу (N минут, затем выход)
                   orbit observe [--direct IP:порты]        окно бота по трафику официального клиента (через сниффер)
                   orbit replay <запись.dorec> [--speed N]  проиграть запись сниффера
                   orbit render <запись.dorec> --at <сек> [--out файл.png]  мини-карта на момент записи
@@ -103,6 +106,9 @@ public final class OrbitMain {
             System.err.println("Укажите аккаунт: --account <имя> (vault add <имя>)");
             System.exit(2);
         }
+        boolean devScenario = o.fly != null || o.go != null || o.hunt != null || o.then != null || o.logout
+                || o.repairFree || o.repairAt != null;
+        orbit.config.BotConfig config = devScenario ? null : loadConfig(o);
         char[] master = MasterPassword.obtain(false);
         Vault vault;
         try {
@@ -164,7 +170,108 @@ public final class OrbitMain {
         if (o.repairFree || o.repairAt != null) {
             startFreeRepair(feed, conn, o.faction, o.repairAt);
         }
+        if (config != null) {
+            ModuleRun run = startModule(feed, conn, config, o.minutes, profile);
+            runUntilClosed(feed, o.headless, () -> run.finish(conn), runner);
+            return;
+        }
         runUntilClosed(feed, o.headless, conn::close, runner);
+    }
+
+    /** The config to run: {@code --config}, else the account's one from {@code local/accounts.json}; checked. */
+    private static orbit.config.BotConfig loadConfig(Options o) throws java.io.IOException {
+        String name = o.config;
+        if (name == null) {
+            name = orbit.config.AccountSettings.load(orbit.config.AccountSettings.DEFAULT_FILE).account(o.account).config();
+        }
+        if (name == null) {
+            log.info("Конфиг не выбран (--config или «Аккаунты» в orbit configs) — бот только держит связь");
+            return null;
+        }
+        orbit.config.BotConfig c = orbit.config.ConfigStore.openDefault().load(name);
+        List<orbit.config.ConfigCheck.Problem> problems = orbit.config.ConfigCheck.check(c, orbit.world.maps.MapCatalog.bundled());
+        for (orbit.config.ConfigCheck.Problem p : problems) {
+            log.warn("Конфиг «{}»: {}", name, p);
+        }
+        if (orbit.config.ConfigCheck.hasErrors(problems)) {
+            System.err.println("Конфиг «" + name + "» с ошибками — бот не запущен");
+            System.exit(2);
+        }
+        log.info("Конфиг «{}»: модуль {}, карта {}", name, c.module(),
+                orbit.world.maps.MapCatalog.bundled().info(c.general().workingMap()).name());
+        return c;
+    }
+
+    /** A running module: the loop thread and a way to finish it with a logout. */
+    private record ModuleRun(orbit.bot.run.BotRunner runner, java.util.concurrent.atomic.AtomicBoolean stopRequested,
+                             CountDownLatch done) {
+
+        /** Asks for a graceful stop (portal, logout) and waits for it, at most two minutes; then closes. */
+        void finish(GameConnection conn) {
+            stopRequested.set(true);
+            try {
+                if (!done.await(2, java.util.concurrent.TimeUnit.MINUTES)) {
+                    log.warn("Выход из игры не завершился за две минуты — закрываю соединение");
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            conn.close();
+        }
+    }
+
+    private static ModuleRun startModule(WorldFeed feed, GameConnection conn, orbit.config.BotConfig config, int minutes,
+                                         ClientProfile profile) {
+        orbit.world.maps.MapCatalog catalog = orbit.world.maps.MapCatalog.bundled();
+        java.util.Random random = new java.util.Random();
+        orbit.bot.nav.Navigator nav = new orbit.bot.nav.Navigator(feed::snapshot, conn::send, catalog, random, System::nanoTime);
+        orbit.bot.nav.Traveler traveler = new orbit.bot.nav.Traveler(feed::snapshot, conn::send, nav, catalog, random,
+                System::nanoTime);
+        orbit.bot.act.Actions actions = new orbit.bot.act.Actions(feed::snapshot, conn::send, () -> {
+            var session = conn.session();
+            return new orbit.bot.act.Actions.Login(session.userId(), session.sessionId());
+        }, orbit.bot.act.Actions.Screen.fromReadyString(profile.readyTypeStr()), random);
+        orbit.bot.run.ShipSetup ship = new orbit.bot.run.ShipSetup(feed::snapshot, actions, System::nanoTime, random);
+        orbit.bot.run.BotContext ctx = new orbit.bot.run.BotContext(feed::snapshot, () -> config, actions, nav, traveler,
+                catalog, random, System::nanoTime, conn::repair, ship);
+        orbit.bot.run.BotRunner runner = new orbit.bot.run.BotRunner(ctx, feed::loggedOut, feed::setAction);
+        java.util.concurrent.atomic.AtomicBoolean stopRequested = new java.util.concurrent.atomic.AtomicBoolean();
+        CountDownLatch done = new CountDownLatch(1);
+        long until = minutes > 0 ? System.currentTimeMillis() + minutes * 60_000L : Long.MAX_VALUE;
+        Thread.ofPlatform().name("bot-loop").daemon().start(() -> {
+            try {
+                waitAlive(feed);
+                Thread.sleep(4_000 + random.nextInt(3_000)); // look around after logging in
+                if (minutes > 0) {
+                    log.info("Бот работает {} мин, затем выйдет из игры", minutes);
+                }
+                while (true) {
+                    if (stopRequested.get()) {
+                        runner.stop("остановлен пользователем");
+                    } else if (System.currentTimeMillis() > until) {
+                        runner.stop("время работы вышло");
+                    }
+                    runner.tick();
+                    var st = runner.state();
+                    if (st == orbit.bot.run.BotRunner.State.STOPPED || st == orbit.bot.run.BotRunner.State.FAILED) {
+                        break;
+                    }
+                    Thread.sleep(100);
+                }
+                log.info("Бот завершил работу: {}", runner.status());
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            } catch (RuntimeException e) {
+                log.error("Ошибка в цикле бота", e);
+            } finally {
+                done.countDown();
+                if (!stopRequested.get()) {
+                    // finished by itself (time, deaths, error): end the program
+                    conn.close();
+                }
+            }
+        });
+        return new ModuleRun(runner, stopRequested, done);
     }
 
     /**
@@ -553,7 +660,7 @@ public final class OrbitMain {
     /** Command-line options shared by the modes. */
     record Options(String account, Path vault, Path profile, boolean headless, int port, String direct, Path out,
                    double speed, double at, String fly, String go, boolean repairFree, int faction, String hunt,
-                   String then, boolean logout, String repairAt, List<String> positional) {
+                   String then, boolean logout, String repairAt, String config, int minutes, List<String> positional) {
 
         static Options parse(List<String> args) {
             String account = null;
@@ -573,6 +680,8 @@ public final class OrbitMain {
             String then = null;
             boolean logout = false;
             String repairAt = null;
+            String config = null;
+            int minutes = 0;
             List<String> positional = new java.util.ArrayList<>();
             for (int i = 0; i < args.size(); i++) {
                 switch (args.get(i)) {
@@ -593,6 +702,8 @@ public final class OrbitMain {
                     case "--then" -> then = args.get(++i);
                     case "--logout" -> logout = true;
                     case "--repair-at" -> repairAt = args.get(++i);
+                    case "--config" -> config = args.get(++i);
+                    case "--minutes" -> minutes = Integer.parseInt(args.get(++i));
                     default -> {
                         if (args.get(i).startsWith("--")) {
                             System.err.println("Неизвестный параметр: " + args.get(i));
@@ -606,7 +717,7 @@ public final class OrbitMain {
                 throw new IllegalArgumentException("--speed должен быть больше 0");
             }
             return new Options(account, vault, profile, headless, port, direct, out, speed, at, fly, go, repairFree, faction,
-                    hunt, then, logout, repairAt, List.copyOf(positional));
+                    hunt, then, logout, repairAt, config, minutes, List.copyOf(positional));
         }
     }
 }

@@ -10,6 +10,7 @@ import orbit.protocol.gen.AttackRocketRequest;
 import orbit.protocol.gen.CollectBoxRequest;
 import orbit.protocol.gen.HarvestRequest;
 import orbit.protocol.gen.InstantRepairRequest;
+import orbit.protocol.gen.JumpRequest;
 import orbit.protocol.gen.LegacyModule;
 import orbit.protocol.gen.MenuActionRequest;
 import orbit.protocol.gen.PetGearActivationRequest;
@@ -161,6 +162,11 @@ public final class Actions {
         InstantRepairRequest r = new InstantRepairRequest();
         r.repairAssetId = repairStation.id();
         sender.accept(r);
+    }
+
+    /** Presses jump at the portal the ship is at (the server offers it about 500 units away). */
+    public void jump() {
+        sender.accept(new JumpRequest());
     }
 
     /** Switches configuration 1 ↔ 2 ({@code S|CFG|<n>|<userID>|<sessionID>}, {@code ChangeConfingCommand}). */

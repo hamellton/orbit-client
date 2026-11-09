@@ -1,0 +1,22 @@
+package orbit.bot.run;
+
+import orbit.bot.mod.CubikonModule;
+import orbit.bot.mod.KillModule;
+import orbit.config.BotConfig;
+
+/** The module object for a config's main module; {@code null} if the bot cannot run it yet. */
+public final class Modules {
+
+    private Modules() {
+    }
+
+    public static BotModule create(BotConfig.Module m, BotContext ctx) {
+        return switch (m) {
+            case KILL_COLLECT -> new KillModule(ctx, true, true);
+            case KILL -> new KillModule(ctx, true, false);
+            case COLLECT -> new KillModule(ctx, false, true);
+            case CUBIKON -> new CubikonModule(ctx);
+            default -> null;
+        };
+    }
+}
