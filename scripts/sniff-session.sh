@@ -1,13 +1,20 @@
 #!/usr/bin/env bash
 # Запуск сниффера и официального клиента DarkOrbit через него (macOS).
 #
-#   scripts/sniff-session.sh [путь к DarkOrbit Client.app]
+#   scripts/sniff-session.sh [--observe] [путь к DarkOrbit Client.app]
 #
 # Сниффер пишет журнал в logs/sniffer.log и записи сессий в recordings/.
+# --observe: вместо сниффера запускается окно бота (orbit observe) — мини-карта строится по трафику
+# официального клиента, её можно сравнить с игрой; записи пишутся так же.
 # Закройте клиент, чтобы остановить сниффер.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+OBSERVE=0
+if [[ "${1:-}" == "--observe" ]]; then
+  OBSERVE=1
+  shift
+fi
 APP="${1:-$ROOT/../DO Client/DarkOrbit Client.app}"
 PORT="${SNIFFER_PORT:-1080}"
 # Game servers of cluster 22 (GE1): one IP, ports 6001-6007. Resolved via public DNS so a
@@ -22,14 +29,20 @@ JAVA_HOME="$(/usr/libexec/java_home -v 21 2>/dev/null)" || {
 export JAVA_HOME
 
 cd "$ROOT"
-./gradlew -q :sniffer:installDist
+if [[ "$OBSERVE" == 1 ]]; then
+  ./gradlew -q :app:installDist
+  SNIFFER_CMD=(app/build/install/orbit/bin/orbit observe)
+else
+  ./gradlew -q :sniffer:installDist
+  SNIFFER_CMD=(sniffer/build/install/sniffer/bin/sniffer)
+fi
 mkdir -p logs
 
 if lsof -nP -iTCP:"$PORT" -sTCP:LISTEN >/dev/null 2>&1; then
   echo "Порт $PORT уже занят — считаю, что сниффер уже запущен."
   SNIFFER_PID=""
 else
-  sniffer/build/install/sniffer/bin/sniffer --port "$PORT" --direct "$GAME_IP:$GAME_PORTS" &
+  "${SNIFFER_CMD[@]}" --port "$PORT" --direct "$GAME_IP:$GAME_PORTS" &
   SNIFFER_PID=$!
   # stop the sniffer on Ctrl+C or any exit, not only after the client closes
   trap 'kill "$SNIFFER_PID" 2>/dev/null || true' EXIT INT TERM

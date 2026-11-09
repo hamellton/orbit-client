@@ -53,7 +53,7 @@ public final class GameCheck {
     }
 
     /** One-line summary of the world model for the log. */
-    static String describe(WorldSnapshot w) {
+    public static String describe(WorldSnapshot w) {
         WorldSnapshot.Hero h = w.hero();
         List<WorldSnapshot.Ship> npcs = w.nearest(WorldSnapshot.ShipKind.NPC);
         long boxes = w.collectables().values().stream().filter(c -> c.kind() == WorldSnapshot.CollectableKind.BOX).count();

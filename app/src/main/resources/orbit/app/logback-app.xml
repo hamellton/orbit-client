@@ -1,0 +1,33 @@
+<configuration>
+  <!-- registered secrets (passwords, dosid, sessionID) are replaced with *** everywhere -->
+  <conversionRule conversionWord="msg" class="orbit.secrets.MaskingConverter"/>
+  <conversionRule conversionWord="ex" class="orbit.secrets.MaskingThrowableConverter"/>
+
+  <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder>
+      <pattern>%d{HH:mm:ss.SSS} %-5level %msg%n%ex</pattern>
+    </encoder>
+  </appender>
+
+  <appender name="FILE" class="ch.qos.logback.core.FileAppender">
+    <file>logs/orbit.log</file>
+    <encoder>
+      <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] %logger{20} %msg%n%ex</pattern>
+    </encoder>
+  </appender>
+
+  <appender name="GUI" class="orbit.app.gui.GuiLogAppender">
+    <encoder>
+      <pattern>%d{HH:mm:ss} %msg%n%ex</pattern>
+    </encoder>
+  </appender>
+
+  <!-- every relayed packet is logged at INFO by the sniffer; in the window that is noise -->
+  <logger name="orbit.sniffer.GameRelay" level="WARN"/>
+
+  <root level="INFO">
+    <appender-ref ref="CONSOLE"/>
+    <appender-ref ref="FILE"/>
+    <appender-ref ref="GUI"/>
+  </root>
+</configuration>

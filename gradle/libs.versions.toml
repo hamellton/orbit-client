@@ -3,11 +3,13 @@ slf4j = "2.0.16"
 logback = "1.5.12"
 jackson = "2.18.2"
 junit = "5.11.4"
+flatlaf = "3.5.4"
 
 [libraries]
 slf4j-api = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }
 logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
 jackson-databind = { module = "com.fasterxml.jackson.core:jackson-databind", version.ref = "jackson" }
+flatlaf = { module = "com.formdev:flatlaf", version.ref = "flatlaf" }
 junit-bom = { module = "org.junit:junit-bom", version.ref = "junit" }
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter" }
 junit-launcher = { module = "org.junit.platform:junit-platform-launcher" }
