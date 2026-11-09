@@ -81,3 +81,21 @@
   (иногда сервер закрывает соединение раньше).
 - Повторный `ShipInitializationCommand` посреди сессии (запись `-6`, 52 с) → клиент снова шлёт
   `ReadyRequest` 0 и 2 через ~0,3 с. Пока не реализовано (нужен разбор причины: возрождение?).
+
+## Модель мира (`world`)
+
+- Корабли, NPC (`ShipCreateCommand.npc`), питомцы (`PetActivationCommand`, свой — `PetHeroActivationCommand`)
+  движутся по `MoveCommand`: прямая к точке за `timeToTarget` мс. Удаление — `ShipRemoveCommand`,
+  уничтожение — `ShipDestroyedCommand`.
+- Ящики и руда — `AddBoxCommand`/`AddOreCommand` по `hash`, сбор/исчезновение — `RemoveCollectableCommand`.
+  Порталы — `JumpgateCreateCommand`, станции и прочие объекты — `AssetCreateCommand`, зоны — `MapAddPOICommand`
+  (`shape`: 0 круг x,y,r; 1 многоугольник; 2 прямоугольник; `inverted` — зона снаружи фигуры).
+- Содержимое карты сервер присылает после `ReadyRequest` клиента; `ShipInitializationCommand` (вход,
+  возрождение) и `ReloginCommand` очищают карту.
+- Для героя сервер `MoveCommand` не шлёт: клиент ведёт корабль сам (скорость из
+  `ShipInitializationCommand`/`AttributeShipSpeedUpdateCommand`, единиц в секунду), а сервер раз в ~1 с
+  присылает `BeaconCommand` с `position`, `positionAhead` и флагами зон. Маяки приходят с неровной
+  задержкой. Сверка с положением, которое клиент сам сообщает в каждом `MoveRequest` (438 точек):
+  вести героя только по своим `MoveRequest` — медиана 7, p90 46, p99 157 единиц; поправлять по
+  `position` маяка — 12 / 86 / 368; по `positionAhead` — 12 / 226 / 329. Поэтому маяк учитывается только
+  при расхождении больше 1000 единиц (прыжок, телепорт, старое положение после смены карты).

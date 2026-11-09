@@ -24,6 +24,10 @@ public interface GameListener {
     /** Every decoded server packet. */
     void onPacket(Packet packet);
 
+    /** Every packet written to the game server (called from the sending thread). */
+    default void onSent(Packet packet) {
+    }
+
     /**
      * @param reason human-readable explanation in Russian (never contains secrets)
      */

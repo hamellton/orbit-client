@@ -113,6 +113,7 @@ public final class GameConnection implements AutoCloseable {
                 return;
             }
         }
+        listener.onSent(p);
         if (p instanceof LegacyModule lm && LOGIN_FLAG.equals(lm.message)) {
             loginFlagSent = true;
             if (jumpCpuNoticePending) {

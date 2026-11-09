@@ -20,6 +20,8 @@ import orbit.protocol.gen.ShipInitializationCommand;
 import orbit.secrets.MasterPassword;
 import orbit.secrets.Vault;
 import orbit.secrets.VaultTool;
+import orbit.world.World;
+import orbit.world.WorldSnapshot;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,6 +45,22 @@ public final class GameCheck {
     }
 
     private GameCheck() {
+    }
+
+    /** One-line summary of the world model for the log. */
+    static String describe(WorldSnapshot w) {
+        WorldSnapshot.Hero h = w.hero();
+        List<WorldSnapshot.Ship> npcs = w.nearest(WorldSnapshot.ShipKind.NPC);
+        long boxes = w.collectables().values().stream().filter(c -> c.kind() == WorldSnapshot.CollectableKind.BOX).count();
+        String nearest = npcs.isEmpty() ? "нет" : String.format("%s в %.0f", npcs.getFirst().name(),
+                npcs.getFirst().distanceTo(h.x(), h.y()));
+        return String.format("Мир: карта %d, герой %d,%d%s, HP %.0f%%; игроков %d, NPC %d (ближайший: %s), "
+                        + "питомцев %d, ящиков %d, руды %d, порталов %d, объектов %d, зон %d%s",
+                h.mapId(), h.x(), h.y(), h.moving() ? " (летит)" : "", h.health().hpPercent() * 100,
+                w.nearest(WorldSnapshot.ShipKind.PLAYER).size(), npcs.size(), nearest,
+                w.nearest(WorldSnapshot.ShipKind.PET).size(), boxes, w.collectables().size() - boxes,
+                w.portals().size(), w.assets().size(), w.zones().size(),
+                h.beacon().inStation() ? ", на станции" : h.beacon().inPeaceArea() ? ", в мирной зоне" : "");
     }
 
     public static void main(String[] args) throws Exception {
@@ -115,15 +133,22 @@ public final class GameCheck {
 
         Map<String, AtomicLong> counts = new ConcurrentHashMap<>();
         AtomicLong total = new AtomicLong();
+        World world = new World();
         GameListener listener = new GameListener() {
             @Override
             public void onPacket(Packet p) {
+                world.apply(p, System.nanoTime());
                 total.incrementAndGet();
                 counts.computeIfAbsent(p.getClass().getSimpleName(), k -> new AtomicLong()).incrementAndGet();
                 if (p instanceof ShipInitializationCommand si) {
                     log.info("Корабль: {} ({}), карта {}, позиция {}x{}, HP {}/{}, щит {}/{}", si.userName, si.typeId,
                             si.mapId, si.x, si.y, (long) si.hitPoints, (long) si.hitMax, si.shield, si.shieldMax);
                 }
+            }
+
+            @Override
+            public void onSent(Packet p) {
+                world.applyOutgoing(p, System.nanoTime());
             }
 
             @Override
@@ -138,7 +163,7 @@ public final class GameCheck {
         long end = System.currentTimeMillis() + Duration.ofSeconds(seconds).toMillis();
         while (System.currentTimeMillis() < end && runner.isAlive()) {
             Thread.sleep(Math.min(10_000, Math.max(1, end - System.currentTimeMillis())));
-            log.info("Получено пакетов: {}", total.get());
+            log.info("Получено пакетов: {}. {}", total.get(), describe(world.snapshot(System.nanoTime())));
         }
         conn.close();
         runner.join(5_000);
