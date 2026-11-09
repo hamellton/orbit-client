@@ -52,6 +52,7 @@ final class MinimapPanel extends JPanel {
     MinimapPanel(WorldFeed feed) {
         this.feed = feed;
         setBackground(BACKGROUND);
+        setToolTipText(""); // enables getToolTipText(MouseEvent)
         setPreferredSize(new Dimension(900, 562));
     }
 
@@ -136,10 +137,31 @@ final class MinimapPanel extends JPanel {
             g.setColor(c.kind() == WorldSnapshot.CollectableKind.BOX ? BOX : ORE);
             g.fill(new Rectangle2D.Double(p.x(c.x()) - 1.5, p.y(c.y()) - 1.5, 3, 3));
         }
+        Font labelFont = getFont().deriveFont(Font.PLAIN, 10f);
         for (Ship s : w.ships().values()) {
-            g.setColor(shipColor(s, hero, w.group()));
-            double r = s.kind() == ShipKind.PET ? 2 : 3;
-            g.fill(new Ellipse2D.Double(p.x(s.x()) - r, p.y(s.y()) - r, 2 * r, 2 * r));
+            Color c = shipColor(s, hero, w.group());
+            g.setColor(c);
+            double sx = p.x(s.x());
+            double sy = p.y(s.y());
+            switch (s.kind()) {
+                case PET -> g.fill(new Ellipse2D.Double(sx - 2, sy - 2, 4, 4));
+                case NPC -> g.fill(new Ellipse2D.Double(sx - 3, sy - 3, 6, 6));
+                case PLAYER -> {
+                    Path2D.Double diamond = new Path2D.Double();
+                    diamond.moveTo(sx, sy - 4.5);
+                    diamond.lineTo(sx + 4.5, sy);
+                    diamond.lineTo(sx, sy + 4.5);
+                    diamond.lineTo(sx - 4.5, sy);
+                    diamond.closePath();
+                    g.fill(diamond);
+                }
+            }
+            // players always, NPCs only when they matter (target or attacker): maps hold dozens of NPCs
+            boolean fighting = s.id() == hero.selectedId() || s.id() == hero.attackTargetId() || hero.attackers().contains(s.id());
+            if (s.kind() == ShipKind.PLAYER || (s.kind() == ShipKind.NPC && fighting)) {
+                g.setFont(labelFont);
+                g.drawString(label(s), (float) sx + 6, (float) sy - 4);
+            }
         }
 
         // group members on this map (their own ships, or the position the group update reports)
@@ -189,6 +211,68 @@ final class MinimapPanel extends JPanel {
             g.setColor(hero.alive() ? HERO : Color.GRAY);
             g.fill(new Ellipse2D.Double(hx - 4, hy - 4, 8, 8));
         }
+    }
+
+    static String label(Ship s) {
+        String tag = s.clanTag() == null || s.clanTag().isBlank() ? "" : "[" + s.clanTag() + "] ";
+        return tag + s.name();
+    }
+
+    /** Tooltip for the object under the mouse: name, kind, ship, health, distance. */
+    @Override
+    public String getToolTipText(java.awt.event.MouseEvent e) {
+        WorldSnapshot w = feed.snapshot();
+        WorldSnapshot.Hero hero = w.hero();
+        MapCatalog.MapInfo map = catalog.info(hero.mapId());
+        int pad = 12;
+        double scale = Math.min((getWidth() - 2.0 * pad) / map.width(), (getHeight() - 2.0 * pad) / map.height());
+        double ox = (getWidth() - map.width() * scale) / 2;
+        double oy = (getHeight() - map.height() * scale) / 2;
+        double mx = (e.getX() - ox) / scale;
+        double my = (e.getY() - oy) / scale;
+        double reach = 8 / scale;
+        Ship best = null;
+        double bestD = reach;
+        for (Ship s : w.ships().values()) {
+            double d = Math.hypot(s.x() - mx, s.y() - my);
+            if (d < bestD) {
+                bestD = d;
+                best = s;
+            }
+        }
+        if (best == null) {
+            for (WorldSnapshot.Portal portal : w.portals().values()) {
+                if (Math.hypot(portal.x() - mx, portal.y() - my) < reach) {
+                    MapCatalog.Portal known = catalog.portalNear(hero.mapId(), portal.x(), portal.y(), 50);
+                    return "Портал" + (known != null ? " на " + known.toName() : "") + "  (" + portal.x() / 100 + "/" + portal.y() / 100 + ")";
+                }
+            }
+            return null;
+        }
+        String kind = switch (best.kind()) {
+            case NPC -> "NPC";
+            case PET -> "питомец";
+            case PLAYER -> best.factionId() == hero.factionId() ? "игрок своей фракции" : "игрок другой фракции";
+        };
+        StringBuilder t = new StringBuilder("<html><b>").append(escape(label(best))).append("</b><br>").append(kind);
+        if (!best.typeId().isBlank()) {
+            t.append(", ").append(escape(best.typeId()));
+        }
+        if (best.health().known()) {
+            t.append(String.format("<br>HP %,.0f / %,.0f", best.health().hp(), best.health().hpMax()));
+        }
+        if (best.health().shieldMax() > 0) {
+            t.append(String.format(", щит %,d / %,d", best.health().shield(), best.health().shieldMax()));
+        }
+        t.append(String.format("<br>расстояние %,.0f", best.distanceTo(hero.x(), hero.y())));
+        if (best.lockedByOther()) {
+            t.append("<br>атакует другой игрок");
+        }
+        return t.append("</html>").toString();
+    }
+
+    private static String escape(String s) {
+        return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
     }
 
     static Color shipColor(Ship s, WorldSnapshot.Hero hero, WorldSnapshot.Group group) {
