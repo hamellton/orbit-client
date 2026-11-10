@@ -18,6 +18,7 @@ import java.util.Map;
  *   vault add &lt;name&gt; [--server int1] [--proxy socks5://host:port]
  *   vault import &lt;name&gt; &lt;creds.txt&gt; [--server int1]     # username on line 1, password on line 2, optional dosid on line 3
  *   vault set-dosid &lt;name&gt;
+ *   vault set-server &lt;name&gt; &lt;server&gt;   # e.g. ru5; the saved dosid (of the old server) is dropped
  *   vault remove &lt;name&gt;
  *   options: --vault local/vault.bin
  * </pre>
@@ -52,7 +53,7 @@ public final class VaultTool {
             }
         }
         if (positional.isEmpty()) {
-            System.err.println("Команды: list, add <имя>, import <имя> <файл>, set-dosid <имя>, remove <имя>");
+            System.err.println("Команды: list, add <имя>, import <имя> <файл>, set-dosid <имя>, set-server <имя> <сервер>, remove <имя>");
             return 2;
         }
         String command = positional.get(0);
@@ -110,6 +111,15 @@ public final class VaultTool {
                 Account a = existing(vault, name);
                 String dosid = new String(console().readPassword("dosid: ")).strip();
                 vault.put(name, a.withDosid(dosid.isEmpty() ? null : dosid));
+            }
+            case "set-server" -> {
+                String name = arg(positional, 1);
+                String to = arg(positional, 2).strip().toLowerCase(java.util.Locale.ROOT);
+                if (!to.matches("[a-z]+\\d+")) {
+                    throw new VaultException("Код сервера вида int1, ru5: " + to);
+                }
+                vault.put(name, existing(vault, name).withServer(to));
+                System.out.println("Аккаунт «" + name + "»: сервер " + to + " (dosid сброшен — следующий вход по паролю).");
             }
             case "remove" -> {
                 String name = arg(positional, 1);

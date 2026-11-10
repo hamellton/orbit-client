@@ -20,6 +20,11 @@ public record Account(String username, String password, String server, String do
         return new Account(username, password, server, newDosid, proxy);
     }
 
+    /** Another server of the same login; a dosid belongs to one server, so it is dropped. */
+    public Account withServer(String newServer) {
+        return new Account(username, password, newServer, null, proxy);
+    }
+
     /** Puts every secret of this account into {@link SecretMask}. */
     public void registerSecrets() {
         SecretMask.register(password);

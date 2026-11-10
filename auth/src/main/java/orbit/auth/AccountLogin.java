@@ -62,7 +62,27 @@ public final class AccountLogin {
             throw new AuthException(AuthException.Reason.SESSION_EXPIRED,
                     "Сессия сайта устарела, а пароля в хранилище нет. Обновите dosid: vault set-dosid " + name);
         }
-        return remember(client.loginWithPassword(a.username(), a.password()));
+        return remember(onServer(client.loginWithPassword(a.username(), a.password()), server(a)));
+    }
+
+    /**
+     * A password login lands on the server the account played last; another server of the same login
+     * is opened with the new website session, and if that fails the bot must not play on the wrong one.
+     */
+    private GameSession onServer(GameSession s, String server) throws AuthException {
+        String host = java.net.URI.create(s.host()).getHost();
+        if (host == null || host.startsWith(server + ".")) {
+            return s;
+        }
+        log.info("Сайт открыл {}, а аккаунт настроен на {} — перехожу на {}", host, server, server);
+        try {
+            return client.loginWithDosid(server, s.dosid());
+        } catch (AuthException e) {
+            throw new AuthException(AuthException.Reason.UNEXPECTED_PAGE, "Сайт открыл " + host
+                    + ", а аккаунт «" + name + "» настроен на " + server + ", перейти не удалось (" + e.getMessage()
+                    + "). Зайдите в браузере на " + server + " один раз или верните сервер: vault set-server "
+                    + name + " " + host.substring(0, host.indexOf('.')));
+        }
     }
 
     private GameSession remember(GameSession s) {
