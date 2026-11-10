@@ -279,6 +279,10 @@ public final class World {
                         p.candidateId == hero.id));
             }
             case orbit.protocol.gen.InvitationRemovalCommand p -> invitations.removeIf(i -> i.candidateId() == p.candidateId);
+            case orbit.protocol.gen.AddMineCommand p ->
+                    mines.put(p.hash, new WorldSnapshot.Mine(p.hash, p.typeId, p.x, p.y));
+            case orbit.protocol.gen.RemoveMineCommand p -> mines.remove(p.hash);
+            case orbit.protocol.gen.LMMineExplodedCommand p -> mines.remove(p.hash);
             case orbit.protocol.gen.ContactListInitializationCommand p -> {
                 contacts.clear();
                 if (p.contactsCommand != null) {
@@ -367,7 +371,7 @@ public final class World {
                 new WorldSnapshot.Inventory(Map.copyOf(ores), Map.copyOf(resources), Map.copyOf(bootyKeys)), pet,
                 Map.copyOf(activatable), jumpingTo, death, java.util.Set.copyOf(slotItems), recentKills(nanos),
                 new WorldSnapshot.Rewards(gainedCredits, gainedUridium, gainedHonor, gainedExperience, Map.copyOf(loot)),
-                List.copyOf(invitations), List.copyOf(contacts.values()));
+                List.copyOf(invitations), List.copyOf(contacts.values()), Map.copyOf(mines));
     }
 
     private double gainedCredits;
@@ -846,6 +850,7 @@ public final class World {
 
     private final List<WorldSnapshot.Invitation> invitations = new ArrayList<>();
     private final Map<Integer, WorldSnapshot.Contact> contacts = new java.util.TreeMap<>();
+    private final Map<String, WorldSnapshot.Mine> mines = new LinkedHashMap<>();
 
     /** One contact list entry: its types (friend, clan member…) and attributes (name, clan, online). */
     private void contact(orbit.protocol.gen.ContactListEntryModule e) {
@@ -910,6 +915,7 @@ public final class World {
     /** Everything that belongs to the current map; the hero and the group survive a map change. */
     private void clearMap() {
         activatable.clear();
+        mines.clear();
         jumpingTo = 0;
         ships.clear();
         kills.clear();

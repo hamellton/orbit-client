@@ -149,6 +149,17 @@ final class MinimapPanel extends JPanel {
             g.setColor(c.kind() == WorldSnapshot.CollectableKind.BOX ? BOX : ORE);
             g.fill(new Rectangle2D.Double(p.x(c.x()) - 1.5, p.y(c.y()) - 1.5, 3, 3));
         }
+        // mines: a red cross and the circle the bot keeps off
+        for (WorldSnapshot.Mine m : w.mines().values()) {
+            double mx = p.x(m.x());
+            double my = p.y(m.y());
+            double mr = Math.abs(p.x(m.x() + orbit.bot.nav.PathFinder.MINE_RADIUS) - mx);
+            g.setColor(new Color(230, 70, 60, 70));
+            g.draw(new Ellipse2D.Double(mx - mr, my - mr, 2 * mr, 2 * mr));
+            g.setColor(new Color(230, 70, 60));
+            g.draw(new java.awt.geom.Line2D.Double(mx - 2.5, my - 2.5, mx + 2.5, my + 2.5));
+            g.draw(new java.awt.geom.Line2D.Double(mx - 2.5, my + 2.5, mx + 2.5, my - 2.5));
+        }
         Font labelFont = getFont().deriveFont(Font.PLAIN, 10f);
         for (Ship s : w.ships().values()) {
             Color c = shipColor(s, hero, w.group());

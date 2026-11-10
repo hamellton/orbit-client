@@ -48,6 +48,39 @@ public final class Navigator {
     private final Supplier<WorldSnapshot> world;
     private final Consumer<Packet> sender;
     private final MapCatalog catalog;
+    private java.util.function.BooleanSupplier avoidMines = () -> false;
+
+    private final java.util.Set<String> minesTold = new java.util.HashSet<>();
+
+    /** A mine (newly) on the way to the current click: re-plan round it. */
+    private boolean mineOnCourse(WorldSnapshot w, WorldSnapshot.Hero h, double x, double y) {
+        if (!avoidMines.getAsBoolean() || w.mines().isEmpty()) {
+            return false;
+        }
+        for (WorldSnapshot.Mine m : w.mines().values()) {
+            double r = PathFinder.MINE_RADIUS + PathFinder.MARGIN;
+            if (Math.hypot(m.x() - h.x(), m.y() - h.y()) > r && distanceToSegment(m.x(), m.y(), h.x(), h.y(), x, y) < r) {
+                if (minesTold.add(m.hash())) {
+                    log.info("Мина на пути у {}/{} — облетаю", m.x() / 100, m.y() / 100);
+                }
+                return true;
+            }
+        }
+        return false;
+    }
+
+    static double distanceToSegment(double px, double py, double ax, double ay, double bx, double by) {
+        double dx = bx - ax;
+        double dy = by - ay;
+        double len2 = dx * dx + dy * dy;
+        double t = len2 == 0 ? 0 : Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / len2));
+        return Math.hypot(px - (ax + t * dx), py - (ay + t * dy));
+    }
+
+    /** Fly round the mines on the map (the config's «Обходить мины»). */
+    public void setAvoidMines(java.util.function.BooleanSupplier on) {
+        avoidMines = on;
+    }
     private final Random random;
     private final LongSupplier clock;
 
@@ -132,13 +165,14 @@ public final class Navigator {
                 && Math.hypot(clickX - d.x(), clickY - d.y()) > CLICK_SPREAD * 2;
         // around a zone: click the next corner shortly before reaching this one, like a player steering
         boolean turn = flyingToClick && viaWaypoint && Math.hypot(clickX - h.x(), clickY - h.y()) < TURN_AHEAD;
-        if (flyingToClick && !refine && !turn) {
+        boolean mineAhead = flyingToClick && mineOnCourse(w, h, clickX, clickY);
+        if (flyingToClick && !refine && !turn && !mineAhead) {
             return; // on course
         }
-        if (now - lastSendNanos < MIN_INTERVAL_MS * 1_000_000 || (now < retryAtNanos && !turn)) {
+        if (now - lastSendNanos < MIN_INTERVAL_MS * 1_000_000 || (now < retryAtNanos && !turn && !mineAhead)) {
             return;
         }
-        PathFinder paths = PathFinder.of(w, catalog, false);
+        PathFinder paths = PathFinder.of(w, catalog, false, avoidMines.getAsBoolean());
         List<double[]> route = paths.path(h.x(), h.y(), d.x(), d.y());
         if (route.isEmpty()) {
             log.warn("Нет пути к {}/{}", (int) d.x() / 100, (int) d.y() / 100);

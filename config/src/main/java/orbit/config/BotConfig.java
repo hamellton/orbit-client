@@ -342,7 +342,14 @@ public record BotConfig(
     public record General(int workingMap, ShipMode offensive, ShipMode roam, ShipMode run,
                           boolean runFromEnemies, boolean runFromEnemiesInSight, int rememberEnemiesSec,
                           boolean roamSequential, boolean onlyKillPreferred, boolean runModeTravel,
-                          boolean runModeChase) {
+                          boolean runModeChase, boolean avoidMines) {
+
+        public General(int workingMap, ShipMode offensive, ShipMode roam, ShipMode run, boolean runFromEnemies,
+                       boolean runFromEnemiesInSight, int rememberEnemiesSec, boolean roamSequential,
+                       boolean onlyKillPreferred, boolean runModeTravel, boolean runModeChase) {
+            this(workingMap, offensive, roam, run, runFromEnemies, runFromEnemiesInSight, rememberEnemiesSec,
+                    roamSequential, onlyKillPreferred, runModeTravel, runModeChase, false);
+        }
 
         public General(int workingMap, ShipMode offensive, ShipMode roam, ShipMode run, boolean runFromEnemies,
                        boolean runFromEnemiesInSight, int rememberEnemiesSec, boolean roamSequential,

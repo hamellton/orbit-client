@@ -123,6 +123,7 @@ public final class BoxPicker {
                         ? Math.hypot(b.x() - h.x(), b.y() - h.y()) <= c.collect().radius()
                         : Math.hypot(b.x() - anchorX, b.y() - anchorY) <= (within > 0 ? within : c.collect().radius()))
                 .filter(b -> !c.collect().ignoreContested() || !contested(w, b))
+                .filter(b -> !c.general().avoidMines() || !orbit.bot.nav.PathFinder.nearMine(w, b.x(), b.y()))
                 .min(Comparator.comparingDouble(b -> Math.hypot(b.x() - h.x(), b.y() - h.y())))
                 .orElse(null);
     }

@@ -72,8 +72,28 @@ public final class PathFinder {
      * {@code throughDanger}.
      */
     public static PathFinder of(WorldSnapshot w, MapCatalog catalog, boolean throughDanger) {
+        return of(w, catalog, throughDanger, false);
+    }
+
+    /**
+     * How far around a mine the ship keeps off (plus {@link #MARGIN}). The client does not know the blast
+     * radius (the server decides), so this is a safe guess.
+     */
+    public static final double MINE_RADIUS = 250;
+
+    /** As {@link #of(WorldSnapshot, MapCatalog, boolean)}, with the mines as round obstacles if {@code avoidMines}. */
+    public static PathFinder of(WorldSnapshot w, MapCatalog catalog, boolean throughDanger, boolean avoidMines) {
         MapCatalog.MapInfo map = catalog.info(w.hero().mapId());
         List<Obstacle> list = new ArrayList<>();
+        if (avoidMines) {
+            WorldSnapshot.Hero h = w.hero();
+            for (WorldSnapshot.Mine m : w.mines().values()) {
+                // a mine dropped on the ship: fly straight out, there is no way round
+                if (Math.hypot(m.x() - h.x(), m.y() - h.y()) > MINE_RADIUS + MARGIN) {
+                    list.add(circle(m.x(), m.y(), MINE_RADIUS + MARGIN));
+                }
+            }
+        }
         for (WorldSnapshot.Zone z : w.zones().values()) {
             boolean blocking = z.type() == POITypeModule.POITYPE_NO_ACCESS || z.type() == POITypeModule.POITYPE_FACTION_NO_ACCESS;
             boolean danger = z.type() == POITypeModule.POITYPE_RADIATION || z.type() == POITypeModule.POITYPE_DAMAGE;
@@ -85,6 +105,23 @@ public final class PathFinder {
             }
         }
         return new PathFinder(List.copyOf(list), map.width(), map.height());
+    }
+
+    static Obstacle circle(double cx, double cy, double radius) {
+        double r = radius / Math.cos(Math.PI / CIRCLE_CORNERS);
+        double[] xs = new double[CIRCLE_CORNERS];
+        double[] ys = new double[CIRCLE_CORNERS];
+        for (int i = 0; i < CIRCLE_CORNERS; i++) {
+            double a = 2 * Math.PI * i / CIRCLE_CORNERS;
+            xs[i] = cx + r * Math.cos(a);
+            ys[i] = cy + r * Math.sin(a);
+        }
+        return new Obstacle(xs, ys, false);
+    }
+
+    /** True if (x, y) is within the blast guess of a mine. */
+    public static boolean nearMine(WorldSnapshot w, double x, double y) {
+        return w.mines().values().stream().anyMatch(m -> Math.hypot(m.x() - x, m.y() - y) <= MINE_RADIUS + MARGIN);
     }
 
     /** The zone's shape pushed out by {@link #MARGIN} (pulled in for an inverted zone). */

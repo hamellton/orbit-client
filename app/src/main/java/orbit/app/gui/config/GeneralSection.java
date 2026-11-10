@@ -28,6 +28,7 @@ final class GeneralSection implements Section {
     private final JCheckBox onlyPreferred = new JCheckBox("Бить только в предпочтительной зоне");
     private final JCheckBox runTravel = new JCheckBox("Перелёты (между картами и спаунами) — в конфигурации бегства");
     private final JCheckBox runChase = new JCheckBox("Догонять цель в конфигурации бегства");
+    private final JCheckBox avoidMines = new JCheckBox("Обходить мины");
     private final JTextArea description = new JTextArea(5, 50);
     private final JSpinner work = Form.number(0, 24 * 60, 10);
     private final JSpinner rest = Form.number(0, 24 * 60, 5);
@@ -48,6 +49,9 @@ final class GeneralSection implements Section {
                 .row("Бегство", run.view())
                 .row("", runTravel)
                 .row("", runChase)
+                .row("", avoidMines)
+                .note("Бот облетает мины на карте и не берёт ящики рядом с ними; чьи они — игра не сообщает, "
+                        + "поэтому обходятся все.")
                 .note("Догонять — когда цель дальше своего радиуса больше чем на 300; у NPC с флагом AGGRESSIVE_FOLLOW "
                         + "(«Атака» → флаги) — всегда, и бот летит туда, куда NPC движется.")
                 .section("Облёт карты")
@@ -89,6 +93,7 @@ final class GeneralSection implements Section {
         onlyPreferred.setSelected(c.general().onlyKillPreferred());
         runTravel.setSelected(c.general().runModeTravel());
         runChase.setSelected(c.general().runModeChase());
+        avoidMines.setSelected(c.general().avoidMines());
         Form.set(work, c.session().workMinutes());
         Form.set(rest, c.session().breakMinutes());
         Form.set(jitter, c.session().jitterMinutes());
@@ -101,7 +106,7 @@ final class GeneralSection implements Section {
         BotConfig.General g = new BotConfig.General(map.mapId(), offensive.get(), roam.get(), run.get(),
                 c.general().runFromEnemies(), c.general().runFromEnemiesInSight(), c.general().rememberEnemiesSec(),
                 sequential.isSelected(),
-                onlyPreferred.isSelected(), runTravel.isSelected(), runChase.isSelected());
+                onlyPreferred.isSelected(), runTravel.isSelected(), runChase.isSelected(), avoidMines.isSelected());
         BotConfig.Session session = new BotConfig.Session(Form.intOf(work), Form.intOf(rest), Form.intOf(jitter));
         BotConfig out = c.withModule(BotConfig.Module.values()[module.getSelectedIndex()]).withGeneral(g)
                 .withDescription(description.getText().strip());
