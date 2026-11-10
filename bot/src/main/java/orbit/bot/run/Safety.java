@@ -34,6 +34,10 @@ public final class Safety {
     private long healedAt = Long.MIN_VALUE / 2;
     private long jumpAt;
     private long jumpedAt = Long.MIN_VALUE / 2;
+    private double lastHp = -1;
+    private long hurtAt = Long.MIN_VALUE / 2;
+    /** Losing HP counts as being attacked this long (damage whose shooter the world does not know: rockets, mines). */
+    static final long HURT_MS = 5_000;
 
     public Safety(BotContext ctx) {
         this.ctx = ctx;
@@ -56,7 +60,12 @@ public final class Safety {
         if (hp < 0) {
             return false;
         }
-        boolean attacked = !h.attackers().isEmpty();
+        double hull = h.health().hp();
+        if (lastHp >= 0 && hull < lastHp - 1) {
+            hurtAt = now;
+        }
+        lastHp = hull;
+        boolean attacked = !h.attackers().isEmpty() || now - hurtAt < HURT_MS * 1_000_000;
         heal(w, s, now, hp, attacked);
         if (!repairing) {
             double limit = attacked || fighting ? s.repairHpMin() : s.repairHpNoNpc();
