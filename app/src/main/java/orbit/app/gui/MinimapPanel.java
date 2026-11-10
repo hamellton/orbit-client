@@ -286,7 +286,7 @@ final class MinimapPanel extends JPanel {
             g.setColor(hero.alive() ? HERO : Color.GRAY);
             g.fill(new Ellipse2D.Double(hx - 4.5 * u, hy - 4.5 * u, 9 * u, 9 * u));
         }
-        hud.boostPills(g, (int) Math.round(ox + mw) - 8, (int) Math.round(oy) + 8,
+        int pillsBottom = hud.boostPills(g, (int) Math.round(ox + mw) - 8, (int) Math.round(oy) + 8,
                 (int) Math.round(mw * (compact ? 0.45 : 0.5)), w.boosters(), compact || mw < BIG_MAP);
         if (compact) {
             hud.targetChip(g, (int) Math.round(ox) + 8, (int) Math.round(oy) + 8, (int) Math.round(mw * 0.3), w);
@@ -300,8 +300,8 @@ final class MinimapPanel extends JPanel {
             int panel = big ? (int) Math.max(230, Math.min(320, mw * 0.26)) : (int) Math.max(170, Math.min(250, mw * 0.34));
             int left = (int) Math.round(ox) + 10;
             int right = (int) Math.round(ox + mw) - 10;
-            cards.mapBlocks(g, left, right, (int) Math.round(oy) + 46, (int) Math.round(oy) + (big ? 40 : 50),
-                    (int) Math.round(oy + mh) - 8, panel, w, feed, config.get(), ViewSettings.shared(), placed);
+            cards.mapBlocks(g, left, right, (int) Math.round(oy) + 46, Math.max((int) Math.round(oy) + 40, pillsBottom + 8),
+                    (int) Math.round(oy + mh) - 8, panel, w, feed, config.get(), ViewSettings.shared(), placed, big);
             cardsAt = placed;
         }
     }

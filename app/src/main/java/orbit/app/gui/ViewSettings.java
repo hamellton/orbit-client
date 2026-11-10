@@ -43,12 +43,21 @@ public final class ViewSettings {
     public enum Place {
         SIDE("Сбоку"),
         MAP("На карте"),
+        BOTH("Везде (сбоку и на карте)"),
         HIDDEN("Скрыть");
 
         public final String label;
 
         Place(String label) {
             this.label = label;
+        }
+
+        public boolean side() {
+            return this == SIDE || this == BOTH;
+        }
+
+        public boolean map() {
+            return this == MAP || this == BOTH;
         }
     }
 
@@ -121,7 +130,7 @@ public final class ViewSettings {
 
     /** True when at least one block stands beside the map. */
     public synchronized boolean anySide() {
-        return places.containsValue(Place.SIDE);
+        return places.containsValue(Place.SIDE) || places.containsValue(Place.BOTH);
     }
 
     public void onChange(Runnable r) {

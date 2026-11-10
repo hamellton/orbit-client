@@ -75,7 +75,7 @@ final class SidePanel extends JPanel implements Scrollable {
             int[] col = new int[n];
             java.util.Map<java.awt.Rectangle, ViewSettings.Block> placed = new java.util.LinkedHashMap<>();
             for (var e : hud.blocks(feed.snapshot(), feed, config.get()).entrySet()) {
-                if (ViewSettings.shared().place(e.getKey()) != ViewSettings.Place.SIDE) {
+                if (!ViewSettings.shared().place(e.getKey()).side()) {
                     continue;
                 }
                 Hud.Card c = e.getValue();

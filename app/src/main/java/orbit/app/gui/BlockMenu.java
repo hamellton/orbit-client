@@ -100,8 +100,10 @@ final class BlockMenu {
         side.addActionListener(e -> v.setAll(ViewSettings.Place.SIDE));
         JMenuItem map = new JMenuItem("Все блоки на карте");
         map.addActionListener(e -> v.setAll(ViewSettings.Place.MAP));
+        JMenuItem both = new JMenuItem("Все блоки везде");
+        both.addActionListener(e -> v.setAll(ViewSettings.Place.BOTH));
         JMenuItem none = new JMenuItem("Скрыть все блоки");
         none.addActionListener(e -> v.setAll(ViewSettings.Place.HIDDEN));
-        return new JMenuItem[] {side, map, none};
+        return new JMenuItem[] {side, map, both, none};
     }
 }

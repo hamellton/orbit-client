@@ -106,7 +106,8 @@ final class Hud {
     List<Card> cards(WorldSnapshot w, WorldFeed feed, String config, ViewSettings v, ViewSettings.Place where) {
         List<Card> out = new ArrayList<>();
         blocks(w, feed, config).forEach((b, c) -> {
-            if (v.place(b) == where) {
+            if (where == ViewSettings.Place.SIDE ? v.place(b).side() : where == ViewSettings.Place.MAP ? v.place(b).map()
+                    : v.place(b) == where) {
                 out.add(c);
             }
         });
@@ -120,7 +121,7 @@ final class Hud {
      */
     void mapBlocks(Graphics2D g, int left, int right, int leftTop, int rightTop, int bottom, int width,
                    WorldSnapshot w, WorldFeed feed, String config, ViewSettings v,
-                   Map<java.awt.Rectangle, ViewSettings.Block> placed) {
+                   Map<java.awt.Rectangle, ViewSettings.Block> placed, boolean bigMap) {
         // a narrow map: one column on the left
         boolean oneColumn = right - left < 2 * width + 20;
         int ly = leftTop;
@@ -128,7 +129,9 @@ final class Hud {
         boolean leftCut = false;
         boolean rightCut = false;
         for (Map.Entry<ViewSettings.Block, Card> e : blocks(w, feed, config).entrySet()) {
-            if (v.place(e.getKey()) != ViewSettings.Place.MAP) {
+            ViewSettings.Place where = v.place(e.getKey());
+            // «everywhere» on a small map: beside it only, so the map stays to be seen
+            if (!where.map() || (where == ViewSettings.Place.BOTH && !bigMap)) {
                 continue;
             }
             Card c = e.getValue();
@@ -388,10 +391,11 @@ final class Hud {
      * The bonuses as pills in a corner of the map, right-aligned from {@code right}, wrapping onto more rows
      * when the map is narrow.
      */
-    void boostPills(Graphics2D g, int right, int top, int maxWidth, WorldSnapshot.Boosters b, boolean small) {
+    /** @return the bottom of the last row of pills ({@code top} when there are none) */
+    int boostPills(Graphics2D g, int right, int top, int maxWidth, WorldSnapshot.Boosters b, boolean small) {
         List<String> pills = boostPills(b);
         if (pills.isEmpty()) {
-            return;
+            return top;
         }
         g.setFont(font(Font.BOLD, small ? 10f : 11f));
         FontMetrics fm = g.getFontMetrics();
@@ -414,6 +418,7 @@ final class Hud {
             g.drawString(p, x + (w - fm.stringWidth(p)) / 2f, y + (h + fm.getAscent() - fm.getDescent()) / 2f);
             x -= gap;
         }
+        return y + h;
     }
 
     /** The client's booty key codes ({@code ServerCommands.BOOTY_KEYS_*}). */
