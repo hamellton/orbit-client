@@ -28,6 +28,8 @@ public final class Attacker {
     private long nextApproach;
     private int kills;
     private boolean t0Cubikon;
+    /** Wanted ammunition already reported missing (logged once). */
+    private String missingAmmo;
     /** The ammunition selected before the bot switched to SAB, to go back to when no ammunition is configured. */
     private String beforeSab;
 
@@ -128,11 +130,19 @@ public final class Attacker {
             ammo = beforeSab; // SAB is no longer wanted: back to what was in use
         }
         WorldSnapshot.Item wanted = ammo == null ? null : w.items().get(ammo);
+        if (ammo != null && (wanted == null || wanted.counter() <= 0) && !ammo.equals(missingAmmo)) {
+            missingAmmo = ammo;
+            log.warn("Нет патронов {} ({}) — стреляю тем, что выбрано в игре ({})", orbit.config.ItemCatalog.label(ammo),
+                    wanted == null ? "нет в инвентаре" : "0 шт.",
+                    selected == null ? "?" : orbit.config.ItemCatalog.label(selected.id()));
+        }
         if (wanted != null && !wanted.selected() && wanted.counter() > 0 && now - ammoAt > 1_500_000_000L) {
             if (pressAt == 0) {
                 pressAt = now + ctx.pause(800, 1_500);
             }
             if (now >= pressAt) {
+                log.info("Патроны: {}", orbit.config.ItemCatalog.label(ammo));
+                missingAmmo = null;
                 ctx.actions().useItem(ammo); // with a target selected this also starts the attack
                 ammoAt = now;
                 pressedAt = now;
