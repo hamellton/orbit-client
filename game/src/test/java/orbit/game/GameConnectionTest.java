@@ -32,7 +32,7 @@ class GameConnectionTest {
 
     private static ConnectionSettings fast() {
         return new ConnectionSettings(Proxy.NO_PROXY, Duration.ofMillis(200), Duration.ZERO, true,
-                Duration.ofSeconds(2), Duration.ofSeconds(2), List.of(Duration.ofMillis(50)), 3);
+                Duration.ofSeconds(2), Duration.ofSeconds(2), List.of(Duration.ofMillis(50)), 3, Duration.ofSeconds(30));
     }
 
     /** Session source pointing at fake servers; map 12 lives on {@code other}. */
@@ -109,6 +109,26 @@ class GameConnectionTest {
             c.close();
             t.join(TimeUnit.SECONDS.toMillis(3));
             assertTrue(l.states.getLast().startsWith("STOPPED"), l.states.toString());
+        }
+    }
+
+    @Test
+    void aSilentServerMeansTheLinkIsGoneAndTheBotReconnects() throws Exception {
+        try (FakeGameServer gs = new FakeGameServer()) {
+            // the fake server says nothing after the login, like a link that died without closing
+            ConnectionSettings f = fast();
+            ConnectionSettings quiet = new ConnectionSettings(f.proxy(), Duration.ofSeconds(10), Duration.ZERO, true,
+                    f.connectTimeout(), f.loginTimeout(), f.backoff(), f.refreshAfter(), Duration.ofMillis(500));
+            Source src = new Source(gs.port(), 0);
+            Listener l = new Listener();
+            GameConnection c = new GameConnection(src, l, quiet, StartupSequence.minimal(READY));
+            Thread t = Thread.ofVirtual().start(c::run);
+
+            await(() -> gs.receivedOf(LoginRequest.class).size() >= 2, 6);
+            assertTrue(l.states.stream().anyMatch(s -> s.startsWith("RECONNECTING") && s.contains("молчит")), l.states.toString());
+            assertEquals(1, src.logins.get(), "one lost link keeps the website session");
+            c.close();
+            t.join(3000);
         }
     }
 

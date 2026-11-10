@@ -15,17 +15,19 @@ import java.util.List;
  * @param loginTimeout    time allowed from connect until the ship is initialised
  * @param backoff         waits between reconnect attempts; the last value repeats
  * @param refreshAfter    reconnect failures after which a fresh website login is done
+ * @param silence         in game, the server saying nothing this long means the link is gone (a Wi-Fi drop
+ *                        or a network switch leaves the socket open); the server talks every few seconds
  */
 public record ConnectionSettings(Proxy proxy, Duration keepAlive, Duration keepAliveJitter, boolean policyRequest,
                                  Duration connectTimeout, Duration loginTimeout, List<Duration> backoff,
-                                 int refreshAfter) {
+                                 int refreshAfter, Duration silence) {
 
     public static ConnectionSettings defaults(Proxy proxy) {
         return new ConnectionSettings(proxy, Duration.ofSeconds(15), Duration.ofMillis(150), true,
                 Duration.ofSeconds(15), Duration.ofSeconds(30),
                 List.of(Duration.ofSeconds(5), Duration.ofSeconds(15), Duration.ofSeconds(30),
                         Duration.ofMinutes(1), Duration.ofMinutes(2), Duration.ofMinutes(5)),
-                3);
+                3, Duration.ofSeconds(30));
     }
 
     Duration backoff(int attempt) {

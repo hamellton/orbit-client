@@ -294,6 +294,10 @@ public final class GameConnection implements AutoCloseable {
                 try {
                     payload = Frames.read(in);
                 } catch (java.net.SocketTimeoutException e) {
+                    if (shipReady) {
+                        throw new java.io.IOException("сервер молчит " + settings.silence().toSeconds()
+                                + " с — связь пропала");
+                    }
                     throw new LoginRejected("Сервер не принял вход за " + settings.loginTimeout().toSeconds() + " с");
                 }
                 if (payload == null) {
@@ -327,6 +331,7 @@ public final class GameConnection implements AutoCloseable {
                     } else if (p instanceof ShipInitializationCommand && dead) {
                         // repaired on this connection: the ship is back, the client re-reports its UI
                         dead = false;
+                        s.setSoTimeout((int) settings.silence().toMillis());
                         listener.onState(GameListener.State.ONLINE, "В игре, корабль восстановлен, сервер " + server);
                         if (startupThread != null) {
                             startupThread.interrupt();
@@ -342,7 +347,7 @@ public final class GameConnection implements AutoCloseable {
                         startupThread = Thread.ofVirtual().name("startup").start(withLogContext(() -> runStartup(ctx)));
                     } else if (p instanceof ShipInitializationCommand) {
                         shipReady = true;
-                        s.setSoTimeout(0);
+                        s.setSoTimeout((int) settings.silence().toMillis());
                         listener.onState(GameListener.State.ONLINE, "В игре, сервер " + server);
                     } else if (p instanceof UserSettingsCommand us) {
                         userSettings = us;
