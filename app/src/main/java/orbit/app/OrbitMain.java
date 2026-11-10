@@ -173,6 +173,7 @@ public final class OrbitMain {
         if (config != null) {
             ModuleRun run = startModule(feed, conn, config.name(), config.config(), o.minutes, profile);
             runUntilClosed(feed, o.headless, () -> run.finish(conn), runner);
+            System.exit(0); // the window's threads would keep the program alive
             return;
         }
         runUntilClosed(feed, o.headless, conn::close, runner);
@@ -281,6 +282,8 @@ public final class OrbitMain {
                 if (!stopRequested.get()) {
                     // finished by itself (time, deaths, error): end the program
                     conn.close();
+                    log.info("Программа завершается");
+                    System.exit(0);
                 }
             }
         });
