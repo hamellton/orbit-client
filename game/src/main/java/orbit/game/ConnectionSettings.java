@@ -1,13 +1,13 @@
 package orbit.game;
 
-import java.net.Proxy;
+import orbit.auth.proxy.ProxyConnector;
 import java.time.Duration;
 import java.util.List;
 
 /**
  * Tunables of a {@link GameConnection}.
  *
- * @param proxy           proxy for the game socket ({@link Proxy#NO_PROXY}, SOCKS or HTTP CONNECT)
+ * @param proxy           how the game sockets connect: {@link ProxyConnector#DIRECT} or the account's proxy
  * @param keepAlive       interval between {@code KeepAlive} packets (the client uses 15 s)
  * @param keepAliveJitter random extra delay added to each interval
  * @param policyRequest   ask for the Flash socket policy before each game connection, like the client
@@ -18,11 +18,11 @@ import java.util.List;
  * @param silence         in game, the server saying nothing this long means the link is gone (a Wi-Fi drop
  *                        or a network switch leaves the socket open); the server talks every few seconds
  */
-public record ConnectionSettings(Proxy proxy, Duration keepAlive, Duration keepAliveJitter, boolean policyRequest,
+public record ConnectionSettings(ProxyConnector proxy, Duration keepAlive, Duration keepAliveJitter, boolean policyRequest,
                                  Duration connectTimeout, Duration loginTimeout, List<Duration> backoff,
                                  int refreshAfter, Duration silence) {
 
-    public static ConnectionSettings defaults(Proxy proxy) {
+    public static ConnectionSettings defaults(ProxyConnector proxy) {
         return new ConnectionSettings(proxy, Duration.ofSeconds(15), Duration.ofMillis(150), true,
                 Duration.ofSeconds(15), Duration.ofSeconds(30),
                 List.of(Duration.ofSeconds(5), Duration.ofSeconds(15), Duration.ofSeconds(30),

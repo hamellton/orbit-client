@@ -83,14 +83,24 @@ public record Account(String username, String password, String server, String do
         SecretMask.register(dosid);
         dosids.values().forEach(SecretMask::register);
         if (proxy != null) {
-            int at = proxy.lastIndexOf('@');
-            int scheme = proxy.indexOf("://");
-            if (at > 0 && scheme > 0) {
-                String userInfo = proxy.substring(scheme + 3, at);
-                int colon = userInfo.indexOf(':');
-                SecretMask.register(colon >= 0 ? userInfo.substring(colon + 1) : userInfo);
+            SecretMask.register(proxy); // the whole text, in case it does not parse
+            try {
+                proxySpec().registerSecrets();
+            } catch (IllegalArgumentException ignored) {
+                // reported where the proxy is used
             }
         }
+    }
+
+    /** The account's proxy; {@link ProxySpec#DIRECT} when none is set. */
+    public ProxySpec proxySpec() {
+        return ProxySpec.parse(proxy);
+    }
+
+    /** The account with another proxy ({@code null} = none); the text must parse. */
+    public Account withProxy(String newProxy) {
+        String p = newProxy == null || ProxySpec.parse(newProxy).direct() ? null : newProxy.strip();
+        return new Account(username, password, server, dosid, p, dosids);
     }
 
     /** Never print secrets. */
@@ -98,6 +108,17 @@ public record Account(String username, String password, String server, String do
     public String toString() {
         return "Account[username=" + username + ", server=" + server + ", password=" + (password == null ? "-" : "***")
                 + ", dosid=" + (dosid == null ? "-" : "***") + (dosids.isEmpty() ? "" : ", other servers=" + dosids.keySet())
-                + ", proxy=" + (proxy == null ? "-" : "***") + "]";
+                + ", proxy=" + proxyText() + "]";
+    }
+
+    private String proxyText() {
+        if (proxy == null) {
+            return "-";
+        }
+        try {
+            return proxySpec().describe();
+        } catch (IllegalArgumentException e) {
+            return "*** (не разбирается: " + e.getMessage() + ")";
+        }
     }
 }

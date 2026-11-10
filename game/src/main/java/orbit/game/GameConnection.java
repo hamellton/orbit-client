@@ -6,7 +6,6 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -276,13 +275,13 @@ public final class GameConnection implements AutoCloseable {
         if (settings.policyRequest()) {
             requestPolicy(server);
         }
-        Socket s = new Socket(settings.proxy());
+        Socket s = new Socket();
         socket = s;
         if (closed.get()) {
             return null;
         }
         s.setTcpNoDelay(true);
-        s.connect(new InetSocketAddress(server.host(), server.port()), (int) settings.connectTimeout().toMillis());
+        settings.proxy().connect(s, server.host(), server.port(), (int) settings.connectTimeout().toMillis());
         s.setSoTimeout((int) settings.loginTimeout().toMillis());
         InputStream in = new BufferedInputStream(s.getInputStream());
         out = new BufferedOutputStream(s.getOutputStream());
@@ -491,8 +490,8 @@ public final class GameConnection implements AutoCloseable {
 
     /** Flash asks for a socket policy on a separate connection before connecting; do the same. */
     private void requestPolicy(MapServers.Address server) {
-        try (Socket p = new Socket(settings.proxy())) {
-            p.connect(new InetSocketAddress(server.host(), server.port()), (int) settings.connectTimeout().toMillis());
+        try (Socket p = new Socket()) {
+            settings.proxy().connect(p, server.host(), server.port(), (int) settings.connectTimeout().toMillis());
             p.setSoTimeout(5_000);
             p.getOutputStream().write(POLICY_REQUEST);
             p.getOutputStream().flush();

@@ -1,6 +1,7 @@
 package orbit.app;
 
-import java.net.Proxy;
+import orbit.app.gui.MinimapBackgrounds;
+import orbit.auth.proxy.ProxyRoute;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
@@ -75,6 +76,7 @@ public final class OrbitMain {
             case "replay" -> replay(o);
             case "render" -> render(o);
             case "configs" -> configs();
+            case "proxy-check" -> proxyCheck(o);
             default -> usage();
         }
     }
@@ -87,8 +89,58 @@ public final class OrbitMain {
                   orbit observe [--direct IP:порты]        окно бота по трафику официального клиента (через сниффер)
                   orbit replay <запись.dorec> [--speed N]  проиграть запись сниффера
                   orbit render <запись.dorec> --at <сек> [--out файл.png]  мини-карта на момент записи
-                  orbit configs                            окно конфигов, аккаунтов и расписания""");
+                  orbit configs                            окно конфигов, аккаунтов и расписания
+                  orbit proxy-check --account <имя> […]    проверить прокси аккаунтов (без входа в игру)""");
         System.exit(2);
+    }
+
+    // ---- proxy-check ----
+
+    /** Each account's proxy: reaches the game's site? which public IP? No website login. */
+    private static void proxyCheck(Options o) throws Exception {
+        if (o.accounts.isEmpty()) {
+            System.err.println("Укажите аккаунт: --account <имя> (прокси задаётся: vault set-proxy <имя>)");
+            System.exit(2);
+        }
+        char[] master = MasterPassword.obtain(false);
+        Vault vault;
+        try {
+            vault = Vault.open(o.vault, master);
+        } catch (VaultException e) {
+            System.err.println("Хранилище: " + e.getMessage());
+            System.exit(1);
+            return;
+        } finally {
+            Arrays.fill(master, '\0');
+        }
+        int failed = 0;
+        for (String account : o.accounts) {
+            orbit.secrets.Account a = vault.get(loginOf(account));
+            if (a == null) {
+                System.out.println(account + ": нет в хранилище");
+                failed++;
+                continue;
+            }
+            orbit.secrets.ProxySpec spec;
+            try {
+                spec = a.proxySpec();
+            } catch (IllegalArgumentException e) {
+                System.out.println(account + ": прокси не разбирается — " + e.getMessage());
+                failed++;
+                continue;
+            }
+            if (spec.direct()) {
+                System.out.println(account + ": без прокси (напрямую)");
+                continue;
+            }
+            try (ProxyRoute route = ProxyRoute.of(spec)) {
+                System.out.println(account + ": " + route.check().describe());
+            } catch (java.io.IOException e) {
+                System.out.println(account + ": " + spec.describe() + " — ошибка: " + e.getMessage());
+                failed++;
+            }
+        }
+        System.exit(failed == 0 ? 0 : 1);
     }
 
     // ---- configs ----
@@ -148,7 +200,7 @@ public final class OrbitMain {
             System.exit(0); // the window's threads would keep the program alive
             return;
         }
-        GameConnection conn = new GameConnection(source, listener, ConnectionSettings.defaults(Proxy.NO_PROXY),
+        GameConnection conn = new GameConnection(source, listener, ConnectionSettings.defaults(rig.route().connector()),
                 StartupSequence.clientLike(profile));
         Thread runner = Thread.ofPlatform().name("game").start(conn::run);
         Runtime.getRuntime().addShutdownHook(new Thread(conn::close));
@@ -165,7 +217,7 @@ public final class OrbitMain {
     }
 
     /** One account's web login, game feed and listener. */
-    private record Rig(WorldFeed feed, AuthClient auth, SessionSource source, GameListener listener) {
+    private record Rig(WorldFeed feed, AuthClient auth, SessionSource source, GameListener listener, ProxyRoute route) {
     }
 
     /** The vault name of {@code main@ru5}: {@code main}. */
@@ -185,10 +237,12 @@ public final class OrbitMain {
      *                ({@code main@ru5}); logs, tabs, stop files and «Аккаунты» use the whole string
      */
     private static Rig rig(String account, Vault vault) throws AuthException {
-        AuthClient auth = new AuthClient(new HttpSession("", Proxy.NO_PROXY, null), AuthClient.Endpoints.production());
+        ProxyRoute route = route(account, vault);
+        AuthClient auth = new AuthClient(new HttpSession("", route.httpProxy()), AuthClient.Endpoints.production());
         AccountLogin login = new AccountLogin(auth, vault, loginOf(account), serverOf(account));
         WorldFeed feed = new WorldFeed("бот, " + account, account);
         feed.setServer(login.server());
+        feed.setProxy(route::describe, !route.direct());
         GameListener listener = new GameListener() {
             @Override
             public void onPacket(Packet p) {
@@ -214,6 +268,7 @@ public final class OrbitMain {
         SessionSource source = new SessionSource() {
             @Override
             public GameSession fresh() throws AuthException {
+                route.verify(); // a dead proxy means no login, never a direct one
                 return login.login();
             }
 
@@ -222,7 +277,33 @@ public final class OrbitMain {
                 return auth.serverForMap(s, mapId);
             }
         };
-        return new Rig(feed, auth, source, listener);
+        return new Rig(feed, auth, source, listener, route);
+    }
+
+    /**
+     * The account's proxy from the vault: its website requests, game sockets and the minimap pictures
+     * all go through it.
+     */
+    private static ProxyRoute route(String account, Vault vault) throws AuthException {
+        orbit.secrets.Account a = vault.get(loginOf(account));
+        orbit.secrets.ProxySpec spec;
+        try {
+            spec = a == null ? orbit.secrets.ProxySpec.DIRECT : a.proxySpec();
+        } catch (IllegalArgumentException e) {
+            throw new AuthException(AuthException.Reason.PROXY_REJECTED,
+                    "Прокси аккаунта «" + loginOf(account) + "» не разбирается: " + e.getMessage() + ". Исправьте: vault set-proxy.");
+        }
+        if (spec.direct()) {
+            return ProxyRoute.none();
+        }
+        try {
+            ProxyRoute route = ProxyRoute.of(spec);
+            log.info("Аккаунт «{}»: {}", account, spec.describe());
+            MinimapBackgrounds.useProxy(route.selector());
+            return route;
+        } catch (java.io.IOException e) {
+            throw new AuthException(AuthException.Reason.UNAVAILABLE, "Локальный посредник прокси не запустился: " + e.getMessage(), e);
+        }
     }
 
     /**
@@ -442,7 +523,7 @@ public final class OrbitMain {
                         why = "--minutes " + o.minutes;
                     }
                     feed.newSession();
-                    GameConnection conn = new GameConnection(source, listener, ConnectionSettings.defaults(Proxy.NO_PROXY),
+                    GameConnection conn = new GameConnection(source, listener, ConnectionSettings.defaults(rig.route().connector()),
                             StartupSequence.clientLike(profile));
                     currentConn.set(conn);
                     java.util.Map<String, String> ctx = org.slf4j.MDC.getCopyOfContextMap();

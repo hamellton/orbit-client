@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.net.Proxy;
 import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -31,7 +30,7 @@ class GameConnectionTest {
     private static final String READY = "2D 1920x1022 .root1.test";
 
     private static ConnectionSettings fast() {
-        return new ConnectionSettings(Proxy.NO_PROXY, Duration.ofMillis(200), Duration.ZERO, true,
+        return new ConnectionSettings(orbit.auth.proxy.ProxyConnector.DIRECT, Duration.ofMillis(200), Duration.ZERO, true,
                 Duration.ofSeconds(2), Duration.ofSeconds(2), List.of(Duration.ofMillis(50)), 3, Duration.ofSeconds(30));
     }
 

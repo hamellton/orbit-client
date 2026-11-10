@@ -178,6 +178,10 @@ final class AccountView extends JPanel {
         who.add(title);
         who.add(chip(status));
         who.add(clock);
+        JLabel proxy = new JLabel();
+        proxy.setForeground(Hud.DIM);
+        proxy.setToolTipText("Сайт и игра этого аккаунта идут только через этот прокси; IP — по последней проверке");
+        who.add(proxy);
         bar.add(who);
 
         if (tab.switchConfig() != null) {
@@ -255,6 +259,9 @@ final class AccountView extends JPanel {
             status.setForeground(st.color);
             long since = tab.feed().sessionStartNanos();
             clock.setText(since == 0 ? "" : "сессия " + Hud.clock(java.time.Duration.ofNanos(tab.feed().now() - since)));
+            String via = tab.feed().proxyInfo();
+            proxy.setText(via.isEmpty() ? "" : "через " + via);
+            proxy.setVisible(!via.isEmpty());
         };
         refresh.run();
         new Timer(500, e -> refresh.run()).start();

@@ -120,6 +120,20 @@ public final class WorldFeed {
         server = s == null ? "" : s;
     }
 
+    private volatile java.util.function.Supplier<String> proxy = () -> "";
+    private volatile boolean proxied;
+
+    /** What the window shows about the account's proxy ({@code SOCKS5 1.2.3.4:1080 · IP 5.6.7.8}). */
+    public void setProxy(java.util.function.Supplier<String> describe, boolean viaProxy) {
+        proxy = describe;
+        proxied = viaProxy;
+    }
+
+    /** The proxy line, empty without a proxy. */
+    public String proxyInfo() {
+        return proxied ? proxy.get() : "";
+    }
+
     /** {@code int1 · FREEMASON} once in game, {@code int1 · main} before (the account's name). */
     public String title() {
         String nick = snapshot().hero().name();

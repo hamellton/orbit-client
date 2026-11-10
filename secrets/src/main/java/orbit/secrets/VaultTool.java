@@ -20,6 +20,7 @@ import java.util.Map;
  *   vault set-dosid &lt;name&gt;
  *   vault set-server &lt;name&gt; &lt;server&gt;   # the default server, e.g. ru5 (others: orbit bot --account name@ru5)
  *   vault set-dosid &lt;name&gt; --server ru5   # the website session of one server of the login
+ *   vault set-proxy &lt;name&gt;          # typed hidden: socks5://user:pass@host:port, host:port:user:pass…; Enter = none
  *   vault remove &lt;name&gt;
  *   options: --vault local/vault.bin
  * </pre>
@@ -53,12 +54,12 @@ public final class VaultTool {
                     server = args[++i];
                     serverGiven = true;
                 }
-                case "--proxy" -> proxy = args[++i];
+                case "--proxy" -> proxy = checkedProxy(args[++i]);
                 default -> positional.add(args[i]);
             }
         }
         if (positional.isEmpty()) {
-            System.err.println("Команды: list, add <имя>, import <имя> <файл>, set-dosid <имя>, set-server <имя> <сервер>, remove <имя>");
+            System.err.println("Команды: list, add <имя>, import <имя> <файл>, set-dosid <имя>, set-server <имя> <сервер>, set-proxy <имя>, remove <имя>");
             return 2;
         }
         String command = positional.get(0);
@@ -129,6 +130,17 @@ public final class VaultTool {
                 System.out.println("Аккаунт «" + name + "»: сервер по умолчанию " + to
                         + " (сохранённые сессии других серверов остаются; другой сервер — --account " + name + "@ru5).");
             }
+            case "set-proxy" -> {
+                String name = arg(positional, 1);
+                Account a = existing(vault, name);
+                System.out.println("Форматы: socks5://логин:пароль@адрес:порт, http://…, адрес:порт:логин:пароль, адрес:порт.");
+                System.out.println("Без socks5:// или http:// тип определится при первом подключении.");
+                String text = checkedProxy(new String(console().readPassword("Прокси (Enter — без прокси): ")));
+                Account updated = a.withProxy(text);
+                vault.put(name, updated);
+                System.out.println("Аккаунт «" + name + "»: " + updated.proxySpec().describe()
+                        + ". Проверка — при запуске бота (или orbit proxy-check --account " + name + ").");
+            }
             case "remove" -> {
                 String name = arg(positional, 1);
                 if (!vault.remove(name)) {
@@ -143,6 +155,15 @@ public final class VaultTool {
         vault.save();
         System.out.println("Сохранено в " + vault.file());
         return 0;
+    }
+
+    /** The proxy text if it parses ({@code null} = none), else a message for the user. */
+    static String checkedProxy(String text) throws VaultException {
+        try {
+            return ProxySpec.parse(text).direct() ? null : text.strip();
+        } catch (IllegalArgumentException e) {
+            throw new VaultException("Прокси не подходит: " + e.getMessage() + ".");
+        }
     }
 
     private static Account existing(Vault vault, String name) throws VaultException {

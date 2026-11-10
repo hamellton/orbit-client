@@ -1,6 +1,5 @@
 package orbit.auth;
 
-import java.net.Proxy;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
@@ -42,17 +41,24 @@ public final class AuthCheck {
                 }
             }
         }
-        AuthClient client = new AuthClient(new HttpSession("", Proxy.NO_PROXY, null), AuthClient.Endpoints.production());
         try {
-            GameSession s;
+            Vault vault = null;
+            orbit.auth.proxy.ProxyRoute route = orbit.auth.proxy.ProxyRoute.none();
             if (account != null) {
                 char[] master = MasterPassword.obtain(false);
-                Vault vault;
                 try {
                     vault = Vault.open(vaultFile, master);
                 } finally {
                     Arrays.fill(master, '\0');
                 }
+                if (vault.get(account) != null) {
+                    route = orbit.auth.proxy.ProxyRoute.of(vault.get(account).proxySpec());
+                }
+            }
+            AuthClient client = new AuthClient(new HttpSession("", route.httpProxy()), AuthClient.Endpoints.production());
+            GameSession s;
+            if (account != null) {
+                route.verify();
                 s = new AccountLogin(client, vault, account).login();
             } else if (creds != null) {
                 List<String> lines = Files.readAllLines(creds);

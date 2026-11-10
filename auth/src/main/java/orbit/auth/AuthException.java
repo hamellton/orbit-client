@@ -18,7 +18,9 @@ public class AuthException extends Exception {
         /** Maintenance, network trouble or an unexpected page — retry later. */
         UNAVAILABLE,
         /** The site layout changed and could not be understood. */
-        UNEXPECTED_PAGE
+        UNEXPECTED_PAGE,
+        /** The account's proxy rejected its login or is not the type set — retrying will not help. */
+        PROXY_REJECTED
     }
 
     private final Reason reason;

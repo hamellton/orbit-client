@@ -34,7 +34,6 @@ public final class HttpSession {
 
     private final CookieManager cookies = new CookieManager(null, CookiePolicy.ACCEPT_ALL);
     private final Proxy proxy;
-    private final String proxyAuthorization;
     private String userAgent;
 
     /** One finished response after following redirects. */
@@ -42,13 +41,12 @@ public final class HttpSession {
     }
 
     /**
-     * @param proxy              {@link Proxy#NO_PROXY}, an HTTP or a SOCKS proxy
-     * @param proxyAuthorization value for {@code Proxy-Authorization} (HTTP proxies only), or {@code null}
+     * @param proxy {@link Proxy#NO_PROXY}, or the account's route ({@code ProxyRoute.httpProxy()}: a local
+     *              relay without a login, which does the real proxy's login itself)
      */
-    public HttpSession(String userAgent, Proxy proxy, String proxyAuthorization) {
+    public HttpSession(String userAgent, Proxy proxy) {
         this.userAgent = userAgent;
         this.proxy = proxy;
-        this.proxyAuthorization = proxyAuthorization;
     }
 
     public void setUserAgent(String userAgent) {
@@ -106,9 +104,6 @@ public final class HttpSession {
             conn.setRequestProperty("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
             conn.setRequestProperty("Accept-Language", "ru-RU,ru;q=0.9,en;q=0.8");
             conn.setRequestProperty("Accept-Encoding", "gzip, deflate");
-            if (proxyAuthorization != null) {
-                conn.setRequestProperty("Proxy-Authorization", proxyAuthorization);
-            }
             if (referer != null) {
                 conn.setRequestProperty("Referer", referer);
             }

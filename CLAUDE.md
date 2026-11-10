@@ -31,6 +31,9 @@ Status: Stage 2 done; stage 3 in progress (login, game connection, vault, client
   `ORBIT_MASTER_PASSWORD` for headless), `SecretMask` + logback converters, `vault` CLI.
 - `auth` — website login (`AuthClient`), `AccountLogin` (per server: its saved dosid, else another server's
   dosid + the site's server switch, the password last; stores every new dosid). Accounts `name@server`.
+  `orbit.auth.proxy`: per-account `ProxyRoute` — own SOCKS5/HTTP CONNECT `ProxyConnector` (proxy resolves
+  names) for game sockets, `LocalProxy` loopback relay for `HttpURLConnection`/`HttpClient`, `verify()`
+  before every login (no proxy reachable = no login, never direct). `ProxySpec` (parsing) is in `secrets`.
 - `world` — map model from server packets (`World.apply`) and own `MoveRequest`s (`applyOutgoing`);
   immutable `WorldSnapshot` with interpolated positions. Hero is dead-reckoned, beacons only fix jumps.
   `orbit.world.maps`: `MapCatalog` (sizes from client maps-config, portal graph from DarkBot facts,

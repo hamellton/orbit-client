@@ -60,7 +60,7 @@ class AuthClientTest {
     private AuthClient client() {
         AuthClient.Endpoints ep = new AuthClient.Endpoints(origin + "/", origin + "/updates.xml",
                 Pattern.compile("^127\\.0\\.0\\.1$"), origin);
-        return new AuthClient(new HttpSession("test", Proxy.NO_PROXY, null), ep);
+        return new AuthClient(new HttpSession("test", Proxy.NO_PROXY), ep);
     }
 
     @Test
@@ -116,7 +116,7 @@ class AuthClientTest {
 
     @Test
     void cookiesAreSentInBrowserFormat() throws Exception {
-        HttpSession http = new HttpSession("test", Proxy.NO_PROXY, null);
+        HttpSession http = new HttpSession("test", Proxy.NO_PROXY);
         http.get(origin + "/");
         http.setCookie(origin + "/", "dosid", DOSID);
         String header = http.cookieHeader(java.net.URI.create(origin + "/indexInternal.es"));

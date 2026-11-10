@@ -1,6 +1,5 @@
 package orbit.game;
 
-import java.net.Proxy;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -106,18 +105,28 @@ public final class GameCheck {
                     + "Создайте его из записи сниффера: client-profile recordings", profileFile);
         }
 
-        AuthClient auth = new AuthClient(new HttpSession("", Proxy.NO_PROXY, null), AuthClient.Endpoints.production());
-        Login login;
+        Vault vault = null;
+        orbit.auth.proxy.ProxyRoute route = orbit.auth.proxy.ProxyRoute.none();
         if (account != null) {
             char[] master = MasterPassword.obtain(false);
-            Vault vault;
             try {
                 vault = Vault.open(vaultFile, master);
             } finally {
                 Arrays.fill(master, '\0');
             }
+            if (vault.get(account) != null) {
+                route = orbit.auth.proxy.ProxyRoute.of(vault.get(account).proxySpec());
+            }
+        }
+        orbit.auth.proxy.ProxyRoute net = route;
+        AuthClient auth = new AuthClient(new HttpSession("", net.httpProxy()), AuthClient.Endpoints.production());
+        Login login;
+        if (account != null) {
             AccountLogin accountLogin = new AccountLogin(auth, vault, account);
-            login = accountLogin::login;
+            login = () -> {
+                net.verify();
+                return accountLogin.login();
+            };
         } else if (System.getenv("ORBIT_DOSID") != null && !System.getenv("ORBIT_DOSID").isBlank()) {
             String dosid = System.getenv("ORBIT_DOSID").strip();
             String accountServer = server;
@@ -167,7 +176,7 @@ public final class GameCheck {
             }
         };
 
-        GameConnection conn = new GameConnection(source, listener, ConnectionSettings.defaults(Proxy.NO_PROXY),
+        GameConnection conn = new GameConnection(source, listener, ConnectionSettings.defaults(net.connector()),
                 StartupSequence.clientLike(profile));
         Thread runner = Thread.ofPlatform().name("game").start(conn::run);
         long end = System.currentTimeMillis() + Duration.ofSeconds(seconds).toMillis();

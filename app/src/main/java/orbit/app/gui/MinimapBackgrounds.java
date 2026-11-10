@@ -22,8 +22,9 @@ import org.slf4j.LoggerFactory;
  * The game's own minimap pictures ({@code spacemap/graphics/minimaps/minimap-<map>-700.jpg} on the game
  * CDN, 700×436 like the maps' 21000×13100), downloaded once into {@code local/minimaps/} and kept in
  * memory. Loading never blocks painting: the first call starts a download and returns {@code null}.
+ * When an account has a proxy, the pictures come through it (the first such account's), not directly.
  */
-final class MinimapBackgrounds {
+public final class MinimapBackgrounds {
 
     private static final Logger log = LoggerFactory.getLogger(MinimapBackgrounds.class);
 
@@ -33,8 +34,16 @@ final class MinimapBackgrounds {
     private static final Map<Integer, Optional<BufferedImage>> CACHE = new ConcurrentHashMap<>();
     private static final Set<Integer> LOADING = ConcurrentHashMap.newKeySet();
     private static volatile Runnable onLoaded = () -> { };
+    private static volatile java.net.ProxySelector proxy;
 
     private MinimapBackgrounds() {
+    }
+
+    /** Downloads go through this proxy from now on; the first proxied account sets it. */
+    public static void useProxy(java.net.ProxySelector selector) {
+        if (proxy == null) {
+            proxy = selector;
+        }
     }
 
     /** Called (on a background thread) when a picture has arrived, e.g. to repaint. */
@@ -64,8 +73,13 @@ final class MinimapBackgrounds {
         Path file = DIR.resolve(mapId + ".jpg");
         try {
             if (!Files.exists(file)) {
-                HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10))
-                        .followRedirects(HttpClient.Redirect.NORMAL).build();
+                HttpClient.Builder builder = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10))
+                        .followRedirects(HttpClient.Redirect.NORMAL);
+                java.net.ProxySelector p = proxy;
+                if (p != null) {
+                    builder.proxy(p);
+                }
+                HttpClient http = builder.build();
                 HttpResponse<byte[]> r = http.send(HttpRequest.newBuilder(URI.create(String.format(URL, mapId)))
                         .timeout(Duration.ofSeconds(20)).GET().build(), HttpResponse.BodyHandlers.ofByteArray());
                 String type = r.headers().firstValue("content-type").orElse("");
