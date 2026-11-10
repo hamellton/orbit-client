@@ -99,7 +99,13 @@ final class AccountView extends JPanel {
                 map.setBounds(x, y, w, h);
                 return;
             }
-            if (w >= WIDE) {
+            // the cards beside the map or under it: whichever leaves the bigger map (a low, wide window
+            // keeps them beside), with the cards always readable
+            int minSide = Math.min(side.contentHeight(w) + 2, Math.max(120, h / 3));
+            double besideMap = Math.min(w - SidePanel.MIN_COLUMN - gap, h * MainWindow.Grid.ASPECT);
+            double underMap = Math.min(w, (h - minSide - gap) * MainWindow.Grid.ASPECT);
+            boolean beside = w >= WIDE || (w - SidePanel.MIN_COLUMN - gap >= 300 && besideMap >= underMap * 0.9);
+            if (beside) {
                 // the map as big as the height allows, the cards take the rest (within limits), no dead strip
                 int mapW = (int) Math.min(w - SidePanel.MIN_COLUMN - gap, h * MainWindow.Grid.ASPECT);
                 int sideW = Math.min(MAX_SIDE, w - mapW - gap);
@@ -108,7 +114,6 @@ final class AccountView extends JPanel {
                 sideScroll.setBounds(left + mapW + gap, y, sideW, h);
             } else {
                 // the map as wide as the window (its height follows), the cards right under it
-                int minSide = Math.min(side.contentHeight(w) + 2, Math.max(120, h / 3));
                 int mapH = (int) Math.max(150, Math.min(w / MainWindow.Grid.ASPECT, h - minSide - gap));
                 map.setBounds(x, y, w, mapH);
                 sideScroll.setBounds(x, y + mapH + gap, w, Math.max(0, h - mapH - gap));
@@ -203,9 +208,9 @@ final class AccountView extends JPanel {
         }
         JPanel actions = group();
         bar.add(actions);
-        JButton view = new JButton("Вид ▾");
-        view.setToolTipText("Какие блоки показывать сбоку, какие на карте, какие скрыть");
-        view.addActionListener(e -> viewMenu().show(view, 0, view.getHeight()));
+        JButton view = new JButton("Блоки ▾");
+        view.setToolTipText("Каждый блок — сбоку, на карте или скрыть; правый клик по карточке — её меню");
+        view.addActionListener(e -> BlockMenu.all().show(view, 0, view.getHeight()));
         actions.add(view);
         JButton all = new JButton("Все конфиги…");
         all.addActionListener(e -> orbit.app.gui.config.ConfigWindow.open(orbit.config.ConfigStore.openDefault(),
@@ -232,34 +237,6 @@ final class AccountView extends JPanel {
         refresh.run();
         new Timer(500, e -> refresh.run()).start();
         return bar;
-    }
-
-    /** «Вид»: for every block — beside the map, on it, or hidden; and all at once. */
-    private static javax.swing.JPopupMenu viewMenu() {
-        ViewSettings v = ViewSettings.shared();
-        javax.swing.JPopupMenu menu = new javax.swing.JPopupMenu();
-        for (ViewSettings.Block b : ViewSettings.Block.values()) {
-            javax.swing.JMenu item = new javax.swing.JMenu(b.label + ":  " + v.place(b).label.toLowerCase());
-            javax.swing.ButtonGroup choice = new javax.swing.ButtonGroup();
-            for (ViewSettings.Place p : ViewSettings.Place.values()) {
-                javax.swing.JRadioButtonMenuItem r = new javax.swing.JRadioButtonMenuItem(p.label, v.place(b) == p);
-                r.addActionListener(e -> v.set(b, p));
-                choice.add(r);
-                item.add(r);
-            }
-            menu.add(item);
-        }
-        menu.addSeparator();
-        for (ViewSettings.Place p : ViewSettings.Place.values()) {
-            javax.swing.JMenuItem all = new javax.swing.JMenuItem(switch (p) {
-                case SIDE -> "Все блоки сбоку";
-                case MAP -> "Все блоки на карте";
-                case HIDDEN -> "Скрыть все блоки";
-            });
-            all.addActionListener(e -> v.setAll(p));
-            menu.add(all);
-        }
-        return menu;
     }
 
     private void fill(JComboBox<String> box) {

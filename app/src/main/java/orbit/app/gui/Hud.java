@@ -119,7 +119,8 @@ final class Hud {
      * (an ellipsis says so).
      */
     void mapBlocks(Graphics2D g, int left, int right, int leftTop, int rightTop, int bottom, int width,
-                   WorldSnapshot w, WorldFeed feed, String config, ViewSettings v) {
+                   WorldSnapshot w, WorldFeed feed, String config, ViewSettings v,
+                   Map<java.awt.Rectangle, ViewSettings.Block> placed) {
         // a narrow map: one column on the left
         boolean oneColumn = right - left < 2 * width + 20;
         int ly = leftTop;
@@ -145,6 +146,7 @@ final class Hud {
             }
             translucent(g, x, y, width, h);
             c.paint(g, x, y, width);
+            placed.put(new java.awt.Rectangle(x, y, width, h), e.getKey());
             if (isRight) {
                 ry += h + 6;
             } else {

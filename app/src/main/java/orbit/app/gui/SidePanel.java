@@ -27,9 +27,14 @@ final class SidePanel extends JPanel implements Scrollable {
     private final Hud hud;
     private int contentHeight = 200;
 
+    /** Where each card was drawn last, for the right-click menu. */
+    private volatile java.util.Map<java.awt.Rectangle, ViewSettings.Block> cardsAt = java.util.Map.of();
+
     SidePanel(WorldFeed feed, Supplier<String> config) {
         this.feed = feed;
         this.config = config;
+        BlockMenu.attach(this, p -> blockAt(cardsAt, p));
+        setToolTipText("Правый клик по карточке — перенести на карту или скрыть");
         Font f = javax.swing.UIManager.getFont("Label.font");
         this.hud = new Hud(f != null ? f : getFont());
         setOpaque(true);
@@ -64,17 +69,23 @@ final class SidePanel extends JPanel implements Scrollable {
         try {
             g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
             g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
-            List<Hud.Card> cards = hud.cards(feed.snapshot(), feed, config.get(), ViewSettings.shared(), ViewSettings.Place.SIDE);
             int width = getWidth();
             int n = columns(width);
             int cw = (width - (n - 1) * GAP) / n;
             int[] col = new int[n];
-            for (Hud.Card c : cards) {
+            java.util.Map<java.awt.Rectangle, ViewSettings.Block> placed = new java.util.LinkedHashMap<>();
+            for (var e : hud.blocks(feed.snapshot(), feed, config.get()).entrySet()) {
+                if (ViewSettings.shared().place(e.getKey()) != ViewSettings.Place.SIDE) {
+                    continue;
+                }
+                Hud.Card c = e.getValue();
                 int i = shortest(col);
                 int h = c.height(cw);
                 c.paint(g, i * (cw + GAP), col[i], cw);
+                placed.put(new java.awt.Rectangle(i * (cw + GAP), col[i], cw, h), e.getKey());
                 col[i] += h + GAP;
             }
+            cardsAt = placed;
             int max = 0;
             for (int h : col) {
                 max = Math.max(max, h);
@@ -86,6 +97,15 @@ final class SidePanel extends JPanel implements Scrollable {
         } finally {
             g.dispose();
         }
+    }
+
+    static ViewSettings.Block blockAt(java.util.Map<java.awt.Rectangle, ViewSettings.Block> at, java.awt.Point p) {
+        for (var e : at.entrySet()) {
+            if (e.getKey().contains(p)) {
+                return e.getValue();
+            }
+        }
+        return null;
     }
 
     private static int shortest(int[] col) {

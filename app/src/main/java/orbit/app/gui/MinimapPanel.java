@@ -51,6 +51,8 @@ final class MinimapPanel extends JPanel {
     private final MapCatalog catalog = MapCatalog.bundled();
     private final Hud hud;
     private final Hud compactHud;
+    /** Where the blocks on the map were drawn last, for the right-click menu. */
+    private volatile java.util.Map<java.awt.Rectangle, ViewSettings.Block> cardsAt = java.util.Map.of();
     /** A small map in the overview: a strip with the account instead of the map's own labels. */
     private final boolean compact;
     private final java.util.function.Supplier<String> config;
@@ -70,6 +72,9 @@ final class MinimapPanel extends JPanel {
         compactHud = new Hud(f != null ? f : getFont(), true);
         setPreferredSize(compact ? new Dimension(420, 262) : new Dimension(840, 524));
         setMinimumSize(new Dimension(240, 150));
+        if (!compact) {
+            BlockMenu.attach(this, p -> SidePanel.blockAt(cardsAt, p));
+        }
     }
 
     /** Where the map sits in the panel, keeping its proportions (21000:13100 for most maps). */
@@ -282,7 +287,7 @@ final class MinimapPanel extends JPanel {
             g.fill(new Ellipse2D.Double(hx - 4.5 * u, hy - 4.5 * u, 9 * u, 9 * u));
         }
         hud.boostPills(g, (int) Math.round(ox + mw) - 8, (int) Math.round(oy) + 8,
-                (int) Math.round(mw * (compact ? 0.45 : 0.5)), w.boosters(), compact);
+                (int) Math.round(mw * (compact ? 0.45 : 0.5)), w.boosters(), compact || mw < BIG_MAP);
         if (compact) {
             hud.targetChip(g, (int) Math.round(ox) + 8, (int) Math.round(oy) + 8, (int) Math.round(mw * 0.3), w);
             hud.strip(g, (int) Math.round(ox), (int) Math.round(oy + mh), (int) Math.round(mw), feed, config.get());
@@ -290,12 +295,14 @@ final class MinimapPanel extends JPanel {
             mapChip(g, ox, oy, hero, map);
             // the blocks the user put on the map: full cards on a big map, compact ones on a small one
             boolean big = mw >= BIG_MAP;
+            java.util.Map<java.awt.Rectangle, ViewSettings.Block> placed = new java.util.LinkedHashMap<>();
             Hud cards = big ? hud : compactHud;
             int panel = big ? (int) Math.max(230, Math.min(320, mw * 0.26)) : (int) Math.max(170, Math.min(250, mw * 0.34));
             int left = (int) Math.round(ox) + 10;
             int right = (int) Math.round(ox + mw) - 10;
             cards.mapBlocks(g, left, right, (int) Math.round(oy) + 46, (int) Math.round(oy) + (big ? 40 : 50),
-                    (int) Math.round(oy + mh) - 8, panel, w, feed, config.get(), ViewSettings.shared());
+                    (int) Math.round(oy + mh) - 8, panel, w, feed, config.get(), ViewSettings.shared(), placed);
+            cardsAt = placed;
         }
     }
 
