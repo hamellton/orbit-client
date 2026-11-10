@@ -186,9 +186,15 @@ public record BotConfig(
      * @param flags    {@link NpcFlag} names; unknown imported flags are kept as they were
      * @param maps     map ids where the rule applies; empty = everywhere
      * @param ammo     ammunition item id for this NPC; {@code null} = {@link Loot#ammo}
+     * @param sab      use {@link Loot#sab} on this NPC while the own shield is low
      */
     @JsonInclude(JsonInclude.Include.NON_EMPTY)
-    public record NpcRule(double radius, int priority, boolean kill, Set<String> flags, Set<Integer> maps, String ammo) {
+    public record NpcRule(double radius, int priority, boolean kill, Set<String> flags, Set<Integer> maps, String ammo,
+                          boolean sab) {
+
+        public NpcRule(double radius, int priority, boolean kill, Set<String> flags, Set<Integer> maps, String ammo) {
+            this(radius, priority, kill, flags, maps, ammo, false);
+        }
 
         public NpcRule {
             // sorted, so saved files do not change from run to run

@@ -130,15 +130,18 @@ public final class Attacker {
         return true;
     }
 
-    /** SAB while the own shield is low and the target has shield to drain; else the NPC's or the default ammo. */
+    /**
+     * SAB on NPCs marked for it, while the own shield is low and the target has shield to drain; else the
+     * NPC's own or the default ammunition.
+     */
     static String ammo(BotConfig c, WorldSnapshot w, WorldSnapshot.Ship t) {
         BotConfig.Loot l = c.loot();
+        BotConfig.NpcRule r = Targets.rule(c, t, w.hero().mapId());
         double shield = w.hero().health().shieldPercent();
-        if (l.sab() != null && shield >= 0 && shield < l.sabBelow() && t.health().shield() >= l.sabNpcShieldMin()
-                && t.health().shield() > 0) {
+        if (l.sab() != null && r != null && r.sab() && shield >= 0 && shield < l.sabBelow()
+                && t.health().shield() >= l.sabNpcShieldMin() && t.health().shield() > 0) {
             return l.sab();
         }
-        BotConfig.NpcRule r = Targets.rule(c, t, w.hero().mapId());
         return r != null && r.ammo() != null ? r.ammo() : l.ammo();
     }
 }

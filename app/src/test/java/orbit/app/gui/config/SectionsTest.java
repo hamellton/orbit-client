@@ -59,7 +59,7 @@ class SectionsTest {
                 .withZones(Map.of(26, new BotConfig.Zones(null, new BotConfig.ZoneGrid(30, rows))))
                 .withModuleSettings("cubikon", Json.MAPPER.readTree("""
                         {"spots": [[7500, 3900], [13400, 3900], [13400, 7900], [7500, 7900]], "arriveDistance": 450,
-                         "waitSeconds": 90, "collectBoxes": true, "boxesWhileCubikonHpAbove": 0.25, "killWhileWaiting": true,
+                         "waitSeconds": 90, "collectBoxes": true, "boxesWhileCubikonHpAbove": 0.25, "waitKill": "ATTACKERS",
                          "waitKillRange": 1200, "spotMode": "LEARNED", "learnSpawns": false}"""))
                 .withModuleSettings("gate", Json.MAPPER.readTree("{\"gateId\": 71, \"kamikaze\": {\"enabled\": true, \"minNpcs\": 5}}"))
                 .withDescription("Кубы на 3-6");

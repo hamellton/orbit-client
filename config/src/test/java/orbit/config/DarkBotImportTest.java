@@ -142,7 +142,7 @@ class DarkBotImportTest {
         assertEquals(3900, cubi.get("spots").get(0).get(1).asInt());
         assertEquals(450, cubi.get("arriveDistance").asInt());
         assertEquals(90, cubi.get("waitSeconds").asInt());
-        assertTrue(cubi.get("killWhileWaiting").asBoolean());
+        assertEquals("ALL", cubi.get("waitKill").asText());
     }
 
     @Test

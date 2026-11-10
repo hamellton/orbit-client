@@ -41,7 +41,9 @@ final class KillSection implements Section {
         table.setAutoCreateRowSorter(true);
         table.setFillsViewportHeight(true);
         table.getColumnModel().getColumn(0).setPreferredWidth(220);
-        table.getColumnModel().getColumn(5).setPreferredWidth(200);
+        table.getColumnModel().getColumn(7).setPreferredWidth(200);
+        table.getColumnModel().getColumn(5).setCellEditor(new javax.swing.DefaultCellEditor(
+                new javax.swing.JComboBox<>(NpcTable.ammoChoices())));
         table.getTableHeader().setToolTipText("Приоритет: меньше — раньше. Карты: «3-6, 2-6» или «все».");
 
         JTextField search = new JTextField(16);
@@ -90,7 +92,8 @@ final class KillSection implements Section {
                 .row("Не замечать NPC дальше", ignoreFarther)
                 .section("Список NPC")
                 .note("Бить — атаковать ли; приоритет — меньше значит раньше (−100 первым); радиус — на какой "
-                        + "дистанции держаться; карты — где действует строка («все» — везде); флаги: IGNORE_OWNERSHIP "
+                        + "дистанции держаться; SAB — включать щитовые патроны на этого NPC (по порогам выше); "
+                        + "патроны — свои патроны для этого NPC («общие» — как выше); карты — где действует строка («все» — везде); флаги: IGNORE_OWNERSHIP "
                         + "(бить, даже если чужой), IGNORE_ATTACKED, PASSIVE (не убегать от него), PET_LOCATOR, KAMIKAZE.")
                 .wide(list, true)
                 .build(false);

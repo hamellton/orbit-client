@@ -137,4 +137,29 @@ class CubikonModuleTest {
         SpawnMemory b = SpawnMemory.open(f);
         assertEquals(a.spawns(26), b.spawns(26));
     }
+
+    @Test
+    void waitKillsOnlyAttackersNearTheSpot() throws Exception {
+        BotConfig c = config(0, false);
+        var settings = c.moduleSettings("cubikon");
+        settings.put("waitKill", "ATTACKERS");
+        settings.put("waitKillRange", 800);
+        Sim sim = new Sim(c.withModuleSettings("cubikon", settings), 26, 7_500, 3_900);
+        sim.lasers("ammunition_laser_ucb-100");
+        sim.npc(60, "-=[ Kristallin ]=-", 7_900, 4_000);   // near, peaceful
+        sim.npc(61, "-=[ Kristallin ]=-", 10_000, 3_900);  // shoots at us, but far from the spot
+        CubikonModule m = new CubikonModule(sim.ctx, SpawnMemory.inMemory());
+        orbit.protocol.gen.AttackLaserRunCommand far = new orbit.protocol.gen.AttackLaserRunCommand();
+        far.attackerId = 61;
+        far.targetId = 1;
+        sim.world.apply(far, sim.now);
+        sim.run(m::tick, 6_000);
+        assertEquals(0, sim.hero().selected(), "nobody near the spot attacks: stay passive");
+        orbit.protocol.gen.AttackLaserRunCommand near = new orbit.protocol.gen.AttackLaserRunCommand();
+        near.attackerId = 60;
+        near.targetId = 1;
+        sim.world.apply(near, sim.now);
+        sim.run(m::tick, 6_000);
+        assertEquals(60, sim.hero().selected(), "the one attacking us near the spot");
+    }
 }

@@ -18,7 +18,8 @@ import org.slf4j.LoggerFactory;
  * <ul>
  *   <li>a live Cubikon on the map — even one others fight — is attacked at once;</li>
  *   <li>its boxes are picked up while it has more than {@code boxesWhileCubikonHpAbove} HP;</li>
- *   <li>no Cubikon: other NPCs within {@code waitKillRange} if {@code killWhileWaiting}, boxes, otherwise
+ *   <li>no Cubikon: other NPCs within {@code waitKillRange} of the spot ({@code waitKill}: {@code OFF},
+ *       {@code ATTACKERS} — only those shooting at us, {@code ALL}), boxes, otherwise
  *       the spawn spots: fly within {@code arriveDistance}, wait {@code waitSeconds} (0 = until a Cubikon
  *       shows up), next spot;</li>
  *   <li>NPCs the list marks "не бить" (Protegit) are never shot.</li>
@@ -128,8 +129,9 @@ public final class CubikonModule implements BotModule {
             status = "бью, пока жду куб";
             return;
         }
-        if (setting(s, "killWhileWaiting", false)) {
-            WorldSnapshot.Ship t = Targets.best(c, w, setting(s, "waitKillRange", DEFAULT_WAIT_KILL_RANGE));
+        String waitKill = waitKill(s);
+        if (!"OFF".equals(waitKill)) {
+            WorldSnapshot.Ship t = waitTarget(c, w, waitKill, setting(s, "waitKillRange", DEFAULT_WAIT_KILL_RANGE));
             if (t != null) {
                 attacker.target(t);
                 attacker.tick(true);
@@ -142,6 +144,31 @@ public final class CubikonModule implements BotModule {
             return;
         }
         camp(s, h);
+    }
+
+    /** {@code OFF}, {@code ATTACKERS} (only NPCs that shoot at us) or {@code ALL}; old configs: {@code killWhileWaiting}. */
+    static String waitKill(JsonNode s) {
+        if (s != null && s.has("waitKill")) {
+            return s.get("waitKill").asText("OFF");
+        }
+        return setting(s, "killWhileWaiting", false) ? "ALL" : "OFF";
+    }
+
+    /**
+     * An NPC to fight while waiting: allowed by the list, within {@code range} of the spot we wait on (not
+     * of the ship, so the camp never drifts off), and with {@code ATTACKERS} only one that shoots at us.
+     */
+    private WorldSnapshot.Ship waitTarget(BotConfig c, WorldSnapshot w, String mode, double range) {
+        WorldSnapshot.Hero h = w.hero();
+        double cx = spot != null ? spot[0] : h.x();
+        double cy = spot != null ? spot[1] : h.y();
+        return w.ships().values().stream()
+                .filter(x -> Targets.attackable(c, x, h.mapId()))
+                .filter(x -> Math.hypot(x.x() - cx, x.y() - cy) <= range)
+                .filter(x -> !"ATTACKERS".equals(mode) || x.attackTargetId() == h.id() || h.attackers().contains(x.id()))
+                .min(Comparator.<WorldSnapshot.Ship>comparingInt(x -> Targets.rule(c, x, h.mapId()).priority())
+                        .thenComparingDouble(x -> x.distanceTo(h.x(), h.y())))
+                .orElse(null);
     }
 
     /** Remembers Cubikons appearing and dying in sight. */

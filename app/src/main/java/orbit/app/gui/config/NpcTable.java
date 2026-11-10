@@ -15,7 +15,8 @@ import orbit.world.maps.MapCatalog;
 /** The NPC list of a config as an editable table (like AstraBot's NPC list). */
 final class NpcTable extends AbstractTableModel {
 
-    static final String[] COLUMNS = {"NPC", "Бить", "Приоритет", "Радиус", "Карты", "Флаги"};
+    static final String[] COLUMNS = {"NPC", "Бить", "Приоритет", "Радиус", "SAB", "Патроны", "Карты", "Флаги"};
+    static final String DEFAULT_AMMO = "общие";
 
     private static final class Row {
         String name;
@@ -25,6 +26,7 @@ final class NpcTable extends AbstractTableModel {
         Set<Integer> maps;
         Set<String> flags;
         String ammo;
+        boolean sab;
     }
 
     private final MapCatalog catalog;
@@ -45,6 +47,7 @@ final class NpcTable extends AbstractTableModel {
             row.maps = new LinkedHashSet<>(r.maps());
             row.flags = new LinkedHashSet<>(r.flags());
             row.ammo = r.ammo();
+            row.sab = r.sab();
             rows.add(row);
         });
         fireTableDataChanged();
@@ -60,7 +63,7 @@ final class NpcTable extends AbstractTableModel {
             if (out.containsKey(name)) {
                 throw new IllegalArgumentException("NPC «" + name + "» в списке дважды");
             }
-            out.put(name, new BotConfig.NpcRule(r.radius, r.priority, r.kill, r.flags, r.maps, r.ammo));
+            out.put(name, new BotConfig.NpcRule(r.radius, r.priority, r.kill, r.flags, r.maps, r.ammo, r.sab));
         }
         return out;
     }
@@ -106,7 +109,7 @@ final class NpcTable extends AbstractTableModel {
     @Override
     public Class<?> getColumnClass(int c) {
         return switch (c) {
-            case 1 -> Boolean.class;
+            case 1, 4 -> Boolean.class;
             case 2, 3 -> Integer.class;
             default -> String.class;
         };
@@ -125,7 +128,9 @@ final class NpcTable extends AbstractTableModel {
             case 1 -> row.kill;
             case 2 -> row.priority;
             case 3 -> row.radius;
-            case 4 -> mapsText(row.maps);
+            case 4 -> row.sab;
+            case 5 -> row.ammo == null ? DEFAULT_AMMO : orbit.config.ItemCatalog.label(row.ammo);
+            case 6 -> mapsText(row.maps);
             default -> String.join(", ", row.flags);
         };
     }
@@ -138,11 +143,34 @@ final class NpcTable extends AbstractTableModel {
             case 1 -> row.kill = (Boolean) v;
             case 2 -> row.priority = (Integer) v;
             case 3 -> row.radius = Math.max(0, (Integer) v);
-            case 4 -> row.maps = parseMaps(String.valueOf(v));
+            case 4 -> row.sab = (Boolean) v;
+            case 5 -> row.ammo = ammoId(String.valueOf(v), row.ammo);
+            case 6 -> row.maps = parseMaps(String.valueOf(v));
             default -> row.flags = Arrays.stream(String.valueOf(v).split("[,; ]+")).map(String::strip)
                     .filter(s -> !s.isEmpty()).map(String::toUpperCase).collect(Collectors.toCollection(LinkedHashSet::new));
         }
         fireTableCellUpdated(r, c);
+    }
+
+    /** The ammunition cell editor's choice back to an item id ({@code null} = the config's default). */
+    static String ammoId(String label, String current) {
+        if (DEFAULT_AMMO.equals(label)) {
+            return null;
+        }
+        for (orbit.config.ItemCatalog.Item i : orbit.config.ItemCatalog.LASERS) {
+            if (i.label().equals(label)) {
+                return i.id();
+            }
+        }
+        return current;
+    }
+
+    /** Choices of the ammunition column. */
+    static String[] ammoChoices() {
+        java.util.List<String> c = new java.util.ArrayList<>();
+        c.add(DEFAULT_AMMO);
+        orbit.config.ItemCatalog.LASERS.forEach(i -> c.add(i.label()));
+        return c.toArray(String[]::new);
     }
 
     String mapsText(Set<Integer> maps) {

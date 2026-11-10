@@ -101,7 +101,8 @@ public final class DarkBotImport {
             extra.put("darkbot.module", Json.MAPPER.getNodeFactory().textNode(moduleClass));
         }
         BotConfig.General g = general(general);
-        Map<String, BotConfig.NpcRule> npcs = npcs(root.path("LOOT").path("NPC_INFOS"));
+        Map<String, BotConfig.NpcRule> npcs = npcs(root.path("LOOT").path("NPC_INFOS"),
+                root.path("LOOT").path("SAB").path("ENABLED").asBoolean(false));
         BotConfig.Loot loot = loot(root.path("LOOT"));
         BotConfig.Collect collect = collect(root.path("COLLECT"));
         BotConfig.Pet pet = new BotConfig.Pet(root.path("PET").path("ENABLED").asBoolean(false),
@@ -171,7 +172,7 @@ public final class DarkBotImport {
         return new BotConfig.ShipMode(m.path("CONFIG").asInt(1), null);
     }
 
-    private Map<String, BotConfig.NpcRule> npcs(JsonNode infos) {
+    private Map<String, BotConfig.NpcRule> npcs(JsonNode infos, boolean sabOn) {
         Map<String, BotConfig.NpcRule> out = new LinkedHashMap<>();
         Set<String> unknownFlags = new LinkedHashSet<>();
         infos.properties().forEach(e -> {
@@ -186,8 +187,9 @@ public final class DarkBotImport {
             }
             Set<Integer> maps = new LinkedHashSet<>();
             n.path("mapList").forEach(m -> maps.add(m.asInt()));
+            // DarkBot's SAB is one switch for all NPCs: carry it to every NPC that is killed
             out.put(e.getKey(), new BotConfig.NpcRule(n.path("radius").asDouble(500), n.path("priority").asInt(0),
-                    n.path("kill").asBoolean(false), flags, maps, null));
+                    n.path("kill").asBoolean(false), flags, maps, null, sabOn && n.path("kill").asBoolean(false)));
         });
         if (!unknownFlags.isEmpty()) {
             report.add("Флаги NPC без поддержки (сохранены): " + String.join(", ", unknownFlags));
@@ -322,13 +324,13 @@ public final class DarkBotImport {
                 c.put("boxesWhileCubikonHpAbove", 0.25);
                 boolean kristallins = custom.path(moduleClass).path("KRISTALLINS").asBoolean(false)
                         || camp.path("killWhileWaiting").asBoolean(false);
-                c.put("killWhileWaiting", kristallins);
+                c.put("waitKill", kristallins ? "ALL" : "OFF");
                 c.put("waitKillRange", 1_500);
                 c.put("spotMode", "ROUND");
                 c.put("learnSpawns", true);
                 modules.put(BotConfig.Module.CUBIKON.key(), c);
                 report.add("Кубы: 4 спауна x-6, подлёт " + c.get("arriveDistance") + ", ожидание "
-                        + c.get("waitSeconds") + " с, бить при ожидании: " + (kristallins ? "да" : "нет"));
+                        + c.get("waitSeconds") + " с, бить при ожидании: " + (kristallins ? "всех" : "никого"));
             }
             case GALAXY_GATE -> {
                 JsonNode gate = custom.path(moduleClass);
