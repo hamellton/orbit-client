@@ -64,6 +64,7 @@ public final class MainWindow {
             FlatDarkLaf.setup();
             JFrame frame = frame("Orbit — аккаунтов: " + tabs.size(), onClose);
             JTabbedPane pane = new JTabbedPane();
+            pane.addTab("Все", overview(tabs, pane));
             for (Tab t : tabs) {
                 JPanel page = new JPanel(new BorderLayout());
                 JToolBar bar = new JToolBar();
@@ -84,8 +85,8 @@ public final class MainWindow {
             new Timer(1_000, e -> {
                 for (int i = 0; i < tabs.size(); i++) {
                     String title = tabs.get(i).feed().title();
-                    if (!title.equals(pane.getTitleAt(i))) {
-                        pane.setTitleAt(i, title);
+                    if (!title.equals(pane.getTitleAt(i + 1))) {
+                        pane.setTitleAt(i + 1, title); // tab 0 is "Все"
                     }
                 }
             }).start();
@@ -94,6 +95,70 @@ public final class MainWindow {
             content.add(pane, BorderLayout.CENTER);
             show(frame, content);
         });
+    }
+
+    /**
+     * "Все": the minimaps of the chosen accounts side by side, like a split screen; a click on one
+     * opens its tab.
+     */
+    private static JComponent overview(List<Tab> tabs, JTabbedPane pane) {
+        JPanel grid = new JPanel();
+        JPanel choose = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 10, 4));
+        choose.add(new javax.swing.JLabel("Показывать:"));
+        java.util.List<javax.swing.JCheckBox> boxes = new java.util.ArrayList<>();
+        java.util.List<JComponent> cells = new java.util.ArrayList<>();
+        for (int i = 0; i < tabs.size(); i++) {
+            WorldFeed feed = tabs.get(i).feed();
+            MinimapPanel map = new MinimapPanel(feed);
+            map.setPreferredSize(new Dimension(480, 300));
+            int tabIndex = i + 1;
+            map.addMouseListener(new java.awt.event.MouseAdapter() {
+                @Override
+                public void mouseClicked(java.awt.event.MouseEvent e) {
+                    pane.setSelectedIndex(tabIndex);
+                }
+            });
+            map.setToolTipText("Открыть вкладку аккаунта");
+            javax.swing.JLabel name = new javax.swing.JLabel(feed.title());
+            name.setBorder(javax.swing.BorderFactory.createEmptyBorder(2, 6, 2, 6));
+            JPanel cell = new JPanel(new BorderLayout());
+            cell.add(name, BorderLayout.NORTH);
+            cell.add(map, BorderLayout.CENTER);
+            cell.setBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(60, 66, 80)));
+            cells.add(cell);
+            new Timer(REFRESH_MS, e -> {
+                if (map.isShowing()) {
+                    map.repaint();
+                    name.setText(feed.title());
+                }
+            }).start();
+            javax.swing.JCheckBox box = new javax.swing.JCheckBox(feed.title(), true);
+            new Timer(1_000, e -> box.setText(feed.title())).start();
+            boxes.add(box);
+            choose.add(box);
+        }
+        Runnable layout = () -> {
+            grid.removeAll();
+            java.util.List<JComponent> shown = new java.util.ArrayList<>();
+            for (int i = 0; i < cells.size(); i++) {
+                if (boxes.get(i).isSelected()) {
+                    shown.add(cells.get(i));
+                }
+            }
+            int n = Math.max(1, shown.size());
+            int cols = (int) Math.ceil(Math.sqrt(n));
+            int rows = (int) Math.ceil(n / (double) cols);
+            grid.setLayout(new java.awt.GridLayout(rows, cols, 4, 4));
+            shown.forEach(grid::add);
+            grid.revalidate();
+            grid.repaint();
+        };
+        boxes.forEach(b -> b.addActionListener(e -> layout.run()));
+        layout.run();
+        JPanel page = new JPanel(new BorderLayout());
+        page.add(choose, BorderLayout.NORTH);
+        page.add(grid, BorderLayout.CENTER);
+        return page;
     }
 
     private static JFrame frame(String title, Runnable onClose) {
