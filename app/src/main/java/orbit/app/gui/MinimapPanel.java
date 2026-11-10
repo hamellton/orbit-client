@@ -220,7 +220,8 @@ final class MinimapPanel extends JPanel {
             // players always, NPCs only when they matter (target or attacker): maps hold dozens of NPCs
             boolean fighting = s.id() == hero.selectedId() || s.id() == hero.attackTargetId()
                     || (hero.attackers().size() <= MAX_ATTACKER_LABELS && hero.attackers().contains(s.id()));
-            if (!compact && (s.kind() == ShipKind.PLAYER || (s.kind() == ShipKind.NPC && fighting))) {
+            boolean target = s.id() == hero.attackTargetId() || s.id() == hero.selectedId();
+            if (compact ? target : (s.kind() == ShipKind.PLAYER || (s.kind() == ShipKind.NPC && fighting))) {
                 g.setFont(labelFont);
                 drawLabel(g, label(s), sx + 6 * u, sy - 4 * u, c);
             }
@@ -279,6 +280,7 @@ final class MinimapPanel extends JPanel {
             g.fill(new Ellipse2D.Double(hx - 4.5 * u, hy - 4.5 * u, 9 * u, 9 * u));
         }
         if (compact) {
+            hud.targetChip(g, (int) Math.round(ox) + 8, (int) Math.round(oy) + 8, (int) Math.round(mw * 0.5), w);
             hud.strip(g, (int) Math.round(ox), (int) Math.round(oy + mh), (int) Math.round(mw), feed, config.get());
         } else {
             mapChip(g, ox, oy, hero, map);
@@ -363,7 +365,7 @@ final class MinimapPanel extends JPanel {
         };
         StringBuilder t = new StringBuilder("<html><b>").append(escape(label(best))).append("</b><br>").append(kind);
         if (!best.typeId().isBlank()) {
-            t.append(", ").append(escape(best.typeId()));
+            t.append(", ").append(escape(Hud.shipName(best.typeId())));
         }
         if (best.health().known()) {
             t.append(String.format("<br>HP %,.0f / %,.0f", best.health().hp(), best.health().hpMax()));

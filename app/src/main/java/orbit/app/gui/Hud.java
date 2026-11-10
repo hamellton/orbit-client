@@ -64,7 +64,7 @@ final class Hud {
         if (h.id() == 0) {
             return out;
         }
-        out.add(hero(h));
+        out.add(hero(h, w.inventory()));
         Card target = target(w);
         if (target != null) {
             out.add(target);
@@ -97,9 +97,6 @@ final class Hud {
                     + "  ·  " + heroStatus(h));
             lines.add("Лазер: " + item(w.selected("lasers")));
             lines.add("Ракеты: " + item(w.selected("rockets")));
-            if (h.cargoMax() > 0) {
-                lines.add(String.format("Трюм: %,d / %,d", h.cargoMax() - h.cargoFree(), h.cargoMax()));
-            }
         } else {
             lines.add(feed.state());
         }
@@ -151,22 +148,108 @@ final class Hud {
         };
     }
 
-    private Card hero(WorldSnapshot.Hero h) {
+    /**
+     * The pilot and the ship, as the game shows them: name, ship, level; hull, shield (and nano hull);
+     * credits, uridium, experience, honour, speed, cargo, configuration; the booty keys.
+     */
+    private Card hero(WorldSnapshot.Hero h, WorldSnapshot.Inventory inv) {
         String name = h.name() + (h.shipType().isBlank() ? "" : "  " + shipName(h.shipType()));
-        String right = (h.config() > 0 ? "конфигурация " + h.config() : "") + (h.level() > 0 ? "  ·  ур. " + h.level() : "");
+        String right = (h.level() > 0 ? "ур. " + h.level() : "") + (h.premium() ? "  ·  премиум" : "");
+        List<String[]> stats = new ArrayList<>();
+        stats.add(new String[] {"Кредиты", money(h.credits())});
+        stats.add(new String[] {"Уридий", money(h.uridium())});
+        stats.add(new String[] {"Опыт", money(h.experience())});
+        stats.add(new String[] {"Честь", money(h.honor())});
+        stats.add(new String[] {"Скорость", h.speed() > 0 ? String.valueOf(h.speed()) : "—"});
+        stats.add(new String[] {"Трюм", h.cargoMax() > 0
+                ? String.format("%,d / %,d", h.cargoMax() - h.cargoFree(), h.cargoMax()) : "—"});
+        stats.add(new String[] {"Конфигурация", h.config() > 0 ? String.valueOf(h.config()) : "—"});
+        String keys = keys(inv.bootyKeys());
+        boolean nano = h.health().nanoHullMax() > 0;
+        Font keyFont = font(Font.PLAIN, 11f);
         return new Card() {
+            int cols(int width) {
+                return width >= 300 ? 2 : 1;
+            }
+
+            int statRows(int width) {
+                return (stats.size() + cols(width) - 1) / cols(width);
+            }
+
             @Override
             public int height(int width) {
-                return PAD + titleLines(name, right, width) * LINE + 2 * BAR + 4 + PAD;
+                int bars = (nano ? 3 : 2) * (BAR + 4);
+                int keyRows = wrap(measure(keyFont), keys, width - 2 * PAD).size();
+                return PAD + titleLines(name, right, width) * LINE + bars + 6 + statRows(width) * LINE + 4
+                        + keyRows * (LINE - 2) + PAD - 4;
             }
 
             @Override
             public void paint(Graphics2D g, int x, int y, int width) {
                 frame(g, x, y, width, height(width), MinimapPanel.HERO);
+                int inner = width - 2 * PAD;
                 int rows = titleRow(g, x, y, width, name, right, TEXT);
-                bars(g, x + PAD, y + PAD + rows * LINE, width - 2 * PAD, h.health());
+                int by = y + PAD + rows * LINE;
+                Health hp = h.health();
+                bar(g, x + PAD, by, inner, BAR, hp.hp(), hp.hpMax(), HP_BAR, false);
+                bar(g, x + PAD, by + BAR + 4, inner, BAR, hp.shield(), hp.shieldMax(), SHIELD_BAR, false);
+                if (nano) {
+                    bar(g, x + PAD, by + 2 * (BAR + 4), inner, BAR, hp.nanoHull(), hp.nanoHullMax(), NANO_BAR, false);
+                }
+                int sy = by + (nano ? 3 : 2) * (BAR + 4) + 6 + 12;
+                int n = cols(width);
+                int cw = (inner - (n - 1) * 14) / n;
+                g.setFont(font(Font.PLAIN, 12f));
+                FontMetrics fm = g.getFontMetrics();
+                for (int i = 0; i < stats.size(); i++) {
+                    int cx = x + PAD + (i % n) * (cw + 14);
+                    int cy = sy + (i / n) * LINE;
+                    String value = stats.get(i)[1];
+                    g.setColor(DIM);
+                    g.drawString(clip(g, stats.get(i)[0], cw - fm.stringWidth(value) - 6), cx, cy);
+                    g.setColor(TEXT);
+                    g.drawString(value, cx + cw - fm.stringWidth(value), cy);
+                }
+                int ky = sy + statRows(width) * LINE + 4;
+                g.setFont(keyFont);
+                g.setColor(DIM);
+                for (String part : wrap(g.getFontMetrics(), keys, inner)) {
+                    g.drawString(part, x + PAD, ky);
+                    ky += LINE - 2;
+                }
             }
         };
+    }
+
+    static final Color NANO_BAR = new Color(0xf59e0b);
+
+    /** The client's booty key codes ({@code ServerCommands.BOOTY_KEYS_*}). */
+    private static final Map<String, String> KEY_NAMES = Map.ofEntries(
+            Map.entry("BK", "зелёные"), Map.entry("BKB", "синие"), Map.entry("BKR", "красные"),
+            Map.entry("BKS", "серебряные"), Map.entry("BKM", "маскарад"), Map.entry("BKPR", "Прометей"),
+            Map.entry("BKBB", "чёрные"), Map.entry("BKBLC", "шифр ЕБГ"), Map.entry("BKBLD", "дешифратор ЕБГ"),
+            Map.entry("BKP", "процветания"), Map.entry("BKA", "астральные"), Map.entry("BKAP", "астрал-прайм"),
+            Map.entry("BKE", "эмпирей"), Map.entry("BKL", "люцент"), Map.entry("BKPG", "Персей"),
+            Map.entry("BKLL", "лавровые"), Map.entry("BKEB", "эхо синие"), Map.entry("BKEG", "эхо зелёные"),
+            Map.entry("BKEP", "эхо фиолетовые"), Map.entry("BKER", "эхо красные"), Map.entry("BKAPO", "Аполлон"));
+
+    /** «Ключи: зелёные 12  ·  синие 3», the ones the account has, the common ones first. */
+    static String keys(Map<String, Integer> keys) {
+        List<String> order = List.of("BK", "BKB", "BKR", "BKS", "BKBB");
+        StringBuilder sb = new StringBuilder();
+        java.util.function.BiConsumer<String, Integer> add = (code, n) -> {
+            if (n != null && n > 0) {
+                sb.append(sb.isEmpty() ? "" : "  ·  ").append(KEY_NAMES.getOrDefault(code, code)).append(" ").append(n);
+            }
+        };
+        order.forEach(code -> add.accept(code, keys.get(code)));
+        keys.entrySet().stream().filter(e -> !order.contains(e.getKey())).sorted(Map.Entry.comparingByKey())
+                .forEach(e -> add.accept(e.getKey(), e.getValue()));
+        return "Ключи: " + (sb.isEmpty() ? "нет" : sb);
+    }
+
+    private static String money(double v) {
+        return v < 0 ? "—" : String.format("%,.0f", v);
     }
 
     /** The title and its right-hand note in one row, or the note under the title when it does not fit. */
@@ -271,7 +354,7 @@ final class Hud {
         }
         Color accent = MinimapPanel.shipColor(t, h, w.group());
         String kind = (h.attackTargetId() != 0 ? "Атакую" : "Выбрана") + "  ·  " + kindOf(t)
-                + (t.typeId().isBlank() ? "" : "  " + t.typeId()) + String.format("  ·  %,.0f", t.distanceTo(h.x(), h.y()));
+                + (t.typeId().isBlank() ? "" : "  " + shipName(t.typeId())) + String.format("  ·  %,.0f", t.distanceTo(h.x(), h.y()));
         String name = MinimapPanel.label(t);
         Font nameFont = font(Font.BOLD, 13f);
         Font kindFont = font(Font.PLAIN, 11f);
@@ -437,7 +520,55 @@ final class Hud {
         };
     }
 
-    // ---- the overview strip ----
+    // ---- the overview ----
+
+    /**
+     * Over a small map, top left: whom the ship fights (or has selected) with hull, shield and distance,
+     * and how many attack it. Nothing when there is no target and nobody attacks.
+     */
+    void targetChip(Graphics2D g, int x, int y, int maxWidth, WorldSnapshot w) {
+        WorldSnapshot.Hero h = w.hero();
+        int targetId = h.attackTargetId() != 0 ? h.attackTargetId() : h.selectedId();
+        Ship t = w.ships().get(targetId);
+        int attackers = h.attackers().size();
+        if (t == null && attackers == 0) {
+            return;
+        }
+        int width = Math.max(160, Math.min(maxWidth, 320));
+        int inner = width - 20;
+        boolean bars = t != null && t.health().known();
+        int height = 10 + (t != null ? 16 + 14 : 0) + (bars ? 2 * 9 + 6 : 0) + (attackers > 0 ? 15 : 0) + 6;
+        g.setColor(new Color(10, 12, 18, 215));
+        g.fill(new RoundRectangle2D.Double(x, y, width, height, 10, 10));
+        g.setColor(CARD_EDGE);
+        g.draw(new RoundRectangle2D.Double(x + 0.5, y + 0.5, width - 1, height - 1, 10, 10));
+        int ty = y + 10;
+        if (t != null) {
+            Color accent = MinimapPanel.shipColor(t, h, w.group());
+            g.setColor(accent);
+            g.fill(new RoundRectangle2D.Double(x, y + 6, 3, height - 12, 3, 3));
+            g.setFont(font(Font.BOLD, 12f));
+            g.drawString(clip(g, MinimapPanel.label(t), inner), x + 10, ty + 12);
+            ty += 16;
+            g.setFont(font(Font.PLAIN, 11f));
+            g.setColor(DIM);
+            String kind = (h.attackTargetId() != 0 ? "атакую" : "выбрана") + String.format("  ·  %,.0f", t.distanceTo(h.x(), h.y()))
+                    + (t.lockedByOther() ? "  ·  бьёт другой игрок" : "");
+            g.drawString(clip(g, kind, inner), x + 10, ty + 10);
+            ty += 14;
+            if (bars) {
+                bar(g, x + 10, ty + 2, inner, 9, t.health().hp(), t.health().hpMax(), HP_BAR, true);
+                bar(g, x + 10, ty + 13, inner, 9, t.health().shield(), t.health().shieldMax(), SHIELD_BAR, true);
+                ty += 2 * 9 + 6;
+            }
+        }
+        if (attackers > 0) {
+            g.setFont(font(Font.PLAIN, 11f));
+            g.setColor(MinimapPanel.ENEMY);
+            g.drawString("Атакуют меня: " + attackers, x + 10, ty + 11);
+        }
+    }
+
 
     /** Over a small map: title and config on the left, status on the right, action, hull and shield. */
     void strip(Graphics2D g, int x, int y, int width, WorldFeed feed, String config) {
