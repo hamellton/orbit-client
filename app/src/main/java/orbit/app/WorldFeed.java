@@ -178,6 +178,17 @@ public final class WorldFeed {
         this.state = state;
     }
 
+    private volatile boolean linkLost;
+
+    /** The connection dropped and is being restored (until the ship is in game again). */
+    public boolean linkLost() {
+        return linkLost;
+    }
+
+    public void setLinkLost(boolean lost) {
+        linkLost = lost;
+    }
+
     public String state() {
         return state;
     }

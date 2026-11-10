@@ -184,6 +184,11 @@ public final class OrbitMain {
             @Override
             public void onState(State state, String reason) {
                 feed.setState(reason);
+                if (state == State.RECONNECTING) {
+                    feed.setLinkLost(true);
+                } else if (state == State.ONLINE || state == State.DEAD || state == State.STOPPED) {
+                    feed.setLinkLost(false);
+                }
                 log.info("Состояние: {} — {}", state, reason);
             }
         };
@@ -505,6 +510,7 @@ public final class OrbitMain {
                 catalog, random, System::nanoTime, conn::repair, ship, Path.of("local"), stats);
         orbit.bot.run.BotRunner runner = new orbit.bot.run.BotRunner(ctx, feed::loggedOut, feed::setAction);
         runner.setShop(shop);
+        runner.setLinkLost(feed::linkLost);
         java.util.concurrent.atomic.AtomicBoolean stopRequested = new java.util.concurrent.atomic.AtomicBoolean();
         java.util.concurrent.atomic.AtomicBoolean commanded = new java.util.concurrent.atomic.AtomicBoolean();
         CountDownLatch done = new CountDownLatch(1);

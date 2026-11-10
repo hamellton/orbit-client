@@ -26,6 +26,20 @@ class BotRunnerTest {
     }
 
     @Test
+    void doesNothingWhileTheLinkIsLostAndGoesOnAfter() throws Exception {
+        Sim sim = new Sim(CubikonModuleTest.config(90, false), 25, 10_000, 6_000);
+        boolean[] lost = {true};
+        BotRunner r = new BotRunner(sim.ctx, () -> false, s -> { });
+        r.setLinkLost(() -> lost[0]);
+        sim.run(r::tick, 5_000);
+        assertTrue(sim.sent.isEmpty(), sim.sent.toString());
+        assertTrue(r.status().contains("нет связи"), r.status());
+        lost[0] = false;
+        sim.run(r::tick, 3_000);
+        assertEquals(BotRunner.State.TRAVELLING, r.state());
+    }
+
+    @Test
     void goesToRepairAtAPortalWhenHurt() throws Exception {
         BotConfig c = CubikonModuleTest.config(90, false)
                 .withSafety(new BotConfig.Safety(0.5, 0.9, 0.5, 0, null, null, 10, "PORTAL", 0, 0));

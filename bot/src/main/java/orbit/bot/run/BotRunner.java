@@ -99,6 +99,17 @@ public final class BotRunner {
         }
     }
 
+    private java.util.function.BooleanSupplier linkLost = () -> false;
+    private boolean offline;
+
+    /**
+     * True while the connection is lost and being restored: the world stands still then, so the bot does
+     * nothing until the ship is back in game (map changes are not a lost link).
+     */
+    public void setLinkLost(java.util.function.BooleanSupplier lost) {
+        linkLost = lost;
+    }
+
     /** The account's shop for the buy list (none = the bot only says when to buy). */
     public void setShop(ShopAccess shop) {
         buy.setShop(shop);
@@ -128,6 +139,22 @@ public final class BotRunner {
         if (h.id() == 0) {
             show("вход в игру");
             return;
+        }
+        if (linkLost.getAsBoolean()) {
+            if (!offline) {
+                offline = true;
+                log.warn("Связь с игрой потеряна — ничего не делаю, пока не переподключусь");
+                if (module != null) {
+                    module.pause();
+                }
+                ctx.nav().stop();
+            }
+            show("нет связи — переподключаюсь");
+            return;
+        }
+        if (offline) {
+            offline = false;
+            log.info("Связь восстановлена — продолжаю");
         }
         if (revive.tick()) {
             if (module != null) {
