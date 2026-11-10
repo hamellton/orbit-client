@@ -31,6 +31,8 @@ public final class Attacker {
     /** Wanted ammunition already reported missing (logged once). */
     private String missingAmmo;
     private String missingRocket;
+    /** Ammunition switches sent without the game confirming them. */
+    private int ammoTries;
     private long rocketSelectAt = Long.MIN_VALUE / 2;
     private long rocketPressAt;
     private long rocketFiredAt = Long.MIN_VALUE / 2;
@@ -146,13 +148,27 @@ public final class Attacker {
                     wanted == null ? "нет в инвентаре" : "0 шт.",
                     selected == null ? "?" : orbit.config.ItemCatalog.label(selected.id()));
         }
-        if (wanted != null && !wanted.selected() && wanted.counter() > 0 && now - ammoAt > 1_500_000_000L) {
+        if (wanted != null && wanted.selected()) {
+            ammoTries = 0;
+        }
+        if (wanted != null && !wanted.selected() && ammoTries >= 2 && now - ammoAt > 60_000_000_000L) {
+            ammoTries = 0; // try again after the pause
+        }
+        if (wanted != null && !wanted.selected() && wanted.counter() > 0 && ammoTries < 2
+                && now - ammoAt > 1_500_000_000L) {
             if (pressAt == 0) {
                 pressAt = now + ctx.pause(800, 1_500);
             }
             if (now >= pressAt) {
                 log.info("Патроны: {}", orbit.config.ItemCatalog.label(ammo));
                 missingAmmo = null;
+                ammoTries++;
+                if (ammoTries == 2) {
+                    log.warn("Игра не переключает патроны на {} (у бота: {} шт., выбраны {} — {} шт.) — минуту стреляю ими",
+                            orbit.config.ItemCatalog.label(ammo), (long) wanted.counter(),
+                            selected == null ? "?" : orbit.config.ItemCatalog.label(selected.id()),
+                            selected == null ? 0 : (long) selected.counter());
+                }
                 ctx.actions().useItem(ammo); // with a target selected this also starts the attack
                 ammoAt = now;
                 pressedAt = now;
