@@ -36,6 +36,7 @@ public final class Attacker {
     private boolean t0Cubikon;
     private int circleDir;
     private String fallbackTold;
+    private String triedAmmo;
     /** Wanted ammunition already reported missing (logged once). */
     private String missingAmmo;
     private String missingRocket;
@@ -168,6 +169,10 @@ public final class Attacker {
                     selected == null ? "?" : orbit.config.ItemCatalog.label(selected.id()));
         }
         if (wanted != null && wanted.selected()) {
+            ammoTries = 0;
+        }
+        if (ammo != null && !ammo.equals(triedAmmo)) {
+            triedAmmo = ammo; // SAB and back are two switches, not two failed tries of one
             ammoTries = 0;
         }
         if (wanted != null && !wanted.selected() && ammoTries >= 2 && now - ammoAt > 60_000_000_000L) {
