@@ -276,7 +276,7 @@ public final class OrbitMain {
         }));
         Thread sessions = Thread.ofPlatform().name("sessions").start(() -> {
             try {
-                while (!closed.get()) {
+                while (!closed.get() && System.currentTimeMillis() < testEnd) {
                     java.time.LocalDateTime now = java.time.LocalDateTime.now();
                     var plan = planner.next(now, name -> {
                         try {
@@ -285,8 +285,11 @@ public final class OrbitMain {
                             return null;
                         }
                     });
+                    java.time.LocalDateTime limit = testEnd == Long.MAX_VALUE ? null
+                            : java.time.LocalDateTime.ofInstant(java.time.Instant.ofEpochMilli(testEnd),
+                                    java.time.ZoneId.systemDefault());
                     if (!plan.online()) {
-                        restUntil(feed, closed, stopFile, plan.until(), "не в игре: " + plan.reason());
+                        restUntil(feed, closed, stopFile, earlier(plan.until(), limit), "не в игре: " + plan.reason());
                         continue;
                     }
                     orbit.config.BotConfig cfg = loadConfig(plan.config(), false);
@@ -318,7 +321,8 @@ public final class OrbitMain {
                         break;
                     }
                     if (!plan.breakAfter().isZero() && System.currentTimeMillis() >= end - 1_000) {
-                        restUntil(feed, closed, stopFile, java.time.LocalDateTime.now().plus(plan.breakAfter()), "перерыв");
+                        restUntil(feed, closed, stopFile, earlier(java.time.LocalDateTime.now().plus(plan.breakAfter()), limit),
+                                "перерыв");
                     }
                 }
             } catch (InterruptedException e) {
@@ -339,6 +343,10 @@ public final class OrbitMain {
         closed.set(true);
         sessions.join(5_000);
         System.exit(0); // the window's threads would keep the program alive
+    }
+
+    private static java.time.LocalDateTime earlier(java.time.LocalDateTime a, java.time.LocalDateTime b) {
+        return a == null ? b : b == null ? a : a.isBefore(b) ? a : b;
     }
 
     /** Offline until a moment (or a stop): the window shows why and until when. */
