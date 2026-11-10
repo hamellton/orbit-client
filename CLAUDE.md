@@ -29,7 +29,8 @@ Status: Stage 2 done; stage 3 in progress (login, game connection, vault, client
   inheritance; field codecs are static `writeFields/readFields` to replay `super.write`.
 - `secrets` — encrypted account vault `local/vault.bin` (AES-GCM, PBKDF2 master password,
   `ORBIT_MASTER_PASSWORD` for headless), `SecretMask` + logback converters, `vault` CLI.
-- `auth` — website login (`AuthClient`), `AccountLogin` (saved dosid first, then password; stores new dosid).
+- `auth` — website login (`AuthClient`), `AccountLogin` (per server: its saved dosid, else another server's
+  dosid + the site's server switch, the password last; stores every new dosid). Accounts `name@server`.
 - `world` — map model from server packets (`World.apply`) and own `MoveRequest`s (`applyOutgoing`);
   immutable `WorldSnapshot` with interpolated positions. Hero is dead-reckoned, beacons only fix jumps.
   `orbit.world.maps`: `MapCatalog` (sizes from client maps-config, portal graph from DarkBot facts,
@@ -40,8 +41,9 @@ Status: Stage 2 done; stage 3 in progress (login, game connection, vault, client
 - `game` — game connection (`GameConnection`), client-like `StartupSequence` (cold start vs map change,
   checked against recordings by `StartupSequenceTest`), `ClientProfile` (UI state replayed from a
   recording: `client-profile` → `local/client-profile.json`), `game-check` live tool.
-- `app` — the bot application `orbit` (FlatLaf window: minimap, status, log; modes bot / observe /
-  replay / render; `--headless`). Logging config `orbit/app/logback-app.xml` (masking, `logs/orbit.log`).
+- `app` — the bot application `orbit` (FlatLaf window that fits any size: per account a header with a
+  live config switch, the minimap on the game's own pictures, cards beside or under it, the log; «Все»
+  grid; `MainWindow.snapshot` renders it offscreen; modes bot / observe / replay / render; `--headless`). Logging config `orbit/app/logback-app.xml` (masking, `logs/orbit.log`).
 - `sniffer` — SOCKS5 + direct-port relay, session recording, `session-report` tool; uses generated classes.
 
 ## Build
@@ -64,3 +66,9 @@ Gradle needs JDK 21 (`export JAVA_HOME=$(/usr/libexec/java_home -v 21)`; the def
 - The site's CDN sets `acw_tc` with `Max-Age`; `java.net.CookieManager` then emits RFC 2965 cookies
   (quoted values) and the site rejects `dosid` with `loginError=95`. `HttpSession` builds the header itself.
 - The site gives every visitor a `dosid`; only the game page (flashvars) proves a login.
+- A dosid opens only its own server. Servers of a login: `POST ajax/instances.php command=getInstanceList`;
+  each entry links `GameAPI.php?req=…` (base64 PHP: `portal.loginByCryptId` = pilot exists,
+  `portal.addInstanceByCryptId` = would create one — never follow that).
+- `maps.php` must come from the flashvar `host` (the account server); the CDN copy lists int1's game
+  hosts, and a login there fails with `LoginResponse.status` WrongInstanceId. ru1 = instance 68.
+- Minimap pictures: `<cdn>spacemap/graphics/minimaps/minimap-<mapId>-700.jpg` (700×436).
