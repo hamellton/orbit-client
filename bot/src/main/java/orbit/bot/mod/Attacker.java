@@ -46,6 +46,11 @@ public final class Attacker {
         return targetId;
     }
 
+    /** The current target has been shot at (the attack ran). */
+    public boolean shooting() {
+        return shotAt;
+    }
+
     public int kills() {
         return kills;
     }

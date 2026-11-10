@@ -39,8 +39,13 @@ public final class CubikonModule implements BotModule {
     static final double DEFAULT_WAIT_KILL_RANGE = 1_500;
     /** A Cubikon that vanishes this close was killed (farther, it may just have left the view). */
     static final double SEEN_DYING = 2_500;
-    /** In LEARNED mode a spawn due back within this long is worth flying to (about the flight there). */
-    static final long DUE_AHEAD_MS = 2 * 60_000L;
+    /** See {@link #chooseLearned}. */
+    static final long UNKNOWN_PENALTY_MS = 60_000;
+    /** A look around on a spawn of unknown state before choosing again. */
+    static final long LOOK_MS = 5_000;
+
+    /** The server shows ships about this far: a spawn this close with no cube in the list is empty. */
+    static final double IN_VIEW = 1_800;
     /** …and still worth waiting for this long after it was due. */
     static final long DUE_GRACE_MS = 3 * 60_000L;
 
@@ -256,6 +261,11 @@ public final class CubikonModule implements BotModule {
             boolean dead = w.destroyed().containsKey(e.getKey()) || Math.hypot(p[0] - h.x(), p[1] - h.y()) <= SEEN_DYING;
             if (dead) {
                 log.info("Cubikon у {}/{} уничтожен — лечу на следующий спаун", p[0] / 100, p[1] / 100);
+                if (attacker.targetId() == e.getKey() && attacker.shooting()) {
+                    ctx.stats().cubesKilled.incrementAndGet();
+                    ctx.stats().kills.incrementAndGet();
+                    attacker.clear();
+                }
                 deadAt = p;
                 moveOn = true;
                 spot = null;
@@ -309,23 +319,8 @@ public final class CubikonModule implements BotModule {
         long wait = waitSec <= 0 ? Long.MAX_VALUE : waitSec * 1_000_000_000L + ctx.pause(0, 5_000);
         List<int[]> spots = spots(s);
         if (learned) {
-            long wall = wallMs();
-            List<SpawnMemory.Spawn> known = memory.spawns(h.mapId());
-            long respawn = memory.mapRespawn(h.mapId());
-            SpawnMemory.Spawn due = known.stream()
-                    .filter(k -> !nearDead(k.x(), k.y()))
-                    .filter(k -> k.expectedAt(respawn) > 0 && k.expectedAt(respawn) > wall - DUE_GRACE_MS
-                            && k.expectedAt(respawn) < wall + DUE_AHEAD_MS)
-                    .min(Comparator.comparingLong(k -> k.expectedAt(respawn))).orElse(null);
-            if (due != null) {
-                spot = new int[] {due.x(), due.y()};
-                long untilDue = Math.max(0, due.expectedAt(respawn) + DUE_GRACE_MS - wall) * 1_000_000L;
-                waitUntil = wait == Long.MAX_VALUE ? Long.MAX_VALUE : now + Math.max(wait, untilDue);
-                log.info("Куб на {}/{} ожидается через {} мин — лечу туда", due.x() / 100, due.y() / 100,
-                        Math.max(0, due.expectedAt(respawn) - wall) / 60_000);
-                return;
-            }
-            spots = merged(spots, known);
+            chooseLearned(spots, h, waitSec);
+            return;
         }
         if (moveOn && deadAt != null) {
             // the spawn after the one whose cube just died
@@ -341,6 +336,63 @@ public final class CubikonModule implements BotModule {
         }
         spot = spots.get(roundIndex);
         waitUntil = wait == Long.MAX_VALUE ? Long.MAX_VALUE : now + wait;
+    }
+
+    /**
+     * LEARNED: the spawn where a Cubikon can be caught soonest. A spawn whose cube died in sight is ready at
+     * death + respawn; one whose state is unknown may hold a cube right now, so it is checked first. The
+     * flight there counts (at the ship's speed); an unknown spawn costs {@link #UNKNOWN_PENALTY_MS} more, a cube
+     * due by the clock being surer. The wait lasts until the cube is due plus a margin, or a short look on an
+     * unknown spawn — then the choice is made again (empty spawns in sight are skipped).
+     */
+    private void chooseLearned(List<int[]> configured, WorldSnapshot.Hero h, int waitSec) {
+        long now = ctx.now();
+        long wall = wallMs();
+        List<SpawnMemory.Spawn> known = memory.spawns(h.mapId());
+        long respawn = memory.mapRespawn(h.mapId());
+        double speed = Math.max(100, h.speed());
+        int[] best = null;
+        long bestAt = Long.MAX_VALUE;
+        long bestReady = 0;
+        for (int[] p : merged(configured, known)) {
+            if (nearDead(p[0], p[1])) {
+                continue; // its cube just died
+            }
+            long ready = 0;
+            for (SpawnMemory.Spawn k : known) {
+                if (Math.hypot(k.x() - p[0], k.y() - p[1]) <= SpawnMemory.SAME_SPAWN && k.expectedAt(respawn) > 0
+                        && k.expectedAt(respawn) + DUE_GRACE_MS > wall) {
+                    ready = k.expectedAt(respawn);
+                }
+            }
+            double dist = Math.hypot(p[0] - h.x(), p[1] - h.y());
+            if (ready == 0 && dist < IN_VIEW) {
+                continue; // in sight and no cube: nothing to check there
+            }
+            long arrive = wall + (long) (dist / speed * 1_000);
+            // a cube due by the clock is surer than one that may be there: unknown spawns pay a penalty
+            long at = ready > 0 ? Math.max(ready, arrive) : arrive + UNKNOWN_PENALTY_MS;
+            if (at < bestAt) {
+                bestAt = at;
+                best = p;
+                bestReady = ready;
+            }
+        }
+        if (best == null) {
+            best = new int[] {h.x(), h.y()}; // everything near is empty and nothing is due: wait here
+        }
+        spot = best;
+        long margin = DUE_GRACE_MS;
+        long waitMs = bestReady > 0 ? Math.max(0, bestReady - wall) + margin
+                : respawn > 0 ? LOOK_MS
+                : waitSec > 0 ? waitSec * 1_000L : Long.MAX_VALUE / 2_000_000;
+        waitUntil = now + waitMs * 1_000_000L + ctx.pause(0, 5_000);
+        if (bestReady > 0) {
+            log.info("Куб на {}/{} ожидается через {} с — лечу туда", best[0] / 100, best[1] / 100,
+                    Math.max(0, bestReady - wall) / 1_000);
+        } else {
+            log.info("Проверяю спаун {}/{} — что там, неизвестно", best[0] / 100, best[1] / 100);
+        }
     }
 
     /** Learned spawns (most recent first) followed by the config's spots not near any of them. */

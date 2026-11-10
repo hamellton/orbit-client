@@ -381,4 +381,22 @@ class CubikonModuleTest {
         assertEquals("ammunition_rocket_plt-2021", sim2.world.snapshot(sim2.now).selected("rockets").id());
         assertTrue(sim2.sent.stream().noneMatch(p -> p instanceof orbit.protocol.gen.AttackRocketRequest));
     }
+
+    @Test
+    void checksTheUnknownSpawnsInsteadOfPingPongingBetweenTwoKnownOnes() throws Exception {
+        Sim sim = new Sim(config(0, false, "LEARNED"), 26, 13_400, 3_900);
+        SpawnMemory memory = SpawnMemory.inMemory();
+        CubikonModule m = new CubikonModule(sim.ctx, memory);
+        long wall = m.wallMs();
+        // the two top spawns: both died recently, back in about 5 minutes
+        memory.seen(26, 7_500, 3_900, wall - 20 * 60_000);
+        memory.killed(26, 7_500, 3_900, wall - 15 * 60_000);
+        memory.seen(26, 7_500, 3_900, wall - 10 * 60_000); // 5:00
+        memory.killed(26, 7_500, 3_900, wall - 30_000);
+        memory.seen(26, 13_400, 3_900, wall - 60_000);
+        memory.killed(26, 13_400, 3_900, wall - 1_000);
+        sim.run(m::tick, 30_000);
+        var h = sim.hero();
+        assertTrue(h.y() > 6_000, "went to check a bottom spawn, not the other top one: " + h);
+    }
 }
