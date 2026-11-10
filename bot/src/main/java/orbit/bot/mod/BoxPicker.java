@@ -25,6 +25,8 @@ public final class BoxPicker {
     private int tries;
     private int boxes;
     private final Map<String, Long> ignored = new HashMap<>();
+    private double anchorX = Double.NaN;
+    private double anchorY = Double.NaN;
 
     public BoxPicker(BotContext ctx) {
         this.ctx = ctx;
@@ -42,8 +44,18 @@ public final class BoxPicker {
         hash = null;
     }
 
-    /** True while busy with a box (the caller should not move the ship). */
+    /** True while busy with a box (the caller should not move the ship). Boxes near the ship. */
     public boolean tick() {
+        return tick(Double.NaN, Double.NaN);
+    }
+
+    /**
+     * Like {@link #tick()}, but only boxes within the collect radius of (ax, ay) — e.g. the spawn spot,
+     * so picking up one box never leads to the next one farther and farther away.
+     */
+    public boolean tick(double ax, double ay) {
+        anchorX = ax;
+        anchorY = ay;
         WorldSnapshot w = ctx.world().get();
         WorldSnapshot.Hero h = w.hero();
         BotConfig c = ctx.config().get();
@@ -96,7 +108,9 @@ public final class BoxPicker {
                     BotConfig.BoxRule r = c.collect().boxes().get(b.boxType());
                     return r != null && r.collect();
                 })
-                .filter(b -> Math.hypot(b.x() - h.x(), b.y() - h.y()) <= c.collect().radius())
+                .filter(b -> Double.isNaN(anchorX)
+                        ? Math.hypot(b.x() - h.x(), b.y() - h.y()) <= c.collect().radius()
+                        : Math.hypot(b.x() - anchorX, b.y() - anchorY) <= c.collect().radius())
                 .filter(b -> !c.collect().ignoreContested() || !contested(w, b))
                 .min(Comparator.comparingDouble(b -> Math.hypot(b.x() - h.x(), b.y() - h.y())))
                 .orElse(null);

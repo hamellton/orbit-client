@@ -118,7 +118,7 @@ public final class CubikonModule implements BotModule {
             double hp = cube.health().hpPercent();
             boolean boxesOk = setting(s, "collectBoxes", true)
                     && (hp < 0 || hp > setting(s, "boxesWhileCubikonHpAbove", 0.25));
-            boolean onBox = boxesOk && boxes.tick();
+            boolean onBox = boxesOk && boxes.tick(cube.x(), cube.y());
             attacker.tick(!onBox);
             status = onBox ? "Cubikon: подбираю ящик" : "Cubikon: бой";
             return;
@@ -130,7 +130,7 @@ public final class CubikonModule implements BotModule {
         if (moveOn) {
             // the cube is dead: on to the next spawn whoever shoots at us; its boxes are still picked up
             attacker.clear();
-            if (setting(s, "collectBoxes", true) && boxes.tick()) {
+            if (setting(s, "collectBoxes", true) && boxes.tick(deadAt[0], deadAt[1])) {
                 status = "подбираю ящик с куба";
                 return;
             }
@@ -167,7 +167,7 @@ public final class CubikonModule implements BotModule {
                 return;
             }
         }
-        if (setting(s, "collectBoxes", true) && boxes.tick()) {
+        if (setting(s, "collectBoxes", true) && spot != null && boxes.tick(spot[0], spot[1])) {
             status = "подбираю ящик";
             return;
         }

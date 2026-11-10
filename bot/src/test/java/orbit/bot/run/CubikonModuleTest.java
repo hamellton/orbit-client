@@ -279,4 +279,37 @@ class CubikonModuleTest {
         m.observe(); // only watching: safety steers the ship
         assertTrue(memory.spawns(26).getFirst().lastKill() > 0, "the death is remembered");
     }
+
+    @Test
+    void picksUpBoxesOnlyAroundTheSpawn() throws Exception {
+        BotConfig c = config(0, false).withCollect(new BotConfig.Collect(
+                java.util.Map.of("SCRAPIUM", new BotConfig.BoxRule(true, 0, 0)), 400, false, false));
+        Sim sim = new Sim(c, 26, 7_500, 3_900);
+        CubikonModule m = new CubikonModule(sim.ctx, SpawnMemory.inMemory());
+        sim.run(m::tick, 2_000);
+        int[][] chain = {{7_800, 3_900}, {8_150, 3_900}, {8_500, 3_900}}; // each within 400 of the last
+        for (int i = 0; i < chain.length; i++) {
+            orbit.protocol.gen.AddBoxCommand b = new orbit.protocol.gen.AddBoxCommand();
+            b.hash = "b" + i;
+            b.boxType = "SCRAPIUM";
+            b.x = chain[i][0];
+            b.y = chain[i][1];
+            sim.world.apply(b, sim.now);
+        }
+        sim.run(() -> {
+            m.tick();
+            for (var p : sim.sent) {
+                if (p instanceof orbit.protocol.gen.CollectBoxRequest r) {
+                    orbit.protocol.gen.RemoveCollectableCommand rc = new orbit.protocol.gen.RemoveCollectableCommand();
+                    rc.hash = r.itemHash;
+                    rc.collected = true;
+                    sim.world.apply(rc, sim.now);
+                }
+            }
+            sim.sent.removeIf(p -> p instanceof orbit.protocol.gen.CollectBoxRequest);
+        }, 30_000);
+        var left = sim.world.snapshot(sim.now).collectables().keySet();
+        assertTrue(left.contains("b1") && left.contains("b2"), "boxes beyond 400 of the spawn left alone: " + left);
+        assertTrue(!left.contains("b0"), "the one by the spawn picked up");
+    }
 }
