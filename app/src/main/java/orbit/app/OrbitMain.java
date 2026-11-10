@@ -331,6 +331,9 @@ public final class OrbitMain {
                 log.error("Ошибка расписания сессий", e);
             }
             log.info("Сессии завершены");
+            if (!closed.get()) {
+                System.exit(0); // ended by itself (limit, command, failure): close the window too
+            }
         });
         runUntilClosed(feed, o.headless, () -> {
             closed.set(true);
