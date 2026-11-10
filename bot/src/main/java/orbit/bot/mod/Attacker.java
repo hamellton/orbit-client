@@ -160,11 +160,15 @@ public final class Attacker {
         }
         if (h.attackTargetId() == targetId) {
             shotAt = true;
+        }
+        // close enough to shoot: it must lose something soon, whether the attack started or not (without
+        // ammunition the game never starts it)
+        if (dist <= radius + 200) {
             if (noDamage(t, now)) {
                 return false;
             }
         } else {
-            healthDropAt = now; // not shooting yet: nothing to expect
+            healthDropAt = now;
         }
         if (h.selectedId() != targetId) {
             if (now >= selectAt) {
@@ -336,10 +340,12 @@ public final class Attacker {
         }
         if (item == null || item.counter() <= 0) {
             // nothing of the wanted nor of the spares: any laser ammunition there is, the cheap first, SAB last
-            for (orbit.config.ItemCatalog.Item l : orbit.config.ItemCatalog.LASERS) {
-                WorldSnapshot.Item li = w.items().get(l.id());
-                if (li != null && li.counter() >= MIN_AMMO && !l.id().contains("sab")) {
-                    return l.id();
+            for (double least : new double[] {MIN_AMMO, 1}) { // a good stock first, then whatever is left
+                for (orbit.config.ItemCatalog.Item l : orbit.config.ItemCatalog.LASERS) {
+                    WorldSnapshot.Item li = w.items().get(l.id());
+                    if (li != null && li.counter() >= least && !l.id().contains("sab")) {
+                        return l.id();
+                    }
                 }
             }
         }

@@ -105,6 +105,9 @@ final class Sim {
         world.apply(menu, now);
     }
 
+    /** The server never starts an attack (no ammunition on board). */
+    boolean blockAttacks;
+
     void npc(int id, String name, int x, int y) {
         ShipCreateCommand c = new ShipCreateCommand();
         c.userId = id;
@@ -142,7 +145,7 @@ final class Sim {
             st.available = true;
             world.apply(st, now);
             int target = world.snapshot(now).hero().selectedId();
-            if (target != 0) {
+            if (target != 0 && !blockAttacks) {
                 AttackLaserRunCommand run = new AttackLaserRunCommand();
                 run.attackerId = 1;
                 run.targetId = target;

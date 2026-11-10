@@ -110,4 +110,21 @@ class AttackerTest {
         assertEquals("ammunition_laser_mcb-25", Attacker.usable(sim.ctx.config().get(), sim.world.snapshot(sim.now),
                 "ammunition_laser_lcb-10"));
     }
+
+    @Test
+    void givesUpWhenTheAttackNeverStartsEither() {
+        Sim sim = new Sim(config(false, null, Set.of()), 1, 10_400, 6_000);
+        sim.lasers("ammunition_laser_lcb-10");
+        sim.npc(7, "-=[ Target ]=-", 10_000, 6_000);
+        Attacker a = new Attacker(sim.ctx);
+        a.target(sim.world.snapshot(sim.now).ships().get(7));
+        sim.blockAttacks = true; // no ammunition: the game never starts the attack
+        boolean kept = true;
+        for (int t = 0; t < 400 && kept; t++) {
+            kept = a.tick(true);
+            sim.now += 100 * Sim.MS;
+        }
+        assertTrue(!kept, "dropped after 30 s in range without damage");
+        assertTrue(a.gaveUp(7));
+    }
 }
