@@ -498,6 +498,15 @@ public final class OrbitMain {
         }
     }
 
+    /**
+     * Where modules keep what they learn: {@code local} for int1 (as before), {@code local/<server>} for
+     * other servers — the same map id is another map with other cubes there.
+     */
+    private static Path dataDir(WorldFeed feed) {
+        String server = feed.server();
+        return server == null || server.isBlank() || server.equals("int1") ? Path.of("local") : Path.of("local", server);
+    }
+
     private static ModuleRun startModule(WorldFeed feed, GameConnection conn, String configName,
                                          orbit.config.BotConfig config, long untilMillis, String untilReason,
                                          ClientProfile profile, Path stopFile, orbit.bot.run.ShopAccess shop) {
@@ -517,7 +526,7 @@ public final class OrbitMain {
                 config, catalog);
         nav.setAvoidMines(() -> watch.current().general().avoidMines());
         orbit.bot.run.BotContext ctx = new orbit.bot.run.BotContext(feed::snapshot, watch::current, actions, nav, traveler,
-                catalog, random, System::nanoTime, conn::repair, ship, Path.of("local"), stats);
+                catalog, random, System::nanoTime, conn::repair, ship, dataDir(feed), stats);
         orbit.bot.run.BotRunner runner = new orbit.bot.run.BotRunner(ctx, feed::loggedOut, feed::setAction);
         runner.setShop(shop);
         runner.setLinkLost(feed::linkLost);

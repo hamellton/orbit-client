@@ -110,6 +110,10 @@ public final class WorldFeed {
 
     private volatile String server = "";
 
+    public String server() {
+        return server;
+    }
+
     /** The account's server code ({@code int1}), for titles. */
     public void setServer(String s) {
         server = s == null ? "" : s;
