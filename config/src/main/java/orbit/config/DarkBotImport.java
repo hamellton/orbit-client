@@ -122,8 +122,14 @@ public final class DarkBotImport {
                 spots, modules, extra);
         JsonNode running = general.path("RUNNING");
         BotConfig.Flee f = c.flee();
+        JsonNode grp = root.path("GROUP");
+        BotConfig.GroupRules group = new BotConfig.GroupRules(
+                grp.path("ACCEPT_INVITES").asBoolean(false) ? BotConfig.Accept.ANY : BotConfig.Accept.OFF,
+                grp.path("BLOCK_INVITES").asBoolean(false), false, null, grp.path("LEAVE_NO_WHITELISTED").asBoolean(false),
+                grp.path("KICK_NO_INVITED").asBoolean(false), null,
+                grp.path("OPEN_INVITES").asBoolean(false) ? Boolean.TRUE : null);
         return c.withFlee(new BotConfig.Flee(f.mode(), null, null, running.path("MAX_SIGHT_DISTANCE").asInt(2_000),
-                f.rememberSec(), true, 90));
+                f.rememberSec(), true, 90)).withGroup(group);
     }
 
     static BotConfig.Module module(String cls) {

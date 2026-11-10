@@ -24,7 +24,8 @@ class SectionsTest {
     static List<Section> sections() {
         MapCatalog maps = MapCatalog.bundled();
         return List.of(new GeneralSection(maps), new KillSection(maps), new CollectSection(), new PetSection(),
-                new SafetySection(), new ZonesSection(maps), new CubikonSection(), new GateSection());
+                new SafetySection(), new ZonesSection(maps), new CubikonSection(), new GateSection(), new BuySection(),
+                new GroupSection());
     }
 
     static BotConfig roundTrip(BotConfig c) {
@@ -71,7 +72,9 @@ class SectionsTest {
                         new BotConfig.BuyRule("ammunition_rocket_plt-2026", 200, 1_000)), 1_000_000, 5_000))
                 .withSession(new BotConfig.Session(120, 20, 10))
                 .withFlee(new BotConfig.Flee(BotConfig.FleeMode.LIST, Set.of("theKing", "[RS]"), Set.of("[FR]"), 1_500, 45,
-                        false, 120));
+                        false, 120))
+                .withGroup(new BotConfig.GroupRules(BotConfig.Accept.LIST, true, true, Set.of("Friend", "[TAG]"), true, false,
+                        "Friend", Boolean.TRUE));
     }
 
     @Test

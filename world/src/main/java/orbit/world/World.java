@@ -272,6 +272,13 @@ public final class World {
             case GroupInitializationCommand p -> initGroup(p);
             case GroupMemberUpdateCommand p -> updateGroupMember(p);
             case GroupCloseCommand p -> group = Group.NONE;
+            case orbit.protocol.gen.LeaderChangeCommand p -> group = new Group(group.id(), p.leaderId, group.members());
+            case orbit.protocol.gen.InvitationInitializationCommand p -> {
+                invitations.removeIf(i -> i.inviterId() == p.inviterId && i.candidateId() == p.candidateId);
+                invitations.add(new WorldSnapshot.Invitation(p.inviterId, p.inviterName, p.candidateId, p.candidateName,
+                        p.candidateId == hero.id));
+            }
+            case orbit.protocol.gen.InvitationRemovalCommand p -> invitations.removeIf(i -> i.candidateId() == p.candidateId);
             case MapAssetActionAvailableCommand p -> {
                 if (p.activatable) {
                     activatable.putIfAbsent(p.mapAssetId, nanos);
@@ -351,7 +358,8 @@ public final class World {
                 Map.copyOf(assets), Map.copyOf(zones), group, Map.copyOf(items),
                 new WorldSnapshot.Inventory(Map.copyOf(ores), Map.copyOf(resources), Map.copyOf(bootyKeys)), pet,
                 Map.copyOf(activatable), jumpingTo, death, java.util.Set.copyOf(slotItems), recentKills(nanos),
-                new WorldSnapshot.Rewards(gainedCredits, gainedUridium, gainedHonor, gainedExperience, Map.copyOf(loot)));
+                new WorldSnapshot.Rewards(gainedCredits, gainedUridium, gainedHonor, gainedExperience, Map.copyOf(loot)),
+                List.copyOf(invitations));
     }
 
     private double gainedCredits;
@@ -825,7 +833,10 @@ public final class World {
                             : Health.UNKNOWN, m.loggedOut, m.cloaked));
         }
         group = new Group(p.id, p.leaderId, List.copyOf(members));
+        invitations.removeIf(WorldSnapshot.Invitation::incoming); // in a group: the invitations to us are over
     }
+
+    private final List<WorldSnapshot.Invitation> invitations = new ArrayList<>();
 
     private void updateGroupMember(GroupMemberUpdateCommand p) {
         List<Member> members = new ArrayList<>(group.members());

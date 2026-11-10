@@ -36,6 +36,7 @@ public final class BotRunner {
     private final Revive revive;
     private final BuyWatch buy;
     private final Flee flee;
+    private final GroupWatch groupWatch;
     private BotModule module;
     private BotConfig.Module moduleKind;
     private State state = State.STARTING;
@@ -58,6 +59,7 @@ public final class BotRunner {
         this.revive = new Revive(ctx);
         this.buy = new BuyWatch(ctx);
         this.flee = new Flee(ctx);
+        this.groupWatch = new GroupWatch(ctx);
         loadModule();
     }
 
@@ -145,6 +147,7 @@ public final class BotRunner {
             module.observe();
         }
         buy.tick();
+        groupWatch.tick();
         if (state == State.STOPPING) {
             stopping(w);
             return;

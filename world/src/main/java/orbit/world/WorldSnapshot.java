@@ -17,7 +17,15 @@ public record WorldSnapshot(long nanos, Hero hero, Map<Integer, Ship> ships, Map
                             Map<Integer, Portal> portals, Map<Integer, Asset> assets, Map<String, Zone> zones,
                             Group group, Map<String, Item> items, Inventory inventory, Pet pet,
                             Map<Integer, Long> activatable, int jumpingTo, Death death,
-                            java.util.Set<String> slotItems, Map<Integer, Kill> destroyed, Rewards rewards) {
+                            java.util.Set<String> slotItems, Map<Integer, Kill> destroyed, Rewards rewards,
+                            List<Invitation> invitations) {
+
+    /**
+     * A group invitation ({@code InvitationInitializationCommand}): {@code incoming} when the hero is the
+     * candidate, else one the hero (or the group) sent.
+     */
+    public record Invitation(int inviterId, String inviterName, int candidateId, String candidateName, boolean incoming) {
+    }
 
     /**
      * What the server's reward log ({@code 0|LM|ST|…}) has granted since the world model started:

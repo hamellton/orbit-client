@@ -164,6 +164,50 @@ public final class Actions {
         sender.accept(r);
     }
 
+    /** Group window buttons, as the client's {@code GroupSystemMediator} sends them. */
+    public void acceptInvitation(int inviterId) {
+        orbit.protocol.gen.InvitationAcceptRequest r = new orbit.protocol.gen.InvitationAcceptRequest();
+        r.inviterId = inviterId;
+        sender.accept(r);
+    }
+
+    public void rejectInvitation(int inviterId) {
+        orbit.protocol.gen.InvitationRejectRequest r = new orbit.protocol.gen.InvitationRejectRequest();
+        r.inviterId = inviterId;
+        sender.accept(r);
+    }
+
+    public void invite(String name) {
+        orbit.protocol.gen.InvitationCreationRequest r = new orbit.protocol.gen.InvitationCreationRequest();
+        r.name = name;
+        sender.accept(r);
+    }
+
+    public void kick(int memberId) {
+        orbit.protocol.gen.KickMemberRequest r = new orbit.protocol.gen.KickMemberRequest();
+        r.memberId = memberId;
+        sender.accept(r);
+    }
+
+    public void changeLeader(int memberId) {
+        orbit.protocol.gen.ChangeLeaderRequest r = new orbit.protocol.gen.ChangeLeaderRequest();
+        r.memberId = memberId;
+        sender.accept(r);
+    }
+
+    public void leaveGroup() {
+        sender.accept(new orbit.protocol.gen.LeaveGroupRequest());
+    }
+
+    /** {@code everybody}: all members may invite; else only the leader. */
+    public void invitationMode(boolean everybody) {
+        orbit.protocol.gen.InvitationModeRequest r = new orbit.protocol.gen.InvitationModeRequest();
+        r.mode = new orbit.protocol.gen.InvitationModeModule();
+        r.mode.mode = (short) (everybody ? orbit.protocol.gen.InvitationModeModule.INVITATIONMODE_FREE_FOR_ALL
+                : orbit.protocol.gen.InvitationModeModule.INVITATIONMODE_BOSS_ONLY);
+        sender.accept(r);
+    }
+
     /** Presses jump at the portal the ship is at (the server offers it about 500 units away). */
     public void jump() {
         sender.accept(new JumpRequest());

@@ -43,7 +43,8 @@ public record BotConfig(
         Map<String, JsonNode> extra,
         Buy buy,
         Session session,
-        Flee flee) {
+        Flee flee,
+        GroupRules group) {
 
     public static final int SCHEMA = 1;
 
@@ -64,6 +65,55 @@ public record BotConfig(
         buy = buy == null ? Buy.OFF : buy;
         session = session == null ? Session.ENDLESS : session;
         flee = flee == null ? Flee.from(general) : flee;
+        group = group == null ? GroupRules.OFF : group;
+    }
+
+    public BotConfig(int schema, String description, Module module, General general, Map<String, NpcRule> npcs,
+                     Loot loot, Collect collect, Pet pet, Safety safety, Map<Integer, Zones> zones,
+                     Map<Integer, List<SafetySpot>> safetySpots, Map<String, JsonNode> modules,
+                     Map<String, JsonNode> extra, Buy buy, Session session, Flee flee) {
+        this(schema, description, module, general, npcs, loot, collect, pet, safety, zones, safetySpots, modules, extra,
+                buy, session, flee, null);
+    }
+
+    public BotConfig withGroup(GroupRules g) {
+        return new BotConfig(schema, description, module, general, npcs, loot, collect, pet, safety, zones, safetySpots,
+                modules, extra, buy, session, flee, g);
+    }
+
+    /**
+     * Group invitations and the group (AstraBot's INVITATION section).
+     *
+     * @param accept       {@link Accept}: whose invitations to accept
+     * @param rejectOthers reject the invitations not accepted (else let them time out)
+     * @param invite       invite the listed players who are not in the group
+     * @param players      names (any case) or {@code [TAG]} clans: whom to accept, invite, keep
+     * @param leaveWithoutListed leave a group with none of the listed players in it
+     * @param kickUnlisted as the leader, remove members not on the list
+     * @param leader       as the leader, hand the lead to this player when in the group ("" = no)
+     * @param openInvites  as the leader: {@code true} everybody may invite, {@code false} only the leader,
+     *                     {@code null} leave it
+     */
+    @JsonInclude(JsonInclude.Include.NON_EMPTY)
+    public record GroupRules(Accept accept, boolean rejectOthers, boolean invite, Set<String> players,
+                             boolean leaveWithoutListed, boolean kickUnlisted, String leader, Boolean openInvites) {
+
+        public static final GroupRules OFF = new GroupRules(Accept.OFF, false, false, null, false, false, null, null);
+
+        public GroupRules {
+            accept = accept == null ? Accept.OFF : accept;
+            players = players == null ? Set.of() : java.util.Collections.unmodifiableSortedSet(new java.util.TreeSet<>(players));
+            leader = leader == null ? "" : leader.strip();
+        }
+    }
+
+    public enum Accept {
+        /** do not accept (and with {@code rejectOthers}: reject all — like blocking invitations) */
+        OFF,
+        /** only from the listed players */
+        LIST,
+        /** from anybody */
+        ANY
     }
 
     public BotConfig(int schema, String description, Module module, General general, Map<String, NpcRule> npcs,
@@ -76,7 +126,7 @@ public record BotConfig(
 
     public BotConfig withFlee(Flee f) {
         return new BotConfig(schema, description, module, general, npcs, loot, collect, pet, safety, zones, safetySpots,
-                modules, extra, buy, session, f);
+                modules, extra, buy, session, f, group);
     }
 
     /**
@@ -136,7 +186,7 @@ public record BotConfig(
 
     public BotConfig withSession(Session ss) {
         return new BotConfig(schema, description, module, general, npcs, loot, collect, pet, safety, zones, safetySpots,
-                modules, extra, buy, ss, flee);
+                modules, extra, buy, ss, flee, group);
     }
 
     /**
@@ -164,7 +214,7 @@ public record BotConfig(
 
     public BotConfig withBuy(Buy b) {
         return new BotConfig(schema, description, module, general, npcs, loot, collect, pet, safety, zones, safetySpots,
-                modules, extra, b, session, flee);
+                modules, extra, b, session, flee, group);
     }
 
     /**
@@ -191,45 +241,45 @@ public record BotConfig(
     }
 
     public BotConfig withModule(Module m) {
-        return new BotConfig(schema, description, m, general, npcs, loot, collect, pet, safety, zones, safetySpots, modules, extra, buy, session, flee);
+        return new BotConfig(schema, description, m, general, npcs, loot, collect, pet, safety, zones, safetySpots, modules, extra, buy, session, flee, group);
     }
 
     public BotConfig withGeneral(General g) {
-        return new BotConfig(schema, description, module, g, npcs, loot, collect, pet, safety, zones, safetySpots, modules, extra, buy, session, flee);
+        return new BotConfig(schema, description, module, g, npcs, loot, collect, pet, safety, zones, safetySpots, modules, extra, buy, session, flee, group);
     }
 
     public BotConfig withNpcs(Map<String, NpcRule> n) {
-        return new BotConfig(schema, description, module, general, n, loot, collect, pet, safety, zones, safetySpots, modules, extra, buy, session, flee);
+        return new BotConfig(schema, description, module, general, n, loot, collect, pet, safety, zones, safetySpots, modules, extra, buy, session, flee, group);
     }
 
     public BotConfig withSafety(Safety s) {
-        return new BotConfig(schema, description, module, general, npcs, loot, collect, pet, s, zones, safetySpots, modules, extra, buy, session, flee);
+        return new BotConfig(schema, description, module, general, npcs, loot, collect, pet, s, zones, safetySpots, modules, extra, buy, session, flee, group);
     }
 
     public BotConfig withDescription(String d) {
-        return new BotConfig(schema, d, module, general, npcs, loot, collect, pet, safety, zones, safetySpots, modules, extra, buy, session, flee);
+        return new BotConfig(schema, d, module, general, npcs, loot, collect, pet, safety, zones, safetySpots, modules, extra, buy, session, flee, group);
     }
 
     public BotConfig withLoot(Loot l) {
-        return new BotConfig(schema, description, module, general, npcs, l, collect, pet, safety, zones, safetySpots, modules, extra, buy, session, flee);
+        return new BotConfig(schema, description, module, general, npcs, l, collect, pet, safety, zones, safetySpots, modules, extra, buy, session, flee, group);
     }
 
     public BotConfig withCollect(Collect c) {
-        return new BotConfig(schema, description, module, general, npcs, loot, c, pet, safety, zones, safetySpots, modules, extra, buy, session, flee);
+        return new BotConfig(schema, description, module, general, npcs, loot, c, pet, safety, zones, safetySpots, modules, extra, buy, session, flee, group);
     }
 
     public BotConfig withPet(Pet p) {
-        return new BotConfig(schema, description, module, general, npcs, loot, collect, p, safety, zones, safetySpots, modules, extra, buy, session, flee);
+        return new BotConfig(schema, description, module, general, npcs, loot, collect, p, safety, zones, safetySpots, modules, extra, buy, session, flee, group);
     }
 
     public BotConfig withZones(Map<Integer, Zones> z) {
-        return new BotConfig(schema, description, module, general, npcs, loot, collect, pet, safety, z, safetySpots, modules, extra, buy, session, flee);
+        return new BotConfig(schema, description, module, general, npcs, loot, collect, pet, safety, z, safetySpots, modules, extra, buy, session, flee, group);
     }
 
     public BotConfig withModuleSettings(String key, JsonNode settings) {
         Map<String, JsonNode> m = new TreeMap<>(modules);
         m.put(key, settings);
-        return new BotConfig(schema, description, module, general, npcs, loot, collect, pet, safety, zones, safetySpots, m, extra, buy, session, flee);
+        return new BotConfig(schema, description, module, general, npcs, loot, collect, pet, safety, zones, safetySpots, m, extra, buy, session, flee, group);
     }
 
     /** Settings of a module, or an empty object. */
