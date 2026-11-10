@@ -127,7 +127,8 @@ public final class OrbitMain {
             log.warn("Профиль клиента {} не найден — раскладка окон и клавиши отправляться не будут "
                     + "(создайте его: client-profile recordings).", o.profile);
         }
-        if (o.accounts.size() > 1 && !devScenario) {
+        // one account with a config or a timetable runs like several: the same window, a config switch
+        if (!devScenario && (o.accounts.size() > 1 || hasPlan(o, o.account))) {
             many(o, vault, profile);
             return;
         }
@@ -248,7 +249,7 @@ public final class OrbitMain {
             Sessions run = sessions(o, account, rig, profile, delay, () -> { });
             org.slf4j.MDC.remove("account");
             all.add(run);
-            tabs.add(new MainWindow.Tab(rig.feed(), run.close(), run.config()));
+            tabs.add(new MainWindow.Tab(rig.feed(), run.close(), run.config(), run.switchConfig()));
             log.info("Аккаунт «{}»: старт через {} с", account, delay / 1_000);
             delay += 15_000 + random.nextInt(30_000);
         }
@@ -348,7 +349,12 @@ public final class OrbitMain {
      * bot is offline. Closing the window or {@code local/stop-<account>} ends it all gracefully.
      */
     /** An account's sessions: the thread, and a graceful stop (logout at a portal) for the window or the end. */
-    private record Sessions(Thread thread, Runnable close, java.util.function.Supplier<String> config) {
+    /**
+     * @param config       the config the account runs now
+     * @param switchConfig run another config from now on (also saved as the account's config)
+     */
+    private record Sessions(Thread thread, Runnable close, java.util.function.Supplier<String> config,
+                            java.util.function.Consumer<String> switchConfig) {
     }
 
     private static Sessions sessions(Options o, String accountName, Rig rig, ClientProfile profile, long startDelayMs,
@@ -366,6 +372,8 @@ public final class OrbitMain {
         long testEnd = o.minutes > 0 ? System.currentTimeMillis() + o.minutes * 60_000L : Long.MAX_VALUE;
         java.util.concurrent.atomic.AtomicBoolean closed = new java.util.concurrent.atomic.AtomicBoolean();
         java.util.concurrent.atomic.AtomicReference<ModuleRun> current = new java.util.concurrent.atomic.AtomicReference<>();
+        // chosen in the window: wins over the plan until the program ends
+        java.util.concurrent.atomic.AtomicReference<String> chosen = new java.util.concurrent.atomic.AtomicReference<>();
         java.util.concurrent.atomic.AtomicReference<GameConnection> currentConn = new java.util.concurrent.atomic.AtomicReference<>();
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             GameConnection c = currentConn.get();
@@ -407,10 +415,11 @@ public final class OrbitMain {
                         restUntil(feed, closed, stopFile, earlier(now.plusNanos(queue * 1_000_000), limit), "очередь входа");
                         continue;
                     }
-                    playing.set(plan.config());
-                    orbit.config.BotConfig cfg = loadConfig(plan.config(), false);
+                    String cfgName = chosen.get() != null ? chosen.get() : plan.config();
+                    playing.set(cfgName);
+                    orbit.config.BotConfig cfg = loadConfig(cfgName, false);
                     if (cfg == null) {
-                        restUntil(feed, closed, stopFile, now.plusMinutes(1), "конфиг «" + plan.config() + "» не запускается");
+                        restUntil(feed, closed, stopFile, now.plusMinutes(1), "конфиг «" + cfgName + "» не запускается");
                         continue;
                     }
                     long end = plan.until() == null ? Long.MAX_VALUE
@@ -431,7 +440,7 @@ public final class OrbitMain {
                         }
                         conn.run();
                     });
-                    ModuleRun run = startModule(feed, conn, plan.config(), cfg, end, why, profile, stopFile,
+                    ModuleRun run = startModule(feed, conn, cfgName, cfg, end, why, profile, stopFile,
                             shopFor(auth, conn));
                     current.set(run);
                     run.done().await();
@@ -467,7 +476,23 @@ public final class OrbitMain {
                 run.finish(c);
             }
         };
-        return new Sessions(sessions, close, playing::get);
+        java.util.function.Consumer<String> switchConfig = name -> {
+            chosen.set(name);
+            playing.set(name);
+            try {
+                var file = orbit.config.AccountSettings.DEFAULT_FILE;
+                var all = orbit.config.AccountSettings.load(file);
+                all.with(accountName, new orbit.config.AccountSettings.Entry(name, all.account(accountName).schedule()))
+                        .save(file);
+            } catch (java.io.IOException e) {
+                log.warn("Не сохранить выбор конфига: {}", e.getMessage());
+            }
+            ModuleRun run = current.get();
+            if (run != null) {
+                run.watch().switchTo(name);
+            }
+        };
+        return new Sessions(sessions, close, playing::get, switchConfig);
     }
 
     private static java.time.LocalDateTime earlier(java.time.LocalDateTime a, java.time.LocalDateTime b) {
@@ -498,7 +523,8 @@ public final class OrbitMain {
 
     /** A running module: the loop thread and a way to finish it with a logout. */
     private record ModuleRun(orbit.bot.run.BotRunner runner, java.util.concurrent.atomic.AtomicBoolean stopRequested,
-                             CountDownLatch done, java.util.concurrent.atomic.AtomicBoolean commanded) {
+                             CountDownLatch done, java.util.concurrent.atomic.AtomicBoolean commanded,
+                             orbit.bot.run.ConfigWatch watch) {
 
         /** Asks for a graceful stop (portal, logout) and waits for it, at most two minutes; then closes. */
         void finish(GameConnection conn) {
@@ -621,7 +647,7 @@ public final class OrbitMain {
                 done.countDown();
             }
         });
-        return new ModuleRun(runner, stopRequested, done, commanded);
+        return new ModuleRun(runner, stopRequested, done, commanded, watch);
     }
 
     /**

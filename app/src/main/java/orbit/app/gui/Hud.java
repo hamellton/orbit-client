@@ -1,11 +1,12 @@
 package orbit.app.gui;
 
-import java.awt.AlphaComposite;
+import java.awt.BasicStroke;
 import java.awt.Color;
-import java.awt.Composite;
 import java.awt.Font;
 import java.awt.FontMetrics;
+import java.awt.GradientPaint;
 import java.awt.Graphics2D;
+import java.awt.geom.RoundRectangle2D;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -20,21 +21,29 @@ import orbit.world.WorldSnapshot.ShipKind;
 import orbit.world.maps.MapCatalog;
 
 /**
- * Text and cards drawn over the minimap: action and supplies top left, connection and session
- * time top right, the map name in the middle, the hero bottom left, the target and the attackers
- * bottom right.
+ * The account's state as cards of any width (status, ship, P.E.T., target, attackers, group, session
+ * results) for the side panel, and the one-line strip drawn over a small map in the overview.
  */
 final class Hud {
 
-    static final int CARD_WIDTH = 250;
-    private static final int MARGIN = 14;
-    private static final Color CARD_BACKGROUND = new Color(16, 20, 26, 215);
-    private static final Color TEXT = new Color(0xe2e8f0);
-    private static final Color DIM = new Color(0x94a3b8);
-    private static final Color HP_BAR = new Color(0x43a047);
-    private static final Color SHIELD_BAR = new Color(0x1e88e5);
-    private static final Color BAR_TRACK = new Color(0x2d3748);
+    static final Color CARD = new Color(0x161b24);
+    static final Color CARD_EDGE = new Color(0x262d3a);
+    static final Color TEXT = new Color(0xe6ebf2);
+    static final Color DIM = new Color(0x8b96a8);
+    static final Color HP_BAR = new Color(0x22c55e);
+    static final Color SHIELD_BAR = new Color(0x3b82f6);
+    static final Color BAR_TRACK = new Color(0x2a3140);
+    static final int PAD = 12;
+    static final int LINE = 17;
+    static final int BAR = 14;
     private static final int MAX_ATTACKER_ROWS = 4;
+
+    /** One card: its height at the given width and how to draw it. */
+    interface Card {
+        int height(int width);
+
+        void paint(Graphics2D g, int x, int y, int width);
+    }
 
     private final Font base;
 
@@ -42,220 +51,397 @@ final class Hud {
         this.base = base;
     }
 
-    /** Map name and hero state in the middle, under the map objects. */
-    void paintBackground(Graphics2D g, int width, int height, WorldSnapshot w, MapCatalog catalog) {
-        WorldSnapshot.Hero hero = w.hero();
-        paintMapName(g, width, height, hero, catalog.info(hero.mapId()));
+    Font font(int style, float size) {
+        return base.deriveFont(style, size);
     }
 
-    /** Texts and cards over the map objects. */
-    void paint(Graphics2D g, int width, int height, WorldSnapshot w, WorldFeed feed) {
-        WorldSnapshot.Hero hero = w.hero();
-        paintTopLeft(g, w, feed);
-        paintTopRight(g, width, feed);
-        if (hero.id() == 0) {
-            return;
+    // ---- the side panel's cards ----
+
+    List<Card> cards(WorldSnapshot w, WorldFeed feed, String config) {
+        List<Card> out = new ArrayList<>();
+        out.add(status(w, feed, config));
+        WorldSnapshot.Hero h = w.hero();
+        if (h.id() == 0) {
+            return out;
         }
-        paintStats(g, width, w, feed);
-        paintHero(g, height, hero);
-        paintPet(g, height - MARGIN - 52 - 6, w.pet());
-        paintTargetAndAttackers(g, width, height, w);
+        out.add(hero(h));
+        Card target = target(w);
+        if (target != null) {
+            out.add(target);
+        }
+        Card attackers = attackers(w);
+        if (attackers != null) {
+            out.add(attackers);
+        }
+        if (w.pet().owned()) {
+            out.add(pet(w.pet()));
+        }
+        if (w.group().exists()) {
+            out.add(group(w));
+        }
+        if (feed.stats() != null || !w.rewards().equals(WorldSnapshot.Rewards.NONE)) {
+            out.add(stats(w, feed));
+        }
+        return out;
     }
 
-    // ---- centre ----
+    private Card status(WorldSnapshot w, WorldFeed feed, String config) {
+        AccountStatus st = AccountStatus.of(feed);
+        List<String> lines = new ArrayList<>();
+        WorldSnapshot.Hero h = w.hero();
+        if (config != null) {
+            lines.add("Конфиг: " + config);
+        }
+        if (h.id() != 0) {
+            lines.add(MapCatalog.bundled().info(h.mapId()).name() + "  ·  " + h.x() / 100 + "/" + h.y() / 100
+                    + "  ·  " + heroStatus(h));
+            lines.add("Лазер: " + item(w.selected("lasers")));
+            lines.add("Ракеты: " + item(w.selected("rockets")));
+            if (h.cargoMax() > 0) {
+                lines.add(String.format("Трюм: %,d / %,d", h.cargoMax() - h.cargoFree(), h.cargoMax()));
+            }
+        } else {
+            lines.add(feed.state());
+        }
+        long since = feed.sessionStartNanos();
+        String time = since == 0 ? "" : clock(Duration.ofNanos(feed.now() - since));
+        return new Card() {
+            @Override
+            public int height(int width) {
+                return PAD + LINE + 4 + lines.size() * LINE + PAD - 4;
+            }
 
-    private void paintMapName(Graphics2D g, int width, int height, WorldSnapshot.Hero hero, MapCatalog.MapInfo map) {
-        Composite old = g.getComposite();
-        g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.22f));
-        g.setFont(base.deriveFont(Font.BOLD, 64f));
-        g.setColor(TEXT);
-        String name = hero.id() == 0 ? "—" : map.name();
+            @Override
+            public void paint(Graphics2D g, int x, int y, int width) {
+                frame(g, x, y, width, height(width), st.color);
+                g.setFont(font(Font.BOLD, 13f));
+                g.setColor(TEXT);
+                int ty = y + PAD + 12;
+                g.drawString(clip(g, feed.action(), width - 2 * PAD - 70), x + PAD, ty);
+                g.setFont(font(Font.PLAIN, 11f));
+                g.setColor(DIM);
+                FontMetrics fm = g.getFontMetrics();
+                g.drawString(time, x + width - PAD - fm.stringWidth(time), ty);
+                ty += LINE + 4;
+                g.setFont(font(Font.PLAIN, 12f));
+                for (String line : lines) {
+                    g.setColor(line.startsWith("Конфиг") ? TEXT : DIM);
+                    g.drawString(clip(g, line, width - 2 * PAD), x + PAD, ty);
+                    ty += LINE;
+                }
+            }
+        };
+    }
+
+    private Card hero(WorldSnapshot.Hero h) {
+        return new Card() {
+            @Override
+            public int height(int width) {
+                return PAD + LINE + 2 * BAR + 4 + PAD;
+            }
+
+            @Override
+            public void paint(Graphics2D g, int x, int y, int width) {
+                frame(g, x, y, width, height(width), MinimapPanel.HERO);
+                String right = (h.config() > 0 ? "конфигурация " + h.config() : "") + (h.level() > 0 ? "  ·  ур. " + h.level() : "");
+                titleRow(g, x, y, width, h.name() + (h.shipType().isBlank() ? "" : "  " + shipName(h.shipType())), right, TEXT);
+                bars(g, x + PAD, y + PAD + LINE, width - 2 * PAD, h.health());
+            }
+        };
+    }
+
+    private Card pet(WorldSnapshot.Pet pet) {
+        boolean out = pet.active() && pet.id() != 0;
+        return new Card() {
+            @Override
+            public int height(int width) {
+                return out ? PAD + LINE + 2 * BAR + 4 + (pet.fuel() >= 0 ? LINE : 0) + PAD : PAD + LINE + PAD - 4;
+            }
+
+            @Override
+            public void paint(Graphics2D g, int x, int y, int width) {
+                frame(g, x, y, width, height(width), MinimapPanel.PET);
+                if (!out) {
+                    String why = !pet.alive() ? "Питомец уничтожен" : !pet.hasFuel() ? "Питомец: нет топлива" : "Питомец не выпущен";
+                    g.setFont(font(Font.PLAIN, 12f));
+                    g.setColor(DIM);
+                    g.drawString(why, x + PAD, y + PAD + 12);
+                    return;
+                }
+                String right = gearName(pet.gear()) + (pet.level() > 0 ? "  ·  ур. " + pet.level() : "");
+                titleRow(g, x, y, width, pet.name(), right, TEXT);
+                if (pet.health().known()) {
+                    bars(g, x + PAD, y + PAD + LINE, width - 2 * PAD, pet.health());
+                }
+                if (pet.fuel() >= 0) {
+                    g.setFont(font(Font.PLAIN, 11f));
+                    g.setColor(DIM);
+                    g.drawString(clip(g, String.format("Топливо %,d / %,d", pet.fuel(), pet.fuelMax())
+                                    + (pet.heatMax() > 0 ? String.format("  ·  нагрев %.0f / %.0f", pet.heat(), pet.heatMax()) : ""),
+                            width - 2 * PAD), x + PAD, y + PAD + LINE + 2 * BAR + 4 + 13);
+                }
+            }
+        };
+    }
+
+    private Card target(WorldSnapshot w) {
+        WorldSnapshot.Hero h = w.hero();
+        int targetId = h.attackTargetId() != 0 ? h.attackTargetId() : h.selectedId();
+        Ship t = w.ships().get(targetId);
+        if (t == null) {
+            return null;
+        }
+        Color accent = MinimapPanel.shipColor(t, h, w.group());
+        String kind = (h.attackTargetId() != 0 ? "Атакую" : "Выбрана") + "  ·  " + kindOf(t)
+                + (t.typeId().isBlank() ? "" : "  " + t.typeId()) + String.format("  ·  %,.0f", t.distanceTo(h.x(), h.y()));
+        return new Card() {
+            @Override
+            public int height(int width) {
+                return PAD + 2 * LINE + 2 * BAR + 4 + PAD - 2;
+            }
+
+            @Override
+            public void paint(Graphics2D g, int x, int y, int width) {
+                frame(g, x, y, width, height(width), accent);
+                g.setFont(font(Font.BOLD, 13f));
+                g.setColor(accent);
+                g.drawString(clip(g, MinimapPanel.label(t), width - 2 * PAD), x + PAD, y + PAD + 12);
+                g.setFont(font(Font.PLAIN, 11f));
+                g.setColor(DIM);
+                g.drawString(clip(g, kind, width - 2 * PAD), x + PAD, y + PAD + 12 + LINE);
+                if (t.health().known()) {
+                    bars(g, x + PAD, y + PAD + 2 * LINE + 2, width - 2 * PAD, t.health());
+                }
+            }
+        };
+    }
+
+    private Card attackers(WorldSnapshot w) {
+        Map<String, List<Ship>> byName = new LinkedHashMap<>();
+        for (int id : w.hero().attackers()) {
+            Ship a = w.ships().get(id);
+            if (a != null) {
+                byName.computeIfAbsent(MinimapPanel.label(a), k -> new ArrayList<>()).add(a);
+            }
+        }
+        if (byName.isEmpty()) {
+            return null;
+        }
+        int rows = Math.min(byName.size(), MAX_ATTACKER_ROWS);
+        boolean more = byName.size() > rows;
+        int rowH = LINE + 12;
+        return new Card() {
+            @Override
+            public int height(int width) {
+                return PAD + LINE + rows * rowH + (more ? LINE : 0) + PAD - 4;
+            }
+
+            @Override
+            public void paint(Graphics2D g, int x, int y, int width) {
+                frame(g, x, y, width, height(width), MinimapPanel.ENEMY);
+                g.setFont(font(Font.PLAIN, 11f));
+                g.setColor(DIM);
+                g.drawString("Атакуют меня: " + w.hero().attackers().size(), x + PAD, y + PAD + 10);
+                int ry = y + PAD + LINE;
+                int row = 0;
+                for (Map.Entry<String, List<Ship>> e : byName.entrySet()) {
+                    if (row++ == rows) {
+                        break;
+                    }
+                    List<Ship> ships = e.getValue();
+                    g.setFont(font(Font.BOLD, 12f));
+                    g.setColor(MinimapPanel.shipColor(ships.getFirst(), w.hero(), w.group()));
+                    g.drawString(clip(g, e.getKey() + (ships.size() > 1 ? "  ×" + ships.size() : ""), width - 2 * PAD),
+                            x + PAD, ry + 11);
+                    Ship weakest = ships.stream().filter(a -> a.health().known())
+                            .min(Comparator.comparingDouble(a -> a.health().hpPercent())).orElse(null);
+                    int half = (width - 2 * PAD - 6) / 2;
+                    if (weakest != null) {
+                        bar(g, x + PAD, ry + 15, half, 9, weakest.health().hp(), weakest.health().hpMax(), HP_BAR, true);
+                        bar(g, x + PAD + half + 6, ry + 15, half, 9, weakest.health().shield(), weakest.health().shieldMax(),
+                                SHIELD_BAR, true);
+                    }
+                    ry += rowH;
+                }
+                if (more) {
+                    g.setFont(font(Font.PLAIN, 11f));
+                    g.setColor(DIM);
+                    g.drawString("… и ещё " + (byName.size() - rows), x + PAD, ry + 11);
+                }
+            }
+        };
+    }
+
+    private Card group(WorldSnapshot w) {
+        WorldSnapshot.Group group = w.group();
+        WorldSnapshot.Hero h = w.hero();
+        List<WorldSnapshot.Member> others = group.members().stream().filter(m -> m.id() != h.id()).toList();
+        int rowH = LINE + 2 * 9 + 10;
+        return new Card() {
+            @Override
+            public int height(int width) {
+                return PAD + LINE + others.size() * rowH + PAD - 6;
+            }
+
+            @Override
+            public void paint(Graphics2D g, int x, int y, int width) {
+                frame(g, x, y, width, height(width), MinimapPanel.ALLY);
+                g.setFont(font(Font.PLAIN, 11f));
+                g.setColor(DIM);
+                g.drawString("Группа (" + group.members().size() + ")" + (group.leaderId() == h.id() ? "  ·  вы лидер" : ""),
+                        x + PAD, y + PAD + 10);
+                int ry = y + PAD + LINE;
+                for (WorldSnapshot.Member m : others) {
+                    String where = m.loggedOut() ? "не в игре"
+                            : m.mapId() != h.mapId() && m.mapId() != 0 ? MapCatalog.bundled().info(m.mapId()).name()
+                            : String.format("%,.0f", Math.hypot(m.x() - h.x(), m.y() - h.y()));
+                    String right = (m.level() > 0 ? "ур. " + m.level() + "  ·  " : "") + where;
+                    g.setFont(font(Font.BOLD, 12f));
+                    g.setColor(m.loggedOut() ? DIM : TEXT);
+                    FontMetrics fm = g.getFontMetrics(font(Font.PLAIN, 11f));
+                    g.drawString(clip(g, m.name() + (m.id() == group.leaderId() ? " ★" : ""),
+                            width - 2 * PAD - fm.stringWidth(right) - 8), x + PAD, ry + 11);
+                    g.setFont(font(Font.PLAIN, 11f));
+                    g.setColor(DIM);
+                    g.drawString(right, x + width - PAD - fm.stringWidth(right), ry + 11);
+                    if (m.health().known()) {
+                        bar(g, x + PAD, ry + 15, width - 2 * PAD, 9, m.health().hp(), m.health().hpMax(), HP_BAR, true);
+                        bar(g, x + PAD, ry + 26, width - 2 * PAD, 9, m.health().shield(), m.health().shieldMax(), SHIELD_BAR, true);
+                    }
+                    ry += rowH;
+                }
+            }
+        };
+    }
+
+    private Card stats(WorldSnapshot w, WorldFeed feed) {
+        List<String> lines = orbit.app.SessionSummary.lines(w.rewards(), feed.stats(), feed.sessionHours());
+        return new Card() {
+            @Override
+            public int height(int width) {
+                return PAD + LINE + lines.size() * (LINE - 1) + PAD - 4;
+            }
+
+            @Override
+            public void paint(Graphics2D g, int x, int y, int width) {
+                frame(g, x, y, width, height(width), new Color(0xa78bfa));
+                g.setFont(font(Font.PLAIN, 11f));
+                g.setColor(DIM);
+                g.drawString("Итоги сессии", x + PAD, y + PAD + 10);
+                g.setFont(font(Font.PLAIN, 12f));
+                int ty = y + PAD + LINE + 11;
+                for (int i = 0; i < lines.size(); i++) {
+                    g.setColor(i < 4 ? TEXT : DIM);
+                    g.drawString(clip(g, lines.get(i), width - 2 * PAD), x + PAD, ty);
+                    ty += LINE - 1;
+                }
+            }
+        };
+    }
+
+    // ---- the overview strip ----
+
+    /** Over a small map: title and config on the left, status on the right, action, hull and shield. */
+    void strip(Graphics2D g, int x, int y, int width, WorldFeed feed, String config) {
+        int h = 46;
+        int top = y - h;
+        g.setPaint(new GradientPaint(0, top - 18, new Color(10, 12, 18, 0), 0, top + 10, new Color(10, 12, 18, 225)));
+        g.fillRect(x, top - 18, width, h + 18);
+        AccountStatus st = AccountStatus.of(feed);
+        g.setFont(font(Font.BOLD, 12f));
         FontMetrics fm = g.getFontMetrics();
-        g.drawString(name, (width - fm.stringWidth(name)) / 2, height / 2 + fm.getAscent() / 3);
-        g.setComposite(old);
-        if (hero.id() == 0) {
+        String chip = st.label;
+        int chipW = fm.stringWidth(chip) + 18;
+        g.setColor(st.color);
+        g.fillOval(x + width - chipW - 8, top + 7, 8, 8);
+        g.setColor(TEXT);
+        g.drawString(chip, x + width - chipW + 4, top + 15);
+        String title = feed.title() + (config != null ? "  ·  " + config : "");
+        g.drawString(clip(g, title, width - chipW - 24), x + 10, top + 15);
+        g.setFont(font(Font.PLAIN, 11f));
+        g.setColor(DIM);
+        g.drawString(clip(g, feed.action(), width - 20), x + 10, top + 30);
+        WorldSnapshot.Hero hero = feed.snapshot().hero();
+        if (hero.id() != 0 && hero.health().known()) {
+            int bw = (width - 26) / 2;
+            bar(g, x + 10, top + 36, bw, 6, hero.health().hp(), hero.health().hpMax(), HP_BAR, false);
+            bar(g, x + 16 + bw, top + 36, bw, 6, hero.health().shield(), hero.health().shieldMax(), SHIELD_BAR, false);
+        }
+    }
+
+    // ---- drawing helpers ----
+
+    private void frame(Graphics2D g, int x, int y, int w, int h, Color accent) {
+        RoundRectangle2D.Double r = new RoundRectangle2D.Double(x, y, w, h, 12, 12);
+        g.setColor(CARD);
+        g.fill(r);
+        g.setColor(CARD_EDGE);
+        g.setStroke(new BasicStroke(1f));
+        g.draw(new RoundRectangle2D.Double(x + 0.5, y + 0.5, w - 1, h - 1, 12, 12));
+        g.setColor(accent);
+        g.fill(new RoundRectangle2D.Double(x, y + 8, 3, h - 16, 3, 3));
+    }
+
+    private void titleRow(Graphics2D g, int x, int y, int width, String title, String right, Color color) {
+        g.setFont(font(Font.PLAIN, 11f));
+        FontMetrics small = g.getFontMetrics();
+        int rw = small.stringWidth(right);
+        g.setColor(DIM);
+        g.drawString(right, x + width - PAD - rw, y + PAD + 11);
+        g.setFont(font(Font.BOLD, 13f));
+        g.setColor(color);
+        g.drawString(clip(g, title, width - 2 * PAD - rw - 8), x + PAD, y + PAD + 11);
+    }
+
+    private void bars(Graphics2D g, int x, int y, int w, Health h) {
+        bar(g, x, y, w, BAR, h.hp(), h.hpMax(), HP_BAR, false);
+        bar(g, x, y + BAR + 4, w, BAR, h.shield(), h.shieldMax(), SHIELD_BAR, false);
+    }
+
+    private void bar(Graphics2D g, int x, int y, int w, int barHeight, double now, double max, Color color, boolean percent) {
+        g.setColor(BAR_TRACK);
+        g.fill(new RoundRectangle2D.Double(x, y, w, barHeight, barHeight, barHeight));
+        if (max <= 0 || now < 0) {
             return;
         }
-        g.setFont(base.deriveFont(Font.PLAIN, 12f));
-        g.setColor(DIM);
-        String status = heroStatus(hero) + "   " + hero.x() / 100 + "/" + hero.y() / 100;
-        fm = g.getFontMetrics();
-        g.drawString(status, (width - fm.stringWidth(status)) / 2, height / 2 + 40);
+        double share = Math.min(1, now / max);
+        g.setColor(color);
+        g.fill(new RoundRectangle2D.Double(x, y, Math.max(barHeight, w * share), barHeight, barHeight, barHeight));
+        if (barHeight < 9) {
+            return;
+        }
+        g.setColor(Color.WHITE);
+        g.setFont(font(Font.PLAIN, barHeight >= 13 ? 10f : 8f));
+        String text = percent || w < 150 ? String.format("%.0f%%", 100 * share) : String.format("%,.0f / %,.0f", now, max);
+        FontMetrics fm = g.getFontMetrics();
+        g.drawString(text, x + (w - fm.stringWidth(text)) / 2, y + (barHeight + fm.getAscent() - fm.getDescent()) / 2);
     }
 
     static String heroStatus(WorldSnapshot.Hero h) {
         if (!h.alive()) {
-            return "Уничтожен";
+            return "уничтожен";
         }
         if (h.beacon().inRadiationZone()) {
-            return "Радиация!";
+            return "радиация!";
         }
         if (h.beacon().inStation()) {
-            return "На станции";
+            return "на станции";
         }
         if (h.attackTargetId() != 0) {
-            return "В бою";
+            return "в бою";
         }
         if (!h.attackers().isEmpty()) {
-            return "Под атакой";
+            return "под атакой";
         }
         if (h.moving()) {
-            return "В полёте";
+            return "в полёте";
         }
-        return h.beacon().inPeaceArea() ? "Мирная зона" : "Стоит";
-    }
-
-    // ---- top ----
-
-    private void paintTopLeft(Graphics2D g, WorldSnapshot w, WorldFeed feed) {
-        List<String> lines = new ArrayList<>();
-        lines.add("Действие: " + feed.action());
-        WorldSnapshot.Hero h = w.hero();
-        if (h.id() != 0) {
-            lines.add("Лазер " + item(w.selected("lasers")) + "   Ракеты " + item(w.selected("rockets")));
-            if (h.cargoMax() > 0) {
-                lines.add(String.format("Трюм %d/%d", h.cargoMax() - h.cargoFree(), h.cargoMax()));
-            }
-        }
-        g.setFont(base.deriveFont(Font.PLAIN, 12f));
-        FontMetrics fm = g.getFontMetrics();
-        int textWidth = lines.stream().mapToInt(fm::stringWidth).max().orElse(0);
-        g.setColor(CARD_BACKGROUND);
-        g.fillRoundRect(MARGIN - 6, MARGIN - 2, textWidth + 12, lines.size() * 16 + 8, 8, 8);
-        int y = MARGIN + 12;
-        for (String line : lines) {
-            g.setColor(y == MARGIN + 12 ? TEXT : DIM);
-            g.drawString(line, MARGIN, y);
-            y += 16;
-        }
-        paintGroup(g, MARGIN, y + 6, w);
-    }
-
-    /** One card per other group member: name (★ leader), level, map if elsewhere, hull and shield. */
-    private void paintGroup(Graphics2D g, int x, int y, WorldSnapshot w) {
-        WorldSnapshot.Group group = w.group();
-        if (!group.exists()) {
-            return;
-        }
-        WorldSnapshot.Hero h = w.hero();
-        g.setFont(base.deriveFont(Font.PLAIN, 10f));
-        g.setColor(DIM);
-        g.drawString("Группа (" + group.members().size() + ")" + (group.leaderId() == h.id() ? " — вы лидер" : ""), x, y + 10);
-        y += 16;
-        for (WorldSnapshot.Member m : group.members()) {
-            if (m.id() == h.id()) {
-                continue;
-            }
-            int cardHeight = 50;
-            card(g, x, y, cardHeight, m.loggedOut() ? Color.GRAY : MinimapPanel.ALLY);
-            g.setFont(base.deriveFont(Font.BOLD, 12f));
-            g.setColor(m.loggedOut() ? DIM : TEXT);
-            g.drawString(clip(g, m.name() + (m.id() == group.leaderId() ? " ★" : ""), CARD_WIDTH - 90), x + 10, y + 15);
-            g.setFont(base.deriveFont(Font.PLAIN, 10f));
-            g.setColor(DIM);
-            String where = m.loggedOut() ? "не в игре"
-                    : m.mapId() != h.mapId() && m.mapId() != 0 ? MapCatalog.bundled().info(m.mapId()).name()
-                    : String.format("%,.0f", Math.hypot(m.x() - h.x(), m.y() - h.y()));
-            String right = (m.level() > 0 ? "ур. " + m.level() + "   " : "") + where + (m.cloaked() ? "  невид." : "");
-            FontMetrics fm = g.getFontMetrics();
-            g.drawString(right, x + CARD_WIDTH - 10 - fm.stringWidth(right), y + 15);
-            if (m.health().known()) {
-                bars(g, x + 10, y + 21, m.health());
-            } else {
-                g.drawString("HP неизвестно", x + 10, y + 33);
-            }
-            y += cardHeight + 6;
-        }
-    }
-
-    private void paintTopRight(Graphics2D g, int width, WorldFeed feed) {
-        g.setFont(base.deriveFont(Font.PLAIN, 12f));
-        FontMetrics fm = g.getFontMetrics();
-        String state = feed.state();
-        long since = feed.sessionStartNanos();
-        String time = since == 0 ? "" : "сессия " + clock(Duration.ofNanos(feed.now() - since));
-        g.setColor(TEXT);
-        g.drawString(state, width - MARGIN - fm.stringWidth(state), MARGIN + 12);
-        g.setColor(DIM);
-        g.drawString(time, width - MARGIN - fm.stringWidth(time), MARGIN + 28);
-    }
-
-    /** Session results under the session time: rewards (total and per hour), the bot's counters, loot. */
-    private void paintStats(Graphics2D g, int width, WorldSnapshot w, WorldFeed feed) {
-        if (feed.stats() == null && w.rewards().equals(WorldSnapshot.Rewards.NONE)) {
-            return;
-        }
-        java.util.List<String> lines = orbit.app.SessionSummary.lines(w.rewards(), feed.stats(), feed.sessionHours());
-        int lineH = 14;
-        int h = 12 + lines.size() * lineH;
-        int x = width - MARGIN - CARD_WIDTH;
-        int y = MARGIN + 40;
-        card(g, x, y, h, MinimapPanel.HERO);
-        g.setFont(base.deriveFont(Font.PLAIN, 11f));
-        for (int i = 0; i < lines.size(); i++) {
-            g.setColor(i < 4 ? TEXT : DIM);
-            g.drawString(clip(g, lines.get(i), CARD_WIDTH - 20), x + 10, y + 16 + i * lineH);
-        }
+        return h.beacon().inPeaceArea() ? "мирная зона" : "стоит";
     }
 
     static String clock(Duration d) {
         long s = Math.max(0, d.toSeconds());
         return String.format("%02d:%02d:%02d", s / 3600, s / 60 % 60, s % 60);
-    }
-
-    // ---- bottom ----
-
-    private void paintHero(Graphics2D g, int height, WorldSnapshot.Hero h) {
-        int x = MARGIN;
-        int y = height - MARGIN - 52;
-        card(g, x, y, 52, MinimapPanel.HERO);
-        g.setFont(base.deriveFont(Font.BOLD, 12f));
-        g.setColor(TEXT);
-        g.drawString(h.name(), x + 10, y + 15);
-        g.setFont(base.deriveFont(Font.PLAIN, 10f));
-        g.setColor(DIM);
-        String right = (h.config() > 0 ? h.config() + "C" : "") + (h.level() > 0 ? "   ур. " + h.level() : "");
-        FontMetrics fm = g.getFontMetrics();
-        g.drawString(right, x + CARD_WIDTH - 10 - fm.stringWidth(right), y + 15);
-        bars(g, x + 10, y + 22, h.health());
-    }
-
-    /** The own P.E.T. above the hero card: name, level, mode, hull, shield, fuel. */
-    private void paintPet(Graphics2D g, int bottom, WorldSnapshot.Pet pet) {
-        if (!pet.owned()) {
-            return;
-        }
-        int x = MARGIN;
-        if (!pet.active() || pet.id() == 0) {
-            int y = bottom - 22;
-            card(g, x, y, 22, MinimapPanel.PET);
-            g.setFont(base.deriveFont(Font.PLAIN, 11f));
-            g.setColor(DIM);
-            String why = !pet.alive() ? "питомец уничтожен" : !pet.hasFuel() ? "питомец: нет топлива" : "питомец не выпущен";
-            g.drawString(why, x + 10, y + 15);
-            return;
-        }
-        int h = 64;
-        int y = bottom - h;
-        card(g, x, y, h, MinimapPanel.PET);
-        g.setFont(base.deriveFont(Font.BOLD, 12f));
-        g.setColor(TEXT);
-        g.drawString(clip(g, pet.name(), CARD_WIDTH - 110), x + 10, y + 15);
-        g.setFont(base.deriveFont(Font.PLAIN, 10f));
-        g.setColor(DIM);
-        String right = gearName(pet.gear()) + (pet.level() > 0 ? "   ур. " + pet.level() : "");
-        FontMetrics fm = g.getFontMetrics();
-        g.drawString(right, x + CARD_WIDTH - 10 - fm.stringWidth(right), y + 15);
-        if (pet.health().known()) {
-            bars(g, x + 10, y + 21, pet.health());
-        } else {
-            g.drawString("HP неизвестно", x + 10, y + 33);
-        }
-        if (pet.fuel() >= 0) {
-            g.setColor(DIM);
-            g.drawString(String.format("топливо %,d / %,d", pet.fuel(), pet.fuelMax())
-                    + (pet.heatMax() > 0 ? String.format("   нагрев %.0f / %.0f", pet.heat(), pet.heatMax()) : ""), x + 10, y + 58);
-        }
     }
 
     /** Russian names of the P.E.T. modes ({@code PetGearTypeModule}). */
@@ -284,110 +470,16 @@ final class Hud {
         };
     }
 
-    private void paintTargetAndAttackers(Graphics2D g, int width, int height, WorldSnapshot w) {
-        WorldSnapshot.Hero h = w.hero();
-        int x = width - MARGIN - CARD_WIDTH;
-        int y = height - MARGIN;
-        int targetId = h.attackTargetId() != 0 ? h.attackTargetId() : h.selectedId();
-        Ship target = w.ships().get(targetId);
-        if (target != null) {
-            y -= 64;
-            Color accent = MinimapPanel.shipColor(target, h, w.group());
-            card(g, x, y, 64, accent);
-            g.setFont(base.deriveFont(Font.BOLD, 12f));
-            g.setColor(accent);
-            g.drawString(clip(g, MinimapPanel.label(target), CARD_WIDTH - 20), x + 10, y + 15);
-            g.setFont(base.deriveFont(Font.PLAIN, 10f));
-            g.setColor(DIM);
-            String kind = (h.attackTargetId() != 0 ? "атакую" : "выбрана") + " · " + kindOf(target)
-                    + (target.typeId().isBlank() ? "" : " " + target.typeId())
-                    + String.format(" · %,.0f", target.distanceTo(h.x(), h.y()));
-            g.drawString(clip(g, kind, CARD_WIDTH - 20), x + 10, y + 28);
-            if (target.health().known()) {
-                bars(g, x + 10, y + 34, target.health());
-            } else {
-                g.drawString("HP неизвестно", x + 10, y + 46);
-            }
-            y -= 6;
-        }
-        paintAttackers(g, x, y, w);
-    }
-
-    /** Attackers grouped by name (NPCs come in swarms), drawn upwards from {@code bottom}. */
-    private void paintAttackers(Graphics2D g, int x, int bottom, WorldSnapshot w) {
-        Map<String, List<Ship>> byName = new LinkedHashMap<>();
-        for (int id : w.hero().attackers()) {
-            Ship a = w.ships().get(id);
-            if (a != null) {
-                byName.computeIfAbsent(MinimapPanel.label(a), k -> new ArrayList<>()).add(a);
+    /** {@code ship_spectrum} → {@code Spectrum}, {@code ship_solace-plus} → {@code Solace Plus}. */
+    static String shipName(String typeId) {
+        String t = typeId.replaceFirst("^ship_", "").replace('-', ' ').replace('_', ' ').strip();
+        StringBuilder sb = new StringBuilder();
+        for (String w : t.split(" +")) {
+            if (!w.isEmpty()) {
+                sb.append(sb.isEmpty() ? "" : " ").append(Character.toUpperCase(w.charAt(0))).append(w.substring(1));
             }
         }
-        if (byName.isEmpty()) {
-            return;
-        }
-        int rows = Math.min(byName.size(), MAX_ATTACKER_ROWS);
-        int h = 18 + rows * 28 + (byName.size() > rows ? 14 : 0);
-        int y = bottom - h;
-        card(g, x, y, h, MinimapPanel.ENEMY);
-        g.setFont(base.deriveFont(Font.PLAIN, 10f));
-        g.setColor(DIM);
-        g.drawString("Атакуют меня: " + w.hero().attackers().size(), x + 10, y + 13);
-        int ry = y + 18;
-        int row = 0;
-        for (Map.Entry<String, List<Ship>> e : byName.entrySet()) {
-            if (row++ == rows) {
-                g.setFont(base.deriveFont(Font.PLAIN, 10f));
-                g.setColor(DIM);
-                g.drawString("… и ещё " + (byName.size() - rows), x + 10, ry + 10);
-                break;
-            }
-            List<Ship> ships = e.getValue();
-            g.setFont(base.deriveFont(Font.BOLD, 10f));
-            g.setColor(MinimapPanel.shipColor(ships.getFirst(), w.hero(), w.group()));
-            g.drawString(clip(g, e.getKey() + (ships.size() > 1 ? "  ×" + ships.size() : ""), CARD_WIDTH - 20), x + 10, ry + 9);
-            Ship weakest = ships.stream().filter(a -> a.health().known())
-                    .min(Comparator.comparingDouble(a -> a.health().hpPercent())).orElse(null);
-            int half = (CARD_WIDTH - 20) / 2 - 2;
-            if (weakest != null) {
-                bar(g, x + 10, ry + 13, half, weakest.health().hp(), weakest.health().hpMax(), HP_BAR, true);
-                bar(g, x + 14 + half, ry + 13, half, weakest.health().shield(), weakest.health().shieldMax(), SHIELD_BAR, true);
-            } else {
-                g.setFont(base.deriveFont(Font.PLAIN, 9f));
-                g.setColor(DIM);
-                g.drawString("HP неизвестно", x + 10, ry + 21);
-            }
-            ry += 28;
-        }
-    }
-
-    // ---- drawing helpers ----
-
-    private static void card(Graphics2D g, int x, int y, int h, Color accent) {
-        g.setColor(CARD_BACKGROUND);
-        g.fillRoundRect(x, y, CARD_WIDTH, h, 8, 8);
-        g.setColor(accent);
-        g.fillRect(x, y + 4, 3, h - 8);
-    }
-
-    private void bars(Graphics2D g, int x, int y, Health h) {
-        bar(g, x, y, CARD_WIDTH - 20, h.hp(), h.hpMax(), HP_BAR, false);
-        bar(g, x, y + 13, CARD_WIDTH - 20, h.shield(), h.shieldMax(), SHIELD_BAR, false);
-    }
-
-    private void bar(Graphics2D g, int x, int y, int w, double now, double max, Color color, boolean percent) {
-        int barHeight = percent ? 9 : 11;
-        g.setColor(BAR_TRACK);
-        g.fillRect(x, y, w, barHeight);
-        if (max <= 0 || now < 0) {
-            return;
-        }
-        g.setColor(color);
-        g.fillRect(x, y, (int) Math.round(w * Math.min(1, now / max)), barHeight);
-        g.setColor(Color.WHITE);
-        g.setFont(base.deriveFont(Font.PLAIN, percent ? 8f : 9f));
-        String text = percent ? String.format("%.0f%%", 100 * Math.min(1, now / max)) : String.format("%,.0f / %,.0f", now, max);
-        FontMetrics fm = g.getFontMetrics();
-        g.drawString(text, x + (w - fm.stringWidth(text)) / 2, y + barHeight - 2);
+        return sb.toString();
     }
 
     private static String kindOf(Ship s) {
@@ -395,11 +487,14 @@ final class Hud {
     }
 
     private static String item(WorldSnapshot.Item i) {
-        return i == null ? "—" : String.format("%s ×%,.0f", i.id().replaceFirst("^ammunition_[a-z]+_", "").toUpperCase(), i.counter());
+        return i == null ? "—" : String.format("%s  ×%,.0f", i.id().replaceFirst("^ammunition_[a-z]+_", "").toUpperCase(), i.counter());
     }
 
     static String clip(Graphics2D g, String text, int width) {
         FontMetrics fm = g.getFontMetrics();
+        if (text == null) {
+            return "";
+        }
         if (fm.stringWidth(text) <= width) {
             return text;
         }

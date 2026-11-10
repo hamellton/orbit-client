@@ -50,13 +50,33 @@ final class MinimapPanel extends JPanel {
     private final WorldFeed feed;
     private final MapCatalog catalog = MapCatalog.bundled();
     private final Hud hud;
+    /** A small map in the overview: a strip with the account instead of the map's own labels. */
+    private final boolean compact;
+    private final java.util.function.Supplier<String> config;
 
     MinimapPanel(WorldFeed feed) {
+        this(feed, false, () -> null);
+    }
+
+    MinimapPanel(WorldFeed feed, boolean compact, java.util.function.Supplier<String> config) {
         this.feed = feed;
+        this.compact = compact;
+        this.config = config;
         setBackground(BACKGROUND);
         setToolTipText(""); // enables getToolTipText(MouseEvent)
-        hud = new Hud(getFont());
-        setPreferredSize(new Dimension(1000, 624));
+        Font f = javax.swing.UIManager.getFont("Label.font");
+        hud = new Hud(f != null ? f : getFont());
+        setPreferredSize(compact ? new Dimension(420, 262) : new Dimension(840, 524));
+        setMinimumSize(new Dimension(240, 150));
+    }
+
+    /** Where the map sits in the panel, keeping its proportions (21000:13100 for most maps). */
+    private Projection projection(MapCatalog.MapInfo map) {
+        int pad = compact ? 0 : 8;
+        double scale = Math.min((getWidth() - 2.0 * pad) / map.width(), (getHeight() - 2.0 * pad) / map.height());
+        double ox = (getWidth() - map.width() * scale) / 2;
+        double oy = (getHeight() - map.height() * scale) / 2;
+        return new Projection(ox, oy, scale);
     }
 
     /** Draws the minimap of the feed's current state into an image (no window needed). */
@@ -89,16 +109,32 @@ final class MinimapPanel extends JPanel {
     private void paintWorld(Graphics2D g, WorldSnapshot w) {
         WorldSnapshot.Hero hero = w.hero();
         MapCatalog.MapInfo map = catalog.info(hero.mapId());
-        int pad = 12;
-        double scale = Math.min((getWidth() - 2.0 * pad) / map.width(), (getHeight() - 2.0 * pad) / map.height());
-        double ox = (getWidth() - map.width() * scale) / 2;
-        double oy = (getHeight() - map.height() * scale) / 2;
-        Projection p = new Projection(ox, oy, scale);
+        Projection p = projection(map);
+        double ox = p.ox();
+        double oy = p.oy();
+        double scale = p.scale();
+        double mw = map.width() * scale;
+        double mh = map.height() * scale;
+        // marks grow a little with the map: readable on a big screen, not blobs in the overview
+        double u = Math.max(0.8, Math.min(1.5, mw / 900));
 
+        java.awt.geom.RoundRectangle2D.Double frame = new java.awt.geom.RoundRectangle2D.Double(ox, oy, mw, mh, 10, 10);
+        Shape oldClip = g.getClip();
+        g.clip(frame);
+        g.setColor(new Color(0x0b0e14));
+        g.fill(frame);
+        java.awt.image.BufferedImage bg = hero.id() == 0 ? null : MinimapBackgrounds.get(hero.mapId());
+        if (bg != null) {
+            g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+            g.drawImage(bg, (int) Math.round(ox), (int) Math.round(oy), (int) Math.round(mw), (int) Math.round(mh), null);
+            g.setColor(new Color(6, 8, 12, 110)); // dim the picture so the marks stand out
+            g.fill(frame);
+        }
+        grid(g, p, map);
+        g.setClip(oldClip);
         g.setColor(BORDER);
         g.setStroke(new BasicStroke(1f));
-        g.draw(new Rectangle2D.Double(ox, oy, map.width() * scale, map.height() * scale));
-        hud.paintBackground(g, getWidth(), getHeight(), w, catalog);
+        g.draw(frame);
 
         for (WorldSnapshot.Zone z : w.zones().values()) {
             if (!z.active()) {
@@ -126,9 +162,9 @@ final class MinimapPanel extends JPanel {
                 continue;
             }
             g.setColor(FACTION[a.factionId() >= 0 && a.factionId() < FACTION.length ? a.factionId() : 0]);
-            g.fill(new Rectangle2D.Double(p.x(a.x()) - 3, p.y(a.y()) - 3, 6, 6));
+            g.fill(new Rectangle2D.Double(p.x(a.x()) - 3 * u, p.y(a.y()) - 3 * u, 6 * u, 6 * u));
         }
-        g.setFont(getFont().deriveFont(Font.PLAIN, 10f));
+        g.setFont(hud.font(Font.PLAIN, (float) (10 * Math.min(1.2, u))));
         for (WorldSnapshot.Portal portal : w.portals().values()) {
             if (!portal.visibleOnMinimap()) {
                 continue;
@@ -136,18 +172,19 @@ final class MinimapPanel extends JPanel {
             double px = p.x(portal.x());
             double py = p.y(portal.y());
             g.setColor(PORTAL);
-            g.draw(new Ellipse2D.Double(px - 6, py - 6, 12, 12));
+            g.setStroke(new BasicStroke((float) (1.4 * u)));
+            g.draw(new Ellipse2D.Double(px - 6 * u, py - 6 * u, 12 * u, 12 * u));
+            g.setStroke(new BasicStroke(1f));
             // where it leads (known for regular portals); gates and event portals stay unlabelled
             MapCatalog.Portal known = catalog.portalNear(hero.mapId(), portal.x(), portal.y(), 50);
-            if (known != null) {
-                g.setColor(PORTAL_LABEL);
+            if (known != null && !compact) {
                 int tw = g.getFontMetrics().stringWidth(known.toName());
-                g.drawString(known.toName(), (float) (px - tw / 2.0), (float) py - 9);
+                drawLabel(g, known.toName(), px - tw / 2.0, py - 9 * u, PORTAL_LABEL);
             }
         }
         for (WorldSnapshot.Collectable c : w.collectables().values()) {
             g.setColor(c.kind() == WorldSnapshot.CollectableKind.BOX ? BOX : ORE);
-            g.fill(new Rectangle2D.Double(p.x(c.x()) - 1.5, p.y(c.y()) - 1.5, 3, 3));
+            g.fill(new Rectangle2D.Double(p.x(c.x()) - 1.5 * u, p.y(c.y()) - 1.5 * u, 3 * u, 3 * u));
         }
         // mines: a red cross and the circle the bot keeps off
         for (WorldSnapshot.Mine m : w.mines().values()) {
@@ -160,21 +197,22 @@ final class MinimapPanel extends JPanel {
             g.draw(new java.awt.geom.Line2D.Double(mx - 2.5, my - 2.5, mx + 2.5, my + 2.5));
             g.draw(new java.awt.geom.Line2D.Double(mx - 2.5, my + 2.5, mx + 2.5, my - 2.5));
         }
-        Font labelFont = getFont().deriveFont(Font.PLAIN, 10f);
+        Font labelFont = hud.font(Font.PLAIN, (float) (10 * Math.min(1.2, u)));
         for (Ship s : w.ships().values()) {
             Color c = shipColor(s, hero, w.group());
             g.setColor(c);
             double sx = p.x(s.x());
             double sy = p.y(s.y());
             switch (s.kind()) {
-                case PET -> g.fill(new Ellipse2D.Double(sx - 2, sy - 2, 4, 4));
-                case NPC -> g.fill(new Ellipse2D.Double(sx - 3, sy - 3, 6, 6));
+                case PET -> g.fill(new Ellipse2D.Double(sx - 2 * u, sy - 2 * u, 4 * u, 4 * u));
+                case NPC -> g.fill(new Ellipse2D.Double(sx - 3 * u, sy - 3 * u, 6 * u, 6 * u));
                 case PLAYER -> {
+                    double d = 4.5 * u;
                     Path2D.Double diamond = new Path2D.Double();
-                    diamond.moveTo(sx, sy - 4.5);
-                    diamond.lineTo(sx + 4.5, sy);
-                    diamond.lineTo(sx, sy + 4.5);
-                    diamond.lineTo(sx - 4.5, sy);
+                    diamond.moveTo(sx, sy - d);
+                    diamond.lineTo(sx + d, sy);
+                    diamond.lineTo(sx, sy + d);
+                    diamond.lineTo(sx - d, sy);
                     diamond.closePath();
                     g.fill(diamond);
                 }
@@ -182,9 +220,9 @@ final class MinimapPanel extends JPanel {
             // players always, NPCs only when they matter (target or attacker): maps hold dozens of NPCs
             boolean fighting = s.id() == hero.selectedId() || s.id() == hero.attackTargetId()
                     || (hero.attackers().size() <= MAX_ATTACKER_LABELS && hero.attackers().contains(s.id()));
-            if (s.kind() == ShipKind.PLAYER || (s.kind() == ShipKind.NPC && fighting)) {
+            if (!compact && (s.kind() == ShipKind.PLAYER || (s.kind() == ShipKind.NPC && fighting))) {
                 g.setFont(labelFont);
-                g.drawString(label(s), (float) sx + 6, (float) sy - 4);
+                drawLabel(g, label(s), sx + 6 * u, sy - 4 * u, c);
             }
         }
 
@@ -230,12 +268,55 @@ final class MinimapPanel extends JPanel {
             Ship target = w.ships().get(hero.selectedId());
             if (target != null) {
                 g.setColor(NPC);
-                g.draw(new Ellipse2D.Double(p.x(target.x()) - 6, p.y(target.y()) - 6, 12, 12));
+                g.setStroke(new BasicStroke((float) (1.5 * u)));
+                g.draw(new Ellipse2D.Double(p.x(target.x()) - 7 * u, p.y(target.y()) - 7 * u, 14 * u, 14 * u));
+                g.setStroke(new BasicStroke(1f));
             }
+            // the hero: a glow, then the dot
+            g.setColor(new Color(HERO.getRed(), HERO.getGreen(), HERO.getBlue(), 60));
+            g.fill(new Ellipse2D.Double(hx - 9 * u, hy - 9 * u, 18 * u, 18 * u));
             g.setColor(hero.alive() ? HERO : Color.GRAY);
-            g.fill(new Ellipse2D.Double(hx - 4, hy - 4, 8, 8));
+            g.fill(new Ellipse2D.Double(hx - 4.5 * u, hy - 4.5 * u, 9 * u, 9 * u));
         }
-        hud.paint(g, getWidth(), getHeight(), w, feed);
+        if (compact) {
+            hud.strip(g, (int) Math.round(ox), (int) Math.round(oy + mh), (int) Math.round(mw), feed, config.get());
+        } else {
+            mapChip(g, ox, oy, hero, map);
+        }
+    }
+
+    /** The map's name and the hero's place in the top-left corner of the map. */
+    private void mapChip(Graphics2D g, double ox, double oy, WorldSnapshot.Hero hero, MapCatalog.MapInfo map) {
+        String text = hero.id() == 0 ? feed.state() : map.name() + "   " + hero.x() / 100 + "/" + hero.y() / 100;
+        g.setFont(hud.font(Font.BOLD, 13f));
+        java.awt.FontMetrics fm = g.getFontMetrics();
+        int w = fm.stringWidth(text) + 20;
+        g.setColor(new Color(10, 12, 18, 200));
+        g.fill(new java.awt.geom.RoundRectangle2D.Double(ox + 10, oy + 10, w, 26, 13, 13));
+        g.setColor(Hud.TEXT);
+        g.drawString(text, (float) (ox + 20), (float) (oy + 28));
+    }
+
+    /** Faint lines every 1000 game units, like the game's own minimap ruler. */
+    private void grid(Graphics2D g, Projection p, MapCatalog.MapInfo map) {
+        if (p.scale() * 1000 < 18) {
+            return;
+        }
+        g.setColor(new Color(255, 255, 255, 14));
+        for (int x = 1000; x < map.width(); x += 1000) {
+            g.draw(new Line2D.Double(p.x(x), p.y(0), p.x(x), p.y(map.height())));
+        }
+        for (int y = 1000; y < map.height(); y += 1000) {
+            g.draw(new Line2D.Double(p.x(0), p.y(y), p.x(map.width()), p.y(y)));
+        }
+    }
+
+    /** A name next to a mark, with a dark shadow so it reads on any background. */
+    private static void drawLabel(Graphics2D g, String text, double x, double y, Color color) {
+        g.setColor(new Color(0, 0, 0, 170));
+        g.drawString(text, (float) x + 1, (float) y + 1);
+        g.setColor(color);
+        g.drawString(text, (float) x, (float) y);
     }
 
     /** Up to this many attackers get a name on the map; a swarm is listed in the corner panel only. */
@@ -252,12 +333,10 @@ final class MinimapPanel extends JPanel {
         WorldSnapshot w = feed.snapshot();
         WorldSnapshot.Hero hero = w.hero();
         MapCatalog.MapInfo map = catalog.info(hero.mapId());
-        int pad = 12;
-        double scale = Math.min((getWidth() - 2.0 * pad) / map.width(), (getHeight() - 2.0 * pad) / map.height());
-        double ox = (getWidth() - map.width() * scale) / 2;
-        double oy = (getHeight() - map.height() * scale) / 2;
-        double mx = (e.getX() - ox) / scale;
-        double my = (e.getY() - oy) / scale;
+        Projection pr = projection(map);
+        double scale = pr.scale();
+        double mx = (e.getX() - pr.ox()) / scale;
+        double my = (e.getY() - pr.oy()) / scale;
         double reach = 8 / scale;
         Ship best = null;
         double bestD = reach;

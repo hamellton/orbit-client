@@ -54,9 +54,9 @@ class OrbitMainTest {
         feed.setClock(() -> 0);
 
         BufferedImage img = MainWindow.renderMinimap(feed, 840, 524);
-        // map 21000x13100 scaled into 840x524 with 12 px padding: x = 20 + mapX * 0.0382
-        int heroPixel = img.getRGB(421, 262) & 0xffffff;
-        int npcPixel = img.getRGB(621, 262) & 0xffffff;
+        // map 21000x13100 scaled into 840x524 with 8 px padding: scale 0.03878, x = 12.8 + mapX * scale
+        int heroPixel = img.getRGB(420, 262) & 0xffffff;
+        int npcPixel = img.getRGB(623, 262) & 0xffffff;
         int empty = img.getRGB(300, 400) & 0xffffff;
         assertEquals(0x4fd1ff, heroPixel, "hero in the middle of the map");
         assertEquals(0xff4d4d, npcPixel, "NPC three quarters to the right");

@@ -17,7 +17,8 @@ public final class ConfigWatch {
     private static final Logger log = LoggerFactory.getLogger(ConfigWatch.class);
 
     private final ConfigStore store;
-    private final String name;
+    private volatile String name;
+    private volatile String pending;
     private final MapCatalog maps;
     private volatile BotConfig current;
     private long modified;
@@ -38,8 +39,20 @@ public final class ConfigWatch {
         return name;
     }
 
-    /** Re-reads the file if it changed; true when a new config was taken. */
+    /** Run another config from the next poll on (chosen in the bot window). */
+    public void switchTo(String other) {
+        pending = other;
+    }
+
+    /** Re-reads the file if it changed, or takes the config asked for; true when a new config was taken. */
     public boolean poll() {
+        String other = pending;
+        if (other != null) {
+            pending = null;
+            if (!other.equals(name)) {
+                return take(other);
+            }
+        }
         long m = store.modified(name);
         if (m == 0 || m == modified) {
             return false;
@@ -63,6 +76,27 @@ public final class ConfigWatch {
         }
         current = c;
         log.info("Конфиг «{}» обновлён", name);
+        return true;
+    }
+
+    private boolean take(String other) {
+        BotConfig c;
+        try {
+            c = store.load(other);
+        } catch (java.io.IOException | RuntimeException e) {
+            log.warn("Конфиг «{}» не читается: {} — остаюсь на «{}»", other, e.getMessage(), name);
+            return false;
+        }
+        List<ConfigCheck.Problem> problems = ConfigCheck.check(c, maps);
+        if (ConfigCheck.hasErrors(problems)) {
+            problems.forEach(p -> log.warn("Конфиг «{}»: {}", other, p));
+            log.warn("Конфиг «{}» с ошибками — остаюсь на «{}»", other, name);
+            return false;
+        }
+        log.info("Конфиг сменён: «{}» → «{}»", name, other);
+        name = other;
+        modified = store.modified(other);
+        current = c;
         return true;
     }
 }
