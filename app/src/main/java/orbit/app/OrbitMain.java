@@ -257,7 +257,7 @@ public final class OrbitMain {
                         if (watch.poll()) {
                             runner.configChanged();
                         }
-                        nextWatch = System.currentTimeMillis() + 3_000;
+                        nextWatch = System.currentTimeMillis() + 1_000;
                     }
                     if (stopRequested.get()) {
                         runner.stop("остановлен пользователем");

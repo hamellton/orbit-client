@@ -71,7 +71,7 @@ class CubikonModuleTest {
         Sim sim = new Sim(config(0, true), 26, 7_500, 3_900);
         sim.lasers("ammunition_laser_ucb-100");
         sim.npc(50, "-=[ Protegit ]=-", 7_800, 3_900);
-        sim.npc(60, "-=[ Kristallin ]=-", 8_200, 4_100);
+        sim.npc(60, "-=[ Kristallin ]=-", 8_000, 4_000);
         CubikonModule m = new CubikonModule(sim.ctx, orbit.bot.mod.SpawnMemory.inMemory());
         sim.run(m::tick, 10_000);
         assertEquals(60, sim.hero().selected());
@@ -248,5 +248,20 @@ class CubikonModuleTest {
         assertEquals(60, sim.hero().selected());
         assertEquals("ammunition_laser_ucb-100", sim.world.snapshot(sim.now).selected("lasers").id(),
                 "UCB again on the Kristallin");
+    }
+
+    @Test
+    void doesNotFlyAfterMobsWhileWaiting() throws Exception {
+        BotConfig c = config(0, false);
+        var settings = c.moduleSettings("cubikon");
+        settings.put("waitKill", "ALL");
+        Sim sim = new Sim(c.withModuleSettings("cubikon", settings), 26, 7_500, 3_900);
+        sim.lasers("ammunition_laser_ucb-100");
+        sim.npc(60, "-=[ Kristallin ]=-", 8_400, 3_900); // inside the leash, out of reach
+        CubikonModule m = new CubikonModule(sim.ctx, SpawnMemory.inMemory());
+        sim.run(m::tick, 10_000);
+        var h = sim.hero();
+        assertEquals(0, h.selected(), "not worth flying to");
+        assertTrue(Math.hypot(h.x() - 7_500, h.y() - 3_900) <= 450, "stayed on the spawn: " + h);
     }
 }

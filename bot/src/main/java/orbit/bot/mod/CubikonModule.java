@@ -147,7 +147,10 @@ public final class CubikonModule implements BotModule {
             attacker.clear();
             ctx.nav().stop();
         }
-        if (attacker.targetId() != 0 && !attacker.tick(true)) {
+        if (attacker.targetId() != 0 && !inReach(w)) {
+            attacker.clear(); // it moved off: the camp does not chase, it stays on the spawn
+        }
+        if (attacker.targetId() != 0 && !attacker.tick(false)) {
             attacker.clear();
         }
         if (attacker.targetId() != 0) {
@@ -159,7 +162,7 @@ public final class CubikonModule implements BotModule {
             WorldSnapshot.Ship t = waitTarget(c, w, waitKill, leash);
             if (t != null) {
                 attacker.target(t);
-                attacker.tick(true);
+                attacker.tick(false);
                 status = "бью, пока жду куб";
                 return;
             }
@@ -180,8 +183,9 @@ public final class CubikonModule implements BotModule {
     }
 
     /**
-     * An NPC to fight while waiting: allowed by the list, within {@code range} of the spot we wait on (not
-     * of the ship, so the camp never drifts off), and with {@code ATTACKERS} only one that shoots at us.
+     * An NPC to fight while waiting: allowed by the list, within {@code range} of the spot we wait on and
+     * within reach of the standing ship (the camp does not fly after mobs), and with {@code ATTACKERS} only
+     * one that shoots at us.
      */
     private WorldSnapshot.Ship waitTarget(BotConfig c, WorldSnapshot w, String mode, double range) {
         WorldSnapshot.Hero h = w.hero();
@@ -190,10 +194,22 @@ public final class CubikonModule implements BotModule {
         return w.ships().values().stream()
                 .filter(x -> Targets.attackable(c, x, h.mapId()))
                 .filter(x -> Math.hypot(x.x() - cx, x.y() - cy) <= range)
+                .filter(x -> x.distanceTo(h.x(), h.y()) <= Targets.radius(c, x, h.mapId()) + REACH_EXTRA)
                 .filter(x -> !"ATTACKERS".equals(mode) || x.attackTargetId() == h.id() || h.attackers().contains(x.id()))
                 .min(Comparator.<WorldSnapshot.Ship>comparingInt(x -> Targets.rule(c, x, h.mapId()).priority())
                         .thenComparingDouble(x -> x.distanceTo(h.x(), h.y())))
                 .orElse(null);
+    }
+
+    /** Laser reach while standing on the spot: the NPC's radius plus a little. */
+    static final double REACH_EXTRA = 150;
+
+    /** The wait-fight target is still within reach of the standing ship. */
+    private boolean inReach(WorldSnapshot w) {
+        WorldSnapshot.Ship t = w.ships().get(attacker.targetId());
+        WorldSnapshot.Hero h = w.hero();
+        return t == null || t.distanceTo(h.x(), h.y())
+                <= Targets.radius(ctx.config().get(), t, h.mapId()) + REACH_EXTRA;
     }
 
     /** Both the target and the ship stay within {@code leash} of the spot we wait on. */
