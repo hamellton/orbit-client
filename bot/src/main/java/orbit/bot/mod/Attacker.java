@@ -15,6 +15,12 @@ public final class Attacker {
 
     private static final Logger log = LoggerFactory.getLogger(Attacker.class);
 
+    /**
+     * Fewer rounds than this count as none: the game fires them in a salvo or two and switches to other
+     * ammunition by itself, and switching back every time only spams the server.
+     */
+    static final double MIN_AMMO = 200;
+
     /** Farther than the radius by this much the target is being chased. */
     static final double CHASE_GAP = 300;
 
@@ -142,10 +148,10 @@ public final class Attacker {
             ammo = beforeSab; // SAB is no longer wanted: back to what was in use
         }
         WorldSnapshot.Item wanted = ammo == null ? null : w.items().get(ammo);
-        if (ammo != null && (wanted == null || wanted.counter() <= 0) && !ammo.equals(missingAmmo)) {
+        if (ammo != null && (wanted == null || wanted.counter() < MIN_AMMO) && !ammo.equals(missingAmmo)) {
             missingAmmo = ammo;
             log.warn("Нет патронов {} ({}) — стреляю тем, что выбрано в игре ({})", orbit.config.ItemCatalog.label(ammo),
-                    wanted == null ? "нет в инвентаре" : "0 шт.",
+                    wanted == null ? "нет в инвентаре" : (long) wanted.counter() + " шт.",
                     selected == null ? "?" : orbit.config.ItemCatalog.label(selected.id()));
         }
         if (wanted != null && wanted.selected()) {
@@ -154,7 +160,7 @@ public final class Attacker {
         if (wanted != null && !wanted.selected() && ammoTries >= 2 && now - ammoAt > 60_000_000_000L) {
             ammoTries = 0; // try again after the pause
         }
-        if (wanted != null && !wanted.selected() && wanted.counter() > 0 && ammoTries < 2
+        if (wanted != null && !wanted.selected() && wanted.counter() >= MIN_AMMO && ammoTries < 2
                 && now - ammoAt > 1_500_000_000L) {
             if (pressAt == 0) {
                 pressAt = now + ctx.pause(800, 1_500);
