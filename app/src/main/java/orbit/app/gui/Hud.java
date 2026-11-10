@@ -823,8 +823,10 @@ final class Hud {
 
 
     /** Over a small map: title and config on the left, status on the right, action, hull and shield. */
+    static final int STRIP_HEIGHT = 46;
+
     void strip(Graphics2D g, int x, int y, int width, WorldFeed feed, String config) {
-        int h = 46;
+        int h = STRIP_HEIGHT;
         int top = y - h;
         g.setPaint(new GradientPaint(0, top - 18, new Color(10, 12, 18, 0), 0, top + 10, new Color(10, 12, 18, 225)));
         g.fillRect(x, top - 18, width, h + 18);

@@ -300,9 +300,15 @@ final class MinimapPanel extends JPanel {
             int panel = big ? (int) Math.max(230, Math.min(320, mw * 0.26)) : (int) Math.max(170, Math.min(250, mw * 0.34));
             int left = (int) Math.round(ox) + 10;
             int right = (int) Math.round(ox + mw) - 10;
+            // the account strip along the bottom, as in the overview: the columns end above it
+            int stripTop = (int) Math.round(oy + mh) - Hud.STRIP_HEIGHT - 20;
             cards.mapBlocks(g, left, right, (int) Math.round(oy) + 46, Math.max((int) Math.round(oy) + 40, pillsBottom + 8),
-                    (int) Math.round(oy + mh) - 8, panel, w, feed, config.get(), ViewSettings.shared(), placed, big);
+                    stripTop, panel, w, feed, config.get(), ViewSettings.shared(), placed, big);
             cardsAt = placed;
+            Shape clip = g.getClip();
+            g.clip(frame);
+            hud.strip(g, (int) Math.round(ox), (int) Math.round(oy + mh), (int) Math.round(mw), feed, config.get());
+            g.setClip(clip);
         }
     }
 
