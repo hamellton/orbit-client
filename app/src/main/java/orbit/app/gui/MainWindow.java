@@ -59,7 +59,7 @@ public final class MainWindow {
         frame.pack();
         frame.setLocationByPlatform(true);
 
-        List<String> backlog = GuiLogAppender.subscribe(line -> SwingUtilities.invokeLater(() -> append(line)));
+        List<String> backlog = GuiLogAppender.subscribe(feed.account(), line -> SwingUtilities.invokeLater(() -> append(line)));
         backlog.forEach(this::append);
         new Timer(REFRESH_MS, e -> minimap.repaint()).start();
     }

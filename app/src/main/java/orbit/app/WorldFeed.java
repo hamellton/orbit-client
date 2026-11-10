@@ -55,8 +55,20 @@ public final class WorldFeed {
         return SessionSummary.text(snapshot().rewards(), stats, sessionHours());
     }
 
+    private final String account;
+
     public WorldFeed(String mode) {
+        this(mode, null);
+    }
+
+    /** @param account the account the window shows (its log lines only); {@code null} = all */
+    public WorldFeed(String mode, String account) {
         this.mode = mode;
+        this.account = account;
+    }
+
+    public String account() {
+        return account;
     }
 
     public void onPacket(Packet p, long nanos) {

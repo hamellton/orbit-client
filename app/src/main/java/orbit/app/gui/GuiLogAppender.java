@@ -16,8 +16,12 @@ import java.util.function.Consumer;
 public class GuiLogAppender extends UnsynchronizedAppenderBase<ILoggingEvent> {
 
     static final int MAX_LINES = 2_000;
-    private static final ArrayDeque<String> LINES = new ArrayDeque<>();
-    private static final List<Consumer<String>> LISTENERS = new CopyOnWriteArrayList<>();
+    /** A log line and the account it was logged for ({@code null} = none). */
+    record Line(String account, String text) {
+    }
+
+    private static final ArrayDeque<Line> LINES = new ArrayDeque<>();
+    private static final List<Consumer<Line>> LISTENERS = new CopyOnWriteArrayList<>();
 
     private Encoder<ILoggingEvent> encoder;
 
@@ -36,23 +40,32 @@ public class GuiLogAppender extends UnsynchronizedAppenderBase<ILoggingEvent> {
 
     @Override
     protected void append(ILoggingEvent event) {
-        String line = new String(encoder.encode(event), StandardCharsets.UTF_8);
+        Line line = new Line(event.getMDCPropertyMap().get("account"), new String(encoder.encode(event), StandardCharsets.UTF_8));
         synchronized (LINES) {
             LINES.addLast(line);
             while (LINES.size() > MAX_LINES) {
                 LINES.removeFirst();
             }
         }
-        for (Consumer<String> l : LISTENERS) {
+        for (Consumer<Line> l : LISTENERS) {
             l.accept(line);
         }
     }
 
-    /** Lines logged so far and every new one; returns the backlog. */
-    static List<String> subscribe(Consumer<String> listener) {
+    /**
+     * Lines logged so far and every new one; returns the backlog.
+     *
+     * @param account only this account's lines and those of no account; {@code null} = all
+     */
+    static List<String> subscribe(String account, Consumer<String> listener) {
+        java.util.function.Predicate<Line> mine = l -> account == null || l.account() == null || account.equals(l.account());
         synchronized (LINES) {
-            LISTENERS.add(listener);
-            return List.copyOf(LINES);
+            LISTENERS.add(l -> {
+                if (mine.test(l)) {
+                    listener.accept(l.text());
+                }
+            });
+            return LINES.stream().filter(mine).map(Line::text).toList();
         }
     }
 }

@@ -94,7 +94,23 @@ public final class SpawnMemory {
         return new SpawnMemory(null);
     }
 
+    /** One memory per file in a program: several accounts on the same map share what they learn. */
+    private static final java.util.concurrent.ConcurrentHashMap<Path, SpawnMemory> OPEN =
+            new java.util.concurrent.ConcurrentHashMap<>();
+
     public static SpawnMemory open(Path file) {
+        if (file == null) {
+            return new SpawnMemory(null);
+        }
+        return OPEN.computeIfAbsent(file.toAbsolutePath().normalize(), SpawnMemory::load);
+    }
+
+    /** A fresh read of the file, not shared (for showing what was learned). */
+    public static SpawnMemory peek(Path file) {
+        return load(file);
+    }
+
+    private static SpawnMemory load(Path file) {
         SpawnMemory m = new SpawnMemory(file);
         if (file != null && Files.exists(file)) {
             try {

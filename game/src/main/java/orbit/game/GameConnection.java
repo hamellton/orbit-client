@@ -179,6 +179,7 @@ public final class GameConnection implements AutoCloseable {
 
     /** Main loop: log in, stay online, follow server changes, reconnect on failures. */
     public void run() {
+        logContext = org.slf4j.MDC.getCopyOfContextMap();
         runner = Thread.currentThread();
         GameSession session = null;
         MapServers.Address server = null;
@@ -332,13 +333,13 @@ public final class GameConnection implements AutoCloseable {
                         }
                         loginFlagSent = false;
                         StartupSequence.Context ctx = new StartupSequence.Context(false, userSettings, true);
-                        startupThread = Thread.ofVirtual().name("startup").start(() -> runStartup(ctx));
+                        startupThread = Thread.ofVirtual().name("startup").start(withLogContext(() -> runStartup(ctx)));
                     } else if (p instanceof ShipInitializationCommand && startupThread != null) {
                         // portal jump to a map on the same server: the client re-sends its UI state at once
                         startupThread.interrupt();
                         loginFlagSent = false;
                         StartupSequence.Context ctx = new StartupSequence.Context(false, userSettings, true);
-                        startupThread = Thread.ofVirtual().name("startup").start(() -> runStartup(ctx));
+                        startupThread = Thread.ofVirtual().name("startup").start(withLogContext(() -> runStartup(ctx)));
                     } else if (p instanceof ShipInitializationCommand) {
                         shipReady = true;
                         s.setSoTimeout(0);
@@ -348,8 +349,8 @@ public final class GameConnection implements AutoCloseable {
                     } else if (p instanceof LoginResponse && startupThread == null) {
                         StartupSequence.Context ctx = new StartupSequence.Context(!connectedBefore, userSettings);
                         connectedBefore = true;
-                        startupThread = Thread.ofVirtual().name("startup").start(() -> runStartup(ctx));
-                        keepAlive = Thread.ofVirtual().name("keepalive").start(this::keepAliveLoop);
+                        startupThread = Thread.ofVirtual().name("startup").start(withLogContext(() -> runStartup(ctx)));
+                        keepAlive = Thread.ofVirtual().name("keepalive").start(withLogContext(this::keepAliveLoop));
                     } else if (p instanceof LegacyModule lm && LOGOUT.equals(lm.message)) {
                         // the logout we asked for: the server ends the session, nothing to reconnect
                         listener.onPacket(p);
@@ -408,7 +409,7 @@ public final class GameConnection implements AutoCloseable {
 
     /** Sends {@code p} after a random pause unless the session has changed meanwhile. */
     private void sendLater(int seq, Packet p, int minMs, int maxMs) {
-        Thread.ofVirtual().name("delayed-send").start(() -> {
+        Thread.ofVirtual().name("delayed-send").start(withLogContext(() -> {
             try {
                 Thread.sleep(minMs + random.nextInt(maxMs - minMs + 1));
                 if (sessionSeq.get() == seq) {
@@ -417,7 +418,21 @@ public final class GameConnection implements AutoCloseable {
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
-        });
+        }));
+    }
+
+    /** The log context (the account) of the thread that started the connection. */
+    private volatile java.util.Map<String, String> logContext;
+
+    /** {@code r} running with this connection's log context, so its lines go to the account's log. */
+    private Runnable withLogContext(Runnable r) {
+        java.util.Map<String, String> ctx = logContext;
+        return () -> {
+            if (ctx != null) {
+                org.slf4j.MDC.setContextMap(ctx);
+            }
+            r.run();
+        };
     }
 
     private static LegacyModule legacy(String message) {

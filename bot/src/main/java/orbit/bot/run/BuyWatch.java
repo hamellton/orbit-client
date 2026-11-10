@@ -40,6 +40,9 @@ final class BuyWatch {
     /** No purchase before the game has listed the items: right after a login nothing is known yet. */
     static final long SETTLE_MS = 30_000;
 
+    /** The account's log context, carried into the shop thread. */
+    private final java.util.Map<String, String> logContext = org.slf4j.MDC.getCopyOfContextMap();
+
     BuyWatch(BotContext ctx) {
         this.ctx = ctx;
         this.nextCheck = ctx.now() + SETTLE_MS * 1_000_000;
@@ -94,6 +97,9 @@ final class BuyWatch {
                 double uridium = w.hero().uridium();
                 ShopAccess s = shop;
                 worker.execute(() -> {
+                    if (logContext != null) {
+                        org.slf4j.MDC.setContextMap(logContext);
+                    }
                     try {
                         buy(s, r, (long) left, credits, uridium, b);
                     } finally {

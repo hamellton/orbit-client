@@ -32,7 +32,7 @@ import javax.crypto.spec.SecretKeySpec;
  * header is authenticated as additional data. Every save uses a fresh nonce and is written to a
  * temporary file first, then moved over the old one.
  *
- * <p>Not thread-safe.
+ * <p>Thread-safe: several accounts of one program share it.
  */
 public final class Vault {
 
@@ -122,16 +122,16 @@ public final class Vault {
     }
 
     /** Account names in alphabetical order. */
-    public Map<String, Account> accounts() {
+    public synchronized Map<String, Account> accounts() {
         return Collections.unmodifiableMap(accounts);
     }
 
-    public Account get(String name) {
+    public synchronized Account get(String name) {
         return accounts.get(name);
     }
 
     /** Adds or replaces an account; call {@link #save()} to persist. */
-    public void put(String name, Account account) {
+    public synchronized void put(String name, Account account) {
         if (name == null || !name.matches("[\\p{L}\\p{N}_.-]{1,64}")) {
             throw new IllegalArgumentException("Имя аккаунта: буквы, цифры, «_», «.», «-», до 64 символов.");
         }
@@ -139,12 +139,12 @@ public final class Vault {
         accounts.put(name, account);
     }
 
-    public boolean remove(String name) {
+    public synchronized boolean remove(String name) {
         return accounts.remove(name) != null;
     }
 
     /** Encrypts and writes the vault atomically; the file is readable only by the owner where supported. */
-    public void save() throws VaultException {
+    public synchronized void save() throws VaultException {
         byte[] nonce = new byte[NONCE_LEN];
         RANDOM.nextBytes(nonce);
         ByteBuffer header = ByteBuffer.allocate(HEADER_LEN).put(MAGIC).put(VERSION).putInt(iterations).put(salt).put(nonce);

@@ -36,7 +36,7 @@ import org.slf4j.LoggerFactory;
  * The bot application.
  *
  * <pre>
- *   orbit bot --account main [--config CUBIKON] [--minutes 30] [--headless] [--profile local/client-profile.json]
+ *   orbit bot --account main [--account second …] [--config CUBIKON] [--minutes 30] [--headless] [--profile local/client-profile.json]
  *             [--vault local/vault.bin]   # runs the config's module (or the account's config); --minutes: then log out
  *             [--fly 105/65]   # development: fly to a point of the current map once in game
  *             [--go "3-3;3-1:188/125"] # development: travel through portals, legs separated by ';'
@@ -80,7 +80,7 @@ public final class OrbitMain {
     private static void usage() {
         System.err.println("""
                 Режимы:
-                  orbit bot --account <имя> [--config <конфиг>] [--minutes N] [--headless]
+                  orbit bot --account <имя> [--account <имя2> …] [--config <конфиг>] [--minutes N] [--headless]
                                                            бот входит в игру и работает по конфигу (N минут, затем выход)
                   orbit observe [--direct IP:порты]        окно бота по трафику официального клиента (через сниффер)
                   orbit replay <запись.dorec> [--speed N]  проиграть запись сниффера
@@ -108,7 +108,7 @@ public final class OrbitMain {
         }
         boolean devScenario = o.fly != null || o.go != null || o.hunt != null || o.then != null || o.logout
                 || o.repairFree || o.repairAt != null;
-        if (!devScenario && hasPlan(o) && o.config != null) {
+        if (!devScenario && o.config != null) {
             loadConfig(o.config, true); // a broken --config stops here, before the password is asked
         }
         char[] master = MasterPassword.obtain(false);
@@ -127,10 +127,48 @@ public final class OrbitMain {
             log.warn("Профиль клиента {} не найден — раскладка окон и клавиши отправляться не будут "
                     + "(создайте его: client-profile recordings).", o.profile);
         }
-        AuthClient auth = new AuthClient(new HttpSession("", Proxy.NO_PROXY, null), AuthClient.Endpoints.production());
-        AccountLogin login = new AccountLogin(auth, vault, o.account);
+        if (o.accounts.size() > 1 && !devScenario) {
+            many(o, vault, profile);
+            return;
+        }
+        Rig rig = rig(o.account, vault);
+        WorldFeed feed = rig.feed();
+        AuthClient auth = rig.auth();
+        GameListener listener = rig.listener();
+        SessionSource source = rig.source();
+        if (!devScenario && hasPlan(o, o.account)) {
+            org.slf4j.MDC.put("account", o.account);
+            Sessions run = sessions(o, o.account, rig, profile, 0, () -> System.exit(0));
+            runUntilClosed(feed, o.headless, run.close(), run.thread());
+            run.close().run();
+            run.thread().join(5_000);
+            System.exit(0); // the window's threads would keep the program alive
+            return;
+        }
+        GameConnection conn = new GameConnection(source, listener, ConnectionSettings.defaults(Proxy.NO_PROXY),
+                StartupSequence.clientLike(profile));
+        Thread runner = Thread.ofPlatform().name("game").start(conn::run);
+        Runtime.getRuntime().addShutdownHook(new Thread(conn::close));
+        if (o.fly != null) {
+            startFlightTest(feed, conn, o.fly);
+        }
+        if (o.go != null || o.hunt != null || o.then != null || o.logout) {
+            startTravelTest(feed, conn, o.go, o.hunt, o.then, o.logout, profile);
+        }
+        if (o.repairFree || o.repairAt != null) {
+            startFreeRepair(feed, conn, o.faction, o.repairAt);
+        }
+        runUntilClosed(feed, o.headless, conn::close, runner);
+    }
 
-        WorldFeed feed = new WorldFeed("бот, " + o.account);
+    /** One account's web login, game feed and listener. */
+    private record Rig(WorldFeed feed, AuthClient auth, SessionSource source, GameListener listener) {
+    }
+
+    private static Rig rig(String account, Vault vault) throws AuthException {
+        AuthClient auth = new AuthClient(new HttpSession("", Proxy.NO_PROXY, null), AuthClient.Endpoints.production());
+        AccountLogin login = new AccountLogin(auth, vault, account);
+        WorldFeed feed = new WorldFeed("бот, " + account, account);
         GameListener listener = new GameListener() {
             @Override
             public void onPacket(Packet p) {
@@ -159,24 +197,50 @@ public final class OrbitMain {
                 return auth.serverForMap(s, mapId);
             }
         };
-        if (!devScenario && hasPlan(o)) {
-            supervise(o, feed, profile, auth, source, listener);
-            return;
+        return new Rig(feed, auth, source, listener);
+    }
+
+    /**
+     * Several accounts in one program: each with its own web login, game connection, sessions, window
+     * and log ({@code logs/orbit-<account>.log}); the vault and what the bot learns (Cubikon spawns) are
+     * shared. Logins are spread out so the site does not see a burst. Closing one window stops that
+     * account only; the program ends when all have stopped.
+     */
+    private static void many(Options o, Vault vault, ClientProfile profile) throws Exception {
+        java.util.List<Sessions> all = new java.util.ArrayList<>();
+        java.util.Random random = new java.util.Random();
+        long delay = 0;
+        boolean gui = !o.headless && !java.awt.GraphicsEnvironment.isHeadless();
+        for (String account : o.accounts) {
+            if (vault.get(account) == null) {
+                log.error("Аккаунта «{}» нет в хранилище — пропускаю", account);
+                continue;
+            }
+            if (!hasPlan(o, account)) {
+                log.warn("У аккаунта «{}» нет конфига — пропускаю", account);
+                continue;
+            }
+            Rig rig = rig(account, vault);
+            org.slf4j.MDC.put("account", account);
+            Sessions run = sessions(o, account, rig, profile, delay, () -> { });
+            org.slf4j.MDC.remove("account");
+            all.add(run);
+            if (gui) {
+                MainWindow.open(rig.feed(), () -> Thread.ofPlatform().name("stop-" + account).start(run.close()));
+            }
+            log.info("Аккаунт «{}»: старт через {} с", account, delay / 1_000);
+            delay += 15_000 + random.nextInt(30_000);
         }
-        GameConnection conn = new GameConnection(source, listener, ConnectionSettings.defaults(Proxy.NO_PROXY),
-                StartupSequence.clientLike(profile));
-        Thread runner = Thread.ofPlatform().name("game").start(conn::run);
-        Runtime.getRuntime().addShutdownHook(new Thread(conn::close));
-        if (o.fly != null) {
-            startFlightTest(feed, conn, o.fly);
+        if (all.isEmpty()) {
+            System.err.println("Ни один аккаунт не запущен");
+            System.exit(2);
         }
-        if (o.go != null || o.hunt != null || o.then != null || o.logout) {
-            startTravelTest(feed, conn, o.go, o.hunt, o.then, o.logout, profile);
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> all.forEach(r -> r.close().run())));
+        for (Sessions r : all) {
+            r.thread().join();
         }
-        if (o.repairFree || o.repairAt != null) {
-            startFreeRepair(feed, conn, o.faction, o.repairAt);
-        }
-        runUntilClosed(feed, o.headless, conn::close, runner);
+        log.info("Все аккаунты остановлены");
+        System.exit(0);
     }
 
     /** The website shop of the logged-in account, through the same web session the login used. */
@@ -211,13 +275,12 @@ public final class OrbitMain {
         };
     }
 
-    /** The config to run: {@code --config}, else the account's one from {@code local/accounts.json}; checked. */
     /** A config to run: {@code --config}, the account's config or its timetable. */
-    private static boolean hasPlan(Options o) throws java.io.IOException {
+    private static boolean hasPlan(Options o, String account) throws java.io.IOException {
         if (o.config != null) {
             return true;
         }
-        var acc = orbit.config.AccountSettings.load(orbit.config.AccountSettings.DEFAULT_FILE).account(o.account);
+        var acc = orbit.config.AccountSettings.load(orbit.config.AccountSettings.DEFAULT_FILE).account(account);
         boolean plan = acc.config() != null || (acc.schedule().enabled() && !acc.schedule().entries().isEmpty());
         if (!plan) {
             log.info("Конфиг не выбран (--config или «Аккаунты» в orbit configs) — бот только держит связь");
@@ -259,11 +322,20 @@ public final class OrbitMain {
      * each session is a fresh login, played until its end, then a logout at a portal; between them the
      * bot is offline. Closing the window or {@code local/stop-<account>} ends it all gracefully.
      */
-    private static void supervise(Options o, WorldFeed feed, ClientProfile profile, AuthClient auth, SessionSource source,
-                                  GameListener listener) throws Exception {
-        var account = orbit.config.AccountSettings.load(orbit.config.AccountSettings.DEFAULT_FILE).account(o.account);
-        var planner = new orbit.config.SessionPlanner(account, o.config, o.account.hashCode(), new java.util.Random());
-        Path stopFile = Path.of("local", "stop-" + o.account);
+    /** An account's sessions: the thread, and a graceful stop (logout at a portal) for the window or the end. */
+    private record Sessions(Thread thread, Runnable close) {
+    }
+
+    private static Sessions sessions(Options o, String accountName, Rig rig, ClientProfile profile, long startDelayMs,
+                                     Runnable endedByItself) throws java.io.IOException {
+        WorldFeed feed = rig.feed();
+        AuthClient auth = rig.auth();
+        SessionSource source = rig.source();
+        GameListener listener = rig.listener();
+        var account = orbit.config.AccountSettings.load(orbit.config.AccountSettings.DEFAULT_FILE).account(accountName);
+        var planner = new orbit.config.SessionPlanner(account, o.config, accountName.hashCode(), new java.util.Random());
+        Path stopFile = Path.of("local", "stop-" + accountName);
+        java.util.Map<String, String> logContext = org.slf4j.MDC.getCopyOfContextMap();
         long testEnd = o.minutes > 0 ? System.currentTimeMillis() + o.minutes * 60_000L : Long.MAX_VALUE;
         java.util.concurrent.atomic.AtomicBoolean closed = new java.util.concurrent.atomic.AtomicBoolean();
         java.util.concurrent.atomic.AtomicReference<ModuleRun> current = new java.util.concurrent.atomic.AtomicReference<>();
@@ -274,8 +346,15 @@ public final class OrbitMain {
                 c.close();
             }
         }));
-        Thread sessions = Thread.ofPlatform().name("sessions").start(() -> {
+        Thread sessions = Thread.ofPlatform().name("sessions-" + accountName).start(() -> {
+            if (logContext != null) {
+                org.slf4j.MDC.setContextMap(logContext);
+            }
             try {
+                if (startDelayMs > 0) {
+                    restUntil(feed, closed, stopFile, java.time.LocalDateTime.now().plusNanos(startDelayMs * 1_000_000),
+                            "очередь входа");
+                }
                 while (!closed.get() && System.currentTimeMillis() < testEnd) {
                     java.time.LocalDateTime now = java.time.LocalDateTime.now();
                     var plan = planner.next(now, name -> {
@@ -308,7 +387,13 @@ public final class OrbitMain {
                     GameConnection conn = new GameConnection(source, listener, ConnectionSettings.defaults(Proxy.NO_PROXY),
                             StartupSequence.clientLike(profile));
                     currentConn.set(conn);
-                    Thread game = Thread.ofPlatform().name("game").start(conn::run);
+                    java.util.Map<String, String> ctx = org.slf4j.MDC.getCopyOfContextMap();
+                    Thread game = Thread.ofPlatform().name("game-" + accountName).start(() -> {
+                        if (ctx != null) {
+                            org.slf4j.MDC.setContextMap(ctx);
+                        }
+                        conn.run();
+                    });
                     ModuleRun run = startModule(feed, conn, plan.config(), cfg, end, why, profile, stopFile,
                             shopFor(auth, conn));
                     current.set(run);
@@ -332,20 +417,20 @@ public final class OrbitMain {
             }
             log.info("Сессии завершены");
             if (!closed.get()) {
-                System.exit(0); // ended by itself (limit, command, failure): close the window too
+                endedByItself.run(); // limit, command, failure
             }
         });
-        runUntilClosed(feed, o.headless, () -> {
-            closed.set(true);
+        Runnable close = () -> {
+            if (closed.getAndSet(true)) {
+                return;
+            }
             ModuleRun run = current.get();
             GameConnection c = currentConn.get();
             if (run != null && c != null) {
                 run.finish(c);
             }
-        }, sessions);
-        closed.set(true);
-        sessions.join(5_000);
-        System.exit(0); // the window's threads would keep the program alive
+        };
+        return new Sessions(sessions, close);
     }
 
     private static java.time.LocalDateTime earlier(java.time.LocalDateTime a, java.time.LocalDateTime b) {
@@ -417,7 +502,11 @@ public final class OrbitMain {
         java.util.concurrent.atomic.AtomicBoolean commanded = new java.util.concurrent.atomic.AtomicBoolean();
         CountDownLatch done = new CountDownLatch(1);
         long until = untilMillis;
+        java.util.Map<String, String> logContext = org.slf4j.MDC.getCopyOfContextMap();
         Thread.ofPlatform().name("bot-loop").daemon().start(() -> {
+            if (logContext != null) {
+                org.slf4j.MDC.setContextMap(logContext);
+            }
             try {
                 waitAlive(feed);
                 Thread.sleep(4_000 + random.nextInt(3_000)); // look around after logging in
@@ -858,10 +947,12 @@ public final class OrbitMain {
     /** Command-line options shared by the modes. */
     record Options(String account, Path vault, Path profile, boolean headless, int port, String direct, Path out,
                    double speed, double at, String fly, String go, boolean repairFree, int faction, String hunt,
-                   String then, boolean logout, String repairAt, String config, int minutes, List<String> positional) {
+                   String then, boolean logout, String repairAt, String config, int minutes, List<String> accounts,
+                   List<String> positional) {
 
         static Options parse(List<String> args) {
             String account = null;
+            List<String> accounts = new java.util.ArrayList<>();
             Path vault = VaultTool.DEFAULT_FILE;
             Path profile = Path.of("local", "client-profile.json");
             boolean headless = false;
@@ -883,7 +974,10 @@ public final class OrbitMain {
             List<String> positional = new java.util.ArrayList<>();
             for (int i = 0; i < args.size(); i++) {
                 switch (args.get(i)) {
-                    case "--account" -> account = args.get(++i);
+                    case "--account" -> {
+                        account = account == null ? args.get(i + 1) : account;
+                        accounts.add(args.get(++i));
+                    }
                     case "--vault" -> vault = Path.of(args.get(++i));
                     case "--profile" -> profile = Path.of(args.get(++i));
                     case "--headless" -> headless = true;
@@ -915,7 +1009,7 @@ public final class OrbitMain {
                 throw new IllegalArgumentException("--speed должен быть больше 0");
             }
             return new Options(account, vault, profile, headless, port, direct, out, speed, at, fly, go, repairFree, faction,
-                    hunt, then, logout, repairAt, config, minutes, List.copyOf(positional));
+                    hunt, then, logout, repairAt, config, minutes, List.copyOf(accounts), List.copyOf(positional));
         }
     }
 }

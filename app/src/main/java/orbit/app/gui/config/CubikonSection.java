@@ -139,7 +139,7 @@ final class CubikonSection implements Section {
 
     /** What the bot has learned so far (local/cubikon-spawns.json). */
     private void showLearned() {
-        orbit.bot.mod.SpawnMemory m = orbit.bot.mod.SpawnMemory.open(orbit.bot.mod.SpawnMemory.DEFAULT_FILE);
+        orbit.bot.mod.SpawnMemory m = orbit.bot.mod.SpawnMemory.peek(orbit.bot.mod.SpawnMemory.DEFAULT_FILE);
         StringBuilder b = new StringBuilder();
         String[] names = {"1-6", "2-6", "3-6"};
         int[] ids = {18, 22, 26};

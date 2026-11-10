@@ -5,15 +5,32 @@
 
   <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
     <encoder>
-      <pattern>%d{HH:mm:ss.SSS} %-5level %msg%n%ex</pattern>
+      <pattern>%d{HH:mm:ss.SSS} %-5level %X{account} %msg%n%ex</pattern>
     </encoder>
   </appender>
 
   <appender name="FILE" class="ch.qos.logback.core.FileAppender">
     <file>logs/orbit.log</file>
     <encoder>
-      <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] %logger{20} %msg%n%ex</pattern>
+      <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] %X{account} %logger{20} %msg%n%ex</pattern>
     </encoder>
+  </appender>
+
+  <!-- one more file per account (logs/orbit-<account>.log); lines without an account stay in orbit.log only -->
+  <appender name="ACCOUNT" class="ch.qos.logback.classic.sift.SiftingAppender">
+    <filter class="orbit.app.gui.AccountLogFilter"/>
+    <discriminator>
+      <key>account</key>
+      <defaultValue>none</defaultValue>
+    </discriminator>
+    <sift>
+      <appender name="FILE-${account}" class="ch.qos.logback.core.FileAppender">
+        <file>logs/orbit-${account}.log</file>
+        <encoder>
+          <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] %logger{20} %msg%n%ex</pattern>
+        </encoder>
+      </appender>
+    </sift>
   </appender>
 
   <appender name="GUI" class="orbit.app.gui.GuiLogAppender">
@@ -30,6 +47,7 @@
   <root level="INFO">
     <appender-ref ref="CONSOLE"/>
     <appender-ref ref="FILE"/>
+    <appender-ref ref="ACCOUNT"/>
     <appender-ref ref="GUI"/>
   </root>
 </configuration>
