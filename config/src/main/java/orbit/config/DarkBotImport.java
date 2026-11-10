@@ -118,8 +118,12 @@ public final class DarkBotImport {
         report.add(0, "Модуль " + module + ", рабочая карта " + g.workingMap() + ", NPC " + npcs.size()
                 + ", ящиков " + collect.boxes().size() + ", карт с зонами " + zones.size()
                 + ", карт с точками безопасности " + spots.size());
-        return new BotConfig(BotConfig.SCHEMA, description, module, g, npcs, loot, collect, pet, safety, zones, spots,
-                modules, extra);
+        BotConfig c = new BotConfig(BotConfig.SCHEMA, description, module, g, npcs, loot, collect, pet, safety, zones,
+                spots, modules, extra);
+        JsonNode running = general.path("RUNNING");
+        BotConfig.Flee f = c.flee();
+        return c.withFlee(new BotConfig.Flee(f.mode(), null, null, running.path("MAX_SIGHT_DISTANCE").asInt(2_000),
+                f.rememberSec(), true, 90));
     }
 
     static BotConfig.Module module(String cls) {

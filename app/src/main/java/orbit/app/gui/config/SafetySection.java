@@ -25,6 +25,15 @@ final class SafetySection implements Section {
     private final JComboBox<String> revive = new JComboBox<>(REVIVE_NAMES);
     private final JSpinner waitBefore = Form.number(0, 3600, 5);
     private final JSpinner waitAfter = Form.number(0, 3600, 5);
+    private static final BotConfig.FleeMode[] FLEE_MODES = BotConfig.FleeMode.values();
+    private final JComboBox<String> fleeMode = new JComboBox<>(new String[] {"Не убегать — игнорировать игроков",
+            "Только от тех, кто атакует меня", "От всех врагов поблизости", "Только от игроков из списка"});
+    private final javax.swing.JTextArea fleePlayers = new javax.swing.JTextArea(3, 40);
+    private final javax.swing.JTextArea fleeNever = new javax.swing.JTextArea(3, 40);
+    private final JSpinner fleeSight = Form.number(300, 10_000, 100);
+    private final JSpinner fleeRemember = Form.number(5, 3_600, 5);
+    private final JCheckBox fleeJump = new JCheckBox("Прыгать в портал, если игрок догоняет или стреляет у портала");
+    private final JSpinner fleeWait = Form.number(0, 3_600, 10);
     private final JComponent view;
 
     SafetySection() {
@@ -41,6 +50,18 @@ final class SafetySection implements Section {
                 .row("", healPod.view())
                 .note("Лечение — способность корабля (Solace, Solace Plus, Aegis и Hammerclaw, Orcus), работает и в "
                         + "бою; вне боя ещё и ремонтный робот. Бот нажимает то, что есть на корабле.")
+                .section("Бегство от игроков")
+                .row("От кого убегать", fleeMode)
+                .row("Список (для «из списка»)", new javax.swing.JScrollPane(fleePlayers))
+                .row("Никогда не убегать от", new javax.swing.JScrollPane(fleeNever))
+                .note("По одному в строке или через запятую: ник игрока или клан в скобках, например [TAG]. Группа и "
+                        + "союзные кланы врагами не считаются.")
+                .row("«Поблизости» — ближе чем", fleeSight)
+                .row("Помнить игрока, с", fleeRemember)
+                .row("", fleeJump)
+                .row("После прыжка ждать, с", fleeWait)
+                .note("Бот летит в конфигурации бегства к порталу, до которого доберётся раньше игрока; после прыжка "
+                        + "ждёт на той стороне и возвращается на рабочую карту.")
                 .section("Гибель")
                 .row("Остановить бота после смертей", maxDeaths)
                 .note("0 — без ограничения.")
@@ -78,6 +99,14 @@ final class SafetySection implements Section {
         revive.setSelectedIndex(r < 0 ? 1 : r);
         Form.set(waitBefore, s.waitBeforeReviveSec());
         Form.set(waitAfter, s.waitAfterReviveSec());
+        BotConfig.Flee f = c.flee();
+        fleeMode.setSelectedIndex(f.mode().ordinal());
+        fleePlayers.setText(String.join("\n", f.players()));
+        fleeNever.setText(String.join("\n", f.never()));
+        Form.set(fleeSight, f.sight());
+        Form.set(fleeRemember, f.rememberSec());
+        fleeJump.setSelected(f.jump());
+        Form.set(fleeWait, f.waitSec());
     }
 
     @Override
@@ -85,10 +114,26 @@ final class SafetySection implements Section {
         if (Form.intOf(repairMin) > Form.intOf(repairMax)) {
             throw new IllegalArgumentException("Безопасность: порог ухода на ремонт выше, чем «ремонтироваться до»");
         }
+        BotConfig.Flee f = new BotConfig.Flee(FLEE_MODES[fleeMode.getSelectedIndex()], names(fleePlayers.getText()),
+                names(fleeNever.getText()), Form.intOf(fleeSight), Form.intOf(fleeRemember), fleeJump.isSelected(),
+                Form.intOf(fleeWait));
+        if (!f.equals(c.flee())) {
+            c = c.withFlee(f);
+        }
         return c.withSafety(new BotConfig.Safety(Form.fraction(repairMin), Form.fraction(repairMax),
                 Form.fraction(repairNoNpc), Form.fraction(repairShield), repairMode.get(),
                 new BotConfig.Heal(healHp.get(), healShield.get(), healPod.get()), Form.intOf(maxDeaths),
                 REVIVE[revive.getSelectedIndex()], Form.intOf(waitBefore), Form.intOf(waitAfter)));
+    }
+
+    static java.util.Set<String> names(String text) {
+        java.util.Set<String> out = new java.util.TreeSet<>();
+        for (String part : text.split("[,\n]+")) {
+            if (!part.isBlank()) {
+                out.add(part.strip());
+            }
+        }
+        return out;
     }
 
     /** A checkbox and a percentage; off = -1. */

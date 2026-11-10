@@ -68,7 +68,9 @@ class SectionsTest {
                 c.modules(), Map.of("darkbot.GROUP", Json.MAPPER.readTree("{\"ACCEPT_INVITES\": false}")),
                 new BotConfig.Buy(true, List.of(new BotConfig.BuyRule("ammunition_laser_lcb-10", 10_000, 50_000),
                         new BotConfig.BuyRule("ammunition_rocket_plt-2026", 200, 1_000)), 1_000_000, 5_000))
-                .withSession(new BotConfig.Session(120, 20, 10));
+                .withSession(new BotConfig.Session(120, 20, 10))
+                .withFlee(new BotConfig.Flee(BotConfig.FleeMode.LIST, Set.of("theKing", "[RS]"), Set.of("[FR]"), 1_500, 45,
+                        false, 120));
     }
 
     @Test

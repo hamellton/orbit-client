@@ -16,6 +16,7 @@ import org.slf4j.LoggerFactory;
  *   <li>wait until in game;</li>
  *   <li>the kill screen and the pause after reviving ({@link Revive});</li>
  *   <li>stopping: to the nearest portal, log out ({@link #stop});</li>
+ *   <li>running from players ({@link Flee});</li>
  *   <li>safety: healing, repair at a portal, escape ({@link Safety});</li>
  *   <li>travel to the module's map;</li>
  *   <li>the module.</li>
@@ -26,7 +27,7 @@ public final class BotRunner {
 
     private static final Logger log = LoggerFactory.getLogger(BotRunner.class);
 
-    public enum State { STARTING, DEAD, REPAIRING, TRAVELLING, WORKING, STOPPING, STOPPED, FAILED }
+    public enum State { STARTING, DEAD, FLEEING, REPAIRING, TRAVELLING, WORKING, STOPPING, STOPPED, FAILED }
 
     private final BotContext ctx;
     private final BooleanSupplier loggedOut;
@@ -34,6 +35,7 @@ public final class BotRunner {
     private final Safety safety;
     private final Revive revive;
     private final BuyWatch buy;
+    private final Flee flee;
     private BotModule module;
     private BotConfig.Module moduleKind;
     private State state = State.STARTING;
@@ -55,6 +57,7 @@ public final class BotRunner {
         this.safety = new Safety(ctx);
         this.revive = new Revive(ctx);
         this.buy = new BuyWatch(ctx);
+        this.flee = new Flee(ctx);
         loadModule();
     }
 
@@ -144,6 +147,14 @@ public final class BotRunner {
         buy.tick();
         if (state == State.STOPPING) {
             stopping(w);
+            return;
+        }
+        if (flee.tick()) {
+            if (module != null) {
+                module.pause();
+            }
+            state = State.FLEEING;
+            show("убегаю от " + flee.threat());
             return;
         }
         if (safety.tick(module != null && module.busy())) {

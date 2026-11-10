@@ -50,10 +50,6 @@ final class GeneralSection implements Section {
                 .row("", runChase)
                 .note("Догонять — когда цель дальше своего радиуса больше чем на 300; у NPC с флагом AGGRESSIVE_FOLLOW "
                         + "(«Атака» → флаги) — всегда, и бот летит туда, куда NPC движется.")
-                .section("Враги")
-                .row("", runFromEnemies)
-                .row("", runInSight)
-                .row("Помнить врага, с", remember)
                 .section("Облёт карты")
                 .row("", sequential)
                 .row("", onlyPreferred)
@@ -103,7 +99,8 @@ final class GeneralSection implements Section {
     @Override
     public BotConfig apply(BotConfig c) {
         BotConfig.General g = new BotConfig.General(map.mapId(), offensive.get(), roam.get(), run.get(),
-                runFromEnemies.isSelected(), runInSight.isSelected(), Form.intOf(remember), sequential.isSelected(),
+                c.general().runFromEnemies(), c.general().runFromEnemiesInSight(), c.general().rememberEnemiesSec(),
+                sequential.isSelected(),
                 onlyPreferred.isSelected(), runTravel.isSelected(), runChase.isSelected());
         BotConfig.Session session = new BotConfig.Session(Form.intOf(work), Form.intOf(rest), Form.intOf(jitter));
         BotConfig out = c.withModule(BotConfig.Module.values()[module.getSelectedIndex()]).withGeneral(g)

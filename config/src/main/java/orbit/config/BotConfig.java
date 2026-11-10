@@ -42,7 +42,8 @@ public record BotConfig(
         Map<String, JsonNode> modules,
         Map<String, JsonNode> extra,
         Buy buy,
-        Session session) {
+        Session session,
+        Flee flee) {
 
     public static final int SCHEMA = 1;
 
@@ -62,6 +63,67 @@ public record BotConfig(
         extra = extra == null ? Map.of() : sorted(extra);
         buy = buy == null ? Buy.OFF : buy;
         session = session == null ? Session.ENDLESS : session;
+        flee = flee == null ? Flee.from(general) : flee;
+    }
+
+    public BotConfig(int schema, String description, Module module, General general, Map<String, NpcRule> npcs,
+                     Loot loot, Collect collect, Pet pet, Safety safety, Map<Integer, Zones> zones,
+                     Map<Integer, List<SafetySpot>> safetySpots, Map<String, JsonNode> modules,
+                     Map<String, JsonNode> extra, Buy buy, Session session) {
+        this(schema, description, module, general, npcs, loot, collect, pet, safety, zones, safetySpots, modules, extra,
+                buy, session, null);
+    }
+
+    public BotConfig withFlee(Flee f) {
+        return new BotConfig(schema, description, module, general, npcs, loot, collect, pet, safety, zones, safetySpots,
+                modules, extra, buy, session, f);
+    }
+
+    /**
+     * Running from players.
+     *
+     * @param mode        {@link FleeMode}
+     * @param players     names (exact, any case) or clan tags in brackets ({@code [TAG]}) for {@code LIST}
+     * @param never       never run from these (friends, own clans), same notation
+     * @param sight       {@code ENEMIES_IN_SIGHT}: an enemy this close counts
+     * @param rememberSec stay away this long after the enemy is out of sight
+     * @param jump        jump through the portal when the enemy follows or shoots there
+     * @param waitSec     wait this long on the other side before going back
+     */
+    @JsonInclude(JsonInclude.Include.NON_EMPTY)
+    public record Flee(FleeMode mode, Set<String> players, Set<String> never, int sight, int rememberSec, boolean jump,
+                       int waitSec) {
+
+        public static final Flee OFF = new Flee(FleeMode.OFF, null, null, 2_000, 60, true, 90);
+
+        public Flee {
+            mode = mode == null ? FleeMode.OFF : mode;
+            players = players == null ? Set.of() : java.util.Collections.unmodifiableSortedSet(new java.util.TreeSet<>(players));
+            never = never == null ? Set.of() : java.util.Collections.unmodifiableSortedSet(new java.util.TreeSet<>(never));
+            sight = sight <= 0 ? 2_000 : sight;
+            rememberSec = Math.max(0, rememberSec);
+            waitSec = Math.max(0, waitSec);
+        }
+
+        /** From the older switches in {@link General} (and DarkBot's RUNNING section). */
+        static Flee from(General g) {
+            if (g == null || !g.runFromEnemies()) {
+                return OFF;
+            }
+            return new Flee(g.runFromEnemiesInSight() ? FleeMode.ENEMIES_IN_SIGHT : FleeMode.ATTACKERS, null, null, 2_000,
+                    g.rememberEnemiesSec(), true, 90);
+        }
+    }
+
+    public enum FleeMode {
+        /** ignore players */
+        OFF,
+        /** only players shooting at the ship */
+        ATTACKERS,
+        /** any enemy player within {@link Flee#sight} */
+        ENEMIES_IN_SIGHT,
+        /** only the listed players and clans (seen within sight or attacking) */
+        LIST
     }
 
     public BotConfig(int schema, String description, Module module, General general, Map<String, NpcRule> npcs,
@@ -74,7 +136,7 @@ public record BotConfig(
 
     public BotConfig withSession(Session ss) {
         return new BotConfig(schema, description, module, general, npcs, loot, collect, pet, safety, zones, safetySpots,
-                modules, extra, buy, ss);
+                modules, extra, buy, ss, flee);
     }
 
     /**
@@ -102,7 +164,7 @@ public record BotConfig(
 
     public BotConfig withBuy(Buy b) {
         return new BotConfig(schema, description, module, general, npcs, loot, collect, pet, safety, zones, safetySpots,
-                modules, extra, b, session);
+                modules, extra, b, session, flee);
     }
 
     /**
@@ -129,45 +191,45 @@ public record BotConfig(
     }
 
     public BotConfig withModule(Module m) {
-        return new BotConfig(schema, description, m, general, npcs, loot, collect, pet, safety, zones, safetySpots, modules, extra, buy, session);
+        return new BotConfig(schema, description, m, general, npcs, loot, collect, pet, safety, zones, safetySpots, modules, extra, buy, session, flee);
     }
 
     public BotConfig withGeneral(General g) {
-        return new BotConfig(schema, description, module, g, npcs, loot, collect, pet, safety, zones, safetySpots, modules, extra, buy, session);
+        return new BotConfig(schema, description, module, g, npcs, loot, collect, pet, safety, zones, safetySpots, modules, extra, buy, session, flee);
     }
 
     public BotConfig withNpcs(Map<String, NpcRule> n) {
-        return new BotConfig(schema, description, module, general, n, loot, collect, pet, safety, zones, safetySpots, modules, extra, buy, session);
+        return new BotConfig(schema, description, module, general, n, loot, collect, pet, safety, zones, safetySpots, modules, extra, buy, session, flee);
     }
 
     public BotConfig withSafety(Safety s) {
-        return new BotConfig(schema, description, module, general, npcs, loot, collect, pet, s, zones, safetySpots, modules, extra, buy, session);
+        return new BotConfig(schema, description, module, general, npcs, loot, collect, pet, s, zones, safetySpots, modules, extra, buy, session, flee);
     }
 
     public BotConfig withDescription(String d) {
-        return new BotConfig(schema, d, module, general, npcs, loot, collect, pet, safety, zones, safetySpots, modules, extra, buy, session);
+        return new BotConfig(schema, d, module, general, npcs, loot, collect, pet, safety, zones, safetySpots, modules, extra, buy, session, flee);
     }
 
     public BotConfig withLoot(Loot l) {
-        return new BotConfig(schema, description, module, general, npcs, l, collect, pet, safety, zones, safetySpots, modules, extra, buy, session);
+        return new BotConfig(schema, description, module, general, npcs, l, collect, pet, safety, zones, safetySpots, modules, extra, buy, session, flee);
     }
 
     public BotConfig withCollect(Collect c) {
-        return new BotConfig(schema, description, module, general, npcs, loot, c, pet, safety, zones, safetySpots, modules, extra, buy, session);
+        return new BotConfig(schema, description, module, general, npcs, loot, c, pet, safety, zones, safetySpots, modules, extra, buy, session, flee);
     }
 
     public BotConfig withPet(Pet p) {
-        return new BotConfig(schema, description, module, general, npcs, loot, collect, p, safety, zones, safetySpots, modules, extra, buy, session);
+        return new BotConfig(schema, description, module, general, npcs, loot, collect, p, safety, zones, safetySpots, modules, extra, buy, session, flee);
     }
 
     public BotConfig withZones(Map<Integer, Zones> z) {
-        return new BotConfig(schema, description, module, general, npcs, loot, collect, pet, safety, z, safetySpots, modules, extra, buy, session);
+        return new BotConfig(schema, description, module, general, npcs, loot, collect, pet, safety, z, safetySpots, modules, extra, buy, session, flee);
     }
 
     public BotConfig withModuleSettings(String key, JsonNode settings) {
         Map<String, JsonNode> m = new TreeMap<>(modules);
         m.put(key, settings);
-        return new BotConfig(schema, description, module, general, npcs, loot, collect, pet, safety, zones, safetySpots, m, extra, buy, session);
+        return new BotConfig(schema, description, module, general, npcs, loot, collect, pet, safety, zones, safetySpots, m, extra, buy, session, flee);
     }
 
     /** Settings of a module, or an empty object. */
