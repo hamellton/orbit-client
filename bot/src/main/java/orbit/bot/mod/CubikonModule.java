@@ -454,8 +454,8 @@ public final class CubikonModule implements BotModule {
      */
     private boolean dueElsewhere(WorldSnapshot.Hero h) {
         long wall = wallMs();
-        if (spotReady > wall) {
-            return false; // the chosen cube is still to come: it was chosen as the soonest
+        if (spotReady > 0 && spotReady + LOOK_MS >= wall) {
+            return false; // the chosen cube is still to come (or due this moment): it was chosen as the soonest
         }
         long respawn = memory.mapRespawn(h.mapId());
         double speed = Math.max(100, h.speed());

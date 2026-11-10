@@ -136,7 +136,15 @@ class CubikonModuleTest {
         learned(memory, 13_400, 7_900, wall, 60_000);
         learned(memory, 7_500, 7_900, wall, 60_000);
         // the cube here is due in 20 s but someone takes it unseen: it never comes
+        java.util.List<String> lines = new java.util.ArrayList<>();
+        ch.qos.logback.classic.Logger logger = (ch.qos.logback.classic.Logger) org.slf4j.LoggerFactory.getLogger(CubikonModule.class);
+        ch.qos.logback.core.read.ListAppender<ch.qos.logback.classic.spi.ILoggingEvent> log = new ch.qos.logback.core.read.ListAppender<>();
+        log.start();
+        logger.addAppender(log);
         sim.run(m::tick, 120_000);
+        logger.detachAppender(log);
+        long leaves = log.list.stream().filter(e -> e.getFormattedMessage().contains("перелетаю")).count();
+        assertTrue(leaves <= 1, "one decision to leave, not a flip-flop every second: " + leaves);
         var h = sim.hero();
         assertTrue(Math.hypot(h.x() - 13_400, h.y() - 3_900) <= 450,
                 "caught the cube due on the other spawn instead of waiting out the grace: " + h);
