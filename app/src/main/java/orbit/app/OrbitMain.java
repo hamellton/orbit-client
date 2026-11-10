@@ -202,12 +202,13 @@ public final class OrbitMain {
 
     /**
      * Several accounts in one program: each with its own web login, game connection, sessions, window
-     * and log ({@code logs/orbit-<account>.log}); the vault and what the bot learns (Cubikon spawns) are
-     * shared. Logins are spread out so the site does not see a burst. Closing one window stops that
-     * account only; the program ends when all have stopped.
+     * tab in the window and log ({@code logs/orbit-<account>.log}); the vault and what the bot learns
+     * (Cubikon spawns) are shared. Logins are spread out so the site does not see a burst. A tab's stop
+     * button stops that account; closing the window stops all; the program ends when all have stopped.
      */
     private static void many(Options o, Vault vault, ClientProfile profile) throws Exception {
         java.util.List<Sessions> all = new java.util.ArrayList<>();
+        java.util.List<MainWindow.Tab> tabs = new java.util.ArrayList<>();
         java.util.Random random = new java.util.Random();
         long delay = 0;
         boolean gui = !o.headless && !java.awt.GraphicsEnvironment.isHeadless();
@@ -225,15 +226,17 @@ public final class OrbitMain {
             Sessions run = sessions(o, account, rig, profile, delay, () -> { });
             org.slf4j.MDC.remove("account");
             all.add(run);
-            if (gui) {
-                MainWindow.open(rig.feed(), () -> Thread.ofPlatform().name("stop-" + account).start(run.close()));
-            }
+            tabs.add(new MainWindow.Tab(rig.feed(), run.close()));
             log.info("Аккаунт «{}»: старт через {} с", account, delay / 1_000);
             delay += 15_000 + random.nextInt(30_000);
         }
         if (all.isEmpty()) {
             System.err.println("Ни один аккаунт не запущен");
             System.exit(2);
+        }
+        if (gui) {
+            // one window, a tab per account; closing it stops every account (each in its own thread)
+            MainWindow.open(tabs, () -> all.forEach(r -> Thread.ofPlatform().name("stop").start(r.close())));
         }
         Runtime.getRuntime().addShutdownHook(new Thread(() -> all.forEach(r -> r.close().run())));
         for (Sessions r : all) {
