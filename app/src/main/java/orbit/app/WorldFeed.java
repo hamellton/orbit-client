@@ -33,6 +33,27 @@ public final class WorldFeed {
     private volatile String action;
     /** Time base of the model: real time, or the replay clock. */
     private volatile LongSupplier clock = System::nanoTime;
+    private volatile orbit.bot.run.Stats stats;
+
+    /** The running bot's counters (none in observer or replay mode). */
+    public void setStats(orbit.bot.run.Stats s) {
+        stats = s;
+    }
+
+    public orbit.bot.run.Stats stats() {
+        return stats;
+    }
+
+    /** Session length in hours (0 before the session starts). */
+    public double sessionHours() {
+        long since = sessionStart;
+        return since == 0 ? 0 : (now() - since) / 3.6e12;
+    }
+
+    /** The session's results in one line (for the log). */
+    public String summary() {
+        return SessionSummary.text(snapshot().rewards(), stats, sessionHours());
+    }
 
     public WorldFeed(String mode) {
         this.mode = mode;

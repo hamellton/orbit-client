@@ -17,7 +17,16 @@ public record WorldSnapshot(long nanos, Hero hero, Map<Integer, Ship> ships, Map
                             Map<Integer, Portal> portals, Map<Integer, Asset> assets, Map<String, Zone> zones,
                             Group group, Map<String, Item> items, Inventory inventory, Pet pet,
                             Map<Integer, Long> activatable, int jumpingTo, Death death,
-                            java.util.Set<String> slotItems, Map<Integer, Kill> destroyed) {
+                            java.util.Set<String> slotItems, Map<Integer, Kill> destroyed, Rewards rewards) {
+
+    /**
+     * What the server's reward log ({@code 0|LM|ST|…}) has granted since the world model started:
+     * currencies and points, and items by id (resources, ammunition, rockets, mines, xenomit, log disks).
+     */
+    public record Rewards(double credits, double uridium, double honor, double experience, Map<String, Double> items) {
+
+        public static final Rewards NONE = new Rewards(0, 0, 0, 0, Map.of());
+    }
 
     /**
      * A ship the server reported destroyed ({@code ShipDestroyedCommand}) in the last

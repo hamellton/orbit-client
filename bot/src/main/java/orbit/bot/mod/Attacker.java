@@ -27,6 +27,7 @@ public final class Attacker {
     private long ammoAt = Long.MIN_VALUE / 2;
     private long nextApproach;
     private int kills;
+    private boolean t0Cubikon;
     /** The ammunition selected before the bot switched to SAB, to go back to when no ammunition is configured. */
     private String beforeSab;
 
@@ -48,6 +49,10 @@ public final class Attacker {
         }
         targetId = s.id();
         shotAt = false;
+        t0Cubikon = CubikonModule.isCubikon(s);
+        if (t0Cubikon) {
+            ctx.stats().cubeFought(s.id());
+        }
         selectAt = ctx.now() + ctx.pause(300, 900);
         pressAt = 0;
         WorldSnapshot.Hero h = ctx.world().get().hero();
@@ -73,6 +78,10 @@ public final class Attacker {
         if (t == null) {
             if (shotAt) {
                 kills++;
+                ctx.stats().kills.incrementAndGet();
+                if (t0Cubikon) {
+                    ctx.stats().cubesKilled.incrementAndGet();
+                }
                 log.info("Цель уничтожена (всего {})", kills);
             }
             clear();

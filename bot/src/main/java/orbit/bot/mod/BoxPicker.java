@@ -62,6 +62,7 @@ public final class BoxPicker {
         long now = ctx.now();
         if (hash != null && !w.collectables().containsKey(hash)) {
             boxes++;
+            ctx.stats().boxes.incrementAndGet();
             log.info("Ящик собран ({})", boxes);
             hash = null;
         }

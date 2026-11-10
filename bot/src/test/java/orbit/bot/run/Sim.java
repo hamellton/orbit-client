@@ -55,7 +55,7 @@ final class Sim {
         Traveler traveler = new Traveler(() -> world.snapshot(now), this::receive, nav, MapCatalog.bundled(), random, () -> now);
         ShipSetup ship = new ShipSetup(() -> world.snapshot(now), actions, () -> now, random);
         ctx = new BotContext(() -> world.snapshot(now), () -> this.config, actions, nav, traveler, MapCatalog.bundled(),
-                random, () -> now, (type, faction) -> repairs.add(new int[] {type, faction}), ship, null);
+                random, () -> now, (type, faction) -> repairs.add(new int[] {type, faction}), ship, null, new Stats());
     }
 
     void lasers(String selected, String... others) {

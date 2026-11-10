@@ -350,8 +350,15 @@ public final class World {
         return new WorldSnapshot(nanos, h, Map.copyOf(shipViews), Map.copyOf(collectables), Map.copyOf(portals),
                 Map.copyOf(assets), Map.copyOf(zones), group, Map.copyOf(items),
                 new WorldSnapshot.Inventory(Map.copyOf(ores), Map.copyOf(resources), Map.copyOf(bootyKeys)), pet,
-                Map.copyOf(activatable), jumpingTo, death, java.util.Set.copyOf(slotItems), recentKills(nanos));
+                Map.copyOf(activatable), jumpingTo, death, java.util.Set.copyOf(slotItems), recentKills(nanos),
+                new WorldSnapshot.Rewards(gainedCredits, gainedUridium, gainedHonor, gainedExperience, Map.copyOf(loot)));
     }
+
+    private double gainedCredits;
+    private double gainedUridium;
+    private double gainedHonor;
+    private double gainedExperience;
+    private final Map<String, Double> loot = new java.util.TreeMap<>();
 
     /** Destroyed ships are remembered this long. */
     static final long KILL_MEMORY_NANOS = 30_000_000_000L;
@@ -619,6 +626,29 @@ public final class World {
         items.put(t.menuItemId, withTimer(i, t.activatable, t.timerState, t.time, t.maxTime, nanos));
     }
 
+    /**
+     * One reward log line: {@code CRE|URI|HON|EP|<gained>|<total>…}; items {@code LOT|BAT|ROK|AMI|<item>|<amount>};
+     * {@code XEN|<amount>}; {@code LOG|<gained>|<total>} (log disks).
+     */
+    private void reward(String[] a) {
+        switch (a[3]) {
+            case "CRE" -> gainedCredits += Math.max(0, parseDouble(a[4], 0));
+            case "URI" -> gainedUridium += Math.max(0, parseDouble(a[4], 0));
+            case "HON" -> gainedHonor += parseDouble(a[4], 0);
+            case "EP" -> gainedExperience += Math.max(0, parseDouble(a[4], 0));
+            case "LOT", "BAT", "ROK", "AMI" -> {
+                if (a.length >= 6) {
+                    loot.merge(a[4], Math.max(0, parseDouble(a[5], 0)), Double::sum);
+                }
+            }
+            case "XEN" -> loot.merge("xenomit", Math.max(0, parseDouble(a[4], 0)), Double::sum);
+            case "LOG" -> loot.merge("log_disk", Math.max(0, parseDouble(a[4], 0)), Double::sum);
+            default -> {
+                // other notices (booty keys opening, messages)
+            }
+        }
+    }
+
     // ---- legacy text commands ("0|A|c|1600"), see docs/recon/STAGE3.md ----
 
     private void legacy(String message, long nanos) {
@@ -629,6 +659,9 @@ public final class World {
         switch (a[1]) {
             case "LM" -> {
                 // reward log: 0|LM|ST|CRE|<gained>|<total>, URI and HON alike, EP|<gained>|<total>|<level>
+                if (a.length >= 5 && "ST".equals(a[2])) {
+                    reward(a);
+                }
                 if (a.length >= 6 && "ST".equals(a[2])) {
                     double total = parseDouble(a[5], -1);
                     if (total >= 0) {

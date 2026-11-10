@@ -71,6 +71,7 @@ public final class Safety {
             double limit = attacked || fighting ? s.repairHpMin() : s.repairHpNoNpc();
             if (hp < limit) {
                 repairing = true;
+                ctx.stats().repairs.incrementAndGet();
                 repairMap = h.mapId();
                 ctx.nav().stop();
                 log.info("HP {}% — ухожу на ремонт", pct(hp));

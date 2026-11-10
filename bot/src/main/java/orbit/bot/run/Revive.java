@@ -53,6 +53,7 @@ public final class Revive {
         if (!dead) {
             dead = true;
             deaths++;
+            ctx.stats().deaths.incrementAndGet();
             ctx.nav().stop();
             repairAt = now + Math.max(0, s.waitBeforeReviveSec()) * 1_000_000_000L + ctx.pause(2_000, 6_000);
             log.warn("Корабль уничтожен ({}){} — смертей {}", death == null ? "?" : death.killer(), "", deaths);

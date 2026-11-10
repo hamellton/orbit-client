@@ -56,6 +56,7 @@ final class Hud {
         if (hero.id() == 0) {
             return;
         }
+        paintStats(g, width, w, feed);
         paintHero(g, height, hero);
         paintPet(g, height - MARGIN - 52 - 6, w.pet());
         paintTargetAndAttackers(g, width, height, w);
@@ -177,6 +178,24 @@ final class Hud {
         g.drawString(state, width - MARGIN - fm.stringWidth(state), MARGIN + 12);
         g.setColor(DIM);
         g.drawString(time, width - MARGIN - fm.stringWidth(time), MARGIN + 28);
+    }
+
+    /** Session results under the session time: rewards (total and per hour), the bot's counters, loot. */
+    private void paintStats(Graphics2D g, int width, WorldSnapshot w, WorldFeed feed) {
+        if (feed.stats() == null && w.rewards().equals(WorldSnapshot.Rewards.NONE)) {
+            return;
+        }
+        java.util.List<String> lines = orbit.app.SessionSummary.lines(w.rewards(), feed.stats(), feed.sessionHours());
+        int lineH = 14;
+        int h = 12 + lines.size() * lineH;
+        int x = width - MARGIN - CARD_WIDTH;
+        int y = MARGIN + 40;
+        card(g, x, y, h, MinimapPanel.HERO);
+        g.setFont(base.deriveFont(Font.PLAIN, 11f));
+        for (int i = 0; i < lines.size(); i++) {
+            g.setColor(i < 4 ? TEXT : DIM);
+            g.drawString(clip(g, lines.get(i), CARD_WIDTH - 20), x + 10, y + 16 + i * lineH);
+        }
     }
 
     static String clock(Duration d) {

@@ -237,10 +237,12 @@ public final class OrbitMain {
             return new orbit.bot.act.Actions.Login(session.userId(), session.sessionId());
         }, orbit.bot.act.Actions.Screen.fromReadyString(profile.readyTypeStr()), random);
         orbit.bot.run.ShipSetup ship = new orbit.bot.run.ShipSetup(feed::snapshot, actions, System::nanoTime, random);
+        orbit.bot.run.Stats stats = new orbit.bot.run.Stats();
+        feed.setStats(stats);
         orbit.bot.run.ConfigWatch watch = new orbit.bot.run.ConfigWatch(orbit.config.ConfigStore.openDefault(), configName,
                 config, catalog);
         orbit.bot.run.BotContext ctx = new orbit.bot.run.BotContext(feed::snapshot, watch::current, actions, nav, traveler,
-                catalog, random, System::nanoTime, conn::repair, ship, Path.of("local"));
+                catalog, random, System::nanoTime, conn::repair, ship, Path.of("local"), stats);
         orbit.bot.run.BotRunner runner = new orbit.bot.run.BotRunner(ctx, feed::loggedOut, feed::setAction);
         java.util.concurrent.atomic.AtomicBoolean stopRequested = new java.util.concurrent.atomic.AtomicBoolean();
         CountDownLatch done = new CountDownLatch(1);
@@ -273,6 +275,7 @@ public final class OrbitMain {
                     Thread.sleep(100);
                 }
                 log.info("Бот завершил работу: {}", runner.status());
+                log.info("Итог сессии: {}", feed.summary());
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             } catch (RuntimeException e) {
