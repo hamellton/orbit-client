@@ -147,11 +147,12 @@ public final class CubikonModule implements BotModule {
             attacker.clear();
             ctx.nav().stop();
         }
-        if (attacker.targetId() != 0 && !inReach(w)) {
-            attacker.clear(); // it moved off: the camp does not chase, it stays on the spawn
+        boolean chase = setting(s, "chaseFromSpot", false);
+        if (attacker.targetId() != 0 && !chase && !inReach(w)) {
+            attacker.clear(); // it moved off: standing on the spawn, no chase
         }
-        if (attacker.targetId() != 0 && !attacker.tick(false)) {
-            attacker.clear();
+        if (attacker.targetId() != 0 && !attacker.tick(chase)) {
+            attacker.clear(); // killed: camp() flies back to the spot
         }
         if (attacker.targetId() != 0) {
             status = "бью, пока жду куб";
@@ -159,10 +160,10 @@ public final class CubikonModule implements BotModule {
         }
         String waitKill = waitKill(s);
         if (!"OFF".equals(waitKill)) {
-            WorldSnapshot.Ship t = waitTarget(c, w, waitKill, leash);
+            WorldSnapshot.Ship t = waitTarget(c, w, waitKill, leash, chase);
             if (t != null) {
                 attacker.target(t);
-                attacker.tick(false);
+                attacker.tick(chase);
                 status = "бью, пока жду куб";
                 return;
             }
@@ -189,18 +190,18 @@ public final class CubikonModule implements BotModule {
     }
 
     /**
-     * An NPC to fight while waiting: allowed by the list, within {@code range} of the spot we wait on and
-     * within reach of the standing ship (the camp does not fly after mobs), and with {@code ATTACKERS} only
-     * one that shoots at us.
+     * An NPC to fight while waiting: allowed by the list, within {@code range} of the spot we wait on and —
+     * unless {@code chaseFromSpot} — within reach of the standing ship; with {@code ATTACKERS} only one that
+     * shoots at us. Chasing stays on the leash ({@link #onLeash}): past it, or after the kill, back to the spot.
      */
-    private WorldSnapshot.Ship waitTarget(BotConfig c, WorldSnapshot w, String mode, double range) {
+    private WorldSnapshot.Ship waitTarget(BotConfig c, WorldSnapshot w, String mode, double range, boolean chase) {
         WorldSnapshot.Hero h = w.hero();
         double cx = spot != null ? spot[0] : h.x();
         double cy = spot != null ? spot[1] : h.y();
         return w.ships().values().stream()
                 .filter(x -> Targets.attackable(c, x, h.mapId()))
                 .filter(x -> Math.hypot(x.x() - cx, x.y() - cy) <= range)
-                .filter(x -> x.distanceTo(h.x(), h.y()) <= Targets.radius(c, x, h.mapId()) + REACH_EXTRA)
+                .filter(x -> chase || x.distanceTo(h.x(), h.y()) <= Targets.radius(c, x, h.mapId()) + REACH_EXTRA)
                 .filter(x -> !"ATTACKERS".equals(mode) || x.attackTargetId() == h.id() || h.attackers().contains(x.id()))
                 .min(Comparator.<WorldSnapshot.Ship>comparingInt(x -> Targets.rule(c, x, h.mapId()).priority())
                         .thenComparingDouble(x -> x.distanceTo(h.x(), h.y())))

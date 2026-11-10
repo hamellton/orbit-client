@@ -33,6 +33,8 @@ public final class SpawnMemory {
     static final int SAMPLES = 20;
     /** A respawn longer than this is not a respawn we saw (the bot was away). */
     static final long MAX_RESPAWN_MS = 6 * 3_600_000L;
+    /** Shorter than this is not a respawn but the same cube seen again. */
+    static final long MIN_RESPAWN_MS = 60_000L;
 
     /**
      * One spawn point.
@@ -49,14 +51,13 @@ public final class SpawnMemory {
             respawnMs = respawnMs == null ? List.of() : List.copyOf(respawnMs);
         }
 
-        /** Median observed respawn, or -1 with no samples. */
+        /**
+         * The shortest observed respawn, or -1 with no samples. A sample can only come out too long (the
+         * bot saw the cube later than it appeared, or missed one in between), never too short, so the
+         * minimum is the best guess.
+         */
         public long respawnEstimate() {
-            if (respawnMs.isEmpty()) {
-                return -1;
-            }
-            List<Long> s = new ArrayList<>(respawnMs);
-            s.sort(null);
-            return s.get(s.size() / 2);
+            return respawnMs.stream().mapToLong(Long::longValue).filter(v -> v >= MIN_RESPAWN_MS).min().orElse(-1);
         }
 
         /** When the next one is expected here, or -1 if unknown. */

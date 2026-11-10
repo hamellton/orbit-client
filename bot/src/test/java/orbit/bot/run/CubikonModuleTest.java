@@ -312,4 +312,31 @@ class CubikonModuleTest {
         assertTrue(left.contains("b1") && left.contains("b2"), "boxes beyond 400 of the spawn left alone: " + left);
         assertTrue(!left.contains("b0"), "the one by the spawn picked up");
     }
+
+    @Test
+    void chasesOnTheLeashAndComesBack() throws Exception {
+        BotConfig c = config(0, false);
+        var settings = c.moduleSettings("cubikon");
+        settings.put("waitKill", "ATTACKERS");
+        settings.put("waitKillRange", 1_500);
+        settings.put("chaseFromSpot", true);
+        Sim sim = new Sim(c.withModuleSettings("cubikon", settings), 26, 7_500, 3_900);
+        sim.lasers("ammunition_laser_ucb-100");
+        sim.npc(60, "-=[ Kristallin ]=-", 8_600, 3_900); // 1100 from the spot: out of reach, on the leash
+        orbit.protocol.gen.AttackLaserRunCommand shot = new orbit.protocol.gen.AttackLaserRunCommand();
+        shot.attackerId = 60;
+        shot.targetId = 1;
+        sim.world.apply(shot, sim.now);
+        CubikonModule m = new CubikonModule(sim.ctx, SpawnMemory.inMemory());
+        sim.run(m::tick, 8_000);
+        var h = sim.hero();
+        assertEquals(60, h.selected(), "goes for it");
+        assertTrue(h.x() > 7_800, "flew towards it: " + h);
+        orbit.protocol.gen.ShipDestroyedCommand d = new orbit.protocol.gen.ShipDestroyedCommand();
+        d.destroyedUserId = 60;
+        sim.world.apply(d, sim.now);
+        sim.run(m::tick, 10_000);
+        h = sim.hero();
+        assertTrue(Math.hypot(h.x() - 7_500, h.y() - 3_900) <= 450, "back on the spawn after the kill: " + h);
+    }
 }

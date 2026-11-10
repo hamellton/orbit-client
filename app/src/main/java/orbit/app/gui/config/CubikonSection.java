@@ -39,6 +39,8 @@ final class CubikonSection implements Section {
     private final JSpinner boxesAbove = Form.percent();
     private final javax.swing.JComboBox<String> waitKill = new javax.swing.JComboBox<>(WAIT_KILL_NAMES);
     private final JSpinner waitKillRange = Form.number(200, 10_000, 100);
+    private final javax.swing.JComboBox<String> chase = new javax.swing.JComboBox<>(
+            new String[] {"Стоять на споте — бить только тех, кто в досягаемости", "Преследовать, но не дальше от спота"});
     private final javax.swing.JComboBox<String> mode = new javax.swing.JComboBox<>(MODE_NAMES);
     private final JCheckBox learn = new JCheckBox("Запоминать, где появляются и когда умирают кубы");
     private final javax.swing.JLabel learned = new javax.swing.JLabel(" ");
@@ -60,7 +62,10 @@ final class CubikonSection implements Section {
                 showLearned();
             }
         });
-        waitKill.addActionListener(e -> waitKillRange.setEnabled(waitKill.getSelectedIndex() > 0));
+        waitKill.addActionListener(e -> {
+            waitKillRange.setEnabled(waitKill.getSelectedIndex() > 0);
+            chase.setEnabled(waitKill.getSelectedIndex() > 0);
+        });
         view = new Form()
                 .section("Кубиконы")
                 .note("Если на карте живой Cubikon (даже если его уже бьют другие) — бот сразу летит к нему. "
@@ -80,9 +85,11 @@ final class CubikonSection implements Section {
                 .row("", collect)
                 .row("Собирать, пока у куба HP больше, %", boxesAbove)
                 .row("Пока ждём куб, бить", waitKill)
+                .row("Как бить", chase)
                 .row("…не дальше от спота", waitKillRange)
                 .note("Кого именно можно бить, задаёт список NPC (вкладка «Атака», «Бить»). Радиус считается от точки "
-                        + "спауна: если цель или бой уводят дальше, бот бросает цель и возвращается на спаун.")
+                        + "спауна: если цель или бой уводят дальше, бот бросает цель и возвращается на спаун; после "
+                        + "убийства тоже сразу возвращается.")
                 .build(true);
     }
 
@@ -122,6 +129,8 @@ final class CubikonSection implements Section {
         waitKill.setSelectedIndex(Math.max(0, java.util.Arrays.asList(WAIT_KILL).indexOf(wk)));
         Form.set(waitKillRange, m.path("waitKillRange").asInt(1_500));
         waitKillRange.setEnabled(waitKill.getSelectedIndex() > 0);
+        chase.setSelectedIndex(m.path("chaseFromSpot").asBoolean(false) ? 1 : 0);
+        chase.setEnabled(waitKill.getSelectedIndex() > 0);
         int i = java.util.Arrays.asList(MODES).indexOf(m.path("spotMode").asText("ROUND"));
         mode.setSelectedIndex(Math.max(0, i));
         learn.setSelected(m.path("learnSpawns").asBoolean(true));
@@ -163,6 +172,7 @@ final class CubikonSection implements Section {
         m.remove("killWhileWaiting");
         m.put("waitKill", WAIT_KILL[waitKill.getSelectedIndex()]);
         m.put("waitKillRange", Form.intOf(waitKillRange));
+        m.put("chaseFromSpot", chase.getSelectedIndex() == 1);
         m.put("spotMode", MODES[mode.getSelectedIndex()]);
         m.put("learnSpawns", learn.isSelected());
         if (untouched && m.equals(defaults())) {
@@ -183,6 +193,7 @@ final class CubikonSection implements Section {
         m.put("boxesWhileCubikonHpAbove", 0.25);
         m.put("waitKill", "OFF");
         m.put("waitKillRange", 1_500);
+        m.put("chaseFromSpot", false);
         m.put("spotMode", "ROUND");
         m.put("learnSpawns", true);
         return m;

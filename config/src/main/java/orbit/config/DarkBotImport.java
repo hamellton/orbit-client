@@ -326,6 +326,7 @@ public final class DarkBotImport {
                         || camp.path("killWhileWaiting").asBoolean(false);
                 c.put("waitKill", kristallins ? "ALL" : "OFF");
                 c.put("waitKillRange", 1_500);
+                c.put("chaseFromSpot", false);
                 c.put("spotMode", "ROUND");
                 c.put("learnSpawns", true);
                 modules.put(BotConfig.Module.CUBIKON.key(), c);
