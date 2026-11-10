@@ -177,6 +177,11 @@ public final class ViewSettings {
         changed();
     }
 
+    /** True when every part around the map is hidden. */
+    public synchronized boolean mapOnlyNow() {
+        return !shown.containsValue(true);
+    }
+
     /** Every part around the map shown again. */
     public void showAll() {
         synchronized (this) {

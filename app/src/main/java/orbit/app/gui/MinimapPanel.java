@@ -79,7 +79,7 @@ final class MinimapPanel extends JPanel {
 
     /** Where the map sits in the panel, keeping its proportions (21000:13100 for most maps). */
     private Projection projection(MapCatalog.MapInfo map) {
-        int pad = compact ? 0 : 8;
+        int pad = compact || ViewSettings.shared().mapOnlyNow() ? 0 : 8; // only the map: edge to edge
         double scale = Math.min((getWidth() - 2.0 * pad) / map.width(), (getHeight() - 2.0 * pad) / map.height());
         double ox = (getWidth() - map.width() * scale) / 2;
         double oy = (getHeight() - map.height() * scale) / 2;
