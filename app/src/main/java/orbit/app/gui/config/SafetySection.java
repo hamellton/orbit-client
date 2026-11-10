@@ -52,8 +52,8 @@ final class SafetySection implements Section {
                         + "бою; вне боя ещё и ремонтный робот. Бот нажимает то, что есть на корабле.")
                 .section("Бегство от игроков")
                 .row("От кого убегать", fleeMode)
-                .row("Список (для «из списка»)", new javax.swing.JScrollPane(fleePlayers))
-                .row("Никогда не убегать от", new javax.swing.JScrollPane(fleeNever))
+                .row("Список (для «из списка»)", PlayerPicker.withButton(fleePlayers))
+                .row("Никогда не убегать от", PlayerPicker.withButton(fleeNever))
                 .note("По одному в строке или через запятую: ник игрока или клан в скобках, например [TAG]. Группа и "
                         + "союзные кланы врагами не считаются.")
                 .row("«Поблизости» — ближе чем", fleeSight)

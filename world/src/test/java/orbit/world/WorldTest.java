@@ -446,4 +446,47 @@ class WorldTest {
         assertFalse(w.snapshot(0).hero().alive());
         assertEquals(0.5, w.snapshot(0).hero().health().hpPercent(), 1e-9);
     }
+
+    private static orbit.protocol.gen.ContactListEntryModule contact(int id, String name, String tag, int... types) {
+        var e = new orbit.protocol.gen.ContactListEntryModule();
+        e.attributeCommand = new orbit.protocol.gen.ContactListEntryAttributeCommand();
+        e.attributeCommand.userId = id;
+        var n = new orbit.protocol.gen.ContactListEntryAttributeNameModule();
+        n.userName = name;
+        var c = new orbit.protocol.gen.ContactListEntryAttributeClanTagModule();
+        c.clanTag = tag;
+        e.attributeCommand.attributes.add(n);
+        e.attributeCommand.attributes.add(c);
+        e.typeCommand = new orbit.protocol.gen.ContactListEntryTypeCommand();
+        e.typeCommand.userId = id;
+        for (int t : types) {
+            var m = new orbit.protocol.gen.ContactListEntryTypeModule();
+            m.entryType = (short) t;
+            e.typeCommand.contactEntryTypes.add(m);
+        }
+        return e;
+    }
+
+    @Test
+    void contactListIsTracked() {
+        World w = new World();
+        var init = new orbit.protocol.gen.ContactListInitializationCommand();
+        init.contactsCommand = new orbit.protocol.gen.ContactListUpdateContactsCommand();
+        init.contactsCommand.contacts.add(contact(7, "Friendly", "ABC",
+                orbit.protocol.gen.ContactListEntryTypeModule.CONTACTLISTENTRYTYPE_FRIEND));
+        init.contactsCommand.contacts.add(contact(8, "Mate", "ABC",
+                orbit.protocol.gen.ContactListEntryTypeModule.CONTACTLISTENTRYTYPE_CLAN_MEMBER));
+        w.apply(init, 1);
+        var c = w.snapshot(1).contacts();
+        assertEquals(2, c.size());
+        assertTrue(c.get(0).friend());
+        assertEquals("Friendly", c.get(0).name());
+        assertEquals("ABC", c.get(0).clanTag());
+        assertTrue(c.get(1).clanMember());
+
+        var remove = new orbit.protocol.gen.ContactListRemoveContactsCommand();
+        remove.contactUserIds.add(7);
+        w.apply(remove, 2);
+        assertEquals(List.of("Mate"), w.snapshot(2).contacts().stream().map(WorldSnapshot.Contact::name).toList());
+    }
 }

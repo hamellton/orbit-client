@@ -18,7 +18,11 @@ public record WorldSnapshot(long nanos, Hero hero, Map<Integer, Ship> ships, Map
                             Group group, Map<String, Item> items, Inventory inventory, Pet pet,
                             Map<Integer, Long> activatable, int jumpingTo, Death death,
                             java.util.Set<String> slotItems, Map<Integer, Kill> destroyed, Rewards rewards,
-                            List<Invitation> invitations) {
+                            List<Invitation> invitations, List<Contact> contacts) {
+
+    /** An entry of the contact list ({@code ContactListInitializationCommand} and its updates). */
+    public record Contact(int id, String name, String clanTag, boolean online, boolean friend, boolean clanMember) {
+    }
 
     /**
      * A group invitation ({@code InvitationInitializationCommand}): {@code incoming} when the hero is the

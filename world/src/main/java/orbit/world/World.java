@@ -279,6 +279,14 @@ public final class World {
                         p.candidateId == hero.id));
             }
             case orbit.protocol.gen.InvitationRemovalCommand p -> invitations.removeIf(i -> i.candidateId() == p.candidateId);
+            case orbit.protocol.gen.ContactListInitializationCommand p -> {
+                contacts.clear();
+                if (p.contactsCommand != null) {
+                    p.contactsCommand.contacts.forEach(this::contact);
+                }
+            }
+            case orbit.protocol.gen.ContactListUpdateContactsCommand p -> p.contacts.forEach(this::contact);
+            case orbit.protocol.gen.ContactListRemoveContactsCommand p -> p.contactUserIds.forEach(contacts::remove);
             case MapAssetActionAvailableCommand p -> {
                 if (p.activatable) {
                     activatable.putIfAbsent(p.mapAssetId, nanos);
@@ -359,7 +367,7 @@ public final class World {
                 new WorldSnapshot.Inventory(Map.copyOf(ores), Map.copyOf(resources), Map.copyOf(bootyKeys)), pet,
                 Map.copyOf(activatable), jumpingTo, death, java.util.Set.copyOf(slotItems), recentKills(nanos),
                 new WorldSnapshot.Rewards(gainedCredits, gainedUridium, gainedHonor, gainedExperience, Map.copyOf(loot)),
-                List.copyOf(invitations));
+                List.copyOf(invitations), List.copyOf(contacts.values()));
     }
 
     private double gainedCredits;
@@ -837,6 +845,39 @@ public final class World {
     }
 
     private final List<WorldSnapshot.Invitation> invitations = new ArrayList<>();
+    private final Map<Integer, WorldSnapshot.Contact> contacts = new java.util.TreeMap<>();
+
+    /** One contact list entry: its types (friend, clan member…) and attributes (name, clan, online). */
+    private void contact(orbit.protocol.gen.ContactListEntryModule e) {
+        if (e.attributeCommand == null) {
+            return;
+        }
+        int id = e.attributeCommand.userId;
+        WorldSnapshot.Contact old = contacts.get(id);
+        String name = old != null ? old.name() : "";
+        String tag = old != null ? old.clanTag() : "";
+        boolean online = old != null && old.online();
+        for (orbit.protocol.gen.ContactListEntryAttributeBaseModule a : e.attributeCommand.attributes) {
+            if (a instanceof orbit.protocol.gen.ContactListEntryAttributeNameModule n) {
+                name = n.userName;
+            } else if (a instanceof orbit.protocol.gen.ContactListEntryAttributeClanTagModule c) {
+                tag = c.clanTag;
+            } else if (a instanceof orbit.protocol.gen.ContactListEntryAttributeOnlineModule o) {
+                online = o.online;
+            }
+        }
+        boolean friend = old != null && old.friend();
+        boolean clan = old != null && old.clanMember();
+        if (e.typeCommand != null) {
+            friend = false;
+            clan = false;
+            for (orbit.protocol.gen.ContactListEntryTypeModule t : e.typeCommand.contactEntryTypes) {
+                friend |= t.entryType == orbit.protocol.gen.ContactListEntryTypeModule.CONTACTLISTENTRYTYPE_FRIEND;
+                clan |= t.entryType == orbit.protocol.gen.ContactListEntryTypeModule.CONTACTLISTENTRYTYPE_CLAN_MEMBER;
+            }
+        }
+        contacts.put(id, new WorldSnapshot.Contact(id, name, tag, online, friend, clan));
+    }
 
     private void updateGroupMember(GroupMemberUpdateCommand p) {
         List<Member> members = new ArrayList<>(group.members());

@@ -65,6 +65,43 @@ public final class WorldFeed {
     public WorldFeed(String mode, String account) {
         this.mode = mode;
         this.account = account;
+        LIVE.add(this);
+    }
+
+    /** The feeds of this program, e.g. for picking players seen by any running account. */
+    private static final java.util.List<WorldFeed> LIVE = new java.util.concurrent.CopyOnWriteArrayList<>();
+
+    public static java.util.List<WorldFeed> live() {
+        return java.util.List.copyOf(LIVE);
+    }
+
+    /** A player this account saw (in the game, any map) and when. */
+    public record SeenPlayer(String name, String clanTag, int factionId, int mapId, long atMillis) {
+    }
+
+    private final java.util.Map<String, SeenPlayer> seen = new java.util.concurrent.ConcurrentHashMap<>();
+    private volatile long seenCheckedAt;
+
+    /** Players seen in this program run, the latest first. */
+    public java.util.List<SeenPlayer> seenPlayers() {
+        return seen.values().stream().sorted(java.util.Comparator.comparingLong(SeenPlayer::atMillis).reversed())
+                .toList();
+    }
+
+    private void rememberPlayers(long nanos) {
+        if (nanos - seenCheckedAt < 1_000_000_000L) {
+            return;
+        }
+        seenCheckedAt = nanos;
+        WorldSnapshot w = world.snapshot(nanos);
+        long now = System.currentTimeMillis();
+        for (WorldSnapshot.Ship s : w.ships().values()) {
+            if (s.kind() == WorldSnapshot.ShipKind.PLAYER && s.id() != w.hero().id() && s.name() != null
+                    && !s.name().isBlank()) {
+                seen.put(s.name(), new SeenPlayer(s.name(), s.clanTag() == null ? "" : s.clanTag(), s.factionId(),
+                        w.hero().mapId(), now));
+            }
+        }
     }
 
     public String account() {
@@ -89,6 +126,7 @@ public final class WorldFeed {
         packets.incrementAndGet();
         int heroBefore = world.snapshot(nanos).hero().id();
         world.apply(p, nanos);
+        rememberPlayers(nanos);
         if (sessionStart == 0 && p instanceof ShipInitializationCommand) {
             sessionStart = nanos;
         }

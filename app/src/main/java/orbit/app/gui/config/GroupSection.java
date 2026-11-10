@@ -3,7 +3,6 @@ package orbit.app.gui.config;
 import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
-import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import orbit.config.BotConfig;
@@ -30,7 +29,7 @@ final class GroupSection implements Section {
                 .row("", reject)
                 .note("«Не принимать» вместе с «Отклонять остальные» — то же, что блокировать приглашения.")
                 .section("Список игроков")
-                .row("Игроки", new JScrollPane(players))
+                .row("Игроки", PlayerPicker.withButton(players))
                 .note("По одному в строке или через запятую: ник или клан в скобках, например [TAG] (клан узнаётся, "
                         + "когда игрок виден на карте). Список общий для приёма, приглашений и исключения.")
                 .row("", invite)
