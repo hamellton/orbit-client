@@ -62,8 +62,12 @@ public final class SpawnMemory {
 
         /** When the next one is expected here, or -1 if unknown. */
         public long expectedAt() {
-            long est = respawnEstimate();
-            return est < 0 || lastKill == 0 || lastKill < lastSeen ? -1 : lastKill + est;
+            return expectedAt(respawnEstimate());
+        }
+
+        /** When the next one is expected here with a given respawn time (e.g. the map's), or -1. */
+        public long expectedAt(long respawn) {
+            return respawn < 0 || lastKill == 0 || lastKill < lastSeen ? -1 : lastKill + respawn;
         }
 
         double distanceTo(double px, double py) {
@@ -140,6 +144,15 @@ public final class SpawnMemory {
             list.set(i, new Spawn(s.x(), s.y(), s.seen(), s.lastSeen(), nowMs, s.respawnMs()));
         }
         save();
+    }
+
+    /**
+     * The respawn time of the map: the shortest seen on any of its spawns (cubes seem to come back after
+     * the same time everywhere, and a long sample only means the bot was elsewhere), or -1.
+     */
+    public synchronized long mapRespawn(int mapId) {
+        return maps.getOrDefault(mapId, List.of()).stream().mapToLong(Spawn::respawnEstimate).filter(v -> v > 0)
+                .min().orElse(-1);
     }
 
     public synchronized void forget(int mapId) {

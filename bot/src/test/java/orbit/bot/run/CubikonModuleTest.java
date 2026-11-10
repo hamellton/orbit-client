@@ -339,4 +339,20 @@ class CubikonModuleTest {
         h = sim.hero();
         assertTrue(Math.hypot(h.x() - 7_500, h.y() - 3_900) <= 450, "back on the spawn after the kill: " + h);
     }
+
+    @Test
+    void theMapRespawnIsTheShortestSeenAnywhere() {
+        SpawnMemory memory = SpawnMemory.inMemory();
+        long t = 10_000_000;
+        memory.seen(26, 7_500, 4_000, t);
+        memory.killed(26, 7_500, 4_000, t + 60_000);
+        memory.seen(26, 7_500, 4_000, t + 60_000 + 607_000);   // 10:07 — one was missed
+        memory.seen(26, 13_400, 4_000, t);
+        memory.killed(26, 13_400, 4_000, t + 60_000);
+        memory.seen(26, 13_400, 4_000, t + 60_000 + 300_000);  // 5:00
+        assertEquals(300_000, memory.mapRespawn(26));
+        memory.killed(26, 7_500, 4_000, t + 1_000_000);
+        var s = memory.spawns(26).stream().filter(x -> x.x() == 7_500).findFirst().orElseThrow();
+        assertEquals(t + 1_300_000, s.expectedAt(memory.mapRespawn(26)));
+    }
 }

@@ -311,16 +311,18 @@ public final class CubikonModule implements BotModule {
         if (learned) {
             long wall = wallMs();
             List<SpawnMemory.Spawn> known = memory.spawns(h.mapId());
+            long respawn = memory.mapRespawn(h.mapId());
             SpawnMemory.Spawn due = known.stream()
                     .filter(k -> !nearDead(k.x(), k.y()))
-                    .filter(k -> k.expectedAt() > 0 && k.expectedAt() > wall - DUE_GRACE_MS && k.expectedAt() < wall + DUE_AHEAD_MS)
-                    .min(Comparator.comparingLong(SpawnMemory.Spawn::expectedAt)).orElse(null);
+                    .filter(k -> k.expectedAt(respawn) > 0 && k.expectedAt(respawn) > wall - DUE_GRACE_MS
+                            && k.expectedAt(respawn) < wall + DUE_AHEAD_MS)
+                    .min(Comparator.comparingLong(k -> k.expectedAt(respawn))).orElse(null);
             if (due != null) {
                 spot = new int[] {due.x(), due.y()};
-                long untilDue = Math.max(0, due.expectedAt() + DUE_GRACE_MS - wall) * 1_000_000L;
+                long untilDue = Math.max(0, due.expectedAt(respawn) + DUE_GRACE_MS - wall) * 1_000_000L;
                 waitUntil = wait == Long.MAX_VALUE ? Long.MAX_VALUE : now + Math.max(wait, untilDue);
                 log.info("Куб на {}/{} ожидается через {} мин — лечу туда", due.x() / 100, due.y() / 100,
-                        Math.max(0, due.expectedAt() - wall) / 60_000);
+                        Math.max(0, due.expectedAt(respawn) - wall) / 60_000);
                 return;
             }
             spots = merged(spots, known);
