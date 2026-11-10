@@ -36,6 +36,7 @@ final class CubikonSection implements Section {
     private final JSpinner arrive = Form.number(150, 1_200, 10);
     private final JSpinner wait = Form.number(0, 300, 5);
     private final JCheckBox collect = new JCheckBox("Собирать ящики");
+    private final JCheckBox duringFight = new JCheckBox("Подбирать ящики во время боя с кубом (только не выходя из досягаемости)");
     private final JSpinner boxesAbove = Form.percent();
     private final javax.swing.JComboBox<String> waitKill = new javax.swing.JComboBox<>(WAIT_KILL_NAMES);
     private final JSpinner waitKillRange = Form.number(200, 10_000, 100);
@@ -83,6 +84,7 @@ final class CubikonSection implements Section {
                 .row("Ждать на пустом споте, с", wait)
                 .note("0 — ждать на споте, пока не появится куб.")
                 .row("", collect)
+                .row("", duringFight)
                 .row("Собирать, пока у куба HP больше, %", boxesAbove)
                 .row("Пока ждём куб, бить", waitKill)
                 .row("Как бить", chase)
@@ -123,6 +125,7 @@ final class CubikonSection implements Section {
         Form.set(arrive, m.path("arriveDistance").asInt(450));
         Form.set(wait, m.path("waitSeconds").asInt(90));
         collect.setSelected(m.path("collectBoxes").asBoolean(true));
+        duringFight.setSelected(m.path("boxesDuringFight").asBoolean(true));
         Form.setFraction(boxesAbove, m.path("boxesWhileCubikonHpAbove").asDouble(0.25));
         String wk = m.has("waitKill") ? m.get("waitKill").asText("OFF")
                 : (m.path("killWhileWaiting").asBoolean(false) ? "ALL" : "OFF");
@@ -168,6 +171,7 @@ final class CubikonSection implements Section {
         m.put("arriveDistance", Form.intOf(arrive));
         m.put("waitSeconds", Form.intOf(wait));
         m.put("collectBoxes", collect.isSelected());
+        m.put("boxesDuringFight", duringFight.isSelected());
         m.put("boxesWhileCubikonHpAbove", Form.fraction(boxesAbove));
         m.remove("killWhileWaiting");
         m.put("waitKill", WAIT_KILL[waitKill.getSelectedIndex()]);
@@ -190,6 +194,7 @@ final class CubikonSection implements Section {
         m.put("arriveDistance", 450);
         m.put("waitSeconds", 90);
         m.put("collectBoxes", true);
+        m.put("boxesDuringFight", true);
         m.put("boxesWhileCubikonHpAbove", 0.25);
         m.put("waitKill", "OFF");
         m.put("waitKillRange", 1_500);

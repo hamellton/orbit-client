@@ -127,9 +127,11 @@ public final class CubikonModule implements BotModule {
             arrivedAt = 0;
             attacker.target(cube);
             double hp = cube.health().hpPercent();
-            boolean boxesOk = setting(s, "collectBoxes", true)
+            // boxes during the fight only within the cube's reach: the lasers never stop
+            boolean boxesOk = setting(s, "collectBoxes", true) && setting(s, "boxesDuringFight", true)
                     && (hp < 0 || hp > setting(s, "boxesWhileCubikonHpAbove", 0.25));
-            boolean onBox = boxesOk && boxes.tick(cube.x(), cube.y());
+            double reach = Targets.radius(c, cube, h.mapId()) + 50;
+            boolean onBox = boxesOk && boxes.tick(cube.x(), cube.y(), reach);
             attacker.tick(!onBox);
             status = onBox ? "Cubikon: подбираю ящик" : "Cubikon: бой";
             return;

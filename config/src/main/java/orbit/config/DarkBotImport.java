@@ -326,6 +326,7 @@ public final class DarkBotImport {
                 c.put("arriveDistance", camp.path("arriveDistance").asInt(450));
                 c.put("waitSeconds", camp.path("waitSeconds").asInt(90));
                 c.put("collectBoxes", camp.path("collectBoxes").asBoolean(true));
+                c.put("boxesDuringFight", true);
                 c.put("boxesWhileCubikonHpAbove", 0.25);
                 boolean kristallins = custom.path(moduleClass).path("KRISTALLINS").asBoolean(false)
                         || camp.path("killWhileWaiting").asBoolean(false);

@@ -27,6 +27,7 @@ public final class BoxPicker {
     private final Map<String, Long> ignored = new HashMap<>();
     private double anchorX = Double.NaN;
     private double anchorY = Double.NaN;
+    private double within = -1;
 
     public BoxPicker(BotContext ctx) {
         this.ctx = ctx;
@@ -54,8 +55,17 @@ public final class BoxPicker {
      * so picking up one box never leads to the next one farther and farther away.
      */
     public boolean tick(double ax, double ay) {
+        return tick(ax, ay, -1);
+    }
+
+    /**
+     * Like {@link #tick(double, double)}, but with {@code within} &gt; 0 only boxes that close to the anchor
+     * (e.g. inside a target's laser reach, so the ship keeps shooting while it picks them up).
+     */
+    public boolean tick(double ax, double ay, double within) {
         anchorX = ax;
         anchorY = ay;
+        this.within = within;
         WorldSnapshot w = ctx.world().get();
         WorldSnapshot.Hero h = w.hero();
         BotConfig c = ctx.config().get();
@@ -111,7 +121,7 @@ public final class BoxPicker {
                 })
                 .filter(b -> Double.isNaN(anchorX)
                         ? Math.hypot(b.x() - h.x(), b.y() - h.y()) <= c.collect().radius()
-                        : Math.hypot(b.x() - anchorX, b.y() - anchorY) <= c.collect().radius())
+                        : Math.hypot(b.x() - anchorX, b.y() - anchorY) <= (within > 0 ? within : c.collect().radius()))
                 .filter(b -> !c.collect().ignoreContested() || !contested(w, b))
                 .min(Comparator.comparingDouble(b -> Math.hypot(b.x() - h.x(), b.y() - h.y())))
                 .orElse(null);

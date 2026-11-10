@@ -424,4 +424,24 @@ class CubikonModuleTest {
         }
         assertTrue(visited.size() <= 6, "visits each empty spawn about once, then waits: " + visited.size());
     }
+
+    @Test
+    void doesNotLeaveTheCubeForABoxOutOfReach() throws Exception {
+        BotConfig c = config(0, false).withCollect(new BotConfig.Collect(
+                java.util.Map.of("SCRAPIUM", new BotConfig.BoxRule(true, 0, 0)), 400, false, false));
+        Sim sim = new Sim(c, 26, 10_000, 6_000);
+        sim.lasers("ammunition_laser_ucb-100");
+        sim.npc(77, "-=[ Cubikon ]=-", 10_400, 6_000);
+        orbit.protocol.gen.AddBoxCommand far = new orbit.protocol.gen.AddBoxCommand();
+        far.hash = "far";
+        far.boxType = "SCRAPIUM";
+        far.x = 10_400;
+        far.y = 6_750; // 750 from the cube: picking it up would stop the lasers
+        sim.world.apply(far, sim.now);
+        CubikonModule m = new CubikonModule(sim.ctx, SpawnMemory.inMemory());
+        sim.run(m::tick, 15_000);
+        var h = sim.hero();
+        assertTrue(Math.hypot(h.x() - 10_400, h.y() - 6_000) <= 650, "stayed by the cube: " + h);
+        assertTrue(sim.sent.stream().noneMatch(p -> p instanceof orbit.protocol.gen.CollectBoxRequest), "no pickup");
+    }
 }
