@@ -209,8 +209,10 @@ class AuthClientTest {
                 return;
             }
             send(ex, 200, "<script>var flashembed = {\"src\": \"x\", \"userID\": \"166225758\", \"sessionID\": \""
-                    + SESSION + "\", \"basePath\": \"spacemap\", \"pid\": \"22\", \"cdn\": \"" + origin.replace("/", "\\/")
-                    + "\\/\", \"platform\": \"PC_CLIENT\", \"mapID\": \"9\"};</script>", true);
+                    + SESSION + "\", \"basePath\": \"spacemap\", \"pid\": \"22\", \"cdn\": \"https:\\/\\/cdn.invalid\\/\", "
+                    // maps.php comes from dynamicHost (the account server), not from the CDN
+                    + "\"dynamicHost\": \"" + origin.replace("/", "\\/")
+                    + "\", \"platform\": \"PC_CLIENT\", \"mapID\": \"9\"};</script>", true);
             return;
         }
         send(ex, 200, "<html><a href=\"logout\">logout</a></html>", false);
