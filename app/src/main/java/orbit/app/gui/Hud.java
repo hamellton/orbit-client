@@ -105,57 +105,136 @@ final class Hud {
         }
         long since = feed.sessionStartNanos();
         String time = since == 0 ? "" : clock(Duration.ofNanos(feed.now() - since));
+        Font titleFont = font(Font.BOLD, 13f);
+        Font textFont = font(Font.PLAIN, 12f);
+        Font smallFont = font(Font.PLAIN, 11f);
         return new Card() {
+            int timeWidth() {
+                return time.isEmpty() ? 0 : measure(smallFont).stringWidth(time) + 10;
+            }
+
             @Override
             public int height(int width) {
-                return PAD + LINE + 4 + lines.size() * LINE + PAD - 4;
+                int inner = width - 2 * PAD;
+                int n = wrap(measure(titleFont), feed.action(), inner - timeWidth()).size();
+                int m = 0;
+                for (String line : lines) {
+                    m += wrap(measure(textFont), line, inner).size();
+                }
+                return PAD + n * LINE + 4 + m * LINE + PAD - 4;
             }
 
             @Override
             public void paint(Graphics2D g, int x, int y, int width) {
                 frame(g, x, y, width, height(width), st.color);
-                g.setFont(font(Font.BOLD, 13f));
+                int inner = width - 2 * PAD;
+                g.setFont(smallFont);
+                g.setColor(DIM);
+                g.drawString(time, x + width - PAD - g.getFontMetrics().stringWidth(time), y + PAD + 12);
+                g.setFont(titleFont);
                 g.setColor(TEXT);
                 int ty = y + PAD + 12;
-                g.drawString(clip(g, feed.action(), width - 2 * PAD - 70), x + PAD, ty);
-                g.setFont(font(Font.PLAIN, 11f));
-                g.setColor(DIM);
-                FontMetrics fm = g.getFontMetrics();
-                g.drawString(time, x + width - PAD - fm.stringWidth(time), ty);
-                ty += LINE + 4;
-                g.setFont(font(Font.PLAIN, 12f));
+                for (String part : wrap(g.getFontMetrics(), feed.action(), inner - timeWidth())) {
+                    g.drawString(part, x + PAD, ty);
+                    ty += LINE;
+                }
+                ty += 4;
+                g.setFont(textFont);
                 for (String line : lines) {
                     g.setColor(line.startsWith("Конфиг") ? TEXT : DIM);
-                    g.drawString(clip(g, line, width - 2 * PAD), x + PAD, ty);
-                    ty += LINE;
+                    for (String part : wrap(g.getFontMetrics(), line, inner)) {
+                        g.drawString(part, x + PAD, ty);
+                        ty += LINE;
+                    }
                 }
             }
         };
     }
 
     private Card hero(WorldSnapshot.Hero h) {
+        String name = h.name() + (h.shipType().isBlank() ? "" : "  " + shipName(h.shipType()));
+        String right = (h.config() > 0 ? "конфигурация " + h.config() : "") + (h.level() > 0 ? "  ·  ур. " + h.level() : "");
         return new Card() {
             @Override
             public int height(int width) {
-                return PAD + LINE + 2 * BAR + 4 + PAD;
+                return PAD + titleLines(name, right, width) * LINE + 2 * BAR + 4 + PAD;
             }
 
             @Override
             public void paint(Graphics2D g, int x, int y, int width) {
                 frame(g, x, y, width, height(width), MinimapPanel.HERO);
-                String right = (h.config() > 0 ? "конфигурация " + h.config() : "") + (h.level() > 0 ? "  ·  ур. " + h.level() : "");
-                titleRow(g, x, y, width, h.name() + (h.shipType().isBlank() ? "" : "  " + shipName(h.shipType())), right, TEXT);
-                bars(g, x + PAD, y + PAD + LINE, width - 2 * PAD, h.health());
+                int rows = titleRow(g, x, y, width, name, right, TEXT);
+                bars(g, x + PAD, y + PAD + rows * LINE, width - 2 * PAD, h.health());
             }
         };
     }
 
+    /** The title and its right-hand note in one row, or the note under the title when it does not fit. */
+    int titleLines(String title, String right, int width) {
+        int need = measure(font(Font.BOLD, 13f)).stringWidth(title) + 12 + measure(font(Font.PLAIN, 11f)).stringWidth(right);
+        return right.isEmpty() || need <= width - 2 * PAD ? 1 : 2;
+    }
+
+    private static final java.awt.image.BufferedImage SCRATCH =
+            new java.awt.image.BufferedImage(1, 1, java.awt.image.BufferedImage.TYPE_INT_ARGB);
+
+    /** Metrics of a font outside painting (to size a card before it is drawn). */
+    static FontMetrics measure(Font f) {
+        Graphics2D g = SCRATCH.createGraphics();
+        try {
+            g.setRenderingHint(java.awt.RenderingHints.KEY_TEXT_ANTIALIASING, java.awt.RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+            g.setRenderingHint(java.awt.RenderingHints.KEY_FRACTIONALMETRICS, java.awt.RenderingHints.VALUE_FRACTIONALMETRICS_ON);
+            return g.getFontMetrics(f);
+        } finally {
+            g.dispose();
+        }
+    }
+
+    /** Words onto lines no wider than {@code width}; a word longer than a line is cut where it must. */
+    static List<String> wrap(FontMetrics fm, String text, int width) {
+        List<String> out = new ArrayList<>();
+        if (text == null || text.isEmpty()) {
+            out.add("");
+            return out;
+        }
+        width = Math.max(40, width);
+        StringBuilder line = new StringBuilder();
+        for (String word : text.split(" ")) {
+            String candidate = line.isEmpty() ? word : line + " " + word;
+            if (fm.stringWidth(candidate) <= width) {
+                line.setLength(0);
+                line.append(candidate);
+                continue;
+            }
+            if (!line.isEmpty()) {
+                out.add(line.toString().strip());
+                line.setLength(0);
+            }
+            String rest = word;
+            while (fm.stringWidth(rest) > width && rest.length() > 1) {
+                int cut = rest.length() - 1;
+                while (cut > 1 && fm.stringWidth(rest.substring(0, cut)) > width) {
+                    cut--;
+                }
+                out.add(rest.substring(0, cut));
+                rest = rest.substring(cut);
+            }
+            line.append(rest);
+        }
+        if (!line.isEmpty() || out.isEmpty()) {
+            out.add(line.toString().strip());
+        }
+        return out;
+    }
+
     private Card pet(WorldSnapshot.Pet pet) {
         boolean out = pet.active() && pet.id() != 0;
+        String right = gearName(pet.gear()) + (pet.level() > 0 ? "  ·  ур. " + pet.level() : "");
         return new Card() {
             @Override
             public int height(int width) {
-                return out ? PAD + LINE + 2 * BAR + 4 + (pet.fuel() >= 0 ? LINE : 0) + PAD : PAD + LINE + PAD - 4;
+                return out ? PAD + titleLines(pet.name(), right, width) * LINE + 2 * BAR + 4 + (pet.fuel() >= 0 ? LINE : 0) + PAD
+                        : PAD + LINE + PAD - 4;
             }
 
             @Override
@@ -168,17 +247,16 @@ final class Hud {
                     g.drawString(why, x + PAD, y + PAD + 12);
                     return;
                 }
-                String right = gearName(pet.gear()) + (pet.level() > 0 ? "  ·  ур. " + pet.level() : "");
-                titleRow(g, x, y, width, pet.name(), right, TEXT);
+                int rows = titleRow(g, x, y, width, pet.name(), right, TEXT);
                 if (pet.health().known()) {
-                    bars(g, x + PAD, y + PAD + LINE, width - 2 * PAD, pet.health());
+                    bars(g, x + PAD, y + PAD + rows * LINE, width - 2 * PAD, pet.health());
                 }
                 if (pet.fuel() >= 0) {
                     g.setFont(font(Font.PLAIN, 11f));
                     g.setColor(DIM);
                     g.drawString(clip(g, String.format("Топливо %,d / %,d", pet.fuel(), pet.fuelMax())
                                     + (pet.heatMax() > 0 ? String.format("  ·  нагрев %.0f / %.0f", pet.heat(), pet.heatMax()) : ""),
-                            width - 2 * PAD), x + PAD, y + PAD + LINE + 2 * BAR + 4 + 13);
+                            width - 2 * PAD), x + PAD, y + PAD + rows * LINE + 2 * BAR + 4 + 13);
                 }
             }
         };
@@ -194,23 +272,36 @@ final class Hud {
         Color accent = MinimapPanel.shipColor(t, h, w.group());
         String kind = (h.attackTargetId() != 0 ? "Атакую" : "Выбрана") + "  ·  " + kindOf(t)
                 + (t.typeId().isBlank() ? "" : "  " + t.typeId()) + String.format("  ·  %,.0f", t.distanceTo(h.x(), h.y()));
+        String name = MinimapPanel.label(t);
+        Font nameFont = font(Font.BOLD, 13f);
+        Font kindFont = font(Font.PLAIN, 11f);
         return new Card() {
             @Override
             public int height(int width) {
-                return PAD + 2 * LINE + 2 * BAR + 4 + PAD - 2;
+                int inner = width - 2 * PAD;
+                int rows = wrap(measure(nameFont), name, inner).size() + wrap(measure(kindFont), kind, inner).size();
+                return PAD + rows * LINE + (t.health().known() ? 2 * BAR + 4 + 2 : 0) + PAD - 2;
             }
 
             @Override
             public void paint(Graphics2D g, int x, int y, int width) {
                 frame(g, x, y, width, height(width), accent);
-                g.setFont(font(Font.BOLD, 13f));
+                int inner = width - 2 * PAD;
+                int ty = y + PAD + 12;
+                g.setFont(nameFont);
                 g.setColor(accent);
-                g.drawString(clip(g, MinimapPanel.label(t), width - 2 * PAD), x + PAD, y + PAD + 12);
-                g.setFont(font(Font.PLAIN, 11f));
+                for (String part : wrap(g.getFontMetrics(), name, inner)) {
+                    g.drawString(part, x + PAD, ty);
+                    ty += LINE;
+                }
+                g.setFont(kindFont);
                 g.setColor(DIM);
-                g.drawString(clip(g, kind, width - 2 * PAD), x + PAD, y + PAD + 12 + LINE);
+                for (String part : wrap(g.getFontMetrics(), kind, inner)) {
+                    g.drawString(part, x + PAD, ty);
+                    ty += LINE;
+                }
                 if (t.health().known()) {
-                    bars(g, x + PAD, y + PAD + 2 * LINE + 2, width - 2 * PAD, t.health());
+                    bars(g, x + PAD, ty - 12 + 2, inner, t.health());
                 }
             }
         };
@@ -316,10 +407,15 @@ final class Hud {
 
     private Card stats(WorldSnapshot w, WorldFeed feed) {
         List<String> lines = orbit.app.SessionSummary.lines(w.rewards(), feed.stats(), feed.sessionHours());
+        Font textFont = font(Font.PLAIN, 12f);
         return new Card() {
             @Override
             public int height(int width) {
-                return PAD + LINE + lines.size() * (LINE - 1) + PAD - 4;
+                int rows = 0;
+                for (String line : lines) {
+                    rows += wrap(measure(textFont), line, width - 2 * PAD).size();
+                }
+                return PAD + LINE + rows * (LINE - 1) + PAD - 4;
             }
 
             @Override
@@ -328,12 +424,14 @@ final class Hud {
                 g.setFont(font(Font.PLAIN, 11f));
                 g.setColor(DIM);
                 g.drawString("Итоги сессии", x + PAD, y + PAD + 10);
-                g.setFont(font(Font.PLAIN, 12f));
+                g.setFont(textFont);
                 int ty = y + PAD + LINE + 11;
                 for (int i = 0; i < lines.size(); i++) {
                     g.setColor(i < 4 ? TEXT : DIM);
-                    g.drawString(clip(g, lines.get(i), width - 2 * PAD), x + PAD, ty);
-                    ty += LINE - 1;
+                    for (String part : wrap(g.getFontMetrics(), lines.get(i), width - 2 * PAD)) {
+                        g.drawString(part, x + PAD, ty);
+                        ty += LINE - 1;
+                    }
                 }
             }
         };
@@ -382,15 +480,22 @@ final class Hud {
         g.fill(new RoundRectangle2D.Double(x, y + 8, 3, h - 16, 3, 3));
     }
 
-    private void titleRow(Graphics2D g, int x, int y, int width, String title, String right, Color color) {
+    /** @return the rows taken: 1, or 2 when the note went under the title */
+    private int titleRow(Graphics2D g, int x, int y, int width, String title, String right, Color color) {
+        int rows = titleLines(title, right, width);
         g.setFont(font(Font.PLAIN, 11f));
         FontMetrics small = g.getFontMetrics();
         int rw = small.stringWidth(right);
         g.setColor(DIM);
-        g.drawString(right, x + width - PAD - rw, y + PAD + 11);
+        if (rows == 1) {
+            g.drawString(right, x + width - PAD - rw, y + PAD + 11);
+        } else {
+            g.drawString(clip(g, right, width - 2 * PAD), x + PAD, y + PAD + 11 + LINE);
+        }
         g.setFont(font(Font.BOLD, 13f));
         g.setColor(color);
-        g.drawString(clip(g, title, width - 2 * PAD - rw - 8), x + PAD, y + PAD + 11);
+        g.drawString(clip(g, title, rows == 1 ? width - 2 * PAD - rw - 8 : width - 2 * PAD), x + PAD, y + PAD + 11);
+        return rows;
     }
 
     private void bars(Graphics2D g, int x, int y, int w, Health h) {

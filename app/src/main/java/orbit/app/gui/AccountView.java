@@ -37,6 +37,8 @@ final class AccountView extends JPanel {
     private static final int MAX_LOG_CHARS = 200_000;
     /** From this width the cards stand in a column beside the map. */
     static final int WIDE = 980;
+    /** The side column grows up to this. */
+    static final int MAX_SIDE = 440;
 
     private final MainWindow.Tab tab;
     private final MinimapPanel map;
@@ -86,16 +88,20 @@ final class AccountView extends JPanel {
             int y = in.top;
             int w = parent.getWidth() - in.left - in.right;
             int h = parent.getHeight() - in.top - in.bottom;
+            int gap = SidePanel.GAP;
             if (w >= WIDE) {
-                int sideW = Math.max(SidePanel.MIN_COLUMN, Math.min(360, (int) (w * 0.27)));
-                map.setBounds(x, y, w - sideW - SidePanel.GAP, h);
-                sideScroll.setBounds(x + w - sideW, y, sideW, h);
+                // the map as big as the height allows, the cards take the rest (within limits), no dead strip
+                int mapW = (int) Math.min(w - SidePanel.MIN_COLUMN - gap, h * MainWindow.Grid.ASPECT);
+                int sideW = Math.min(MAX_SIDE, w - mapW - gap);
+                int left = x + (w - mapW - gap - sideW) / 2;
+                map.setBounds(left, y, mapW, h);
+                sideScroll.setBounds(left + mapW + gap, y, sideW, h);
             } else {
-                int want = side.contentHeight(w) + 2;
-                int sideH = Math.min(want, Math.max(120, (int) (h * 0.45)));
-                int mapH = Math.max(150, h - sideH - SidePanel.GAP);
+                // the map as wide as the window (its height follows), the cards right under it
+                int minSide = Math.min(side.contentHeight(w) + 2, Math.max(120, h / 3));
+                int mapH = (int) Math.max(150, Math.min(w / MainWindow.Grid.ASPECT, h - minSide - gap));
                 map.setBounds(x, y, w, mapH);
-                sideScroll.setBounds(x, y + mapH + SidePanel.GAP, w, Math.max(0, h - mapH - SidePanel.GAP));
+                sideScroll.setBounds(x, y + mapH + gap, w, Math.max(0, h - mapH - gap));
             }
         }
 
@@ -119,7 +125,7 @@ final class AccountView extends JPanel {
     }
 
     private JComponent header() {
-        JPanel bar = new JPanel(new WrapLayout(FlowLayout.LEFT, 8, 6));
+        JPanel bar = new JPanel(new WrapLayout(FlowLayout.LEFT, 14, 6));
         bar.setBackground(MainWindow.HEADER);
         bar.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, MainWindow.LINE));
 
@@ -130,10 +136,12 @@ final class AccountView extends JPanel {
         status.setFont(status.getFont().deriveFont(Font.BOLD, 12f));
         JLabel clock = new JLabel();
         clock.setForeground(Hud.DIM);
-        bar.add(title);
-        bar.add(chip(status));
-        bar.add(clock);
-        bar.add(gap(12));
+        // groups wrap as a whole: a label never ends a row while its control starts the next
+        JPanel who = group();
+        who.add(title);
+        who.add(chip(status));
+        who.add(clock);
+        bar.add(who);
 
         if (tab.switchConfig() != null) {
             JLabel cfgLabel = new JLabel("Конфиг");
@@ -173,18 +181,22 @@ final class AccountView extends JPanel {
                     filling[0] = false;
                 }
             }).start();
-            bar.add(cfgLabel);
-            bar.add(configs);
+            JPanel cfg = group();
+            cfg.add(cfgLabel);
+            cfg.add(configs);
+            bar.add(cfg);
             JButton edit = new JButton("Изменить…");
             edit.setToolTipText("Открыть этот конфиг; сохранение применяется сразу");
             edit.addActionListener(e -> orbit.app.gui.config.ConfigWindow.open(orbit.config.ConfigStore.openDefault(),
                     orbit.config.AccountSettings.DEFAULT_FILE, null, tab.config().get(), tab.feed().title()));
-            bar.add(edit);
+            cfg.add(edit);
         }
+        JPanel actions = group();
+        bar.add(actions);
         JButton all = new JButton("Все конфиги…");
         all.addActionListener(e -> orbit.app.gui.config.ConfigWindow.open(orbit.config.ConfigStore.openDefault(),
                 orbit.config.AccountSettings.DEFAULT_FILE, null));
-        bar.add(all);
+        actions.add(all);
         if (tab.stop() != null) {
             JButton stop = new JButton("Остановить");
             stop.setToolTipText("Долетит до портала и выйдет из игры; остальные аккаунты продолжат");
@@ -193,7 +205,7 @@ final class AccountView extends JPanel {
                 stop.setText("Останавливается…");
                 Thread.ofPlatform().name("stop-" + tab.feed().account()).start(tab.stop());
             });
-            bar.add(stop);
+            actions.add(stop);
         }
         Runnable refresh = () -> {
             title.setText(tab.feed().title());
@@ -231,10 +243,9 @@ final class AccountView extends JPanel {
         return label;
     }
 
-    private static JComponent gap(int w) {
-        JPanel p = new JPanel();
+    private static JPanel group() {
+        JPanel p = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
         p.setOpaque(false);
-        p.setPreferredSize(new Dimension(w, 1));
         return p;
     }
 
