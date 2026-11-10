@@ -60,7 +60,7 @@ final class GateSection implements Section {
             java.util.Map<String, JsonNode> m = new java.util.TreeMap<>(c.modules());
             m.remove(BotConfig.Module.GALAXY_GATE.key());
             return new BotConfig(c.schema(), c.description(), c.module(), c.general(), c.npcs(), c.loot(), c.collect(),
-                    c.pet(), c.safety(), c.zones(), c.safetySpots(), m, c.extra());
+                    c.pet(), c.safety(), c.zones(), c.safetySpots(), m, c.extra(), c.buy());
         }
         try {
             JsonNode n = Json.MAPPER.readTree(t);

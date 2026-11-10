@@ -33,6 +33,7 @@ public final class BotRunner {
     private final Consumer<String> statusSink;
     private final Safety safety;
     private final Revive revive;
+    private final BuyWatch buy;
     private BotModule module;
     private BotConfig.Module moduleKind;
     private State state = State.STARTING;
@@ -53,6 +54,7 @@ public final class BotRunner {
         this.statusSink = statusSink;
         this.safety = new Safety(ctx);
         this.revive = new Revive(ctx);
+        this.buy = new BuyWatch(ctx);
         loadModule();
     }
 
@@ -134,6 +136,7 @@ public final class BotRunner {
         if (module != null) {
             module.observe();
         }
+        buy.tick();
         if (state == State.STOPPING) {
             stopping(w);
             return;

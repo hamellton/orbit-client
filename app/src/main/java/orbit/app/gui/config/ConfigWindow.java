@@ -61,6 +61,7 @@ public final class ConfigWindow {
         sections.add(new ZonesSection(maps));
         sections.add(new CubikonSection());
         sections.add(new GateSection());
+        sections.add(new BuySection());
         sections.forEach(s -> tabs.addTab(s.title(), s.view()));
         accounts = new AccountsPanel(accountsFile, this::configNames);
 
