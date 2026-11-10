@@ -93,8 +93,8 @@ final class BuyWatch {
             }
             if (busy.compareAndSet(false, true)) {
                 triedAt.put(r.item(), now);
-                double credits = w.hero().credits();
-                double uridium = w.hero().uridium();
+                double credits = credits(w);
+                double uridium = uridium(w);
                 ShopAccess s = shop;
                 worker.execute(() -> {
                     if (logContext != null) {
@@ -146,7 +146,7 @@ final class BuyWatch {
             }
             if (busy.compareAndSet(false, true)) {
                 triedAt.put("b:" + code, now);
-                double uridium = w.hero().uridium();
+                double uridium = uridium(w);
                 ShopAccess s = shop;
                 worker.execute(() -> {
                     if (logContext != null) {
@@ -185,10 +185,83 @@ final class BuyWatch {
             }
             log.info("Покупаю бустер {} за {} уридия (осталось {})", code, (long) o.price(), clock(left));
             String answer = s.buy(o.item(), 1);
-            log.info("Магазин: {}", answer);
+            told(answer, -1, uridium);
         } catch (java.io.IOException | RuntimeException e) {
             log.warn("Бустер {}: покупка не удалась — {}", code, e.getMessage());
         }
+    }
+
+    /*
+     * The balance the shop reported after the last purchase. The game does not always send the new balance
+     * for a website purchase, so until its own figure changes the shop's counts.
+     */
+    private volatile double shopCredits = -1;
+    private volatile double shopUridium = -1;
+    private volatile double gameCreditsThen = -1;
+    private volatile double gameUridiumThen = -1;
+
+    private double credits(WorldSnapshot w) {
+        double game = w.hero().credits();
+        return shopCredits >= 0 && game == gameCreditsThen ? shopCredits : game;
+    }
+
+    private double uridium(WorldSnapshot w) {
+        double game = w.hero().uridium();
+        return shopUridium >= 0 && game == gameUridiumThen ? shopUridium : game;
+    }
+
+    private static final java.util.regex.Pattern BALANCE_URIDIUM =
+            java.util.regex.Pattern.compile("\"uridium\"\\s*:\\s*(\\d+)");
+    private static final java.util.regex.Pattern BALANCE_CREDITS =
+            java.util.regex.Pattern.compile("\"credits\"\\s*:\\s*(\\d+)");
+    private static final java.util.regex.Pattern MESSAGE =
+            java.util.regex.Pattern.compile("\"message\"\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)\"");
+
+    /** The shop's answer in words, what the purchase cost and what is left (its {@code userBalance}). */
+    private void told(String answer, double creditsBefore, double uridiumBefore) {
+        java.util.regex.Matcher m = MESSAGE.matcher(answer);
+        log.info("Магазин: {}", m.find() ? unescape(m.group(1)) : answer);
+        WorldSnapshot w = ctx.world().get();
+        java.util.regex.Matcher u = BALANCE_URIDIUM.matcher(answer);
+        if (u.find()) {
+            double left = Double.parseDouble(u.group(1));
+            if (uridiumBefore > left) {
+                log.info("Потрачено: {} уридия (осталось {})", String.format("%,.0f", uridiumBefore - left),
+                        String.format("%,.0f", left));
+            }
+            shopUridium = left;
+            gameUridiumThen = w.hero().uridium();
+        }
+        java.util.regex.Matcher c = BALANCE_CREDITS.matcher(answer);
+        if (c.find()) {
+            double left = Double.parseDouble(c.group(1));
+            if (creditsBefore > left) {
+                log.info("Потрачено: {} кредитов (осталось {})", String.format("%,.0f", creditsBefore - left),
+                        String.format("%,.0f", left));
+            }
+            shopCredits = left;
+            gameCreditsThen = w.hero().credits();
+        }
+    }
+
+    /** JSON string escapes back to text ({@code Б…} → «Б…»). */
+    static String unescape(String s) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < s.length(); i++) {
+            char ch = s.charAt(i);
+            if (ch == '\\' && i + 1 < s.length()) {
+                char n = s.charAt(++i);
+                if (n == 'u' && i + 4 < s.length()) {
+                    sb.append((char) Integer.parseInt(s.substring(i + 1, i + 5), 16));
+                    i += 4;
+                } else {
+                    sb.append(n == 'n' ? ' ' : n);
+                }
+            } else {
+                sb.append(ch);
+            }
+        }
+        return sb.toString();
     }
 
     static String clock(long seconds) {
@@ -226,7 +299,7 @@ final class BuyWatch {
             long cost = (long) Math.ceil(o.price() * amount);
             log.info("Покупаю {} ×{} за {} {} (осталось {})", name, amount, cost, currency, left);
             String answer = s.buy(r.item(), amount);
-            log.info("Магазин: {}", answer);
+            told(answer, credits, uridium);
         } catch (java.io.IOException | RuntimeException e) {
             log.warn("{}: покупка не удалась — {}", name, e.getMessage());
         }

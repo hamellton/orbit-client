@@ -13,7 +13,7 @@ import org.junit.jupiter.api.Test;
 class BuyWatchTest {
 
     /** A shop that records purchases. */
-    static final class FakeShop implements ShopAccess {
+    static class FakeShop implements ShopAccess {
         final List<String> bought = new ArrayList<>();
 
         @Override
@@ -146,5 +146,26 @@ class BuyWatchTest {
         boosters(sim, null, 0); // the game lists none: DMG-B01 has run out
         runFor(sim, w, 60_000);
         assertTrue(shop.bought.isEmpty(), "50 000 - 10 000 is under the 45 000 to keep");
+    }
+
+    @Test
+    void theShopsBalanceCountsWhenTheGameSendsNone() throws Exception {
+        // the game keeps showing 35 000 uridium after a purchase; the shop says 25 000 are left
+        BotConfig.Buy buy = new BotConfig.Buy(true, List.of(), 0, 20_000, List.of("DMG-B01", "SHD-B01"), 30);
+        Sim sim = sim(buy, 0, 35_000);
+        boosters(sim, null, 0);
+        FakeShop shop = new FakeShop() {
+            @Override
+            public synchronized String buy(String item, int amount) {
+                super.buy(item, amount);
+                return "{\"result\":\"success\",\"message\":\"\\u0411\\u0443\\u0441\\u0442\\u0435\\u0440\","
+                        + "\"userBalance\":{\"uridium\":25000,\"credits\":100}}";
+            }
+        };
+        BuyWatch w = new BuyWatch(sim.ctx);
+        w.setShop(shop);
+        runFor(sim, w, 90_000);
+        assertEquals(List.of("3 x1"), shop.bought, "25 000 - 10 000 is under the 20 000 to keep: no second booster");
+        assertEquals("Бустер", BuyWatch.unescape("\\u0411\\u0443\\u0441\\u0442\\u0435\\u0440"));
     }
 }
