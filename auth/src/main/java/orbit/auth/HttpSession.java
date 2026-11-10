@@ -59,6 +59,10 @@ public final class HttpSession {
         return execute(URI.create(url), "GET", null, null);
     }
 
+    public Response get(String url, String referer) throws IOException {
+        return execute(URI.create(url), "GET", null, referer);
+    }
+
     public Response postForm(String url, Map<String, String> form, String referer) throws IOException {
         StringBuilder sb = new StringBuilder();
         for (Map.Entry<String, String> e : form.entrySet()) {

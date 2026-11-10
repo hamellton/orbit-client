@@ -65,6 +65,11 @@ public final class AuthClient {
     }
 
     /** Logs in with username and password. */
+    /** The web session (cookies of the logged-in account), e.g. for the shop. */
+    public HttpSession http() {
+        return http;
+    }
+
     public GameSession loginWithPassword(String username, String password) throws AuthException {
         SecretMask.register(password);
         useClientUserAgent();

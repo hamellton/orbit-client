@@ -94,6 +94,11 @@ public final class BotRunner {
         }
     }
 
+    /** The account's shop for the buy list (none = the bot only says when to buy). */
+    public void setShop(ShopAccess shop) {
+        buy.setShop(shop);
+    }
+
     /** Finish: leave the fight, fly to the nearest portal and log out. */
     public void stop(String reason) {
         if (state == State.STOPPING || state == State.STOPPED) {

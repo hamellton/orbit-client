@@ -172,12 +172,44 @@ public final class OrbitMain {
         }
         if (config != null) {
             ModuleRun run = startModule(feed, conn, config.name(), config.config(), o.minutes, profile,
-                    Path.of("local", "stop-" + o.account));
+                    Path.of("local", "stop-" + o.account), shopFor(auth, conn));
             runUntilClosed(feed, o.headless, () -> run.finish(conn), runner);
             System.exit(0); // the window's threads would keep the program alive
             return;
         }
         runUntilClosed(feed, o.headless, conn::close, runner);
+    }
+
+    /** The website shop of the logged-in account, through the same web session the login used. */
+    private static orbit.bot.run.ShopAccess shopFor(AuthClient auth, GameConnection conn) {
+        return new orbit.bot.run.ShopAccess() {
+            private java.util.Map<String, orbit.auth.Shop.Item> items = java.util.Map.of();
+
+            private orbit.auth.Shop shop() {
+                return new orbit.auth.Shop(auth.http(), conn.session().host());
+            }
+
+            @Override
+            public java.util.Map<String, Offer> offers() throws java.io.IOException {
+                items = shop().ammunition();
+                java.util.Map<String, Offer> out = new java.util.LinkedHashMap<>();
+                items.forEach((id, i) -> out.put(id, new Offer(id, i.price(), i.uridium(), i.maxAmount())));
+                return out;
+            }
+
+            @Override
+            public String buy(String item, int amount) throws java.io.IOException {
+                orbit.auth.Shop.Item i = items.get(item);
+                if (i == null) {
+                    throw new java.io.IOException("нет в магазине");
+                }
+                String answer = shop().purchase(i, amount);
+                if (orbit.auth.Shop.isError(answer)) {
+                    throw new java.io.IOException("магазин отказал: " + answer);
+                }
+                return answer;
+            }
+        };
     }
 
     /** The config to run: {@code --config}, else the account's one from {@code local/accounts.json}; checked. */
@@ -227,7 +259,7 @@ public final class OrbitMain {
 
     private static ModuleRun startModule(WorldFeed feed, GameConnection conn, String configName,
                                          orbit.config.BotConfig config, int minutes,
-                                         ClientProfile profile, Path stopFile) {
+                                         ClientProfile profile, Path stopFile, orbit.bot.run.ShopAccess shop) {
         orbit.world.maps.MapCatalog catalog = orbit.world.maps.MapCatalog.bundled();
         java.util.Random random = new java.util.Random();
         orbit.bot.nav.Navigator nav = new orbit.bot.nav.Navigator(feed::snapshot, conn::send, catalog, random, System::nanoTime);
@@ -245,6 +277,7 @@ public final class OrbitMain {
         orbit.bot.run.BotContext ctx = new orbit.bot.run.BotContext(feed::snapshot, watch::current, actions, nav, traveler,
                 catalog, random, System::nanoTime, conn::repair, ship, Path.of("local"), stats);
         orbit.bot.run.BotRunner runner = new orbit.bot.run.BotRunner(ctx, feed::loggedOut, feed::setAction);
+        runner.setShop(shop);
         java.util.concurrent.atomic.AtomicBoolean stopRequested = new java.util.concurrent.atomic.AtomicBoolean();
         CountDownLatch done = new CountDownLatch(1);
         long until = minutes > 0 ? System.currentTimeMillis() + minutes * 60_000L : Long.MAX_VALUE;
