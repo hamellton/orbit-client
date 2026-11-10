@@ -171,7 +171,7 @@ public final class BotRunner {
             t.travel(map, Double.NaN, Double.NaN);
         }
         state = State.TRAVELLING;
-        ctx.ship().want(ctx.config().get().general().roam());
+        ctx.ship().want(ctx.config().get().general().travel());
         t.tick();
         show("перелёт на " + ctx.maps().info(map).name());
     }

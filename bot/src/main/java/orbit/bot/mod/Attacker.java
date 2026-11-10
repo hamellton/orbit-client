@@ -15,6 +15,9 @@ public final class Attacker {
 
     private static final Logger log = LoggerFactory.getLogger(Attacker.class);
 
+    /** Farther than the radius by this much the target is being chased. */
+    static final double CHASE_GAP = 300;
+
     private final BotContext ctx;
     private int targetId;
     private boolean shotAt;
@@ -77,11 +80,18 @@ public final class Attacker {
         long now = ctx.now();
         double radius = Targets.radius(c, t, h.mapId());
         double dist = t.distanceTo(h.x(), h.y());
-        ctx.ship().want(c.general().offensive());
+        BotConfig.NpcRule rule = Targets.rule(c, t, h.mapId());
+        boolean follow = rule != null && rule.has(BotConfig.NpcFlag.AGGRESSIVE_FOLLOW);
+        boolean chasing = move && dist > radius + CHASE_GAP && (follow || c.general().runModeChase());
+        ctx.ship().want(chasing ? c.general().run() : c.general().offensive());
         if (move && dist > radius + 60 && now >= nextApproach) {
-            double k = (dist - radius) / dist;
-            ctx.nav().moveTo(h.x() + (t.x() - h.x()) * k, h.y() + (t.y() - h.y()) * k, false);
-            nextApproach = now + ctx.pause(700, 1_200);
+            // following: aim at where it flies, not where it is
+            double tx = follow && t.moving() ? t.targetX() : t.x();
+            double ty = follow && t.moving() ? t.targetY() : t.y();
+            double d = Math.max(1, Math.hypot(tx - h.x(), ty - h.y()));
+            double k = Math.max(0, (d - radius) / d);
+            ctx.nav().moveTo(h.x() + (tx - h.x()) * k, h.y() + (ty - h.y()) * k, false);
+            nextApproach = now + (follow ? ctx.pause(400, 800) : ctx.pause(700, 1_200));
         }
         if (move) {
             ctx.nav().tick();

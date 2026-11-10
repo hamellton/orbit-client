@@ -46,7 +46,7 @@ class SectionsTest {
                 .withModule(BotConfig.Module.CUBIKON)
                 .withGeneral(new BotConfig.General(26, new BotConfig.ShipMode(1, "drone_formation_f-01-tu"),
                         new BotConfig.ShipMode(2, "drone_formation_f-09-mo"),
-                        new BotConfig.ShipMode(2, null), true, false, 300, false, true))
+                        new BotConfig.ShipMode(2, null), true, false, 300, false, true, true, false))
                 .withNpcs(Map.of(
                         "-=[ Cubikon ]=-", new BotConfig.NpcRule(550, -100, true, Set.of("IGNORE_OWNERSHIP", "K"), Set.of(18, 22, 26, -1), null),
                         "-=[ Protegit ]=-", new BotConfig.NpcRule(500, 50, false, Set.of("PASSIVE"), Set.of(), "ammunition_laser_mcb-50")))

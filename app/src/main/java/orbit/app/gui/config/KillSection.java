@@ -94,7 +94,7 @@ final class KillSection implements Section {
                 .note("Бить — атаковать ли; приоритет — меньше значит раньше (−100 первым); радиус — на какой "
                         + "дистанции держаться; SAB — включать щитовые патроны на этого NPC (по порогам выше); "
                         + "патроны — свои патроны для этого NPC («общие» — как выше); карты — где действует строка («все» — везде); флаги: IGNORE_OWNERSHIP "
-                        + "(бить, даже если чужой), IGNORE_ATTACKED, PASSIVE (не убегать от него), PET_LOCATOR, KAMIKAZE.")
+                        + "(бить, даже если чужой), IGNORE_ATTACKED, PASSIVE (не убегать от него), AGGRESSIVE_FOLLOW (преследовать), NO_CIRCLE, PET_LOCATOR, KAMIKAZE.")
                 .wide(list, true)
                 .build(false);
     }

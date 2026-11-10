@@ -161,10 +161,25 @@ public record BotConfig(
      * @param runFromEnemies   run from enemy players that attack or come close
      * @param rememberEnemiesSec how long a seen enemy counts
      * @param roamSequential roam the map in order instead of at random
+     * @param runModeTravel  fly between maps and spots in the {@code run} mode (fast), not {@code roam}
+     * @param runModeChase   catch up with a target that is far beyond its radius in the {@code run} mode
      */
     public record General(int workingMap, ShipMode offensive, ShipMode roam, ShipMode run,
                           boolean runFromEnemies, boolean runFromEnemiesInSight, int rememberEnemiesSec,
-                          boolean roamSequential, boolean onlyKillPreferred) {
+                          boolean roamSequential, boolean onlyKillPreferred, boolean runModeTravel,
+                          boolean runModeChase) {
+
+        public General(int workingMap, ShipMode offensive, ShipMode roam, ShipMode run, boolean runFromEnemies,
+                       boolean runFromEnemiesInSight, int rememberEnemiesSec, boolean roamSequential,
+                       boolean onlyKillPreferred) {
+            this(workingMap, offensive, roam, run, runFromEnemies, runFromEnemiesInSight, rememberEnemiesSec,
+                    roamSequential, onlyKillPreferred, false, false);
+        }
+
+        /** The mode for flying somewhere (between maps, to a spot). */
+        public ShipMode travel() {
+            return runModeTravel ? run : roam;
+        }
 
         public static final General DEFAULT = new General(1, null, null, null, true, false, 300, false, false);
 
@@ -221,7 +236,7 @@ public record BotConfig(
         IGNORE_BOXES,
         /** never shoots first: do not run from it */
         PASSIVE,
-        /** follow it when it runs */
+        /** follow it when it runs: aim where it flies, catch up in the run mode */
         AGGRESSIVE_FOLLOW,
         /** prefer it as the second target of a group */
         ATTACK_SECOND,

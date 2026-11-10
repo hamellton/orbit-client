@@ -137,6 +137,16 @@ public final class CubikonModule implements BotModule {
             camp(s, h);
             return;
         }
+        if (spot == null) {
+            // the spot first: fights while waiting are tied to it
+            choose(s, h, "LEARNED".equals(text(s, "spotMode", "ROUND")), (int) setting(s, "waitSeconds", 90));
+        }
+        double leash = setting(s, "waitKillRange", DEFAULT_WAIT_KILL_RANGE);
+        if (attacker.targetId() != 0 && !onLeash(w, leash)) {
+            log.info("Цель уводит от спауна — бросаю её и возвращаюсь");
+            attacker.clear();
+            ctx.nav().stop();
+        }
         if (attacker.targetId() != 0 && !attacker.tick(true)) {
             attacker.clear();
         }
@@ -146,7 +156,7 @@ public final class CubikonModule implements BotModule {
         }
         String waitKill = waitKill(s);
         if (!"OFF".equals(waitKill)) {
-            WorldSnapshot.Ship t = waitTarget(c, w, waitKill, setting(s, "waitKillRange", DEFAULT_WAIT_KILL_RANGE));
+            WorldSnapshot.Ship t = waitTarget(c, w, waitKill, leash);
             if (t != null) {
                 attacker.target(t);
                 attacker.tick(true);
@@ -184,6 +194,18 @@ public final class CubikonModule implements BotModule {
                 .min(Comparator.<WorldSnapshot.Ship>comparingInt(x -> Targets.rule(c, x, h.mapId()).priority())
                         .thenComparingDouble(x -> x.distanceTo(h.x(), h.y())))
                 .orElse(null);
+    }
+
+    /** Both the target and the ship stay within {@code leash} of the spot we wait on. */
+    private boolean onLeash(WorldSnapshot w, double leash) {
+        if (spot == null) {
+            return true;
+        }
+        WorldSnapshot.Ship t = w.ships().get(attacker.targetId());
+        WorldSnapshot.Hero h = w.hero();
+        boolean targetNear = t == null || Math.hypot(t.x() - spot[0], t.y() - spot[1]) <= leash;
+        boolean shipNear = Math.hypot(h.x() - spot[0], h.y() - spot[1]) <= leash + 300;
+        return targetNear && shipNear;
     }
 
     /** Remembers Cubikons appearing and dying in sight. */
@@ -231,7 +253,8 @@ public final class CubikonModule implements BotModule {
             choose(s, h, learned, waitSec);
         }
         double dist = Math.hypot(spot[0] - h.x(), spot[1] - h.y());
-        ctx.ship().want(ctx.config().get().general().roam());
+        BotConfig.General g = ctx.config().get().general();
+        ctx.ship().want(dist > arrive ? g.travel() : g.roam());
         if (dist > arrive) {
             arrivedAt = 0;
             if (ctx.nav().idle() || ctx.nav().destination().x() != spot[0] || ctx.nav().destination().y() != spot[1]) {

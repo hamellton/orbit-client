@@ -187,4 +187,28 @@ class CubikonModuleTest {
         assertTrue(sim.sent.stream().noneMatch(p -> p instanceof ShipSelectRequest x && x.targetId == 60),
                 "did not stop to fight the Kristallin");
     }
+
+    @Test
+    void dropsATargetThatLeadsAwayFromTheSpawn() throws Exception {
+        BotConfig c = config(0, false);
+        var settings = c.moduleSettings("cubikon");
+        settings.put("waitKill", "ALL");
+        settings.put("waitKillRange", 1_000);
+        Sim sim = new Sim(c.withModuleSettings("cubikon", settings), 26, 7_500, 3_900);
+        sim.lasers("ammunition_laser_ucb-100");
+        sim.npc(60, "-=[ Kristallin ]=-", 8_000, 3_900);
+        CubikonModule m = new CubikonModule(sim.ctx, SpawnMemory.inMemory());
+        sim.run(m::tick, 5_000);
+        assertEquals(60, sim.hero().selected());
+        // it flees far away from the spot
+        orbit.protocol.gen.MoveCommand mv = new orbit.protocol.gen.MoveCommand();
+        mv.userId = 60;
+        mv.x = 12_000;
+        mv.y = 3_900;
+        mv.timeToTarget = 3_000;
+        sim.world.apply(mv, sim.now);
+        sim.run(m::tick, 20_000);
+        var h = sim.hero();
+        assertTrue(Math.hypot(h.x() - 7_500, h.y() - 3_900) <= 600, "back on the spawn: " + h);
+    }
 }

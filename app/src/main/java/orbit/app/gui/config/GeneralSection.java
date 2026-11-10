@@ -26,6 +26,8 @@ final class GeneralSection implements Section {
     private final JSpinner remember = Form.number(0, 3600, 30);
     private final JCheckBox sequential = new JCheckBox("Облетать карту по порядку, а не случайно");
     private final JCheckBox onlyPreferred = new JCheckBox("Бить только в предпочтительной зоне");
+    private final JCheckBox runTravel = new JCheckBox("Перелёты (между картами и спаунами) — в конфигурации бегства");
+    private final JCheckBox runChase = new JCheckBox("Догонять цель в конфигурации бегства");
     private final JTextArea description = new JTextArea(5, 50);
     private final JComponent view;
 
@@ -41,6 +43,10 @@ final class GeneralSection implements Section {
                 .row("Атака", offensive.view())
                 .row("Полёт и сбор", roam.view())
                 .row("Бегство", run.view())
+                .row("", runTravel)
+                .row("", runChase)
+                .note("Догонять — когда цель дальше своего радиуса больше чем на 300; у NPC с флагом AGGRESSIVE_FOLLOW "
+                        + "(«Атака» → флаги) — всегда, и бот летит туда, куда NPC движется.")
                 .section("Враги")
                 .row("", runFromEnemies)
                 .row("", runInSight)
@@ -75,6 +81,8 @@ final class GeneralSection implements Section {
         Form.set(remember, c.general().rememberEnemiesSec());
         sequential.setSelected(c.general().roamSequential());
         onlyPreferred.setSelected(c.general().onlyKillPreferred());
+        runTravel.setSelected(c.general().runModeTravel());
+        runChase.setSelected(c.general().runModeChase());
         description.setText(c.description());
         description.setCaretPosition(0);
     }
@@ -83,7 +91,7 @@ final class GeneralSection implements Section {
     public BotConfig apply(BotConfig c) {
         BotConfig.General g = new BotConfig.General(map.mapId(), offensive.get(), roam.get(), run.get(),
                 runFromEnemies.isSelected(), runInSight.isSelected(), Form.intOf(remember), sequential.isSelected(),
-                onlyPreferred.isSelected());
+                onlyPreferred.isSelected(), runTravel.isSelected(), runChase.isSelected());
         return c.withModule(BotConfig.Module.values()[module.getSelectedIndex()]).withGeneral(g)
                 .withDescription(description.getText().strip());
     }
