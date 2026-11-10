@@ -26,12 +26,17 @@ public final class Safety {
     /** Jump away below this HP when shot at by the portal. */
     static final double ESCAPE_HP = 0.25;
     static final double AT_PORTAL = 300;
-    static final long REPAIR_BOT_GAP_MS = 10_000;
+    /** The robot starts repairing some seconds after the click: no second click before this. */
+    static final long REPAIR_BOT_GAP_MS = 20_000;
+    /** HP that went up this recently means the robot is at work: leave it alone. */
+    static final long REPAIR_RISING_MS = 5_000;
 
     private final BotContext ctx;
     private boolean repairing;
     private int repairMap;
     private long healedAt = Long.MIN_VALUE / 2;
+    private double healHp = -1;
+    private long hpRoseAt = Long.MIN_VALUE / 2;
     private long jumpAt;
     private long jumpedAt = Long.MIN_VALUE / 2;
     private double lastHp = -1;
@@ -169,7 +174,12 @@ public final class Safety {
     private void heal(WorldSnapshot w, BotConfig.Safety s, long now, double hp, boolean attacked) {
         abilities(w, s.heal(), now, hp);
         double below = repairing ? s.repairHpMax() : s.heal().hpBelow();
-        if (below < 0 || hp >= below || attacked || now - healedAt < REPAIR_BOT_GAP_MS * 1_000_000) {
+        if (healHp >= 0 && hp > healHp + 1e-4) {
+            hpRoseAt = now;
+        }
+        healHp = hp;
+        if (below < 0 || hp >= below || attacked || now - healedAt < REPAIR_BOT_GAP_MS * 1_000_000
+                || now - hpRoseAt < REPAIR_RISING_MS * 1_000_000) {
             return;
         }
         WorldSnapshot.Item bot = w.items().get(REPAIR_BOT);

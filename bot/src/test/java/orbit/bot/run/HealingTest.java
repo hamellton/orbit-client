@@ -1,5 +1,6 @@
 package orbit.bot.run;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
@@ -41,6 +42,50 @@ class HealingTest {
 
     static boolean used(Sim sim, String id) {
         return sim.sent.stream().anyMatch(p -> p instanceof MenuActionRequest m && id.equals(m.menuItemId));
+    }
+
+    static void hp(Sim sim, double hp) {
+        orbit.protocol.gen.AttributeHitpointUpdateCommand u = new orbit.protocol.gen.AttributeHitpointUpdateCommand();
+        u.hitpointsNow = (int) hp;
+        u.hitpointsMax = 100_000;
+        sim.world.apply(u, sim.now);
+    }
+
+    static long clicks(Sim sim, String id) {
+        return sim.sent.stream().filter(p -> p instanceof MenuActionRequest m && id.equals(m.menuItemId)).count();
+    }
+
+    @Test
+    void theRepairRobotIsNotClickedAgainWhileItRepairs() {
+        BotConfig c = BotConfig.empty().withSafety(new BotConfig.Safety(0.2, 0.9, 0.05, 0, null,
+                new BotConfig.Heal(0.6, -1, -1), 10, "PORTAL", 0, 0));
+        Sim sim = new Sim(c, 1, 5_000, 5_000);
+        abilities(sim, Safety.REPAIR_BOT);
+        hp(sim, 50_000);
+        Safety s = new Safety(sim.ctx);
+        double hp = 50_000;
+        // out of combat: one click, then a pause while the robot gets going (HP does not move yet)
+        for (int t = 0; t < 150; t++) {
+            s.tick(false);
+            sim.now += 100 * Sim.MS;
+        }
+        assertEquals(1, clicks(sim, Safety.REPAIR_BOT), "one click, the robot needs a moment");
+        // the robot works: HP climbs, no more clicks
+        for (int t = 0; t < 300; t++) {
+            if (t % 10 == 0) {
+                hp += 300;
+                hp(sim, hp);
+            }
+            s.tick(false);
+            sim.now += 100 * Sim.MS;
+        }
+        assertEquals(1, clicks(sim, Safety.REPAIR_BOT), "HP rising: the robot is at work");
+        // it stopped short of the threshold: click again
+        for (int t = 0; t < 100; t++) {
+            s.tick(false);
+            sim.now += 100 * Sim.MS;
+        }
+        assertEquals(2, clicks(sim, Safety.REPAIR_BOT));
     }
 
     @Test
