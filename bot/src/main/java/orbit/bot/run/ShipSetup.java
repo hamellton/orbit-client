@@ -30,6 +30,8 @@ public final class ShipSetup {
     private long configAt = Long.MIN_VALUE / 2;
     private long formationAt = Long.MIN_VALUE / 2;
     private String missingTold;
+    private long missingSince;
+    static final long MISSING_WARN_MS = 20_000;
 
     public ShipSetup(Supplier<WorldSnapshot> world, Actions actions, LongSupplier clock, java.util.Random random) {
         this.world = world;
@@ -59,7 +61,12 @@ public final class ShipSetup {
         String f = mode.formation();
         if (f != null) {
             WorldSnapshot.Item item = w.items().get(f);
-            if (item == null && !w.items().isEmpty() && !f.equals(missingTold)) {
+            // the bar fills in over the first seconds after a login: only a formation missing for a while counts
+            if (item != null || w.items().isEmpty()) {
+                missingSince = 0;
+            } else if (missingSince == 0) {
+                missingSince = now;
+            } else if (now - missingSince > MISSING_WARN_MS * 1_000_000 && !f.equals(missingTold)) {
                 missingTold = f;
                 log.warn("Формации {} нет на панели игры — оставляю текущую", orbit.config.ItemCatalog.label(f));
             }
