@@ -116,7 +116,58 @@ public final class Safety {
         return repairing ? repairMap : 0;
     }
 
+    /**
+     * Healing abilities of ships, in order of preference (facts from the open-source DarkBot SharedPlugin
+     * SimpleHealing and DarkBot API ids): HP — Solace Plus, Solace, Aegis/Hammerclaw, Orcus; shield and the
+     * repair pod — Aegis/Hammerclaw. They work in combat, unlike the repair robot.
+     */
+    static final java.util.List<String> HP_ABILITIES = java.util.List.of(
+            "ability_solace-plus_nano-cluster-repairer-plus", "ability_solace", "ability_aegis_hp-repair",
+            "ability_orcus_assimilate");
+    static final java.util.List<String> SHIELD_ABILITIES = java.util.List.of("ability_aegis_shield-repair");
+    static final java.util.List<String> POD_ABILITIES = java.util.List.of("ability_aegis_repair-pod");
+    static final long ABILITY_GAP_MS = 3_000;
+
+    /** When each ability was last pressed: each has its own pause, so one never blocks the others. */
+    private final java.util.Map<String, Long> abilityAt = new java.util.HashMap<>();
+    private long anyAbilityAt = Long.MIN_VALUE / 2;
+
+    /** Ship abilities by the config's thresholds ({@code -1} = off), in or out of combat. */
+    private void abilities(WorldSnapshot w, BotConfig.Heal heal, long now, double hp) {
+        if (now - anyAbilityAt < 400_000_000L) {
+            return; // one press at a time, like a player
+        }
+        double shield = w.hero().health().shieldPercent();
+        if (heal.hpBelow() >= 0 && hp < heal.hpBelow() && use(w, HP_ABILITIES, now, "лечение", hp)) {
+            return;
+        }
+        if (heal.shieldBelow() >= 0 && shield >= 0 && shield < heal.shieldBelow()
+                && use(w, SHIELD_ABILITIES, now, "щит", shield)) {
+            return;
+        }
+        if (heal.hpPodBelow() >= 0 && hp < heal.hpPodBelow()) {
+            use(w, POD_ABILITIES, now, "капсула", hp);
+        }
+    }
+
+    private boolean use(WorldSnapshot w, java.util.List<String> ids, long now, String what, double level) {
+        for (String id : ids) {
+            WorldSnapshot.Item a = w.items().get(id);
+            long last = abilityAt.getOrDefault(id, Long.MIN_VALUE / 2);
+            if (a != null && a.available() && !a.blocked() && a.remainingMs(now) == 0
+                    && now - last > ABILITY_GAP_MS * 1_000_000) {
+                log.info("Способность: {} ({}, {}%)", id, what, pct(level));
+                ctx.actions().useItem(id);
+                abilityAt.put(id, now);
+                anyAbilityAt = now;
+                return true;
+            }
+        }
+        return false;
+    }
+
     private void heal(WorldSnapshot w, BotConfig.Safety s, long now, double hp, boolean attacked) {
+        abilities(w, s.heal(), now, hp);
         double below = repairing ? s.repairHpMax() : s.heal().hpBelow();
         if (below < 0 || hp >= below || attacked || now - healedAt < REPAIR_BOT_GAP_MS * 1_000_000) {
             return;

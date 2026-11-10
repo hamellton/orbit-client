@@ -18,9 +18,9 @@ final class SafetySection implements Section {
     private final JSpinner repairNoNpc = Form.percent();
     private final JSpinner repairShield = Form.percent();
     private final GeneralSection.ModeRow repairMode = new GeneralSection.ModeRow();
-    private final Threshold healHp = new Threshold("Ремонтный робот / лечение, когда HP ниже");
-    private final Threshold healShield = new Threshold("Восстановление щита, когда щит ниже");
-    private final Threshold healPod = new Threshold("HP-капсула, когда HP ниже");
+    private final Threshold healHp = new Threshold("Лечение, когда HP ниже");
+    private final Threshold healShield = new Threshold("Щит (Aegis, Hammerclaw), когда щит ниже");
+    private final Threshold healPod = new Threshold("Ремонтная капсула (Aegis, Hammerclaw), когда HP ниже");
     private final JSpinner maxDeaths = Form.number(0, 100_000, 1);
     private final JComboBox<String> revive = new JComboBox<>(REVIVE_NAMES);
     private final JSpinner waitBefore = Form.number(0, 3600, 5);
@@ -39,6 +39,8 @@ final class SafetySection implements Section {
                 .row("", healHp.view())
                 .row("", healShield.view())
                 .row("", healPod.view())
+                .note("Лечение — способность корабля (Solace, Solace Plus, Aegis и Hammerclaw, Orcus), работает и в "
+                        + "бою; вне боя ещё и ремонтный робот. Бот нажимает то, что есть на корабле.")
                 .section("Гибель")
                 .row("Остановить бота после смертей", maxDeaths)
                 .note("0 — без ограничения.")
