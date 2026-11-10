@@ -83,6 +83,22 @@ public final class GameConnection implements AutoCloseable {
     }
 
     /** The game closed the connection before the ship was initialised: the session is probably stale. */
+    /** The client's texts for {@code LoginResponse.status} ({@code LoginResponseHandler.STATE2TEXT}). */
+    static String loginStatus(int status) {
+        return switch (status) {
+            case LoginResponse.STATUS_Error -> "ошибка сервера (Error)";
+            case LoginResponse.STATUS_ShuttingDown -> "сервер выключается (ShuttingDown)";
+            case LoginResponse.STATUS_InvalidData -> "неверные данные входа (InvalidData)";
+            case LoginResponse.STATUS_WrongInstanceId -> "неверный инстанс сервера (WrongInstanceId)";
+            case LoginResponse.STATUS_WrongServer -> "не тот игровой сервер (WrongServer)";
+            case LoginResponse.STATUS_InvalidSessionId -> "недействительная сессия (InvalidSessionId)";
+            case LoginResponse.STATUS_ShipIsDestroyed -> "корабль уничтожен (ShipIsDestroyed)";
+            case LoginResponse.STATUS_PlayerIsLoggedOut -> "игрок вышел из игры (PlayerIsLoggedOut)";
+            case LoginResponse.STATUS_IPRestricted -> "достигнут лимит входов с этого IP (IP limit reached)";
+            default -> "код " + status;
+        };
+    }
+
     private static final class LoginRejected extends IOException {
         private static final long serialVersionUID = 1L;
 
@@ -318,6 +334,9 @@ public final class GameConnection implements AutoCloseable {
                         log.warn("Пакет {} не разобран: {}", Packets.known(id) ? Packets.name(id) : "?" + id, e.getMessage());
                         continue;
                     }
+                    if (!shipReady) {
+                        log.debug("← {}", p.getClass().getSimpleName()); // the login exchange, for diagnosis
+                    }
                     if (p instanceof VersionCommand vc) {
                         ProtocolOutdatedException.check(vc);
                         sendLogin(session);
@@ -351,6 +370,8 @@ public final class GameConnection implements AutoCloseable {
                         listener.onState(GameListener.State.ONLINE, "В игре, сервер " + server);
                     } else if (p instanceof UserSettingsCommand us) {
                         userSettings = us;
+                    } else if (p instanceof LoginResponse lr && lr.status != LoginResponse.STATUS_Success) {
+                        throw new LoginRejected("Игровой сервер отказал во входе: " + loginStatus(lr.status));
                     } else if (p instanceof LoginResponse && startupThread == null) {
                         StartupSequence.Context ctx = new StartupSequence.Context(!connectedBefore, userSettings);
                         connectedBefore = true;
