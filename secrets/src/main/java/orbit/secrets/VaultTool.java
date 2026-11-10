@@ -16,7 +16,7 @@ import java.util.Map;
  * <pre>
  *   vault list
  *   vault add &lt;name&gt; [--server int1] [--proxy socks5://host:port]
- *   vault import &lt;name&gt; &lt;creds.txt&gt; [--server int1]     # username on line 1, password on line 2
+ *   vault import &lt;name&gt; &lt;creds.txt&gt; [--server int1]     # username on line 1, password on line 2, optional dosid on line 3
  *   vault set-dosid &lt;name&gt;
  *   vault remove &lt;name&gt;
  *   options: --vault local/vault.bin
@@ -100,8 +100,10 @@ public final class VaultTool {
                 if (lines.size() < 2 || lines.get(0).isBlank() || lines.get(1).isBlank()) {
                     throw new VaultException("В " + creds + " нужны логин (строка 1) и пароль (строка 2).");
                 }
-                vault.put(name, new Account(lines.get(0).strip(), lines.get(1).strip(), server, null, proxy));
-                System.out.println("Импортировано. Файл " + creds + " теперь можно удалить.");
+                String dosid = lines.size() > 2 ? dosidOf(lines.get(2)) : null;
+                vault.put(name, new Account(lines.get(0).strip(), lines.get(1).strip(), server, dosid, proxy));
+                System.out.println("Импортировано" + (dosid != null ? " (с dosid)" : "") + ". Файл " + creds
+                        + " теперь можно удалить.");
             }
             case "set-dosid" -> {
                 String name = arg(positional, 1);
@@ -147,4 +149,13 @@ public final class VaultTool {
         }
         return c;
     }
+
+    /** Line 3 of a credentials file: {@code dosid}, {@code dosid: X}, {@code dosid=X}; {@code null} if empty. */
+    static String dosidOf(String line) {
+        String v = line.strip();
+        int cut = Math.max(v.lastIndexOf(' '), Math.max(v.lastIndexOf(':'), v.lastIndexOf('=')));
+        v = v.substring(cut + 1).strip();
+        return v.isEmpty() || v.equalsIgnoreCase("dosid") ? null : v;
+    }
+
 }
