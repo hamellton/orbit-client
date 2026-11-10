@@ -201,7 +201,15 @@ class ProxyConnectorTest {
         ProxyRoute.none().verify(); // direct: nothing to check
         try (FakeProxy.Echo echo = new FakeProxy.Echo();
              FakeProxy proxy = new FakeProxy(FakeProxy.Kind.SOCKS5, USER, PASS, echo.address())) {
-            try (ProxyRoute ok = ProxyRoute.of(new ProxySpec(ProxySpec.Type.SOCKS5, "127.0.0.1", proxy.port(), USER, PASS))) {
+            try (ProxyRoute fake = ProxyRoute.of(new ProxySpec(ProxySpec.Type.SOCKS5, "127.0.0.1", proxy.port(), USER, PASS))) {
+                // the tunnel opens, but no TLS server answers behind it: like a fake free proxy
+                ProxyException e = assertThrows(ProxyException.class, fake::check);
+                assertEquals(ProxyException.Kind.TARGET, e.kind());
+                assertTrue(e.getMessage().contains("поддельный"), e.getMessage());
+                assertEquals(AuthException.Reason.UNAVAILABLE, assertThrows(AuthException.class, fake::verify).reason());
+            }
+            try (ProxyRoute ok = ProxyRoute.of(new ProxySpec(ProxySpec.Type.SOCKS5, "127.0.0.1", proxy.port(), USER, PASS))
+                    .probe(ProxyConnectorTest::assertEchoes)) {
                 ProxyRoute.Check c = ok.check();
                 assertNull(c.ip()); // the echo server is no IP service
                 assertEquals(new FakeProxy.Request(3, ProxyRoute.CHECK_HOST, 443), proxy.requests.getFirst());

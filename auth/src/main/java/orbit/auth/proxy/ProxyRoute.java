@@ -109,11 +109,35 @@ public final class ProxyRoute implements AutoCloseable {
         }
     }
 
-    /** Connects through the proxy to the game's site and asks for the public address. */
+    /** What proves a tunnel reaches the real target (tests use a plain exchange). */
+    interface Probe {
+        void run(Socket tunnel) throws IOException;
+    }
+
+    private volatile Probe probe = ProxyRoute::tlsHandshake;
+
+    /** For tests: another proof than the TLS handshake with the game's site. */
+    ProxyRoute probe(Probe p) {
+        probe = p;
+        return this;
+    }
+
+    /**
+     * Connects through the proxy to the game's site, completes a TLS handshake with it (certificate and
+     * host name checked) and asks for the public address. An open tunnel alone proves nothing: many free
+     * proxies accept every {@code CONNECT} and then send nothing or garbage.
+     */
     public Check check() throws ProxyException {
         long start = System.nanoTime();
         try (Socket s = connector.open(CHECK_HOST, 443, CHECK_TIMEOUT_MS)) {
-            log.debug("Прокси: {} открыт через {} ({})", CHECK_HOST, connector.spec().address(), s.getRemoteSocketAddress());
+            s.setSoTimeout(CHECK_TIMEOUT_MS);
+            try {
+                probe.run(s);
+            } catch (IOException e) {
+                throw new ProxyException(ProxyException.Kind.TARGET, "прокси " + connector.spec().address()
+                        + " открыл соединение, но сайт игры через него не отвечает (" + ProxyConnector.reason(e)
+                        + ") — поддельный или перегруженный прокси", e);
+            }
         } catch (ProxyException e) {
             throw e;
         } catch (IOException e) {
@@ -126,6 +150,15 @@ public final class ProxyRoute implements AutoCloseable {
             externalIp = ip;
         }
         return new Check(connector.spec(), millis, ip);
+    }
+
+    static void tlsHandshake(Socket tunnel) throws IOException {
+        javax.net.ssl.SSLSocketFactory f = (javax.net.ssl.SSLSocketFactory) javax.net.ssl.SSLSocketFactory.getDefault();
+        javax.net.ssl.SSLSocket tls = (javax.net.ssl.SSLSocket) f.createSocket(tunnel, CHECK_HOST, 443, false);
+        javax.net.ssl.SSLParameters params = tls.getSSLParameters();
+        params.setEndpointIdentificationAlgorithm("HTTPS");
+        tls.setSSLParameters(params);
+        tls.startHandshake();
     }
 
     private String lookupIp() {
