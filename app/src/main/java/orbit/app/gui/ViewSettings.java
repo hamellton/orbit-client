@@ -74,7 +74,8 @@ public final class ViewSettings {
         }
     }
 
-    static final Path FILE = Path.of("local", "ui.properties");
+    /** {@code local/ui.properties}; another file with {@code -Dorbit.ui.file=…} (tools that draw the window). */
+    static final Path FILE = Path.of(System.getProperty("orbit.ui.file", "local/ui.properties"));
     private static final ViewSettings SHARED = load(FILE);
 
     private final Path file;

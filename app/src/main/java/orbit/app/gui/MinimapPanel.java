@@ -79,8 +79,13 @@ final class MinimapPanel extends JPanel {
 
     /** Where the map sits in the panel, keeping its proportions (21000:13100 for most maps). */
     private Projection projection(MapCatalog.MapInfo map) {
-        int pad = compact || ViewSettings.shared().mapOnlyNow() ? 0 : 8; // only the map: edge to edge
-        double scale = Math.min((getWidth() - 2.0 * pad) / map.width(), (getHeight() - 2.0 * pad) / map.height());
+        boolean mapOnly = !compact && ViewSettings.shared().mapOnlyNow();
+        int pad = compact || mapOnly ? 0 : 8; // only the map: edge to edge
+        double sx = (getWidth() - 2.0 * pad) / map.width();
+        double sy = (getHeight() - 2.0 * pad) / map.height();
+        // only the map: it always covers the window (a sliver cut off while the window is being resized, until
+        // the window takes the map's shape), so no empty band shows
+        double scale = mapOnly ? Math.max(sx, sy) : Math.min(sx, sy);
         double ox = (getWidth() - map.width() * scale) / 2;
         double oy = (getHeight() - map.height() * scale) / 2;
         return new Projection(ox, oy, scale);
@@ -286,28 +291,33 @@ final class MinimapPanel extends JPanel {
             g.setColor(hero.alive() ? HERO : Color.GRAY);
             g.fill(new Ellipse2D.Double(hx - 4.5 * u, hy - 4.5 * u, 9 * u, 9 * u));
         }
-        int pillsBottom = hud.boostPills(g, (int) Math.round(ox + mw) - 8, (int) Math.round(oy) + 8,
-                (int) Math.round(mw * (compact ? 0.45 : 0.5)), w.boosters(), compact || mw < BIG_MAP);
+        // the overlays keep to the part of the map in view (the map may run past the edges in map-only mode)
+        double vx = Math.max(ox, 0);
+        double vy = Math.max(oy, 0);
+        double vw = Math.min(ox + mw, getWidth()) - vx;
+        double vh = Math.min(oy + mh, getHeight()) - vy;
+        int pillsBottom = hud.boostPills(g, (int) Math.round(vx + vw) - 8, (int) Math.round(vy) + 8,
+                (int) Math.round(vw * (compact ? 0.45 : 0.5)), w.boosters(), compact || vw < BIG_MAP);
         if (compact) {
-            hud.targetChip(g, (int) Math.round(ox) + 8, (int) Math.round(oy) + 8, (int) Math.round(mw * 0.3), w);
-            hud.strip(g, (int) Math.round(ox), (int) Math.round(oy + mh), (int) Math.round(mw), feed, config.get());
+            hud.targetChip(g, (int) Math.round(vx) + 8, (int) Math.round(vy) + 8, (int) Math.round(vw * 0.3), w);
+            hud.strip(g, (int) Math.round(vx), (int) Math.round(vy + vh), (int) Math.round(vw), feed, config.get());
         } else {
-            mapChip(g, ox, oy, hero, map);
+            mapChip(g, vx, vy, hero, map);
             // the blocks the user put on the map: full cards on a big map, compact ones on a small one
-            boolean big = mw >= BIG_MAP;
+            boolean big = vw >= BIG_MAP;
             java.util.Map<java.awt.Rectangle, ViewSettings.Block> placed = new java.util.LinkedHashMap<>();
             Hud cards = big ? hud : compactHud;
-            int panel = big ? (int) Math.max(230, Math.min(320, mw * 0.26)) : (int) Math.max(170, Math.min(250, mw * 0.34));
-            int left = (int) Math.round(ox) + 10;
-            int right = (int) Math.round(ox + mw) - 10;
+            int panel = big ? (int) Math.max(230, Math.min(320, vw * 0.26)) : (int) Math.max(170, Math.min(250, vw * 0.34));
+            int left = (int) Math.round(vx) + 10;
+            int right = (int) Math.round(vx + vw) - 10;
             // the account strip along the bottom, as in the overview: the columns end above it
-            int stripTop = (int) Math.round(oy + mh) - Hud.STRIP_HEIGHT - 20;
-            cards.mapBlocks(g, left, right, (int) Math.round(oy) + 46, Math.max((int) Math.round(oy) + 40, pillsBottom + 8),
+            int stripTop = (int) Math.round(vy + vh) - Hud.STRIP_HEIGHT - 20;
+            cards.mapBlocks(g, left, right, (int) Math.round(vy) + 46, Math.max((int) Math.round(vy) + 40, pillsBottom + 8),
                     stripTop, panel, w, feed, config.get(), ViewSettings.shared(), placed, big);
             cardsAt = placed;
             Shape clip = g.getClip();
             g.clip(frame);
-            hud.strip(g, (int) Math.round(ox), (int) Math.round(oy + mh), (int) Math.round(mw), feed, config.get());
+            hud.strip(g, (int) Math.round(vx), (int) Math.round(vy + vh), (int) Math.round(vw), feed, config.get());
             g.setClip(clip);
         }
     }

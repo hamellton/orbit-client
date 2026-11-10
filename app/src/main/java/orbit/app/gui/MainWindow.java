@@ -115,7 +115,7 @@ public final class MainWindow {
      * width (after the user lets go of the edge), so no empty bands are left. The overview is left alone.
      */
     private static void fitToMap(JFrame frame, JComponent content) {
-        Timer settle = new Timer(250, null);
+        Timer settle = new Timer(120, null);
         settle.setRepeats(false);
         Runnable fit = () -> {
             if (!ViewSettings.shared().mapOnlyNow() || frame.getExtendedState() != JFrame.NORMAL) {
