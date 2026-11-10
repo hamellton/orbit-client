@@ -69,12 +69,34 @@ final class AccountView extends JPanel {
         split.setBorder(BorderFactory.createEmptyBorder());
         split.setContinuousLayout(true);
 
-        add(header(), BorderLayout.NORTH);
+        JComponent header = header();
+        JComponent logView = split.getBottomComponent() instanceof JComponent l ? l : null;
+        add(header, BorderLayout.NORTH);
         add(split, BorderLayout.CENTER);
-        ViewSettings.shared().onChange(() -> SwingUtilities.invokeLater(() -> {
-            body.revalidate();
-            body.repaint();
-        }));
+        Runnable apply = () -> {
+            ViewSettings v = ViewSettings.shared();
+            header.setVisible(v.shown(ViewSettings.Section.HEADER));
+            boolean log = v.shown(ViewSettings.Section.LOG);
+            boolean bare = !v.shown(ViewSettings.Section.HEADER) && !log && !v.anySide();
+            body.setBorder(bare ? BorderFactory.createEmptyBorder() : BorderFactory.createEmptyBorder(8, 10, 8, 10));
+            // the log below the map in its split, or the map alone
+            if (log && split.getParent() != this) {
+                remove(body);
+                split.setTopComponent(body);
+                add(split, BorderLayout.CENTER);
+            } else if (!log && body.getParent() != this) {
+                remove(split);
+                split.setTopComponent(null);
+                add(body, BorderLayout.CENTER);
+            }
+            if (logView != null) {
+                logView.setVisible(log);
+            }
+            revalidate();
+            repaint();
+        };
+        apply.run();
+        ViewSettings.shared().onChange(() -> SwingUtilities.invokeLater(apply));
         new Timer(REFRESH_MS, e -> {
             if (isShowing()) {
                 map.repaint(); // a hidden tab is not drawn
@@ -127,7 +149,7 @@ final class AccountView extends JPanel {
 
         @Override
         public Dimension minimumLayoutSize(Container parent) {
-            return new Dimension(300, 260);
+            return new Dimension(200, 130);
         }
 
         @Override

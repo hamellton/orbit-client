@@ -77,7 +77,7 @@ public final class MainWindow {
             new Timer(1_000, e -> frame.setTitle(title(tabs))).start();
             MinimapBackgrounds.onLoaded(() -> SwingUtilities.invokeLater(frame::repaint));
             Dimension screen = Toolkit.getDefaultToolkit().getScreenSize();
-            frame.setMinimumSize(new Dimension(560, 420));
+            frame.setMinimumSize(new Dimension(320, 220)); // only the map: as small as a corner of the screen
             frame.setSize(Math.min(1440, (int) (screen.width * 0.85)), Math.min(920, (int) (screen.height * 0.85)));
             frame.setLocationRelativeTo(null);
             frame.setVisible(true);

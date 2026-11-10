@@ -130,8 +130,9 @@ final class Hud {
         boolean rightCut = false;
         for (Map.Entry<ViewSettings.Block, Card> e : blocks(w, feed, config).entrySet()) {
             ViewSettings.Place where = v.place(e.getKey());
-            // «everywhere» on a small map: beside it only, so the map stays to be seen
-            if (!where.map() || (where == ViewSettings.Place.BOTH && !bigMap)) {
+            // «everywhere» on a small map: beside it only, so the map stays to be seen (unless the side is hidden)
+            boolean sideShown = v.shown(ViewSettings.Section.SIDE);
+            if (!v.onMap(e.getKey()) || (where == ViewSettings.Place.BOTH && !bigMap && sideShown)) {
                 continue;
             }
             Card c = e.getValue();

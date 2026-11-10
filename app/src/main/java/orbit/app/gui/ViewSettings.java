@@ -61,17 +61,34 @@ public final class ViewSettings {
         }
     }
 
+    /** The parts of the account view around the map, each to show or hide. */
+    public enum Section {
+        HEADER("Шапка (аккаунт, конфиг, кнопки)"),
+        SIDE("Боковая панель с карточками"),
+        LOG("Журнал");
+
+        public final String label;
+
+        Section(String label) {
+            this.label = label;
+        }
+    }
+
     static final Path FILE = Path.of("local", "ui.properties");
     private static final ViewSettings SHARED = load(FILE);
 
     private final Path file;
     private final Map<Block, Place> places = new EnumMap<>(Block.class);
+    private final Map<Section, Boolean> shown = new EnumMap<>(Section.class);
     private final List<Runnable> listeners = new CopyOnWriteArrayList<>();
 
     private ViewSettings(Path file) {
         this.file = file;
         for (Block b : Block.values()) {
             places.put(b, b == Block.TARGET || b == Block.ATTACKERS ? Place.MAP : Place.SIDE);
+        }
+        for (Section s : Section.values()) {
+            shown.put(s, true);
         }
     }
 
@@ -90,6 +107,12 @@ public final class ViewSettings {
             Properties p = new Properties();
             try (Reader r = Files.newBufferedReader(file)) {
                 p.load(r);
+                for (Section sec : Section.values()) {
+                    String s = p.getProperty("section." + sec.name());
+                    if (s != null) {
+                        v.shown.put(sec, Boolean.parseBoolean(s));
+                    }
+                }
                 for (Block b : Block.values()) {
                     String s = p.getProperty("block." + b.name());
                     if (s != null) {
@@ -128,9 +151,46 @@ public final class ViewSettings {
         changed();
     }
 
-    /** True when at least one block stands beside the map. */
+    /** True when the side panel is shown and at least one block stands beside the map. */
     public synchronized boolean anySide() {
-        return places.containsValue(Place.SIDE) || places.containsValue(Place.BOTH);
+        return shown.get(Section.SIDE) && (places.containsValue(Place.SIDE) || places.containsValue(Place.BOTH));
+    }
+
+    public synchronized boolean shown(Section s) {
+        return shown.get(s);
+    }
+
+    public void show(Section s, boolean on) {
+        synchronized (this) {
+            shown.put(s, on);
+        }
+        changed();
+    }
+
+    /** Only the map: every part around it hidden (the blocks beside it move onto the map). */
+    public void mapOnly() {
+        synchronized (this) {
+            for (Section s : Section.values()) {
+                shown.put(s, false);
+            }
+        }
+        changed();
+    }
+
+    /** Every part around the map shown again. */
+    public void showAll() {
+        synchronized (this) {
+            for (Section s : Section.values()) {
+                shown.put(s, true);
+            }
+        }
+        changed();
+    }
+
+    /** True when the map shows this block: placed on it, or placed beside it while the side panel is hidden. */
+    public synchronized boolean onMap(Block b) {
+        Place p = places.get(b);
+        return p.map() || (p.side() && !shown.get(Section.SIDE));
     }
 
     public void onChange(Runnable r) {
@@ -148,6 +208,7 @@ public final class ViewSettings {
         }
         Properties p = new Properties();
         places.forEach((b, pl) -> p.setProperty("block." + b.name(), pl.name()));
+        shown.forEach((s, on) -> p.setProperty("section." + s.name(), String.valueOf(on)));
         try {
             Files.createDirectories(file.getParent());
             try (Writer w = Files.newBufferedWriter(file)) {

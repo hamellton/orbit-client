@@ -57,17 +57,43 @@ final class BlockMenu {
         }
         menu.addSeparator();
         menu.add(allMenu());
+        JMenu window = new JMenu("Окно");
+        for (JMenuItem i : windowItems()) {
+            window.add(i);
+        }
+        menu.add(window);
         return menu;
+    }
+
+    /** «Только карта», «Показать всё» and a check per part of the window. */
+    private static JMenuItem[] windowItems() {
+        ViewSettings v = ViewSettings.shared();
+        java.util.List<JMenuItem> out = new java.util.ArrayList<>();
+        JMenuItem only = new JMenuItem("Только карта (скрыть всё остальное)");
+        only.addActionListener(e -> v.mapOnly());
+        JMenuItem all = new JMenuItem("Показать всё");
+        all.addActionListener(e -> v.showAll());
+        out.add(only);
+        out.add(all);
+        for (ViewSettings.Section s : ViewSettings.Section.values()) {
+            javax.swing.JCheckBoxMenuItem c = new javax.swing.JCheckBoxMenuItem(s.label, v.shown(s));
+            c.addActionListener(e -> v.show(s, c.isSelected()));
+            out.add(c);
+        }
+        return out.toArray(JMenuItem[]::new);
     }
 
     /** Every block with its place, and all at once. */
     static JPopupMenu all() {
         ViewSettings v = ViewSettings.shared();
         JPopupMenu menu = new JPopupMenu();
-        JMenuItem hint = new JMenuItem("Правый клик по карточке — её меню");
+        for (JMenuItem i : windowItems()) {
+            menu.add(i);
+        }
+        menu.addSeparator();
+        JMenuItem hint = new JMenuItem("Блоки (правый клик по карточке — её меню):");
         hint.setEnabled(false);
         menu.add(hint);
-        menu.addSeparator();
         for (ViewSettings.Block b : ViewSettings.Block.values()) {
             JMenu item = new JMenu(b.label + ":  " + v.place(b).label.toLowerCase());
             ButtonGroup choice = new ButtonGroup();

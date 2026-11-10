@@ -322,6 +322,18 @@ final class MinimapPanel extends JPanel {
         g.fill(new java.awt.geom.RoundRectangle2D.Double(ox + 10, oy + 10, w, 26, 13, 13));
         g.setColor(Hud.TEXT);
         g.drawString(text, (float) (ox + 20), (float) (oy + 28));
+        if (!ViewSettings.shared().shown(ViewSettings.Section.HEADER)) {
+            // the header with its buttons is hidden: say where the menu is
+            String hint = getWidth() >= 700 ? "☰ правый клик — меню" : "☰"; // a small map has no room for words
+            g.setFont(hud.font(Font.PLAIN, 11f));
+            java.awt.FontMetrics hm = g.getFontMetrics();
+            int hw = hm.stringWidth(hint) + 16;
+            double hx = ox + 10 + w + 6;
+            g.setColor(new Color(10, 12, 18, 200));
+            g.fill(new java.awt.geom.RoundRectangle2D.Double(hx, oy + 10, hw, 26, 13, 13));
+            g.setColor(Hud.DIM);
+            g.drawString(hint, (float) (hx + 8), (float) (oy + 27));
+        }
     }
 
     /** Faint lines every 1000 game units, like the game's own minimap ruler. */
