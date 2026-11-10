@@ -42,7 +42,7 @@ final class SidePanel extends JPanel implements Scrollable {
 
     /** The height the cards take at a width (to size the panel under the map). */
     int contentHeight(int width) {
-        List<Hud.Card> cards = hud.cards(feed.snapshot(), feed, config.get());
+        List<Hud.Card> cards = hud.cards(feed.snapshot(), feed, config.get(), ViewSettings.shared(), ViewSettings.Place.SIDE);
         int n = columns(width);
         int cw = (width - (n - 1) * GAP) / n;
         int[] col = new int[n];
@@ -64,7 +64,7 @@ final class SidePanel extends JPanel implements Scrollable {
         try {
             g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
             g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
-            List<Hud.Card> cards = hud.cards(feed.snapshot(), feed, config.get());
+            List<Hud.Card> cards = hud.cards(feed.snapshot(), feed, config.get(), ViewSettings.shared(), ViewSettings.Place.SIDE);
             int width = getWidth();
             int n = columns(width);
             int cw = (width - (n - 1) * GAP) / n;

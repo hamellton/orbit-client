@@ -50,6 +50,7 @@ final class MinimapPanel extends JPanel {
     private final WorldFeed feed;
     private final MapCatalog catalog = MapCatalog.bundled();
     private final Hud hud;
+    private final Hud compactHud;
     /** A small map in the overview: a strip with the account instead of the map's own labels. */
     private final boolean compact;
     private final java.util.function.Supplier<String> config;
@@ -66,6 +67,7 @@ final class MinimapPanel extends JPanel {
         setToolTipText(""); // enables getToolTipText(MouseEvent)
         Font f = javax.swing.UIManager.getFont("Label.font");
         hud = new Hud(f != null ? f : getFont());
+        compactHud = new Hud(f != null ? f : getFont(), true);
         setPreferredSize(compact ? new Dimension(420, 262) : new Dimension(840, 524));
         setMinimumSize(new Dimension(240, 150));
     }
@@ -286,12 +288,14 @@ final class MinimapPanel extends JPanel {
             hud.strip(g, (int) Math.round(ox), (int) Math.round(oy + mh), (int) Math.round(mw), feed, config.get());
         } else {
             mapChip(g, ox, oy, hero, map);
-            if (mw >= BIG_MAP) {
-                // a big map has room for the fight and the ship, as in the game's own windows
-                int panel = (int) Math.min(300, mw * 0.26);
-                hud.fightPanel(g, (int) Math.round(ox) + 10, (int) Math.round(oy) + 46, panel, w);
-                hud.shipPanel(g, (int) Math.round(ox) + 10, (int) Math.round(oy + mh) - 10, panel, hero);
-            }
+            // the blocks the user put on the map: full cards on a big map, compact ones on a small one
+            boolean big = mw >= BIG_MAP;
+            Hud cards = big ? hud : compactHud;
+            int panel = big ? (int) Math.max(230, Math.min(320, mw * 0.26)) : (int) Math.max(170, Math.min(250, mw * 0.34));
+            int left = (int) Math.round(ox) + 10;
+            int right = (int) Math.round(ox + mw) - 10;
+            cards.mapBlocks(g, left, right, (int) Math.round(oy) + 46, (int) Math.round(oy) + (big ? 40 : 50),
+                    (int) Math.round(oy + mh) - 8, panel, w, feed, config.get(), ViewSettings.shared());
         }
     }
 

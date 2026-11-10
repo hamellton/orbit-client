@@ -71,6 +71,10 @@ final class AccountView extends JPanel {
 
         add(header(), BorderLayout.NORTH);
         add(split, BorderLayout.CENTER);
+        ViewSettings.shared().onChange(() -> SwingUtilities.invokeLater(() -> {
+            body.revalidate();
+            body.repaint();
+        }));
         new Timer(REFRESH_MS, e -> {
             if (isShowing()) {
                 map.repaint(); // a hidden tab is not drawn
@@ -89,6 +93,12 @@ final class AccountView extends JPanel {
             int w = parent.getWidth() - in.left - in.right;
             int h = parent.getHeight() - in.top - in.bottom;
             int gap = SidePanel.GAP;
+            if (!ViewSettings.shared().anySide()) {
+                // every block is on the map or hidden: the map takes the whole width
+                sideScroll.setBounds(0, 0, 0, 0);
+                map.setBounds(x, y, w, h);
+                return;
+            }
             if (w >= WIDE) {
                 // the map as big as the height allows, the cards take the rest (within limits), no dead strip
                 int mapW = (int) Math.min(w - SidePanel.MIN_COLUMN - gap, h * MainWindow.Grid.ASPECT);
@@ -193,6 +203,10 @@ final class AccountView extends JPanel {
         }
         JPanel actions = group();
         bar.add(actions);
+        JButton view = new JButton("Вид ▾");
+        view.setToolTipText("Какие блоки показывать сбоку, какие на карте, какие скрыть");
+        view.addActionListener(e -> viewMenu().show(view, 0, view.getHeight()));
+        actions.add(view);
         JButton all = new JButton("Все конфиги…");
         all.addActionListener(e -> orbit.app.gui.config.ConfigWindow.open(orbit.config.ConfigStore.openDefault(),
                 orbit.config.AccountSettings.DEFAULT_FILE, null));
@@ -218,6 +232,34 @@ final class AccountView extends JPanel {
         refresh.run();
         new Timer(500, e -> refresh.run()).start();
         return bar;
+    }
+
+    /** «Вид»: for every block — beside the map, on it, or hidden; and all at once. */
+    private static javax.swing.JPopupMenu viewMenu() {
+        ViewSettings v = ViewSettings.shared();
+        javax.swing.JPopupMenu menu = new javax.swing.JPopupMenu();
+        for (ViewSettings.Block b : ViewSettings.Block.values()) {
+            javax.swing.JMenu item = new javax.swing.JMenu(b.label + ":  " + v.place(b).label.toLowerCase());
+            javax.swing.ButtonGroup choice = new javax.swing.ButtonGroup();
+            for (ViewSettings.Place p : ViewSettings.Place.values()) {
+                javax.swing.JRadioButtonMenuItem r = new javax.swing.JRadioButtonMenuItem(p.label, v.place(b) == p);
+                r.addActionListener(e -> v.set(b, p));
+                choice.add(r);
+                item.add(r);
+            }
+            menu.add(item);
+        }
+        menu.addSeparator();
+        for (ViewSettings.Place p : ViewSettings.Place.values()) {
+            javax.swing.JMenuItem all = new javax.swing.JMenuItem(switch (p) {
+                case SIDE -> "Все блоки сбоку";
+                case MAP -> "Все блоки на карте";
+                case HIDDEN -> "Скрыть все блоки";
+            });
+            all.addActionListener(e -> v.setAll(p));
+            menu.add(all);
+        }
+        return menu;
     }
 
     private void fill(JComboBox<String> box) {
