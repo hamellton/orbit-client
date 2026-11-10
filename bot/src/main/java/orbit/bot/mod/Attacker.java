@@ -30,6 +30,11 @@ public final class Attacker {
     private boolean t0Cubikon;
     /** Wanted ammunition already reported missing (logged once). */
     private String missingAmmo;
+    private String missingRocket;
+    private long rocketSelectAt = Long.MIN_VALUE / 2;
+    private long rocketPressAt;
+    private long rocketFiredAt = Long.MIN_VALUE / 2;
+    private long rocketFireAt;
     /** The ammunition selected before the bot switched to SAB, to go back to when no ammunition is configured. */
     private String beforeSab;
 
@@ -151,6 +156,7 @@ public final class Attacker {
             return true;
         }
         if (h.attackTargetId() == targetId) {
+            rockets(c, w, t, dist, radius, now);
             return true;
         }
         if (pressAt == 0) {
@@ -167,6 +173,58 @@ public final class Attacker {
             pressAt = 0;
         }
         return true;
+    }
+
+    /** Rockets are launched this close at most (a little beyond the laser radius). */
+    static final double ROCKET_EXTRA = 200;
+
+    /**
+     * Keeps the configured rocket type selected (the automatic rocket CPU launches it while attacking);
+     * with {@code fireRockets} also launches one whenever the rocket is ready.
+     */
+    private void rockets(BotConfig c, WorldSnapshot w, WorldSnapshot.Ship t, double dist, double radius, long now) {
+        String rocket = rocket(c, w, t);
+        if (rocket == null || BotConfig.Loot.NO_ROCKETS.equals(rocket)) {
+            return;
+        }
+        WorldSnapshot.Item item = w.items().get(rocket);
+        if (item == null || item.counter() <= 0) {
+            if (!rocket.equals(missingRocket)) {
+                missingRocket = rocket;
+                log.warn("Нет ракет {} ({})", orbit.config.ItemCatalog.label(rocket), item == null ? "нет в инвентаре" : "0 шт.");
+            }
+            return;
+        }
+        if (!item.selected()) {
+            if (now - rocketSelectAt > 2_000_000_000L) {
+                if (rocketPressAt == 0) {
+                    rocketPressAt = now + ctx.pause(300, 900);
+                } else if (now >= rocketPressAt) {
+                    log.info("Ракеты: {}", orbit.config.ItemCatalog.label(rocket));
+                    missingRocket = null;
+                    ctx.actions().useItem(rocket);
+                    rocketSelectAt = now;
+                    rocketPressAt = 0;
+                }
+            }
+            return;
+        }
+        if (c.loot().fireRockets() && dist <= radius + ROCKET_EXTRA && item.remainingMs(now) == 0
+                && now - rocketFiredAt > 1_000_000_000L) {
+            if (rocketFireAt == 0) {
+                rocketFireAt = now + ctx.pause(200, 800);
+            } else if (now >= rocketFireAt) {
+                ctx.actions().attackRocket(t);
+                rocketFiredAt = now;
+                rocketFireAt = 0;
+            }
+        }
+    }
+
+    /** The NPC's rocket, else the config's ({@code null} = leave the game's choice). */
+    static String rocket(BotConfig c, WorldSnapshot w, WorldSnapshot.Ship t) {
+        BotConfig.NpcRule r = Targets.rule(c, t, w.hero().mapId());
+        return r != null && r.rocket() != null ? r.rocket() : c.loot().rocket();
     }
 
     /**

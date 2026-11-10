@@ -29,6 +29,17 @@ final class KillSection implements Section {
     private final JCheckBox useRsb = new JCheckBox("Быстрый залп (RSB), когда готов");
     private final ItemBox rsb = new ItemBox(ItemCatalog.LASERS, false);
     private final JCheckBox groupNpcs = new JCheckBox("Бить стоящих рядом NPC подряд");
+    static final java.util.List<ItemCatalog.Item> ROCKET_CHOICES;
+
+    static {
+        java.util.List<ItemCatalog.Item> r = new java.util.ArrayList<>();
+        r.add(new ItemCatalog.Item(BotConfig.Loot.NO_ROCKETS, "Без ракет"));
+        r.addAll(ItemCatalog.ROCKETS);
+        ROCKET_CHOICES = java.util.List.copyOf(r);
+    }
+
+    private final ItemBox rocket = new ItemBox(ROCKET_CHOICES, true);
+    private final JCheckBox fireRockets = new JCheckBox("Пускать ракеты самому (если на корабле нет ракетного CPU)");
     private final JSpinner ignoreFarther = Form.number(0, 50_000, 500);
     private final NpcTable npcs;
     private final JTable table;
@@ -41,7 +52,9 @@ final class KillSection implements Section {
         table.setAutoCreateRowSorter(true);
         table.setFillsViewportHeight(true);
         table.getColumnModel().getColumn(0).setPreferredWidth(220);
-        table.getColumnModel().getColumn(7).setPreferredWidth(200);
+        table.getColumnModel().getColumn(8).setPreferredWidth(200);
+        table.getColumnModel().getColumn(6).setCellEditor(new javax.swing.DefaultCellEditor(
+                new javax.swing.JComboBox<>(NpcTable.rocketChoices())));
         table.getColumnModel().getColumn(5).setCellEditor(new javax.swing.DefaultCellEditor(
                 new javax.swing.JComboBox<>(NpcTable.ammoChoices())));
         table.getTableHeader().setToolTipText("Приоритет: меньше — раньше. Карты: «3-6, 2-6» или «все».");
@@ -87,6 +100,11 @@ final class KillSection implements Section {
                 .row("Щит NPC не меньше", sabNpcShield)
                 .row("", useRsb)
                 .row("Патроны RSB", rsb)
+                .section("Ракеты")
+                .row("Ракеты", rocket)
+                .row("", fireRockets)
+                .note("С ракетным CPU сервер сам пускает выбранные ракеты, пока идёт атака: бот только держит нужный "
+                        + "тип. Свой тип для отдельного NPC — колонка «Ракеты» в списке.")
                 .section("Цели")
                 .row("", groupNpcs)
                 .row("Не замечать NPC дальше", ignoreFarther)
@@ -128,6 +146,8 @@ final class KillSection implements Section {
         useRsb.setSelected(l.rsb() != null);
         rsb.set(l.rsb() != null ? l.rsb() : "ammunition_laser_rsb-75");
         groupNpcs.setSelected(l.groupNpcs());
+        rocket.set(l.rocket());
+        fireRockets.setSelected(l.fireRockets());
         Form.set(ignoreFarther, l.ignoreFartherThan());
         npcs.load(c.npcs());
         sync();
@@ -140,7 +160,8 @@ final class KillSection implements Section {
         }
         BotConfig.Loot l = new BotConfig.Loot(ammo.get(), useSab.isSelected() ? sab.get() : null,
                 useSab.isSelected() ? Form.fraction(sabBelow) : loaded.sabBelow(), Form.intOf(sabNpcShield),
-                useRsb.isSelected() ? rsb.get() : null, groupNpcs.isSelected(), Form.intOf(ignoreFarther));
+                useRsb.isSelected() ? rsb.get() : null, groupNpcs.isSelected(), Form.intOf(ignoreFarther), rocket.get(),
+                fireRockets.isSelected());
         Map<String, BotConfig.NpcRule> list = new TreeMap<>(npcs.get());
         return c.withLoot(l).withNpcs(list);
     }

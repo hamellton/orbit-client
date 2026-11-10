@@ -202,13 +202,19 @@ public record BotConfig(
      * @param maps     map ids where the rule applies; empty = everywhere
      * @param ammo     ammunition item id for this NPC; {@code null} = {@link Loot#ammo}
      * @param sab      use {@link Loot#sab} on this NPC while the own shield is low
+     * @param rocket   rocket type for this NPC; {@code null} = {@link Loot#rocket}, {@link Loot#NO_ROCKETS} = none
      */
     @JsonInclude(JsonInclude.Include.NON_EMPTY)
     public record NpcRule(double radius, int priority, boolean kill, Set<String> flags, Set<Integer> maps, String ammo,
-                          boolean sab) {
+                          boolean sab, String rocket) {
 
         public NpcRule(double radius, int priority, boolean kill, Set<String> flags, Set<Integer> maps, String ammo) {
-            this(radius, priority, kill, flags, maps, ammo, false);
+            this(radius, priority, kill, flags, maps, ammo, false, null);
+        }
+
+        public NpcRule(double radius, int priority, boolean kill, Set<String> flags, Set<Integer> maps, String ammo,
+                       boolean sab) {
+            this(radius, priority, kill, flags, maps, ammo, sab, null);
         }
 
         public NpcRule {
@@ -257,12 +263,20 @@ public record BotConfig(
      * @param rsb         rapid salvo when ready
      * @param groupNpcs   attack NPCs that stand together one after another
      * @param ignoreFartherThan ignore NPCs farther than this
+     * @param rocket      rocket type to keep selected ({@code null} = as in the game, {@link #NO_ROCKETS} = none)
+     * @param fireRockets the bot launches rockets itself (ships without the automatic rocket CPU)
      */
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public record Loot(String ammo, String sab, double sabBelow, int sabNpcShieldMin, String rsb,
-                       boolean groupNpcs, int ignoreFartherThan) {
+                       boolean groupNpcs, int ignoreFartherThan, String rocket, boolean fireRockets) {
 
+        public static final String NO_ROCKETS = "none";
         public static final Loot DEFAULT = new Loot(null, null, 0, 0, null, true, 0);
+
+        public Loot(String ammo, String sab, double sabBelow, int sabNpcShieldMin, String rsb, boolean groupNpcs,
+                    int ignoreFartherThan) {
+            this(ammo, sab, sabBelow, sabNpcShieldMin, rsb, groupNpcs, ignoreFartherThan, null, false);
+        }
     }
 
     /**

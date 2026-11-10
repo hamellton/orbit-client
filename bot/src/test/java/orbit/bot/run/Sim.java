@@ -58,6 +58,32 @@ final class Sim {
                 random, () -> now, (type, faction) -> repairs.add(new int[] {type, faction}), ship, null, new Stats());
     }
 
+    /** Lasers and rockets in one item menu (the client sends the whole menu at once). */
+    void menu(String laser, String rocket, String... rockets) {
+        MenuInitializationCommand menu = new MenuInitializationCommand();
+        menu.categories = List.of(category("lasers", laser), category("rockets", rocket, rockets));
+        world.apply(menu, now);
+    }
+
+    private static MenuCategoryInitializationCommand category(String id, String selected, String... others) {
+        MenuCategoryInitializationCommand cat = new MenuCategoryInitializationCommand();
+        cat.categoryId = id;
+        List<MenuItemInitializationCommand> items = new ArrayList<>();
+        List<String> all = new ArrayList<>(List.of(others));
+        all.addFirst(selected);
+        for (String i : all) {
+            MenuItemInitializationCommand it = new MenuItemInitializationCommand();
+            it.status = new MenuItemStatusCommand();
+            it.status.menuItemId = i;
+            it.status.selected = i.equals(selected);
+            it.status.counterValue = 10_000;
+            it.status.available = true;
+            items.add(it);
+        }
+        cat.menuItems = items;
+        return cat;
+    }
+
     void lasers(String selected, String... others) {
         MenuInitializationCommand menu = new MenuInitializationCommand();
         MenuCategoryInitializationCommand lasers = new MenuCategoryInitializationCommand();
@@ -101,6 +127,13 @@ final class Sim {
             c.shield = 500_000;
             c.shieldMax = 500_000;
             world.apply(c, now);
+        } else if (p instanceof MenuActionRequest m && m.menuItemId.startsWith("ammunition_rocket")) {
+            MenuItemStatusCommand st = new MenuItemStatusCommand();
+            st.menuItemId = m.menuItemId;
+            st.selected = true;
+            st.counterValue = 10_000;
+            st.available = true;
+            world.apply(st, now);
         } else if (p instanceof MenuActionRequest m && m.menuItemId.startsWith("ammunition_laser")) {
             MenuItemStatusCommand st = new MenuItemStatusCommand();
             st.menuItemId = m.menuItemId;

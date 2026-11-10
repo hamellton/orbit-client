@@ -355,4 +355,30 @@ class CubikonModuleTest {
         var s = memory.spawns(26).stream().filter(x -> x.x() == 7_500).findFirst().orElseThrow();
         assertEquals(t + 1_300_000, s.expectedAt(memory.mapRespawn(26)));
     }
+
+    @Test
+    void keepsTheConfiguredRocketsAndNoneWhereTheListSaysSo() throws Exception {
+        BotConfig base = config(0, false);
+        BotConfig c = base.withLoot(new BotConfig.Loot("ammunition_laser_ucb-100", null, 0, 0, null, true, 0,
+                "ammunition_rocket_plt-2026", false));
+        Sim sim = new Sim(c, 26, 7_500, 3_900);
+        sim.menu("ammunition_laser_ucb-100", "ammunition_rocket_plt-2021", "ammunition_rocket_plt-2026");
+        sim.npc(77, "-=[ Cubikon ]=-", 7_700, 3_900);
+        CubikonModule m = new CubikonModule(sim.ctx, SpawnMemory.inMemory());
+        sim.run(m::tick, 8_000);
+        assertEquals("ammunition_rocket_plt-2026", sim.world.snapshot(sim.now).selected("rockets").id());
+
+        // the Cubikon's own setting: no rockets — nothing is changed
+        var npcs = new java.util.TreeMap<>(c.npcs());
+        var cube = npcs.get("-=[ Cubikon ]=-");
+        npcs.put("-=[ Cubikon ]=-", new BotConfig.NpcRule(cube.radius(), cube.priority(), true, cube.flags(), cube.maps(),
+                null, false, BotConfig.Loot.NO_ROCKETS));
+        Sim sim2 = new Sim(c.withNpcs(npcs), 26, 7_500, 3_900);
+        sim2.menu("ammunition_laser_ucb-100", "ammunition_rocket_plt-2021", "ammunition_rocket_plt-2026");
+        sim2.npc(77, "-=[ Cubikon ]=-", 7_700, 3_900);
+        CubikonModule m2 = new CubikonModule(sim2.ctx, SpawnMemory.inMemory());
+        sim2.run(m2::tick, 8_000);
+        assertEquals("ammunition_rocket_plt-2021", sim2.world.snapshot(sim2.now).selected("rockets").id());
+        assertTrue(sim2.sent.stream().noneMatch(p -> p instanceof orbit.protocol.gen.AttackRocketRequest));
+    }
 }
