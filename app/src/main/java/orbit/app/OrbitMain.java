@@ -171,7 +171,8 @@ public final class OrbitMain {
             startFreeRepair(feed, conn, o.faction, o.repairAt);
         }
         if (config != null) {
-            ModuleRun run = startModule(feed, conn, config.name(), config.config(), o.minutes, profile);
+            ModuleRun run = startModule(feed, conn, config.name(), config.config(), o.minutes, profile,
+                    Path.of("local", "stop-" + o.account));
             runUntilClosed(feed, o.headless, () -> run.finish(conn), runner);
             System.exit(0); // the window's threads would keep the program alive
             return;
@@ -226,7 +227,7 @@ public final class OrbitMain {
 
     private static ModuleRun startModule(WorldFeed feed, GameConnection conn, String configName,
                                          orbit.config.BotConfig config, int minutes,
-                                         ClientProfile profile) {
+                                         ClientProfile profile, Path stopFile) {
         orbit.world.maps.MapCatalog catalog = orbit.world.maps.MapCatalog.bundled();
         java.util.Random random = new java.util.Random();
         orbit.bot.nav.Navigator nav = new orbit.bot.nav.Navigator(feed::snapshot, conn::send, catalog, random, System::nanoTime);
@@ -261,6 +262,15 @@ public final class OrbitMain {
                             runner.configChanged();
                         }
                         nextWatch = System.currentTimeMillis() + 1_000;
+                    }
+                    if (Files.exists(stopFile)) {
+                        // another process asks for a graceful stop (portal, logout)
+                        try {
+                            Files.deleteIfExists(stopFile);
+                        } catch (java.io.IOException e) {
+                            log.warn("Не удалить {}: {}", stopFile, e.getMessage());
+                        }
+                        runner.stop("остановлен по команде (" + stopFile.getFileName() + ")");
                     }
                     if (stopRequested.get()) {
                         runner.stop("остановлен пользователем");
