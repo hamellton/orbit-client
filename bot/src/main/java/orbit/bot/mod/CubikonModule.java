@@ -418,7 +418,7 @@ public final class CubikonModule implements BotModule {
                 : respawn > 0 ? LOOK_MS
                 : waitSec > 0 ? waitSec * 1_000L : Long.MAX_VALUE / 2_000_000;
         waitUntil = now + waitMs * 1_000_000L + ctx.pause(0, 5_000);
-        lookOnly = bestReady == 0 && bestEmpty == 0 && respawn > 0;
+        lookOnly = waitMs <= LOOK_MS; // a short look counts from the arrival
         if (bestReady > 0) {
             log.info("Куб на {}/{} ожидается через {} с — лечу туда", best[0] / 100, best[1] / 100,
                     Math.max(0, bestReady - wall) / 1_000);
