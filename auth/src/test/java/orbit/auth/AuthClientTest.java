@@ -210,8 +210,8 @@ class AuthClientTest {
             }
             send(ex, 200, "<script>var flashembed = {\"src\": \"x\", \"userID\": \"166225758\", \"sessionID\": \""
                     + SESSION + "\", \"basePath\": \"spacemap\", \"pid\": \"22\", \"cdn\": \"https:\\/\\/cdn.invalid\\/\", "
-                    // maps.php comes from dynamicHost (the account server), not from the CDN
-                    + "\"dynamicHost\": \"" + origin.replace("/", "\\/")
+                    // maps.php comes from "host" (the account server), not from the CDN
+                    + "\"host\": \"" + origin.replace("/", "\\/")
                     + "\", \"platform\": \"PC_CLIENT\", \"mapID\": \"9\"};</script>", true);
             return;
         }

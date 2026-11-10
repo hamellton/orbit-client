@@ -151,8 +151,9 @@ public final class AuthClient {
         if (cdn.isEmpty()) {
             throw new AuthException(AuthException.Reason.UNEXPECTED_PAGE, "В параметрах игры нет адреса cdn.");
         }
-        // the client loads maps.php from dynamicHost (the account server); the CDN copy is another server's
-        String dynamicHost = vars.getOrDefault("dynamicHost", "");
+        // the client loads maps.php from its dynamicHost, set from the flashvar "host" (the account server,
+        // e.g. https://ru1.darkorbit.com); the CDN copy lists the game hosts of another server
+        String dynamicHost = vars.getOrDefault("host", vars.getOrDefault("dynamicHost", ""));
         String mapsBase = dynamicHost.isBlank() ? cdn : dynamicHost.replaceAll("/+$", "") + "/";
         String mapsUrl = URI.create(mapsBase).resolve(basePath.replaceAll("/+$", "") + "/xml/maps.php").toString();
         HttpSession.Response maps = request(() -> http.get(mapsUrl));
