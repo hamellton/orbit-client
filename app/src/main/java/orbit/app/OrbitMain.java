@@ -540,7 +540,22 @@ public final class OrbitMain {
                 org.slf4j.MDC.setContextMap(logContext);
             }
             try {
-                waitAlive(feed);
+                // not in game yet (logging in, or the server keeps refusing): a stop still ends it
+                while (feed.snapshot().hero().id() == 0 || !feed.snapshot().hero().alive()) {
+                    if (stopRequested.get() || Files.exists(stopFile)) {
+                        if (Files.exists(stopFile)) {
+                            commanded.set(true);
+                            try {
+                                Files.deleteIfExists(stopFile);
+                            } catch (java.io.IOException e) {
+                                log.warn("Не удалить {}: {}", stopFile, e.getMessage());
+                            }
+                        }
+                        log.info("Остановлен до входа в игру");
+                        return;
+                    }
+                    Thread.sleep(500);
+                }
                 Thread.sleep(4_000 + random.nextInt(3_000)); // look around after logging in
                 if (until != Long.MAX_VALUE) {
                     log.info("Бот работает до {} ({}), затем выйдет из игры",
