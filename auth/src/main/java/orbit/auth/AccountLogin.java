@@ -7,12 +7,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Logs in an account from the {@link Vault}, sparing the password: the saved {@code dosid} is
- * tried first, and every successful login stores the current {@code dosid} back. Frequent
- * password logins make the site demand a captcha.
- *
- * <p>Repeated calls alternate: after a dosid attempt the next call uses the password (if any),
- * so a session the game keeps rejecting is replaced by a really fresh one.
+ * Logs in an account from the {@link Vault} on one of its servers, sparing the password: the saved
+ * session ({@code dosid}) of that server first, then the session of any other server of the login
+ * followed by the site's server switch, the password last (frequent password logins bring a captcha).
+ * Every successful login stores the current sessions back.
  */
 public final class AccountLogin {
 
@@ -21,8 +19,14 @@ public final class AccountLogin {
     private final AuthClient client;
     private final Vault vault;
     private final String name;
+    private final String server;
 
     public AccountLogin(AuthClient client, Vault vault, String name) throws AuthException {
+        this(client, vault, name, null);
+    }
+
+    /** @param server the server to play on ({@code ru5}); {@code null} = the account's default */
+    public AccountLogin(AuthClient client, Vault vault, String name, String server) throws AuthException {
         this.client = client;
         this.vault = vault;
         this.name = name;
@@ -31,7 +35,8 @@ public final class AccountLogin {
             throw new AuthException(AuthException.Reason.INVALID_CREDENTIALS,
                     "Аккаунт «" + name + "» не найден в хранилище " + vault.file() + ".");
         }
-        if (a.password() == null && a.dosid() == null) {
+        this.server = server == null || server.isBlank() ? a.home() : server;
+        if (a.password() == null && a.serversWithDosid().isEmpty()) {
             throw new AuthException(AuthException.Reason.INVALID_CREDENTIALS,
                     "У аккаунта «" + name + "» нет ни пароля, ни dosid.");
         }
@@ -41,60 +46,68 @@ public final class AccountLogin {
         return vault.get(name);
     }
 
-    /** Logs in and returns a game session; the dosid in the vault is updated on success. */
+    /** The server this login plays on. */
+    public String server() {
+        return server;
+    }
+
+    /** Logs in and returns a game session on {@link #server()}; the sessions in the vault are updated. */
     public GameSession login() throws AuthException {
         Account a = account();
-        // the password only when the site turns the saved session down: password logins soon bring a captcha
-        if (a.dosid() != null) {
+        String own = a.dosidFor(server);
+        if (own != null) {
             try {
-                return remember(client.loginWithDosid(server(a), a.dosid()));
+                return remember(server, client.loginWithDosid(server, own));
             } catch (AuthException e) {
-                if (e.reason() != AuthException.Reason.SESSION_EXPIRED || a.password() == null) {
+                if (e.reason() != AuthException.Reason.SESSION_EXPIRED) {
                     throw e;
                 }
-                log.info("Сохранённая сессия сайта устарела, вхожу по паролю.");
-                forgetDosid();
+                log.info("Сохранённая сессия сайта для {} устарела", server);
+                remember(server, null);
             }
         }
+        for (String other : account().serversWithDosid()) {
+            if (other.equals(server)) {
+                continue;
+            }
+            GameSession there;
+            try {
+                there = remember(other, client.loginWithDosid(other, account().dosidFor(other)));
+            } catch (AuthException e) {
+                if (e.reason() != AuthException.Reason.SESSION_EXPIRED) {
+                    throw e;
+                }
+                remember(other, null);
+                continue;
+            }
+            log.info("Вошёл на {} — перехожу на {}", other, server);
+            return remember(server, client.switchTo(there, server));
+        }
         if (a.password() == null) {
-            throw new AuthException(AuthException.Reason.SESSION_EXPIRED,
-                    "Сессия сайта устарела, а пароля в хранилище нет. Обновите dosid: vault set-dosid " + name);
+            throw new AuthException(AuthException.Reason.SESSION_EXPIRED, "Сессия сайта устарела, а пароля в "
+                    + "хранилище нет. Обновите dosid: vault set-dosid " + name + " --server " + server);
         }
-        return remember(onServer(client.loginWithPassword(a.username(), a.password()), server(a)));
-    }
-
-    /**
-     * A password login lands on the server the account played last; another server of the same login
-     * is opened with the new website session, and if that fails the bot must not play on the wrong one.
-     */
-    private GameSession onServer(GameSession s, String server) throws AuthException {
+        // a password login lands on the server played last
+        GameSession s = client.loginWithPassword(a.username(), a.password());
+        if (s.host().equals(client.originOf(server))) {
+            return remember(server, s);
+        }
         String host = java.net.URI.create(s.host()).getHost();
-        if (host == null || host.startsWith(server + ".")) {
-            return s;
-        }
-        log.info("Сайт открыл {}, а аккаунт настроен на {} — перехожу на {}", host, server, server);
-        try {
-            return client.loginWithDosid(server, s.dosid());
-        } catch (AuthException e) {
-            throw new AuthException(AuthException.Reason.UNEXPECTED_PAGE, "Сайт открыл " + host
-                    + ", а аккаунт «" + name + "» настроен на " + server + ", перейти не удалось (" + e.getMessage()
-                    + "). Зайдите в браузере на " + server + " один раз или верните сервер: vault set-server "
-                    + name + " " + host.substring(0, host.indexOf('.')));
-        }
+        String landed = host == null || !host.contains(".") ? host : host.substring(0, host.indexOf('.'));
+        remember(landed, s);
+        log.info("Сайт открыл {}, нужен {} — перехожу", landed, server);
+        return remember(server, client.switchTo(s, server));
     }
 
-    private GameSession remember(GameSession s) {
+    /** Stores the session of a server ({@code null} = forget it). */
+    private GameSession remember(String srv, GameSession s) {
         Account a = account();
-        if (!s.dosid().equals(a.dosid())) {
-            vault.put(name, a.withDosid(s.dosid()));
+        String d = s == null ? null : s.dosid();
+        if (!java.util.Objects.equals(d, a.dosidFor(srv))) {
+            vault.put(name, a.withDosidFor(srv, d));
             save();
         }
         return s;
-    }
-
-    private void forgetDosid() {
-        vault.put(name, account().withDosid(null));
-        save();
     }
 
     private void save() {
@@ -103,9 +116,5 @@ public final class AccountLogin {
         } catch (VaultException e) {
             log.warn("Не удалось обновить хранилище: {}", e.getMessage());
         }
-    }
-
-    private static String server(Account a) {
-        return a.server() == null || a.server().isBlank() ? "int1" : a.server();
     }
 }

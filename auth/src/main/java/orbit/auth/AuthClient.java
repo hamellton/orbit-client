@@ -224,6 +224,102 @@ public final class AuthClient {
         http.setUserAgent("BigPointClient/" + clientVersion);
     }
 
+    /**
+     * A server of the login in the site's server list ({@code ajax/instances.php}).
+     *
+     * @param hasPilot the link logs into an existing pilot ({@code portal.loginByCryptId}); otherwise the
+     *                 site would create a new one there ({@code portal.addInstanceByCryptId})
+     */
+    public record Instance(String server, int gameId, String url, boolean hasPilot) {
+        @Override
+        public String toString() {
+            return server + (hasPilot ? "" : " (нет пилота)"); // the url is a login link: never printed
+        }
+    }
+
+    private static final Pattern INSTANCE = Pattern.compile(
+            "id=\"serverSelection_ini_(\\d+)\"[^>]*?target=\"([^\"]+)\"|target=\"([^\"]+)\"[^>]*?id=\"serverSelection_ini_(\\d+)\"");
+    private static final com.fasterxml.jackson.databind.ObjectMapper INSTANCES_JSON =
+            new com.fasterxml.jackson.databind.ObjectMapper();
+
+    /** The website origin of a server code ({@code ru5} → {@code https://ru5.darkorbit.com}). */
+    public String originOf(String server) {
+        return endpoints.accountOrigin(server);
+    }
+
+    /** The servers of the logged-in account, as the site's «Сервер» button lists them. */
+    public java.util.List<Instance> instances(String origin) throws AuthException {
+        HttpSession.Response r = request(() -> http.postForm(origin + "/ajax/instances.php",
+                Map.of("command", "getInstanceList"), origin + "/indexInternal.es?action=internalStart"));
+        String html;
+        try {
+            com.fasterxml.jackson.databind.JsonNode n = INSTANCES_JSON.readTree(r.body());
+            if (!"OK".equals(n.path("result").asText())) {
+                throw new AuthException(AuthException.Reason.UNEXPECTED_PAGE, "Сайт не отдал список серверов.");
+            }
+            html = n.path("code").asText();
+        } catch (IOException e) {
+            throw new AuthException(AuthException.Reason.UNEXPECTED_PAGE, "Список серверов не прочитать: " + e.getMessage(), e);
+        }
+        return parseInstances(html);
+    }
+
+    static java.util.List<Instance> parseInstances(String html) {
+        java.util.List<Instance> out = new java.util.ArrayList<>();
+        Matcher m = INSTANCE.matcher(html);
+        while (m.find()) {
+            int gameId = Integer.parseInt(m.group(1) != null ? m.group(1) : m.group(4));
+            String url = htmlUnescape(m.group(2) != null ? m.group(2) : m.group(3));
+            URI u = URI.create(url);
+            String host = u.getHost() == null ? "" : u.getHost();
+            String server = host.contains(".") ? host.substring(0, host.indexOf('.')) : host;
+            out.add(new Instance(server, gameId, url, decodeAction(u).contains("portal.loginByCryptId")));
+        }
+        return out;
+    }
+
+    /** The {@code req} parameter: base64 of a PHP-serialised {action, loginCryptId, gameId, locale}. */
+    private static String decodeAction(URI u) {
+        String q = u.getRawQuery() == null ? "" : u.getRawQuery();
+        for (String part : q.split("&")) {
+            if (part.startsWith("req=")) {
+                try {
+                    String v = java.net.URLDecoder.decode(part.substring(4), java.nio.charset.StandardCharsets.UTF_8);
+                    String php = new String(java.util.Base64.getDecoder().decode(v), java.nio.charset.StandardCharsets.UTF_8);
+                    int i = php.indexOf("portal.");
+                    return i < 0 ? "" : php.substring(i, Math.min(php.length(), i + 40));
+                } catch (IllegalArgumentException e) {
+                    return "";
+                }
+            }
+        }
+        return "";
+    }
+
+    /**
+     * Another server of the same login, the way the site's server list does it: its login link sets
+     * that server's session. A server where the login has no pilot yet is refused (the link would
+     * create one).
+     */
+    public GameSession switchTo(GameSession from, String server) throws AuthException {
+        Instance target = instances(from.host()).stream().filter(i -> i.server().equals(server)).findFirst()
+                .orElseThrow(() -> new AuthException(AuthException.Reason.UNEXPECTED_PAGE,
+                        "Сервера " + server + " нет в списке серверов аккаунта."));
+        if (!target.hasPilot()) {
+            throw new AuthException(AuthException.Reason.INVALID_CREDENTIALS, "На сервере " + server
+                    + " у аккаунта нет пилота — бот не создаёт новых. Зайдите туда один раз в браузере.");
+        }
+        String origin = endpoints.accountOrigin(server);
+        request(() -> http.get(target.url(), from.host() + "/indexInternal.es?action=internalStart"));
+        String dosid = http.cookie(origin + "/", "dosid");
+        if (dosid == null) {
+            throw new AuthException(AuthException.Reason.UNEXPECTED_PAGE, "Сайт не открыл сервер " + server + ".");
+        }
+        SecretMask.register(dosid);
+        log.info("Перешёл на сервер {}", server);
+        return loadGameSession(origin, dosid, false);
+    }
+
     private interface Call {
         HttpSession.Response run() throws IOException;
     }

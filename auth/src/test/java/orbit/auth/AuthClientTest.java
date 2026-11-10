@@ -143,6 +143,23 @@ class AuthClientTest {
     }
 
     @Test
+    void serverListTellsWhereTheLoginHasAPilot() {
+        String html = "<div class=\"serverSelection_ini\" id=\"serverSelection_ini_68\" "
+                + "target=\"https://ru1.darkorbit.com/GameAPI.php?req=YTo0OntzOjY6ImFjdGlvbiI7czoyMToicG9ydGFsLmxvZ2luQnlDcnlwdElkIjtzOjEyOiJsb2dpbkNyeXB0SWQiO3M6MzI6IjAxMjM0NTY3ODlhYmNkZWYwMTIzNDU2Nzg5YWJjZGVmIjtzOjY6ImdhbWVJZCI7aTo2ODtzOjY6ImxvY2FsZSI7czoyOiJydSI7fQ%3D%3D&amp;sign=abc&amp;lang=ru\">ru1</div>"
+                + "<div id=\"serverSelection_ini_574\" onclick=\"x\" "
+                + "target=\"https://ru5.darkorbit.com/GameAPI.php?req=YTo0OntzOjY6ImFjdGlvbiI7czoyNzoicG9ydGFsLmFkZEluc3RhbmNlQnlDcnlwdElkIjtzOjEyOiJsb2dpbkNyeXB0SWQiO3M6MzI6IjAxMjM0NTY3ODlhYmNkZWYwMTIzNDU2Nzg5YWJjZGVmIjtzOjY6ImdhbWVJZCI7aTo1NzQ7czo2OiJsb2NhbGUiO3M6MjoicnUiO30%3D&amp;sign=def\">ru5</div>";
+        java.util.List<AuthClient.Instance> list = AuthClient.parseInstances(html);
+        assertEquals(2, list.size());
+        assertEquals("ru1", list.get(0).server());
+        assertEquals(68, list.get(0).gameId());
+        assertTrue(list.get(0).hasPilot());
+        assertTrue(list.get(0).url().contains("&sign=abc"), "html entities undone");
+        assertEquals("ru5", list.get(1).server());
+        assertFalse(list.get(1).hasPilot(), "the link would create a pilot");
+        assertFalse(list.get(0).toString().contains("GameAPI"), "the login link is never printed");
+    }
+
+    @Test
     void mapServersParseDefaultPortAndWhitespace() {
         MapServers m = MapServers.parse("<maps><map id=\"42\"><gameserverIP>old.example</gameserverIP></map>"
                 + "<map id=\"9\">\n <gameserverIP>gs.example:6005</gameserverIP></map></maps>");
