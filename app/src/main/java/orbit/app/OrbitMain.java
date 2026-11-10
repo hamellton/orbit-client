@@ -366,6 +366,7 @@ public final class OrbitMain {
                     restUntil(feed, closed, stopFile, java.time.LocalDateTime.now().plusNanos(startDelayMs * 1_000_000),
                             "очередь входа");
                 }
+                boolean rested = false;
                 while (!closed.get() && System.currentTimeMillis() < testEnd) {
                     java.time.LocalDateTime now = java.time.LocalDateTime.now();
                     var plan = planner.next(now, name -> {
@@ -380,6 +381,14 @@ public final class OrbitMain {
                                     java.time.ZoneId.systemDefault());
                     if (!plan.online()) {
                         restUntil(feed, closed, stopFile, earlier(plan.until(), limit), "не в игре: " + plan.reason());
+                        rested = true;
+                        continue;
+                    }
+                    if (rested) {
+                        // after a break the accounts would all log in the same second: keep their queue
+                        rested = false;
+                        long queue = startDelayMs + java.util.concurrent.ThreadLocalRandom.current().nextLong(3_000, 20_000);
+                        restUntil(feed, closed, stopFile, earlier(now.plusNanos(queue * 1_000_000), limit), "очередь входа");
                         continue;
                     }
                     playing.set(plan.config());
