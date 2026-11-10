@@ -399,4 +399,29 @@ class CubikonModuleTest {
         var h = sim.hero();
         assertTrue(h.y() > 6_000, "went to check a bottom spawn, not the other top one: " + h);
     }
+
+    @Test
+    void doesNotShuttleBetweenSpawnsItJustSawEmpty() throws Exception {
+        Sim sim = new Sim(config(0, false, "LEARNED"), 26, 7_500, 3_900);
+        SpawnMemory memory = SpawnMemory.inMemory();
+        CubikonModule m = new CubikonModule(sim.ctx, memory);
+        long wall = m.wallMs();
+        memory.seen(26, 13_400, 7_900, wall - 20 * 60_000); // a 5-minute respawn is known for the map
+        memory.killed(26, 13_400, 7_900, wall - 15 * 60_000);
+        memory.seen(26, 13_400, 7_900, wall - 10 * 60_000);
+        java.util.List<int[]> visited = new java.util.ArrayList<>();
+        int[] last = null;
+        for (int t = 0; t < 1_800; t++) { // three minutes
+            m.tick();
+            sim.now += 100 * Sim.MS;
+            var h = sim.hero();
+            for (int[] sp : CubikonModule.spots(null)) {
+                if (Math.hypot(h.x() - sp[0], h.y() - sp[1]) < 450 && sp != last && (last == null || last[0] != sp[0] || last[1] != sp[1])) {
+                    visited.add(sp);
+                    last = sp;
+                }
+            }
+        }
+        assertTrue(visited.size() <= 6, "visits each empty spawn about once, then waits: " + visited.size());
+    }
 }

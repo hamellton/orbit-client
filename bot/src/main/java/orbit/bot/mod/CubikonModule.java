@@ -41,6 +41,8 @@ public final class CubikonModule implements BotModule {
     static final double SEEN_DYING = 2_500;
     /** See {@link #chooseLearned}. */
     static final long UNKNOWN_PENALTY_MS = 60_000;
+    /** Longest wait on a spawn seen empty before (the user's DarkBot camp waits 90 s). */
+    static final long EMPTY_WAIT_MS = 90_000;
     /** A look around on a spawn of unknown state before choosing again. */
     static final long LOOK_MS = 5_000;
 
@@ -55,6 +57,8 @@ public final class CubikonModule implements BotModule {
     private final BoxPicker boxes;
     private final long wallBase = System.currentTimeMillis();
     private final long nanoBase;
+    /** Spawn spots last seen empty (wall ms), by "x/y". */
+    private final Map<String, Long> emptyAt = new HashMap<>();
     /** Cubikons in sight: id → last position. */
     private final Map<Integer, int[]> cubes = new HashMap<>();
     private int cubesMap;
@@ -254,6 +258,14 @@ public final class CubikonModule implements BotModule {
                 cubes.put(s.id(), new int[] {s.x(), s.y()});
             }
         }
+        // spawns in sight without a cube: empty now
+        for (int[] sp : merged(spots(ctx.config().get().modules().get(BotConfig.Module.CUBIKON.key())),
+                memory.spawns(h.mapId()))) {
+            if (Math.hypot(sp[0] - h.x(), sp[1] - h.y()) < IN_VIEW
+                    && cubes.values().stream().noneMatch(c -> Math.hypot(c[0] - sp[0], c[1] - sp[1]) <= SpawnMemory.SAME_SPAWN)) {
+                emptyAt.put(sp[0] + "/" + sp[1], now);
+            }
+        }
         cubes.entrySet().removeIf(e -> {
             if (w.ships().containsKey(e.getKey())) {
                 return false;
@@ -360,6 +372,7 @@ public final class CubikonModule implements BotModule {
         int[] best = null;
         long bestAt = Long.MAX_VALUE;
         long bestReady = 0;
+        long bestEmpty = 0;
         for (int[] p : merged(configured, known)) {
             if (nearDead(p[0], p[1])) {
                 continue; // its cube just died
@@ -376,12 +389,22 @@ public final class CubikonModule implements BotModule {
                 continue; // in sight and no cube: nothing to check there
             }
             long arrive = wall + (long) (dist / speed * 1_000);
-            // a cube due by the clock is surer than one that may be there: unknown spawns pay a penalty
-            long at = ready > 0 ? Math.max(ready, arrive) : arrive + UNKNOWN_PENALTY_MS;
+            long seenEmpty = emptyAt.getOrDefault(p[0] + "/" + p[1], 0L);
+            long at;
+            if (ready > 0) {
+                at = Math.max(ready, arrive);
+            } else if (seenEmpty > 0 && respawn > 0 && seenEmpty + respawn > wall) {
+                // empty a while ago: a cube comes within one respawn of that, on average halfway
+                at = Math.max(seenEmpty + respawn / 2, arrive) + UNKNOWN_PENALTY_MS;
+            } else {
+                // never seen or long ago: may hold a cube now, but a cube due by the clock is surer
+                at = arrive + UNKNOWN_PENALTY_MS;
+            }
             if (at < bestAt) {
                 bestAt = at;
                 best = p;
                 bestReady = ready;
+                bestEmpty = ready == 0 && seenEmpty > 0 && respawn > 0 && seenEmpty + respawn > wall ? seenEmpty : 0;
             }
         }
         if (best == null) {
@@ -390,10 +413,12 @@ public final class CubikonModule implements BotModule {
         spot = best;
         long margin = DUE_GRACE_MS;
         long waitMs = bestReady > 0 ? Math.max(LOOK_MS, bestReady + margin - wall)
+                // seen empty a while ago: wait for its cube, up to a camp's wait — flying round costs more
+                : bestEmpty > 0 ? Math.min(EMPTY_WAIT_MS, Math.max(LOOK_MS, bestEmpty + respawn - wall))
                 : respawn > 0 ? LOOK_MS
                 : waitSec > 0 ? waitSec * 1_000L : Long.MAX_VALUE / 2_000_000;
         waitUntil = now + waitMs * 1_000_000L + ctx.pause(0, 5_000);
-        lookOnly = bestReady == 0 && respawn > 0;
+        lookOnly = bestReady == 0 && bestEmpty == 0 && respawn > 0;
         if (bestReady > 0) {
             log.info("Куб на {}/{} ожидается через {} с — лечу туда", best[0] / 100, best[1] / 100,
                     Math.max(0, bestReady - wall) / 1_000);
