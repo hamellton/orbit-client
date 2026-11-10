@@ -264,4 +264,19 @@ class CubikonModuleTest {
         assertEquals(0, h.selected(), "not worth flying to");
         assertTrue(Math.hypot(h.x() - 7_500, h.y() - 3_900) <= 450, "stayed on the spawn: " + h);
     }
+
+    @Test
+    void remembersACubikonKilledWhileTheShipIsAwayRepairing() throws Exception {
+        Sim sim = new Sim(config(0, false), 26, 2_000, 2_000);
+        SpawnMemory memory = SpawnMemory.inMemory();
+        CubikonModule m = new CubikonModule(sim.ctx, memory);
+        sim.npc(77, "-=[ Cubikon ]=-", 13_400, 3_900); // far away, still in the server's list
+        m.observe();
+        orbit.protocol.gen.ShipDestroyedCommand d = new orbit.protocol.gen.ShipDestroyedCommand();
+        d.destroyedUserId = 77;
+        sim.world.apply(d, sim.now);
+        sim.now += 100 * Sim.MS;
+        m.observe(); // only watching: safety steers the ship
+        assertTrue(memory.spawns(26).getFirst().lastKill() > 0, "the death is remembered");
+    }
 }

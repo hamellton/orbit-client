@@ -185,7 +185,7 @@ public final class World {
             case ShipCreateCommand p -> createShip(p, nanos);
             case MoveCommand p -> moveShip(p, nanos);
             case ShipRemoveCommand p -> removeShip(p.userId);
-            case ShipDestroyedCommand p -> destroyed(p.destroyedUserId);
+            case ShipDestroyedCommand p -> destroyed(p.destroyedUserId, nanos);
             case PetHeroActivationCommand p -> {
                 activatePet(p.petId, p.ownerId, p.petName, p.factionId, p.clanId, p.clanTag, 0, p.x, p.y, nanos);
                 pet = pet(true, pet.alive() || pet.id() == 0, pet.hasFuel(), true, p.petId, p.petName, p.petLevel,
@@ -350,7 +350,16 @@ public final class World {
         return new WorldSnapshot(nanos, h, Map.copyOf(shipViews), Map.copyOf(collectables), Map.copyOf(portals),
                 Map.copyOf(assets), Map.copyOf(zones), group, Map.copyOf(items),
                 new WorldSnapshot.Inventory(Map.copyOf(ores), Map.copyOf(resources), Map.copyOf(bootyKeys)), pet,
-                Map.copyOf(activatable), jumpingTo, death, java.util.Set.copyOf(slotItems));
+                Map.copyOf(activatable), jumpingTo, death, java.util.Set.copyOf(slotItems), recentKills(nanos));
+    }
+
+    /** Destroyed ships are remembered this long. */
+    static final long KILL_MEMORY_NANOS = 30_000_000_000L;
+    private final Map<Integer, WorldSnapshot.Kill> kills = new java.util.HashMap<>();
+
+    private Map<Integer, WorldSnapshot.Kill> recentKills(long nanos) {
+        kills.values().removeIf(k -> nanos - k.nanos() > KILL_MEMORY_NANOS);
+        return Map.copyOf(kills);
     }
 
     /** Ships shooting lasers at the hero now, or that hit it within {@link #ATTACKER_MEMORY_NANOS}. */
@@ -500,7 +509,12 @@ public final class World {
         heroHitBy.remove(id);
     }
 
-    private void destroyed(int id) {
+    private void destroyed(int id, long nanos) {
+        ShipState dead = ships.get(id);
+        if (dead != null) {
+            kills.put(id, new WorldSnapshot.Kill(id, dead.name, (int) Math.round(dead.motion.x(nanos)),
+                    (int) Math.round(dead.motion.y(nanos)), nanos));
+        }
         if (id == hero.id) {
             hero.alive = false;
             hero.selectedId = 0;
@@ -813,6 +827,7 @@ public final class World {
         activatable.clear();
         jumpingTo = 0;
         ships.clear();
+        kills.clear();
         collectables.clear();
         portals.clear();
         assets.clear();

@@ -105,7 +105,7 @@ public final class CubikonModule implements BotModule {
         JsonNode s = c.modules().get(BotConfig.Module.CUBIKON.key());
         WorldSnapshot w = ctx.world().get();
         WorldSnapshot.Hero h = w.hero();
-        watch(w, setting(s, "learnSpawns", true));
+        watch(w, setting(s, "learnSpawns", true)); // also from observe(): watching twice in a tick is harmless
 
         WorldSnapshot.Ship cube = findCubikon(c, w);
         if (cube != null) {
@@ -172,6 +172,12 @@ public final class CubikonModule implements BotModule {
             return;
         }
         camp(s, h);
+    }
+
+    @Override
+    public void observe() {
+        JsonNode s = ctx.config().get().modules().get(BotConfig.Module.CUBIKON.key());
+        watch(ctx.world().get(), setting(s, "learnSpawns", true));
     }
 
     /** {@code OFF}, {@code ATTACKERS} (only NPCs that shoot at us) or {@code ALL}; old configs: {@code killWhileWaiting}. */
@@ -245,7 +251,9 @@ public final class CubikonModule implements BotModule {
                 return false;
             }
             int[] p = e.getValue();
-            if (Math.hypot(p[0] - h.x(), p[1] - h.y()) <= SEEN_DYING) {
+            // the server says so (wherever we are), or it vanished right next to us
+            boolean dead = w.destroyed().containsKey(e.getKey()) || Math.hypot(p[0] - h.x(), p[1] - h.y()) <= SEEN_DYING;
+            if (dead) {
                 log.info("Cubikon у {}/{} уничтожен — лечу на следующий спаун", p[0] / 100, p[1] / 100);
                 deadAt = p;
                 moveOn = true;

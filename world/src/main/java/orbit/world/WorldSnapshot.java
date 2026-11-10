@@ -17,7 +17,14 @@ public record WorldSnapshot(long nanos, Hero hero, Map<Integer, Ship> ships, Map
                             Map<Integer, Portal> portals, Map<Integer, Asset> assets, Map<String, Zone> zones,
                             Group group, Map<String, Item> items, Inventory inventory, Pet pet,
                             Map<Integer, Long> activatable, int jumpingTo, Death death,
-                            java.util.Set<String> slotItems) {
+                            java.util.Set<String> slotItems, Map<Integer, Kill> destroyed) {
+
+    /**
+     * A ship the server reported destroyed ({@code ShipDestroyedCommand}) in the last
+     * {@code World.KILL_MEMORY_NANOS}: unlike a ship that just left the view, it is really dead.
+     */
+    public record Kill(int id, String name, int x, int y, long nanos) {
+    }
 
     /** The player's own ship. {@code id == 0} until {@code ShipInitializationCommand} arrives. */
     /**

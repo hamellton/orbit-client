@@ -131,6 +131,9 @@ public final class BotRunner {
             show(w.death() != null ? "уничтожен, жду ремонта" : "возрождение");
             return;
         }
+        if (module != null) {
+            module.observe();
+        }
         if (state == State.STOPPING) {
             stopping(w);
             return;

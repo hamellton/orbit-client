@@ -15,6 +15,13 @@ public interface BotModule {
 
     void tick();
 
+    /**
+     * Called every tick while the hero is alive, also when safety steers or the bot travels: watch the
+     * world (e.g. remember a Cubikon dying while the ship repairs at a portal).
+     */
+    default void observe() {
+    }
+
     /** Safety took over or the module is being replaced: drop targets and plans. */
     default void pause() {
     }
