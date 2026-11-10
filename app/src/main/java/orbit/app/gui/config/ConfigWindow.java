@@ -88,8 +88,12 @@ public final class ConfigWindow {
         JPanel bottom = new JPanel(new BorderLayout(8, 0));
         bottom.setBorder(BorderFactory.createEmptyBorder(6, 8, 8, 8));
         bottom.add(check, BorderLayout.CENTER);
+        JButton saveButton = button("Сохранить", this::save);
+        // the main action in the accent colour
+        saveButton.setBackground(new java.awt.Color(0x0e4a66));
+        saveButton.setForeground(orbit.app.gui.Theme.TEXT);
         bottom.add(Form.inline(button("Проверить", this::runCheck), button("Отменить изменения", this::revert),
-                button("Сохранить", this::save)), BorderLayout.EAST);
+                saveButton), BorderLayout.EAST);
         JPanel right = new JPanel(new BorderLayout(0, 6));
         right.setBorder(BorderFactory.createEmptyBorder(8, 0, 0, 0));
         right.add(title, BorderLayout.NORTH);
@@ -99,6 +103,8 @@ public final class ConfigWindow {
         JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, left, right);
         split.setDividerLocation(220);
         JTabbedPane pages = new JTabbedPane();
+        pages.setBackground(orbit.app.gui.Theme.SURFACE);
+        pages.setOpaque(true);
         pages.addTab("Конфиги", split);
         pages.addTab("Аккаунты и расписание", accounts.view());
         pages.addChangeListener(e -> accounts.refreshConfigs());
@@ -132,7 +138,7 @@ public final class ConfigWindow {
      */
     public static void open(ConfigStore store, Path accountsFile, Runnable onClose, String select, String forWhom) {
         SwingUtilities.invokeLater(() -> {
-            com.formdev.flatlaf.FlatDarkLaf.setup();
+            orbit.app.gui.Theme.setup();
             ConfigWindow w = new ConfigWindow(store, accountsFile, MapCatalog.bundled());
             if (forWhom != null) {
                 w.frame.setTitle("Orbit — конфиг аккаунта " + forWhom);
@@ -151,6 +157,41 @@ public final class ConfigWindow {
             }
             w.frame.setVisible(true);
         });
+    }
+
+    /** The window's content drawn into an image without showing it (to check the look). */
+    public static java.awt.image.BufferedImage snapshot(ConfigStore store, Path accountsFile, String select,
+                                                        int width, int height) {
+        orbit.app.gui.Theme.setup();
+        ConfigWindow w = new ConfigWindow(store, accountsFile, MapCatalog.bundled());
+        if (select != null && w.names.contains(select)) {
+            w.current = null;
+            w.reloadList(select);
+        }
+        java.awt.Container c = w.frame.getContentPane();
+        c.setSize(width, height);
+        for (int pass = 0; pass < 2; pass++) {
+            layoutAll(c);
+        }
+        java.awt.image.BufferedImage img = new java.awt.image.BufferedImage(width, height,
+                java.awt.image.BufferedImage.TYPE_INT_RGB);
+        java.awt.Graphics2D g = img.createGraphics();
+        try {
+            c.paint(g);
+        } finally {
+            g.dispose();
+        }
+        w.frame.dispose();
+        return img;
+    }
+
+    private static void layoutAll(java.awt.Component c) {
+        c.doLayout();
+        if (c instanceof java.awt.Container k) {
+            for (java.awt.Component child : k.getComponents()) {
+                layoutAll(child);
+            }
+        }
     }
 
     private static JButton button(String text, Runnable action) {

@@ -61,6 +61,8 @@ public final class OrbitMain {
     }
 
     public static void main(String[] args) throws Exception {
+        // a dark macOS title bar; read when AWT starts, so before any window
+        System.setProperty("apple.awt.application.appearance", "NSAppearanceNameDarkAqua");
         if (args.length == 0) {
             usage();
             return;

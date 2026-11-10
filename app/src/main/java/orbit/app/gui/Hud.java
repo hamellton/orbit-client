@@ -26,10 +26,10 @@ import orbit.world.maps.MapCatalog;
  */
 final class Hud {
 
-    static final Color CARD = new Color(0x161b24);
-    static final Color CARD_EDGE = new Color(0x262d3a);
-    static final Color TEXT = new Color(0xe6ebf2);
-    static final Color DIM = new Color(0x8b96a8);
+    static final Color CARD = new Color(0x151c27);
+    static final Color CARD_EDGE = Theme.BORDER;
+    static final Color TEXT = Theme.TEXT;
+    static final Color DIM = Theme.DIM;
     static final Color HP_BAR = new Color(0x22c55e);
     static final Color SHIELD_BAR = new Color(0x3b82f6);
     static final Color BAR_TRACK = new Color(0x2a3140);

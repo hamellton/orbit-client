@@ -1,6 +1,5 @@
 package orbit.app.gui;
 
-import com.formdev.flatlaf.FlatDarkLaf;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
@@ -25,7 +24,6 @@ import javax.swing.JPanel;
 import javax.swing.JTabbedPane;
 import javax.swing.SwingUtilities;
 import javax.swing.Timer;
-import javax.swing.UIManager;
 import javax.swing.WindowConstants;
 import orbit.app.WorldFeed;
 
@@ -36,10 +34,9 @@ import orbit.app.WorldFeed;
  */
 public final class MainWindow {
 
-    static final Color SURFACE = new Color(0x0d1117);
-    static final Color HEADER = new Color(0x131923);
-    static final Color LINE = new Color(0x242c3a);
-    private static final Color ACCENT = new Color(0x4fd1ff);
+    static final Color SURFACE = Theme.BACKGROUND;
+    static final Color HEADER = Theme.SURFACE;
+    static final Color LINE = Theme.BORDER;
 
     /**
      * An account in the window.
@@ -122,28 +119,8 @@ public final class MainWindow {
         }
     }
 
-    private static boolean lookDone;
-
     private static void setupLook() {
-        if (lookDone) {
-            return;
-        }
-        lookDone = true;
-        FlatDarkLaf.setup();
-        UIManager.put("Component.arc", 10);
-        UIManager.put("Button.arc", 10);
-        UIManager.put("TextComponent.arc", 8);
-        UIManager.put("Component.focusWidth", 1);
-        UIManager.put("ScrollBar.thumbArc", 999);
-        UIManager.put("ScrollBar.thumbInsets", new java.awt.Insets(2, 2, 2, 2));
-        UIManager.put("ScrollBar.width", 10);
-        UIManager.put("TabbedPane.tabHeight", 34);
-        UIManager.put("TabbedPane.selectedBackground", HEADER);
-        UIManager.put("TabbedPane.underlineColor", ACCENT);
-        UIManager.put("TabbedPane.tabSeparatorsFullHeight", true);
-        UIManager.put("Panel.background", SURFACE);
-        UIManager.put("SplitPane.background", SURFACE);
-        UIManager.put("SplitPaneDivider.gripColor", LINE);
+        Theme.setup();
     }
 
     private static String title(List<Tab> tabs) {
