@@ -534,7 +534,7 @@ final class Hud {
         if (t == null && attackers == 0) {
             return;
         }
-        int width = Math.max(160, Math.min(maxWidth, 320));
+        int width = Math.max(150, Math.min(maxWidth, 240));
         int inner = width - 20;
         boolean bars = t != null && t.health().known();
         int height = 10 + (t != null ? 16 + 14 : 0) + (bars ? 2 * 9 + 6 : 0) + (attackers > 0 ? 15 : 0) + 6;
@@ -547,10 +547,10 @@ final class Hud {
             Color accent = MinimapPanel.shipColor(t, h, w.group());
             g.setColor(accent);
             g.fill(new RoundRectangle2D.Double(x, y + 6, 3, height - 12, 3, 3));
-            g.setFont(font(Font.BOLD, 12f));
+            g.setFont(font(Font.BOLD, 11f));
             g.drawString(clip(g, MinimapPanel.label(t), inner), x + 10, ty + 12);
             ty += 16;
-            g.setFont(font(Font.PLAIN, 11f));
+            g.setFont(font(Font.PLAIN, 10f));
             g.setColor(DIM);
             String kind = (h.attackTargetId() != 0 ? "атакую" : "выбрана") + String.format("  ·  %,.0f", t.distanceTo(h.x(), h.y()))
                     + (t.lockedByOther() ? "  ·  бьёт другой игрок" : "");
@@ -563,7 +563,7 @@ final class Hud {
             }
         }
         if (attackers > 0) {
-            g.setFont(font(Font.PLAIN, 11f));
+            g.setFont(font(Font.PLAIN, 10f));
             g.setColor(MinimapPanel.ENEMY);
             g.drawString("Атакуют меня: " + attackers, x + 10, ty + 11);
         }
