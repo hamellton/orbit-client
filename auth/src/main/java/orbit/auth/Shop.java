@@ -48,9 +48,20 @@ public final class Shop {
         this.origin = origin;
     }
 
+    static final String BOOSTER_PAGE = "/indexInternal.es?action=internalDock&tpl=internalDockBooster";
+
+    /** Booster offers by shop id (numbers; their {@code code} is {@code DMG-B01} and alike). */
+    public Map<String, Item> boosters() throws IOException {
+        return page(BOOSTER_PAGE);
+    }
+
     /** Ammunition offers by item id. */
     public Map<String, Item> ammunition() throws IOException {
-        HttpSession.Response r = http.get(origin + AMMO_PAGE, origin + START_PAGE);
+        return page(AMMO_PAGE);
+    }
+
+    private Map<String, Item> page(String path) throws IOException {
+        HttpSession.Response r = http.get(origin + path, origin + START_PAGE);
         if (r.status() != 200) {
             throw new IOException("магазин ответил " + r.status());
         }

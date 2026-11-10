@@ -19,6 +19,25 @@ public final class ItemCatalog {
         }
     }
 
+    /** Boosters of the website shop by code ({@code internalDockBooster}); in game {@code booster_<code>}. */
+    public static final List<Item> BOOSTERS = List.of(
+            new Item("DMG-B01", "DMG-B01 — урон"), new Item("DMG-B02", "DMG-B02 — урон"),
+            new Item("SHD-B01", "SHD-B01 — щит"), new Item("SHD-B02", "SHD-B02 — щит"),
+            new Item("HP-B01", "HP-B01 — прочность"), new Item("HP-B02", "HP-B02 — прочность"),
+            new Item("REP-B01", "REP-B01 — ремонт"), new Item("REP-B02", "REP-B02 — ремонт"),
+            new Item("SREG-B01", "SREG-B01 — восстановление щита"), new Item("SREG-B02", "SREG-B02 — восстановление щита"),
+            new Item("EP-B01", "EP-B01 — опыт"), new Item("EP-B02", "EP-B02 — опыт"),
+            new Item("HON-B01", "HON-B01 — честь"), new Item("HON-B02", "HON-B02 — честь"),
+            new Item("RES-B01", "RES-B01 — ресурсы"), new Item("RES-B02", "RES-B02 — ресурсы"),
+            new Item("CD-B01", "CD-B01 — перезарядка способностей"), new Item("CD-B02", "CD-B02 — перезарядка способностей"),
+            new Item("PRC-B00", "PRC-B00 — точность"), new Item("DMG-H01", "DMG-H01 — урон (H)"),
+            new Item("DMG-PVP01", "DMG-PVP01 — урон по игрокам"));
+
+    /** The game's loot id of a shop booster: {@code DMG-B01} → {@code booster_dmg-b01}. */
+    public static String boosterLootId(String code) {
+        return "booster_" + code.toLowerCase(java.util.Locale.ROOT);
+    }
+
     public static final List<Item> LASERS = ammo("ammunition_laser_", "lcb-10", "mcb-25", "mcb-50", "ucb-100",
             "rsb-75", "sab-50", "cbo-100", "job-100", "rb-214", "pib-100", "idb-125", "sbl-100", "vb-142",
             "a-bl", "emaa-20", "rcb-140");

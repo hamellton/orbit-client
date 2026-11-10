@@ -279,6 +279,8 @@ final class MinimapPanel extends JPanel {
             g.setColor(hero.alive() ? HERO : Color.GRAY);
             g.fill(new Ellipse2D.Double(hx - 4.5 * u, hy - 4.5 * u, 9 * u, 9 * u));
         }
+        hud.boostPills(g, (int) Math.round(ox + mw) - 8, (int) Math.round(oy) + 8,
+                (int) Math.round(mw * (compact ? 0.45 : 0.5)), w.boosters(), compact);
         if (compact) {
             hud.targetChip(g, (int) Math.round(ox) + 8, (int) Math.round(oy) + 8, (int) Math.round(mw * 0.3), w);
             hud.strip(g, (int) Math.round(ox), (int) Math.round(oy + mh), (int) Math.round(mw), feed, config.get());

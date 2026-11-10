@@ -18,7 +18,27 @@ public record WorldSnapshot(long nanos, Hero hero, Map<Integer, Ship> ships, Map
                             Group group, Map<String, Item> items, Inventory inventory, Pet pet,
                             Map<Integer, Long> activatable, int jumpingTo, Death death,
                             java.util.Set<String> slotItems, Map<Integer, Kill> destroyed, Rewards rewards,
-                            List<Invitation> invitations, List<Contact> contacts, Map<String, Mine> mines) {
+                            List<Invitation> invitations, List<Contact> contacts, Map<String, Mine> mines,
+                            Boosters boosters) {
+
+    /**
+     * Boosters ({@code AttributeBoosterUpdateCommand}): the active ones by loot id ({@code booster_dmg-b01})
+     * and the total bonus per attribute ({@code DAMAGE} → 13 %). {@code known} once the server has sent them.
+     */
+    public record Boosters(boolean known, Map<String, Booster> active, Map<String, Double> totals) {
+        public static final Boosters NONE = new Boosters(false, Map.of(), Map.of());
+    }
+
+    /**
+     * One booster: the player's own ones have a time left ({@code secondsLeft} counted from {@code nanos}),
+     * equipment ones an amount (lasers that boost), shared ones a count.
+     */
+    public record Booster(String lootId, String kind, int secondsLeft, long nanos, int amount) {
+        /** Seconds left at a moment; -1 for boosters without a time (equipment, shared, station). */
+        public long secondsLeftAt(long now) {
+            return secondsLeft < 0 ? -1 : Math.max(0, secondsLeft - (now - nanos) / 1_000_000_000L);
+        }
+    }
 
     /** A mine on the map ({@code AddMineCommand}); the client knows its type, not whose it is. */
     public record Mine(String hash, int typeId, int x, int y) {

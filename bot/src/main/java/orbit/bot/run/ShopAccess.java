@@ -13,6 +13,11 @@ public interface ShopAccess {
     /** Ammunition and rocket offers by item id. */
     Map<String, Offer> offers() throws IOException;
 
+    /** Booster offers by code ({@code DMG-B01}); {@code item} is what {@link #buy} takes. */
+    default Map<String, Offer> boosterOffers() throws IOException {
+        return Map.of();
+    }
+
     /** Buys; returns the shop's answer. {@link IOException} when it refused or failed. */
     String buy(String item, int amount) throws IOException;
 }

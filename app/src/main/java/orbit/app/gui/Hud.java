@@ -65,6 +65,10 @@ final class Hud {
             return out;
         }
         out.add(hero(h, w.inventory()));
+        Card boosters = boosters(w.boosters(), feed.now());
+        if (boosters != null) {
+            out.add(boosters);
+        }
         Card target = target(w);
         if (target != null) {
             out.add(target);
@@ -222,6 +226,121 @@ final class Hud {
     }
 
     static final Color NANO_BAR = new Color(0xf59e0b);
+    static final Color BOOST = new Color(0xfbbf24);
+
+    /** Short names of the boosted attributes ({@code BoosterUpdateModule.attributeType}). */
+    static String boostName(String attribute) {
+        return switch (attribute) {
+            case "DAMAGE" -> "Урон";
+            case "SHIELD" -> "Щит";
+            case "HITPOINTS" -> "HP";
+            case "HONOUR_POINTS" -> "Честь";
+            case "EXPERIENCE_POINTS" -> "Опыт";
+            case "REPAIR" -> "Ремонт";
+            case "SHIELD_REGENERATION" -> "Реген щита";
+            case "ABILITY_COOLDOWN_TIME" -> "Перезарядка";
+            case "COLLECT_RESOURCES", "COLLECT_RESOURCES_NEWBIE" -> "Ресурсы";
+            default -> attribute.toLowerCase(java.util.Locale.ROOT).replace('_', ' ');
+        };
+    }
+
+    /** «Урон +13%» for every attribute with a bonus, the biggest first. */
+    static List<String> boostPills(WorldSnapshot.Boosters b) {
+        Map<String, Double> byName = new LinkedHashMap<>();
+        b.totals().forEach((k, v) -> {
+            if (v != null && v > 0) {
+                byName.merge(boostName(k), v, Double::sum);
+            }
+        });
+        return byName.entrySet().stream().sorted(Map.Entry.<String, Double>comparingByValue().reversed())
+                .map(e -> e.getKey() + " +" + String.format("%.0f", e.getValue()) + "%").toList();
+    }
+
+    /** The boosters by time left: own ones with hours and minutes, equipment ones with their count. */
+    private Card boosters(WorldSnapshot.Boosters b, long now) {
+        if (!b.known() || b.active().isEmpty()) {
+            return null;
+        }
+        List<String[]> rows = new ArrayList<>();
+        b.active().values().stream()
+                .sorted(Comparator.comparingLong((WorldSnapshot.Booster x) -> x.secondsLeftAt(now) < 0 ? Long.MAX_VALUE : x.secondsLeftAt(now)))
+                .forEach(x -> {
+                    String name = x.lootId().replaceFirst("^booster_", "").replaceFirst("^equipment_[a-z]+_[a-z]+_", "")
+                            .toUpperCase(java.util.Locale.ROOT);
+                    long left = x.secondsLeftAt(now);
+                    String value = left >= 0 ? hm(left) : x.amount() > 1 ? "×" + x.amount() : "";
+                    rows.add(new String[] {name, value});
+                });
+        List<String> pills = boostPills(b);
+        return new Card() {
+            @Override
+            public int height(int width) {
+                return PAD + LINE + rows.size() * (LINE - 1) + (pills.isEmpty() ? 0 : LINE + 2) + PAD - 4;
+            }
+
+            @Override
+            public void paint(Graphics2D g, int x, int y, int width) {
+                frame(g, x, y, width, height(width), BOOST);
+                g.setFont(font(Font.PLAIN, 11f));
+                g.setColor(DIM);
+                g.drawString("Бустеры", x + PAD, y + PAD + 10);
+                int ty = y + PAD + LINE + 11;
+                g.setFont(font(Font.PLAIN, 12f));
+                FontMetrics fm = g.getFontMetrics();
+                for (String[] r : rows) {
+                    g.setColor(TEXT);
+                    g.drawString(clip(g, r[0], width - 2 * PAD - fm.stringWidth(r[1]) - 8), x + PAD, ty);
+                    g.setColor(r[1].startsWith("0:") ? ENEMY_SOON : DIM);
+                    g.drawString(r[1], x + width - PAD - fm.stringWidth(r[1]), ty);
+                    ty += LINE - 1;
+                }
+                if (!pills.isEmpty()) {
+                    g.setFont(font(Font.PLAIN, 11f));
+                    g.setColor(BOOST);
+                    g.drawString(clip(g, String.join("  ·  ", pills), width - 2 * PAD), x + PAD, ty + 3);
+                }
+            }
+        };
+    }
+
+    private static final Color ENEMY_SOON = new Color(0xf97316);
+
+    /** 3725 s → {@code 1:02}, under an hour {@code 0:47}. */
+    static String hm(long seconds) {
+        return String.format("%d:%02d", seconds / 3600, seconds / 60 % 60);
+    }
+
+    /**
+     * The bonuses as pills in a corner of the map, right-aligned from {@code right}, wrapping onto more rows
+     * when the map is narrow.
+     */
+    void boostPills(Graphics2D g, int right, int top, int maxWidth, WorldSnapshot.Boosters b, boolean small) {
+        List<String> pills = boostPills(b);
+        if (pills.isEmpty()) {
+            return;
+        }
+        g.setFont(font(Font.BOLD, small ? 10f : 11f));
+        FontMetrics fm = g.getFontMetrics();
+        int h = small ? 18 : 22;
+        int gap = 5;
+        int x = right;
+        int y = top;
+        for (String p : pills) {
+            int w = fm.stringWidth(p) + (small ? 12 : 16);
+            if (x - w < right - maxWidth && x != right) {
+                x = right;
+                y += h + 4;
+            }
+            x -= w;
+            g.setColor(new Color(10, 12, 18, 210));
+            g.fill(new RoundRectangle2D.Double(x, y, w, h, h, h));
+            g.setColor(new Color(BOOST.getRed(), BOOST.getGreen(), BOOST.getBlue(), 140));
+            g.draw(new RoundRectangle2D.Double(x + 0.5, y + 0.5, w - 1, h - 1, h, h));
+            g.setColor(BOOST);
+            g.drawString(p, x + (w - fm.stringWidth(p)) / 2f, y + (h + fm.getAscent() - fm.getDescent()) / 2f);
+            x -= gap;
+        }
+    }
 
     /** The client's booty key codes ({@code ServerCommands.BOOTY_KEYS_*}). */
     private static final Map<String, String> KEY_NAMES = Map.ofEntries(

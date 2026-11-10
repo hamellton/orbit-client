@@ -272,7 +272,7 @@ public final class OrbitMain {
     /** The website shop of the logged-in account, through the same web session the login used. */
     private static orbit.bot.run.ShopAccess shopFor(AuthClient auth, GameConnection conn) {
         return new orbit.bot.run.ShopAccess() {
-            private java.util.Map<String, orbit.auth.Shop.Item> items = java.util.Map.of();
+            private final java.util.Map<String, orbit.auth.Shop.Item> items = new java.util.concurrent.ConcurrentHashMap<>();
 
             private orbit.auth.Shop shop() {
                 return new orbit.auth.Shop(auth.http(), conn.session().host());
@@ -280,9 +280,19 @@ public final class OrbitMain {
 
             @Override
             public java.util.Map<String, Offer> offers() throws java.io.IOException {
-                items = shop().ammunition();
+                var ammo = shop().ammunition();
+                items.putAll(ammo);
                 java.util.Map<String, Offer> out = new java.util.LinkedHashMap<>();
-                items.forEach((id, i) -> out.put(id, new Offer(id, i.price(), i.uridium(), i.maxAmount())));
+                ammo.forEach((id, i) -> out.put(id, new Offer(id, i.price(), i.uridium(), i.maxAmount())));
+                return out;
+            }
+
+            @Override
+            public java.util.Map<String, Offer> boosterOffers() throws java.io.IOException {
+                var boosters = shop().boosters();
+                items.putAll(boosters);
+                java.util.Map<String, Offer> out = new java.util.LinkedHashMap<>();
+                boosters.forEach((id, i) -> out.put(i.code(), new Offer(id, i.price(), i.uridium(), i.maxAmount())));
                 return out;
             }
 

@@ -25,6 +25,11 @@ class BuyWatchTest {
         }
 
         @Override
+        public Map<String, Offer> boosterOffers() {
+            return Map.of("DMG-B01", new Offer("3", 10_000, true, 6), "SHD-B01", new Offer("4", 10_000, true, 6));
+        }
+
+        @Override
         public synchronized String buy(String item, int amount) {
             bought.add(item + " x" + amount);
             return "{\"isError\":0}";
@@ -103,5 +108,43 @@ class BuyWatchTest {
         w.setShop(shop);
         runFor(sim, w, 60_000);
         assertTrue(shop.bought.isEmpty(), "nothing known, nothing bought: " + shop.bought);
+    }
+
+    static void boosters(Sim sim, String lootId, int secondsLeft) {
+        orbit.protocol.gen.AttributeBoosterUpdateCommand u = new orbit.protocol.gen.AttributeBoosterUpdateCommand();
+        if (lootId != null) {
+            orbit.protocol.gen.BoosterPlayerDetailModule d = new orbit.protocol.gen.BoosterPlayerDetailModule();
+            d.lootId = lootId;
+            d.secondsLeft = secondsLeft;
+            u.boostedDetailsUpdate.add(d);
+        }
+        sim.world.apply(u, sim.now);
+    }
+
+    @Test
+    void buysAListedBoosterThatRunsOutAndNotOneThatLasts() throws Exception {
+        BotConfig.Buy buy = new BotConfig.Buy(true, List.of(), 0, 5_000, List.of("DMG-B01", "SHD-B01"), 30);
+        Sim sim = sim(buy, 0, 50_000);
+        boosters(sim, "booster_dmg-b01", 600);      // 10 minutes left: under 30, buy
+        boosters(sim, "booster_shd-b01", 36_000);   // 10 hours left: keep
+        FakeShop shop = new FakeShop();
+        BuyWatch w = new BuyWatch(sim.ctx);
+        w.setShop(shop);
+        runFor(sim, w, 60_000);
+        assertEquals(List.of("3 x1"), shop.bought);
+    }
+
+    @Test
+    void noBoosterBeforeTheGameListedThemNorBelowTheUridiumToKeep() throws Exception {
+        BotConfig.Buy buy = new BotConfig.Buy(true, List.of(), 0, 45_000, List.of("DMG-B01"), 0);
+        Sim sim = sim(buy, 0, 50_000);
+        FakeShop shop = new FakeShop();
+        BuyWatch w = new BuyWatch(sim.ctx);
+        w.setShop(shop);
+        runFor(sim, w, 60_000);
+        assertTrue(shop.bought.isEmpty(), "boosters not known yet");
+        boosters(sim, null, 0); // the game lists none: DMG-B01 has run out
+        runFor(sim, w, 60_000);
+        assertTrue(shop.bought.isEmpty(), "50 000 - 10 000 is under the 45 000 to keep");
     }
 }

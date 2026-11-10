@@ -109,6 +109,90 @@ final class BuyWatch {
             }
             return; // one purchase at a time
         }
+        boosters(b, w, now);
+    }
+
+    /**
+     * The config's boosters: one whose time left is under {@code boosterMinutes} (or that has run out) is
+     * bought again, for uridium, never below the uridium to keep. Nothing before the game has listed the
+     * boosters: unknown is not "none left".
+     */
+    private void boosters(BotConfig.Buy b, WorldSnapshot w, long now) {
+        if (b.boosters().isEmpty()) {
+            return;
+        }
+        if (!w.boosters().known()) {
+            if (told.add("?boosters")) {
+                log.info("Бустеры: игра ещё не прислала, какие активны — жду");
+            }
+            return;
+        }
+        for (String code : b.boosters()) {
+            WorldSnapshot.Booster have = w.boosters().active().get(ItemCatalog.boosterLootId(code));
+            long left = have == null ? 0 : Math.max(0, have.secondsLeftAt(now));
+            if (left > 0 && left >= b.boosterMinutes() * 60L) {
+                told.remove("b:" + code);
+                continue;
+            }
+            if (shop == null) {
+                if (told.add("b:" + code)) {
+                    log.warn("Пора купить бустер {} (магазин недоступен)", code);
+                }
+                continue;
+            }
+            Long last = triedAt.get("b:" + code);
+            if (last != null && now - last < RETRY_MS * 1_000_000) {
+                continue;
+            }
+            if (busy.compareAndSet(false, true)) {
+                triedAt.put("b:" + code, now);
+                double uridium = w.hero().uridium();
+                ShopAccess s = shop;
+                worker.execute(() -> {
+                    if (logContext != null) {
+                        org.slf4j.MDC.setContextMap(logContext);
+                    }
+                    try {
+                        buyBooster(s, code, left, uridium, b);
+                    } finally {
+                        busy.set(false);
+                    }
+                });
+            }
+            return; // one purchase at a time
+        }
+    }
+
+    private void buyBooster(ShopAccess s, String code, long left, double uridium, BotConfig.Buy b) {
+        try {
+            ShopAccess.Offer o = s.boosterOffers().get(code);
+            if (o == null || o.price() <= 0) {
+                log.warn("Бустер {}: в магазине такого нет — не покупаю", code);
+                return;
+            }
+            if (!o.uridium()) {
+                log.warn("Бустер {}: продаётся не за уридий — не покупаю", code);
+                return;
+            }
+            if (uridium <= 0) {
+                log.warn("Бустер {}: баланс уридия неизвестен — не покупаю", code);
+                return;
+            }
+            if (uridium - o.price() < b.keepUridium()) {
+                log.warn("Бустер {}: не хватает уридия (есть {}, запас {}, цена {})", code, (long) uridium,
+                        (long) b.keepUridium(), (long) o.price());
+                return;
+            }
+            log.info("Покупаю бустер {} за {} уридия (осталось {})", code, (long) o.price(), clock(left));
+            String answer = s.buy(o.item(), 1);
+            log.info("Магазин: {}", answer);
+        } catch (java.io.IOException | RuntimeException e) {
+            log.warn("Бустер {}: покупка не удалась — {}", code, e.getMessage());
+        }
+    }
+
+    static String clock(long seconds) {
+        return seconds <= 0 ? "0" : String.format("%d:%02d:%02d", seconds / 3600, seconds / 60 % 60, seconds % 60);
     }
 
     private void buy(ShopAccess s, BotConfig.BuyRule r, long left, double credits, double uridium, BotConfig.Buy b) {

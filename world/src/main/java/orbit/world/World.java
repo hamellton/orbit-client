@@ -279,6 +279,7 @@ public final class World {
                         p.candidateId == hero.id));
             }
             case orbit.protocol.gen.InvitationRemovalCommand p -> invitations.removeIf(i -> i.candidateId() == p.candidateId);
+            case orbit.protocol.gen.AttributeBoosterUpdateCommand p -> boosters(p, nanos);
             case orbit.protocol.gen.AddMineCommand p ->
                     mines.put(p.hash, new WorldSnapshot.Mine(p.hash, p.typeId, p.x, p.y));
             case orbit.protocol.gen.RemoveMineCommand p -> mines.remove(p.hash);
@@ -371,7 +372,9 @@ public final class World {
                 new WorldSnapshot.Inventory(Map.copyOf(ores), Map.copyOf(resources), Map.copyOf(bootyKeys)), pet,
                 Map.copyOf(activatable), jumpingTo, death, java.util.Set.copyOf(slotItems), recentKills(nanos),
                 new WorldSnapshot.Rewards(gainedCredits, gainedUridium, gainedHonor, gainedExperience, Map.copyOf(loot)),
-                List.copyOf(invitations), List.copyOf(contacts.values()), Map.copyOf(mines));
+                List.copyOf(invitations), List.copyOf(contacts.values()), Map.copyOf(mines),
+                boostersKnown ? new WorldSnapshot.Boosters(true, Map.copyOf(boosters), Map.copyOf(boosterTotals))
+                        : WorldSnapshot.Boosters.NONE);
     }
 
     private double gainedCredits;
@@ -851,6 +854,28 @@ public final class World {
     private final List<WorldSnapshot.Invitation> invitations = new ArrayList<>();
     private final Map<Integer, WorldSnapshot.Contact> contacts = new java.util.TreeMap<>();
     private final Map<String, WorldSnapshot.Mine> mines = new LinkedHashMap<>();
+    private final Map<String, WorldSnapshot.Booster> boosters = new java.util.TreeMap<>();
+    private final Map<String, Double> boosterTotals = new LinkedHashMap<>();
+    private boolean boostersKnown;
+
+    private void boosters(orbit.protocol.gen.AttributeBoosterUpdateCommand p, long nanos) {
+        boostersKnown = true;
+        if (!p.boostedAttributes.isEmpty()) {
+            boosterTotals.clear();
+            p.boostedAttributes.forEach(a -> boosterTotals.put(a.attributeType, (double) a.value));
+        }
+        for (orbit.protocol.gen.BoosterDetailModule d : p.boostedDetailsUpdate) {
+            WorldSnapshot.Booster b = switch (d) {
+                case orbit.protocol.gen.BoosterPlayerDetailModule pl -> new WorldSnapshot.Booster(d.lootId, "player", pl.secondsLeft, nanos, 1);
+                case orbit.protocol.gen.BoosterEquipmentDetailModule eq -> new WorldSnapshot.Booster(d.lootId, "equipment", -1, nanos, eq.amount);
+                case orbit.protocol.gen.BoosterSharedDetailModule sh -> new WorldSnapshot.Booster(d.lootId, "shared", -1, nanos, sh.numberOfBoosters);
+                case orbit.protocol.gen.BoosterBattleStationDetailModule bs -> new WorldSnapshot.Booster(d.lootId, "station", -1, nanos, Math.round(bs.percentage));
+                default -> new WorldSnapshot.Booster(d.lootId, "other", -1, nanos, 1);
+            };
+            boosters.put(d.lootId, b);
+        }
+        p.boostedDetailsRemove.forEach(d -> boosters.remove(d.lootId));
+    }
 
     /** One contact list entry: its types (friend, clan member…) and attributes (name, clan, online). */
     private void contact(orbit.protocol.gen.ContactListEntryModule e) {

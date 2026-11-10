@@ -219,15 +219,24 @@ public record BotConfig(
 
     /**
      * Buying ammunition when it runs low: for each item, buy {@code amount} when fewer than {@code below}
-     * are left; never spend below {@code keepCredits} / {@code keepUridium}.
+     * are left; never spend below {@code keepCredits} / {@code keepUridium}. Boosters too (AstraBot's
+     * BOOSTERS): each listed shop code ({@code DMG-B01}) is bought again when less than
+     * {@code boosterMinutes} of it is left (0 = when it has run out).
      */
     @JsonInclude(JsonInclude.Include.NON_EMPTY)
-    public record Buy(boolean enabled, List<BuyRule> items, double keepCredits, double keepUridium) {
+    public record Buy(boolean enabled, List<BuyRule> items, double keepCredits, double keepUridium,
+                      List<String> boosters, int boosterMinutes) {
 
         public static final Buy OFF = new Buy(false, List.of(), 0, 0);
 
         public Buy {
             items = items == null ? List.of() : List.copyOf(items);
+            boosters = boosters == null ? List.of() : List.copyOf(boosters);
+            boosterMinutes = Math.max(0, boosterMinutes);
+        }
+
+        public Buy(boolean enabled, List<BuyRule> items, double keepCredits, double keepUridium) {
+            this(enabled, items, keepCredits, keepUridium, List.of(), 0);
         }
     }
 
