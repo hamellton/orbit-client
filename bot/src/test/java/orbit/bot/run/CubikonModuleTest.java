@@ -117,6 +117,31 @@ class CubikonModuleTest {
         assertTrue(Math.hypot(h.x() - 16_000, h.y() - 10_000) <= 450, "waiting where the cube is due: " + h);
     }
 
+    /** A spawn with a 5-minute respawn learned, its last cube killed {@code agoMs} before {@code wall}. */
+    static void learned(SpawnMemory memory, int x, int y, long wall, long agoMs) {
+        memory.seen(26, x, y, wall - 30 * 60_000);
+        memory.killed(26, x, y, wall - 25 * 60_000);
+        memory.seen(26, x, y, wall - 20 * 60_000); // back after 5 minutes
+        memory.killed(26, x, y, wall - agoMs);
+    }
+
+    @Test
+    void leavesASpawnWhoseCubeDidNotComeForOneDueElsewhere() throws Exception {
+        Sim sim = new Sim(config(90, false, "LEARNED"), 26, 7_500, 3_900);
+        SpawnMemory memory = SpawnMemory.inMemory();
+        CubikonModule m = new CubikonModule(sim.ctx, memory);
+        long wall = m.wallMs();
+        learned(memory, 7_500, 3_900, wall, 5 * 60_000 - 20_000);   // here: due in 20 s
+        learned(memory, 13_400, 3_900, wall, 5 * 60_000 - 80_000);  // due in 80 s, ~6 000 away
+        learned(memory, 13_400, 7_900, wall, 60_000);
+        learned(memory, 7_500, 7_900, wall, 60_000);
+        // the cube here is due in 20 s but someone takes it unseen: it never comes
+        sim.run(m::tick, 120_000);
+        var h = sim.hero();
+        assertTrue(Math.hypot(h.x() - 13_400, h.y() - 3_900) <= 450,
+                "caught the cube due on the other spawn instead of waiting out the grace: " + h);
+    }
+
     @Test
     void learnedSpawnsComeFirstAndReplaceNearbyConfiguredSpots() {
         SpawnMemory memory = SpawnMemory.inMemory();

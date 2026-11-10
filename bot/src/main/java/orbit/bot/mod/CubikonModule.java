@@ -72,6 +72,11 @@ public final class CubikonModule implements BotModule {
     private boolean moveOn;
     /** The chosen spawn's state is unknown: a short look after arriving, then choose again. */
     private boolean lookOnly;
+    /** When the cube of the chosen spawn is due (wall clock), 0 when nobody knows. */
+    private long spotReady;
+    private long preemptCheckAt;
+    /** Leave for a due cube this long before its flight time says (acceleration, a turn, a late click). */
+    static final long LEAD_MS = 12_000;
     private String status = "кубы";
 
     public CubikonModule(BotContext ctx, SpawnMemory memory) {
@@ -303,6 +308,13 @@ public final class CubikonModule implements BotModule {
         long now = ctx.now();
         if (spot == null) {
             choose(s, h, learned, waitSec);
+        } else if (learned && now >= preemptCheckAt) {
+            preemptCheckAt = now + 1_000_000_000L;
+            if (dueElsewhere(h)) {
+                spot = null;
+                arrivedAt = 0;
+                choose(s, h, true, waitSec);
+            }
         }
         double dist = Math.hypot(spot[0] - h.x(), spot[1] - h.y());
         BotConfig.General g = ctx.config().get().general();
@@ -388,13 +400,17 @@ public final class CubikonModule implements BotModule {
                 }
             }
             double dist = Math.hypot(p[0] - h.x(), p[1] - h.y());
-            if (ready == 0 && dist < IN_VIEW) {
+            boolean overdue = ready > 0 && ready + LOOK_MS < wall; // due, and no cube came (taken by someone?)
+            if ((ready == 0 || overdue) && dist < IN_VIEW) {
                 continue; // in sight and no cube: nothing to check there
             }
             long arrive = wall + (long) (dist / speed * 1_000);
             long seenEmpty = emptyAt.getOrDefault(p[0] + "/" + p[1], 0L);
             long at;
-            if (ready > 0) {
+            if (overdue) {
+                at = arrive + UNKNOWN_PENALTY_MS; // as good as unknown now
+                ready = 0;
+            } else if (ready > 0) {
                 at = Math.max(ready, arrive);
             } else if (seenEmpty > 0 && respawn > 0 && seenEmpty + respawn > wall) {
                 // empty a while ago: a cube comes within one respawn of that, on average halfway
@@ -414,6 +430,7 @@ public final class CubikonModule implements BotModule {
             best = new int[] {h.x(), h.y()}; // everything near is empty and nothing is due: wait here
         }
         spot = best;
+        spotReady = bestReady;
         long margin = DUE_GRACE_MS;
         long waitMs = bestReady > 0 ? Math.max(LOOK_MS, bestReady + margin - wall)
                 // seen empty a while ago: wait for its cube, up to a camp's wait — flying round costs more
@@ -428,6 +445,36 @@ public final class CubikonModule implements BotModule {
         } else {
             log.info("Проверяю спаун {}/{} — что там, неизвестно", best[0] / 100, best[1] / 100);
         }
+    }
+
+    /**
+     * While the chosen spawn holds no cube for sure (unknown, or due and not come — someone else may have
+     * taken it), a cube due by the clock on another spawn wins once the flight there leaves no time to
+     * spare: better a sure cube than a hope. True when the bot should leave now.
+     */
+    private boolean dueElsewhere(WorldSnapshot.Hero h) {
+        long wall = wallMs();
+        if (spotReady > wall) {
+            return false; // the chosen cube is still to come: it was chosen as the soonest
+        }
+        long respawn = memory.mapRespawn(h.mapId());
+        double speed = Math.max(100, h.speed());
+        for (SpawnMemory.Spawn k : memory.spawns(h.mapId())) {
+            if (Math.hypot(k.x() - spot[0], k.y() - spot[1]) <= SpawnMemory.SAME_SPAWN || nearDead(k.x(), k.y())) {
+                continue;
+            }
+            long due = k.expectedAt(respawn);
+            if (due <= wall) {
+                continue;
+            }
+            long flight = (long) (Math.hypot(k.x() - h.x(), k.y() - h.y()) / speed * 1_000) + LEAD_MS;
+            if (due - wall <= flight) {
+                log.info("Куб на {}/{} будет через {} с, лететь туда {} с — перелетаю (здесь куба нет)",
+                        k.x() / 100, k.y() / 100, (due - wall) / 1_000, (flight - LEAD_MS) / 1_000);
+                return true;
+            }
+        }
+        return false;
     }
 
     /** Learned spawns (most recent first) followed by the config's spots not near any of them. */
