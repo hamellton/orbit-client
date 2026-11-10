@@ -66,6 +66,8 @@ public final class CubikonModule implements BotModule {
     /** A Cubikon just died here: head for the next spawn at once, no fights on the way. */
     private int[] deadAt;
     private boolean moveOn;
+    /** The chosen spawn's state is unknown: a short look after arriving, then choose again. */
+    private boolean lookOnly;
     private String status = "кубы";
 
     public CubikonModule(BotContext ctx, SpawnMemory memory) {
@@ -303,6 +305,9 @@ public final class CubikonModule implements BotModule {
         if (arrivedAt == 0) {
             arrivedAt = now;
             moveOn = false;
+            if (lookOnly) {
+                waitUntil = now + LOOK_MS * 1_000_000L + ctx.pause(0, 3_000); // the look starts on arrival
+            }
             ctx.nav().stop();
             log.info("На спауне {}/{} — жду куб", spot[0] / 100, spot[1] / 100);
         }
@@ -336,6 +341,7 @@ public final class CubikonModule implements BotModule {
         }
         spot = spots.get(roundIndex);
         waitUntil = wait == Long.MAX_VALUE ? Long.MAX_VALUE : now + wait;
+        lookOnly = false;
     }
 
     /**
@@ -387,6 +393,7 @@ public final class CubikonModule implements BotModule {
                 : respawn > 0 ? LOOK_MS
                 : waitSec > 0 ? waitSec * 1_000L : Long.MAX_VALUE / 2_000_000;
         waitUntil = now + waitMs * 1_000_000L + ctx.pause(0, 5_000);
+        lookOnly = bestReady == 0 && respawn > 0;
         if (bestReady > 0) {
             log.info("Куб на {}/{} ожидается через {} с — лечу туда", best[0] / 100, best[1] / 100,
                     Math.max(0, bestReady - wall) / 1_000);
