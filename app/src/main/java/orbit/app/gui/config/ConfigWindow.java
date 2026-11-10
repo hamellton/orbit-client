@@ -120,9 +120,26 @@ public final class ConfigWindow {
 
     /** Opens the window on the Swing thread. */
     public static void open(ConfigStore store, Path accountsFile, Runnable onClose) {
+        open(store, accountsFile, onClose, null, null);
+    }
+
+    /**
+     * The window opened on one config (e.g. the one an account runs now), titled for that account.
+     *
+     * @param select config to show first ({@code null} = the first)
+     * @param forWhom e.g. {@code int1 · FREEMASON}, shown in the title
+     */
+    public static void open(ConfigStore store, Path accountsFile, Runnable onClose, String select, String forWhom) {
         SwingUtilities.invokeLater(() -> {
             com.formdev.flatlaf.FlatDarkLaf.setup();
             ConfigWindow w = new ConfigWindow(store, accountsFile, MapCatalog.bundled());
+            if (forWhom != null) {
+                w.frame.setTitle("Orbit — конфиг аккаунта " + forWhom);
+            }
+            if (select != null && w.names.contains(select)) {
+                w.current = null;
+                w.reloadList(select);
+            }
             if (onClose != null) {
                 w.frame.addWindowListener(new java.awt.event.WindowAdapter() {
                     @Override

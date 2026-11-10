@@ -30,8 +30,8 @@ public final class MainWindow {
     private static final int REFRESH_MS = 100;
     private static final int MAX_LOG_CHARS = 200_000;
 
-    /** An account in the window: its feed and how to stop it (logout at a portal). */
-    public record Tab(WorldFeed feed, Runnable stop) {
+    /** An account in the window: its feed, how to stop it (logout at a portal), the config it runs now. */
+    public record Tab(WorldFeed feed, Runnable stop, java.util.function.Supplier<String> config) {
     }
 
     private MainWindow() {
@@ -76,6 +76,11 @@ public final class MainWindow {
                     stop.setText("Останавливается…");
                     Thread.ofPlatform().name("stop-" + t.feed().account()).start(t.stop());
                 });
+                JButton own = new JButton("Конфиг аккаунта…");
+                own.setToolTipText("Конфиг, с которым этот аккаунт работает сейчас; сохранение применяется сразу");
+                own.addActionListener(e -> orbit.app.gui.config.ConfigWindow.open(orbit.config.ConfigStore.openDefault(),
+                        orbit.config.AccountSettings.DEFAULT_FILE, null, t.config().get(), t.feed().title()));
+                bar.add(own);
                 bar.add(stop);
                 page.add(bar, BorderLayout.NORTH);
                 page.add(accountView(t.feed()), BorderLayout.CENTER);

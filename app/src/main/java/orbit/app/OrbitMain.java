@@ -227,7 +227,7 @@ public final class OrbitMain {
             Sessions run = sessions(o, account, rig, profile, delay, () -> { });
             org.slf4j.MDC.remove("account");
             all.add(run);
-            tabs.add(new MainWindow.Tab(rig.feed(), run.close()));
+            tabs.add(new MainWindow.Tab(rig.feed(), run.close(), run.config()));
             log.info("Аккаунт «{}»: старт через {} с", account, delay / 1_000);
             delay += 15_000 + random.nextInt(30_000);
         }
@@ -327,7 +327,7 @@ public final class OrbitMain {
      * bot is offline. Closing the window or {@code local/stop-<account>} ends it all gracefully.
      */
     /** An account's sessions: the thread, and a graceful stop (logout at a portal) for the window or the end. */
-    private record Sessions(Thread thread, Runnable close) {
+    private record Sessions(Thread thread, Runnable close, java.util.function.Supplier<String> config) {
     }
 
     private static Sessions sessions(Options o, String accountName, Rig rig, ClientProfile profile, long startDelayMs,
@@ -340,6 +340,8 @@ public final class OrbitMain {
         var planner = new orbit.config.SessionPlanner(account, o.config, accountName.hashCode(), new java.util.Random());
         Path stopFile = Path.of("local", "stop-" + accountName);
         java.util.Map<String, String> logContext = org.slf4j.MDC.getCopyOfContextMap();
+        java.util.concurrent.atomic.AtomicReference<String> playing = new java.util.concurrent.atomic.AtomicReference<>(
+                o.config != null ? o.config : account.config());
         long testEnd = o.minutes > 0 ? System.currentTimeMillis() + o.minutes * 60_000L : Long.MAX_VALUE;
         java.util.concurrent.atomic.AtomicBoolean closed = new java.util.concurrent.atomic.AtomicBoolean();
         java.util.concurrent.atomic.AtomicReference<ModuleRun> current = new java.util.concurrent.atomic.AtomicReference<>();
@@ -375,6 +377,7 @@ public final class OrbitMain {
                         restUntil(feed, closed, stopFile, earlier(plan.until(), limit), "не в игре: " + plan.reason());
                         continue;
                     }
+                    playing.set(plan.config());
                     orbit.config.BotConfig cfg = loadConfig(plan.config(), false);
                     if (cfg == null) {
                         restUntil(feed, closed, stopFile, now.plusMinutes(1), "конфиг «" + plan.config() + "» не запускается");
@@ -434,7 +437,7 @@ public final class OrbitMain {
                 run.finish(c);
             }
         };
-        return new Sessions(sessions, close);
+        return new Sessions(sessions, close, playing::get);
     }
 
     private static java.time.LocalDateTime earlier(java.time.LocalDateTime a, java.time.LocalDateTime b) {
