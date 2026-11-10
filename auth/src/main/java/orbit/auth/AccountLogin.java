@@ -21,7 +21,6 @@ public final class AccountLogin {
     private final AuthClient client;
     private final Vault vault;
     private final String name;
-    private boolean dosidTurn = true;
 
     public AccountLogin(AuthClient client, Vault vault, String name) throws AuthException {
         this.client = client;
@@ -45,9 +44,8 @@ public final class AccountLogin {
     /** Logs in and returns a game session; the dosid in the vault is updated on success. */
     public GameSession login() throws AuthException {
         Account a = account();
-        boolean useDosid = a.dosid() != null && (dosidTurn || a.password() == null);
-        dosidTurn = !useDosid;
-        if (useDosid) {
+        // the password only when the site turns the saved session down: password logins soon bring a captcha
+        if (a.dosid() != null) {
             try {
                 return remember(client.loginWithDosid(server(a), a.dosid()));
             } catch (AuthException e) {
