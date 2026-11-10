@@ -22,6 +22,7 @@ public final class WorldFeed {
     private static final Logger log = LoggerFactory.getLogger(WorldFeed.class);
 
     private final World world = new World();
+    private final LootLog loot = new LootLog();
     private final AtomicLong packets = new AtomicLong();
     private final String mode;
     private volatile String state = "Запуск";
@@ -128,9 +129,16 @@ public final class WorldFeed {
 
     public void onPacket(Packet p, long nanos) {
         packets.incrementAndGet();
-        int heroBefore = world.snapshot(nanos).hero().id();
+        WorldSnapshot.Hero before = world.snapshot(nanos).hero();
+        int heroBefore = before.id();
         world.apply(p, nanos);
         rememberPlayers(nanos);
+        loot.flush(nanos, false);
+        if (p instanceof orbit.protocol.gen.LegacyModule lm) {
+            loot.legacy(lm.message, nanos);
+        } else if (p instanceof orbit.protocol.gen.AttributeCreditsUpdateCommand) {
+            loot.compare(before, world.snapshot(nanos).hero());
+        }
         if (sessionStart == 0 && p instanceof ShipInitializationCommand) {
             sessionStart = nanos;
         }
