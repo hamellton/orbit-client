@@ -18,7 +18,8 @@ import java.util.Map;
  *   vault add &lt;name&gt; [--server int1] [--proxy socks5://host:port]
  *   vault import &lt;name&gt; &lt;creds.txt&gt; [--server int1]     # username on line 1, password on line 2, optional dosid on line 3
  *   vault set-dosid &lt;name&gt;
- *   vault set-server &lt;name&gt; &lt;server&gt;   # e.g. ru5; the saved dosid (of the old server) is dropped
+ *   vault set-server &lt;name&gt; &lt;server&gt;   # the default server, e.g. ru5 (others: orbit bot --account name@ru5)
+ *   vault set-dosid &lt;name&gt; --server ru5   # the website session of one server of the login
  *   vault remove &lt;name&gt;
  *   options: --vault local/vault.bin
  * </pre>
@@ -42,12 +43,16 @@ public final class VaultTool {
     static int run(String[] args) throws VaultException {
         Path file = DEFAULT_FILE;
         String server = "int1";
+        boolean serverGiven = false;
         String proxy = null;
         List<String> positional = new ArrayList<>();
         for (int i = 0; i < args.length; i++) {
             switch (args[i]) {
                 case "--vault" -> file = Path.of(args[++i]);
-                case "--server" -> server = args[++i];
+                case "--server" -> {
+                    server = args[++i];
+                    serverGiven = true;
+                }
                 case "--proxy" -> proxy = args[++i];
                 default -> positional.add(args[i]);
             }
@@ -110,7 +115,9 @@ public final class VaultTool {
                 String name = arg(positional, 1);
                 Account a = existing(vault, name);
                 String dosid = new String(console().readPassword("dosid: ")).strip();
-                vault.put(name, a.withDosid(dosid.isEmpty() ? null : dosid));
+                // with --server: the session of that server of the login (each server has its own)
+                vault.put(name, serverGiven ? a.withDosidFor(server, dosid.isEmpty() ? null : dosid)
+                        : a.withDosid(dosid.isEmpty() ? null : dosid));
             }
             case "set-server" -> {
                 String name = arg(positional, 1);
@@ -119,7 +126,8 @@ public final class VaultTool {
                     throw new VaultException("Код сервера вида int1, ru5: " + to);
                 }
                 vault.put(name, existing(vault, name).withServer(to));
-                System.out.println("Аккаунт «" + name + "»: сервер " + to + " (dosid сброшен — следующий вход по паролю).");
+                System.out.println("Аккаунт «" + name + "»: сервер по умолчанию " + to
+                        + " (сохранённые сессии других серверов остаются; другой сервер — --account " + name + "@ru5).");
             }
             case "remove" -> {
                 String name = arg(positional, 1);

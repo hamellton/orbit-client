@@ -14,21 +14,74 @@ import com.fasterxml.jackson.annotation.JsonInclude;
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public record Account(String username, String password, String server, String dosid, String proxy) {
+public record Account(String username, String password, String server, String dosid, String proxy,
+                      java.util.Map<String, String> dosids) {
 
-    public Account withDosid(String newDosid) {
-        return new Account(username, password, server, newDosid, proxy);
+    /**
+     * @param dosids website sessions of the other servers of this login ({@code ru5} → dosid; a dosid
+     *               belongs to one server); {@code dosid} stays the one of {@code server}
+     */
+    public Account {
+        dosids = dosids == null ? java.util.Map.of() : java.util.Map.copyOf(dosids);
     }
 
-    /** Another server of the same login; a dosid belongs to one server, so it is dropped. */
+    public Account(String username, String password, String server, String dosid, String proxy) {
+        this(username, password, server, dosid, proxy, null);
+    }
+
+    public Account withDosid(String newDosid) {
+        return new Account(username, password, server, newDosid, proxy, dosids);
+    }
+
+    /** The default server of the login (the dosids of all servers are kept). */
     public Account withServer(String newServer) {
-        return new Account(username, password, newServer, null, proxy);
+        java.util.Map<String, String> all = new java.util.TreeMap<>(dosids);
+        if (dosid != null && server != null) {
+            all.put(server, dosid);
+        }
+        String own = all.remove(newServer);
+        return new Account(username, password, newServer, own, proxy, all);
+    }
+
+    /** The default server, {@code int1} when none is set. */
+    public String home() {
+        return server == null || server.isBlank() ? "int1" : server;
+    }
+
+    /** The saved website session of a server, or {@code null}. */
+    public String dosidFor(String s) {
+        return s.equals(home()) ? dosid : dosids.get(s);
+    }
+
+    /** The account with this server's session replaced ({@code null} = forget it). */
+    public Account withDosidFor(String s, String d) {
+        if (s.equals(home())) {
+            return withDosid(d);
+        }
+        java.util.Map<String, String> all = new java.util.TreeMap<>(dosids);
+        if (d == null) {
+            all.remove(s);
+        } else {
+            all.put(s, d);
+        }
+        return new Account(username, password, server, dosid, proxy, all);
+    }
+
+    /** Every server with a saved session, the default one first. */
+    public java.util.List<String> serversWithDosid() {
+        java.util.List<String> out = new java.util.ArrayList<>();
+        if (dosid != null) {
+            out.add(home());
+        }
+        dosids.keySet().stream().filter(k -> !out.contains(k)).forEach(out::add);
+        return out;
     }
 
     /** Puts every secret of this account into {@link SecretMask}. */
     public void registerSecrets() {
         SecretMask.register(password);
         SecretMask.register(dosid);
+        dosids.values().forEach(SecretMask::register);
         if (proxy != null) {
             int at = proxy.lastIndexOf('@');
             int scheme = proxy.indexOf("://");
@@ -44,6 +97,7 @@ public record Account(String username, String password, String server, String do
     @Override
     public String toString() {
         return "Account[username=" + username + ", server=" + server + ", password=" + (password == null ? "-" : "***")
-                + ", dosid=" + (dosid == null ? "-" : "***") + ", proxy=" + (proxy == null ? "-" : "***") + "]";
+                + ", dosid=" + (dosid == null ? "-" : "***") + (dosids.isEmpty() ? "" : ", other servers=" + dosids.keySet())
+                + ", proxy=" + (proxy == null ? "-" : "***") + "]";
     }
 }
