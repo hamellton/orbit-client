@@ -211,4 +211,42 @@ class CubikonModuleTest {
         var h = sim.hero();
         assertTrue(Math.hypot(h.x() - 7_500, h.y() - 3_900) <= 600, "back on the spawn: " + h);
     }
+
+    @Test
+    void goesBackFromSabWhenNoAmmunitionIsConfigured() throws Exception {
+        BotConfig base = config(0, false);
+        BotConfig c = base.withLoot(new BotConfig.Loot(null, "ammunition_laser_sab-50", 0.92, 0, null, true, 0))
+                .withNpcs(java.util.Map.of(
+                        "-=[ Cubikon ]=-", new BotConfig.NpcRule(550, -100, true, java.util.Set.of("IGNORE_OWNERSHIP"), java.util.Set.of(26), null, true),
+                        "-=[ Kristallin ]=-", new BotConfig.NpcRule(550, 0, true, java.util.Set.of(), java.util.Set.of(26), null, false)));
+        var settings = c.moduleSettings("cubikon");
+        settings.put("waitKill", "ALL");
+        Sim sim = new Sim(c.withModuleSettings("cubikon", settings), 26, 7_500, 3_900);
+        sim.lasers("ammunition_laser_ucb-100", "ammunition_laser_sab-50");
+        // own shield low, the cube has shield: SAB on the cube
+        orbit.protocol.gen.AttackHitCommand hit = new orbit.protocol.gen.AttackHitCommand();
+        hit.attackerId = 99;
+        hit.victimId = 1;
+        hit.victimHitpoints = 100_000;
+        hit.victimShield = 10_000;
+        sim.world.apply(hit, sim.now);
+        orbit.protocol.gen.ShipCreateCommand cube = new orbit.protocol.gen.ShipCreateCommand();
+        cube.userId = 77;
+        cube.npc = true;
+        cube.userName = "-=[ Cubikon ]=-";
+        cube.x = 7_700;
+        cube.y = 3_900;
+        sim.world.apply(cube, sim.now);
+        CubikonModule m = new CubikonModule(sim.ctx, SpawnMemory.inMemory());
+        sim.run(m::tick, 6_000);
+        assertEquals("ammunition_laser_sab-50", sim.world.snapshot(sim.now).selected("lasers").id(), "SAB on the cube");
+        orbit.protocol.gen.ShipDestroyedCommand d = new orbit.protocol.gen.ShipDestroyedCommand();
+        d.destroyedUserId = 77;
+        sim.world.apply(d, sim.now);
+        sim.npc(60, "-=[ Kristallin ]=-", 13_700, 3_900); // at the next spawn the bot moves on to
+        sim.run(m::tick, 40_000);
+        assertEquals(60, sim.hero().selected());
+        assertEquals("ammunition_laser_ucb-100", sim.world.snapshot(sim.now).selected("lasers").id(),
+                "UCB again on the Kristallin");
+    }
 }

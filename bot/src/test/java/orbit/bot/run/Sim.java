@@ -98,6 +98,8 @@ final class Sim {
             c.userId = s.targetId;
             c.hitpoints = 1_000_000;
             c.hitpointsMax = 1_000_000;
+            c.shield = 500_000;
+            c.shieldMax = 500_000;
             world.apply(c, now);
         } else if (p instanceof MenuActionRequest m && m.menuItemId.startsWith("ammunition_laser")) {
             MenuItemStatusCommand st = new MenuItemStatusCommand();

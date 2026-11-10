@@ -27,6 +27,8 @@ public final class Attacker {
     private long ammoAt = Long.MIN_VALUE / 2;
     private long nextApproach;
     private int kills;
+    /** The ammunition selected before the bot switched to SAB, to go back to when no ammunition is configured. */
+    private String beforeSab;
 
     public Attacker(BotContext ctx) {
         this.ctx = ctx;
@@ -108,6 +110,14 @@ public final class Attacker {
             return true;
         }
         String ammo = ammo(c, w, t);
+        WorldSnapshot.Item selected = w.selected("lasers");
+        String sab = c.loot().sab() != null ? c.loot().sab() : "ammunition_laser_sab-50";
+        if (ammo != null && ammo.equals(sab) && selected != null && !selected.id().equals(sab)) {
+            beforeSab = selected.id();
+        }
+        if (ammo == null && selected != null && selected.id().equals(sab) && beforeSab != null) {
+            ammo = beforeSab; // SAB is no longer wanted: back to what was in use
+        }
         WorldSnapshot.Item wanted = ammo == null ? null : w.items().get(ammo);
         if (wanted != null && !wanted.selected() && wanted.counter() > 0 && now - ammoAt > 1_500_000_000L) {
             if (pressAt == 0) {
