@@ -225,7 +225,7 @@ public final class Attacker {
     private void circle(WorldSnapshot.Hero h, WorldSnapshot.Ship t, double radius) {
         if (circleDir == 0) {
             circleDir = ctx.random().nextBoolean() ? 1 : -1;
-            log.info("Кружу вокруг {} ({}, радиус {})", t.name(), circleDir > 0 ? "против часовой" : "по часовой",
+            log.info("Кружу вокруг {} ({}, радиус {})", t.name(), circleDir > 0 ? "по часовой" : "против часовой",
                     (int) radius);
         }
         double angle = Math.atan2(h.y() - t.y(), h.x() - t.x())
