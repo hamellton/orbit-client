@@ -68,12 +68,15 @@ public final class BotRunner {
         return revive.deaths();
     }
 
-    /** The config changed (switched or edited): a different main module replaces the running one. */
+    /**
+     * The config changed (switched or edited): a different main module replaces the running one; the
+     * same module drops its plans so the new settings apply at once.
+     */
     public void configChanged() {
+        if (module != null) {
+            module.pause();
+        }
         if (ctx.config().get().module() != moduleKind) {
-            if (module != null) {
-                module.pause();
-            }
             ctx.nav().stop();
             loadModule();
         }

@@ -162,4 +162,29 @@ class CubikonModuleTest {
         sim.run(m::tick, 6_000);
         assertEquals(60, sim.hero().selected(), "the one attacking us near the spot");
     }
+
+    @Test
+    void afterACubikonDiesGoesToTheNextSpawnWhoeverShoots() throws Exception {
+        BotConfig c = config(0, false);
+        var settings = c.moduleSettings("cubikon");
+        settings.put("waitKill", "ATTACKERS");
+        Sim sim = new Sim(c.withModuleSettings("cubikon", settings), 26, 7_500, 3_900);
+        sim.lasers("ammunition_laser_ucb-100");
+        CubikonModule m = new CubikonModule(sim.ctx, SpawnMemory.inMemory());
+        sim.npc(77, "-=[ Cubikon ]=-", 7_600, 4_000);
+        sim.run(m::tick, 3_000);
+        orbit.protocol.gen.ShipDestroyedCommand d = new orbit.protocol.gen.ShipDestroyedCommand();
+        d.destroyedUserId = 77;
+        sim.world.apply(d, sim.now);
+        sim.npc(60, "-=[ Kristallin ]=-", 7_700, 4_100);
+        orbit.protocol.gen.AttackLaserRunCommand shot = new orbit.protocol.gen.AttackLaserRunCommand();
+        shot.attackerId = 60;
+        shot.targetId = 1;
+        sim.world.apply(shot, sim.now);
+        sim.run(m::tick, 25_000);
+        var h = sim.hero();
+        assertTrue(Math.hypot(h.x() - 13_400, h.y() - 3_900) <= 450, "on the next spawn (spot 2): " + h);
+        assertTrue(sim.sent.stream().noneMatch(p -> p instanceof ShipSelectRequest x && x.targetId == 60),
+                "did not stop to fight the Kristallin");
+    }
 }

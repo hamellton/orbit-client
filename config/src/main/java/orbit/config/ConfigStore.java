@@ -62,6 +62,16 @@ public final class ConfigStore {
         return Files.exists(file(name));
     }
 
+    /** When the config file last changed (0 if missing): to notice edits made in the window. */
+    public long modified(String name) {
+        checkName(name);
+        try {
+            return Files.getLastModifiedTime(file(name)).toMillis();
+        } catch (IOException e) {
+            return 0;
+        }
+    }
+
     public BotConfig load(String name) throws IOException {
         checkName(name);
         Path f = file(name);

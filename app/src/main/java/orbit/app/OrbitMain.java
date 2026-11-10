@@ -108,7 +108,7 @@ public final class OrbitMain {
         }
         boolean devScenario = o.fly != null || o.go != null || o.hunt != null || o.then != null || o.logout
                 || o.repairFree || o.repairAt != null;
-        orbit.config.BotConfig config = devScenario ? null : loadConfig(o);
+        NamedConfig config = devScenario ? null : loadConfig(o);
         char[] master = MasterPassword.obtain(false);
         Vault vault;
         try {
@@ -171,7 +171,7 @@ public final class OrbitMain {
             startFreeRepair(feed, conn, o.faction, o.repairAt);
         }
         if (config != null) {
-            ModuleRun run = startModule(feed, conn, config, o.minutes, profile);
+            ModuleRun run = startModule(feed, conn, config.name(), config.config(), o.minutes, profile);
             runUntilClosed(feed, o.headless, () -> run.finish(conn), runner);
             return;
         }
@@ -179,7 +179,10 @@ public final class OrbitMain {
     }
 
     /** The config to run: {@code --config}, else the account's one from {@code local/accounts.json}; checked. */
-    private static orbit.config.BotConfig loadConfig(Options o) throws java.io.IOException {
+    private record NamedConfig(String name, orbit.config.BotConfig config) {
+    }
+
+    private static NamedConfig loadConfig(Options o) throws java.io.IOException {
         String name = o.config;
         if (name == null) {
             name = orbit.config.AccountSettings.load(orbit.config.AccountSettings.DEFAULT_FILE).account(o.account).config();
@@ -199,7 +202,7 @@ public final class OrbitMain {
         }
         log.info("Конфиг «{}»: модуль {}, карта {}", name, c.module(),
                 orbit.world.maps.MapCatalog.bundled().info(c.general().workingMap()).name());
-        return c;
+        return new NamedConfig(name, c);
     }
 
     /** A running module: the loop thread and a way to finish it with a logout. */
@@ -220,7 +223,8 @@ public final class OrbitMain {
         }
     }
 
-    private static ModuleRun startModule(WorldFeed feed, GameConnection conn, orbit.config.BotConfig config, int minutes,
+    private static ModuleRun startModule(WorldFeed feed, GameConnection conn, String configName,
+                                         orbit.config.BotConfig config, int minutes,
                                          ClientProfile profile) {
         orbit.world.maps.MapCatalog catalog = orbit.world.maps.MapCatalog.bundled();
         java.util.Random random = new java.util.Random();
@@ -232,7 +236,9 @@ public final class OrbitMain {
             return new orbit.bot.act.Actions.Login(session.userId(), session.sessionId());
         }, orbit.bot.act.Actions.Screen.fromReadyString(profile.readyTypeStr()), random);
         orbit.bot.run.ShipSetup ship = new orbit.bot.run.ShipSetup(feed::snapshot, actions, System::nanoTime, random);
-        orbit.bot.run.BotContext ctx = new orbit.bot.run.BotContext(feed::snapshot, () -> config, actions, nav, traveler,
+        orbit.bot.run.ConfigWatch watch = new orbit.bot.run.ConfigWatch(orbit.config.ConfigStore.openDefault(), configName,
+                config, catalog);
+        orbit.bot.run.BotContext ctx = new orbit.bot.run.BotContext(feed::snapshot, watch::current, actions, nav, traveler,
                 catalog, random, System::nanoTime, conn::repair, ship, Path.of("local"));
         orbit.bot.run.BotRunner runner = new orbit.bot.run.BotRunner(ctx, feed::loggedOut, feed::setAction);
         java.util.concurrent.atomic.AtomicBoolean stopRequested = new java.util.concurrent.atomic.AtomicBoolean();
@@ -245,7 +251,14 @@ public final class OrbitMain {
                 if (minutes > 0) {
                     log.info("Бот работает {} мин, затем выйдет из игры", minutes);
                 }
+                long nextWatch = 0;
                 while (true) {
+                    if (System.currentTimeMillis() > nextWatch) {
+                        if (watch.poll()) {
+                            runner.configChanged();
+                        }
+                        nextWatch = System.currentTimeMillis() + 3_000;
+                    }
                     if (stopRequested.get()) {
                         runner.stop("остановлен пользователем");
                     } else if (System.currentTimeMillis() > until) {

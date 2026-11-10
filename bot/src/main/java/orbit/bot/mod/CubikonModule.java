@@ -22,6 +22,8 @@ import org.slf4j.LoggerFactory;
  *       {@code ATTACKERS} — only those shooting at us, {@code ALL}), boxes, otherwise
  *       the spawn spots: fly within {@code arriveDistance}, wait {@code waitSeconds} (0 = until a Cubikon
  *       shows up), next spot;</li>
+ *   <li>a Cubikon that dies in sight (whoever killed it): its boxes, then straight to the next spawn,
+ *       no fights on the way;</li>
  *   <li>NPCs the list marks "не бить" (Protegit) are never shot.</li>
  * </ul>
  * Spots ({@code spotMode}): {@code ROUND} — the config's spots in turn, nearest first; {@code LEARNED} —
@@ -37,8 +39,8 @@ public final class CubikonModule implements BotModule {
     static final double DEFAULT_WAIT_KILL_RANGE = 1_500;
     /** A Cubikon that vanishes this close was killed (farther, it may just have left the view). */
     static final double SEEN_DYING = 2_500;
-    /** In LEARNED mode a spawn due back within this long is worth flying to. */
-    static final long DUE_AHEAD_MS = 15 * 60_000L;
+    /** In LEARNED mode a spawn due back within this long is worth flying to (about the flight there). */
+    static final long DUE_AHEAD_MS = 2 * 60_000L;
     /** …and still worth waiting for this long after it was due. */
     static final long DUE_GRACE_MS = 3 * 60_000L;
 
@@ -56,6 +58,9 @@ public final class CubikonModule implements BotModule {
     private long arrivedAt;
     private long waitUntil;
     private boolean onCube;
+    /** A Cubikon just died here: head for the next spawn at once, no fights on the way. */
+    private int[] deadAt;
+    private boolean moveOn;
     private String status = "кубы";
 
     public CubikonModule(BotContext ctx, SpawnMemory memory) {
@@ -121,6 +126,16 @@ public final class CubikonModule implements BotModule {
         if (onCube) {
             onCube = false;
             spot = null; // pick the next spot afresh
+        }
+        if (moveOn) {
+            // the cube is dead: on to the next spawn whoever shoots at us; its boxes are still picked up
+            attacker.clear();
+            if (setting(s, "collectBoxes", true) && boxes.tick()) {
+                status = "подбираю ящик с куба";
+                return;
+            }
+            camp(s, h);
+            return;
         }
         if (attacker.targetId() != 0 && !attacker.tick(true)) {
             attacker.clear();
@@ -192,9 +207,15 @@ public final class CubikonModule implements BotModule {
                 return false;
             }
             int[] p = e.getValue();
-            if (learn && Math.hypot(p[0] - h.x(), p[1] - h.y()) <= SEEN_DYING) {
-                log.info("Cubikon у {}/{} уничтожен", p[0] / 100, p[1] / 100);
-                memory.killed(h.mapId(), p[0], p[1], now);
+            if (Math.hypot(p[0] - h.x(), p[1] - h.y()) <= SEEN_DYING) {
+                log.info("Cubikon у {}/{} уничтожен — лечу на следующий спаун", p[0] / 100, p[1] / 100);
+                deadAt = p;
+                moveOn = true;
+                spot = null;
+                ctx.nav().stop();
+                if (learn) {
+                    memory.killed(h.mapId(), p[0], p[1], now);
+                }
             }
             return true;
         });
@@ -223,6 +244,7 @@ public final class CubikonModule implements BotModule {
         }
         if (arrivedAt == 0) {
             arrivedAt = now;
+            moveOn = false;
             ctx.nav().stop();
             log.info("На спауне {}/{} — жду куб", spot[0] / 100, spot[1] / 100);
         }
@@ -242,6 +264,7 @@ public final class CubikonModule implements BotModule {
             long wall = wallMs();
             List<SpawnMemory.Spawn> known = memory.spawns(h.mapId());
             SpawnMemory.Spawn due = known.stream()
+                    .filter(k -> !nearDead(k.x(), k.y()))
                     .filter(k -> k.expectedAt() > 0 && k.expectedAt() > wall - DUE_GRACE_MS && k.expectedAt() < wall + DUE_AHEAD_MS)
                     .min(Comparator.comparingLong(SpawnMemory.Spawn::expectedAt)).orElse(null);
             if (due != null) {
@@ -254,8 +277,15 @@ public final class CubikonModule implements BotModule {
             }
             spots = merged(spots, known);
         }
-        if (roundIndex < 0 || roundIndex >= spots.size()) {
-            roundIndex = learned ? 0 : nearest(spots, h);
+        if (moveOn && deadAt != null) {
+            // the spawn after the one whose cube just died
+            int dead = nearest(spots, deadAt[0], deadAt[1]);
+            roundIndex = (dead + 1) % spots.size();
+            if (spots.size() > 1 && nearDead(spots.get(roundIndex)[0], spots.get(roundIndex)[1])) {
+                roundIndex = (roundIndex + 1) % spots.size();
+            }
+        } else if (roundIndex < 0 || roundIndex >= spots.size()) {
+            roundIndex = learned ? 0 : nearest(spots, h.x(), h.y());
         } else {
             roundIndex = (roundIndex + 1) % spots.size();
         }
@@ -308,11 +338,15 @@ public final class CubikonModule implements BotModule {
         return out;
     }
 
-    private static int nearest(List<int[]> spots, WorldSnapshot.Hero h) {
+    private boolean nearDead(double x, double y) {
+        return moveOn && deadAt != null && Math.hypot(x - deadAt[0], y - deadAt[1]) <= SpawnMemory.SAME_SPAWN;
+    }
+
+    private static int nearest(List<int[]> spots, double x, double y) {
         int best = 0;
         for (int i = 1; i < spots.size(); i++) {
-            if (Math.hypot(spots.get(i)[0] - h.x(), spots.get(i)[1] - h.y())
-                    < Math.hypot(spots.get(best)[0] - h.x(), spots.get(best)[1] - h.y())) {
+            if (Math.hypot(spots.get(i)[0] - x, spots.get(i)[1] - y)
+                    < Math.hypot(spots.get(best)[0] - x, spots.get(best)[1] - y)) {
                 best = i;
             }
         }
