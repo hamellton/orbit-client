@@ -29,6 +29,9 @@ final class GeneralSection implements Section {
     private final JCheckBox runTravel = new JCheckBox("Перелёты (между картами и спаунами) — в конфигурации бегства");
     private final JCheckBox runChase = new JCheckBox("Догонять цель в конфигурации бегства");
     private final JTextArea description = new JTextArea(5, 50);
+    private final JSpinner work = Form.number(0, 24 * 60, 10);
+    private final JSpinner rest = Form.number(0, 24 * 60, 5);
+    private final JSpinner jitter = Form.number(0, 120, 1);
     private final JComponent view;
 
     GeneralSection(MapCatalog maps) {
@@ -54,6 +57,13 @@ final class GeneralSection implements Section {
                 .section("Облёт карты")
                 .row("", sequential)
                 .row("", onlyPreferred)
+                .section("Сессии")
+                .row("Работать, мин", work)
+                .row("Потом перерыв, мин", rest)
+                .row("Разброс ±, мин", jitter)
+                .note("0 — работать без ограничения. После перерыва бот сам входит снова. Если у аккаунта включено "
+                        + "расписание, сессия не выходит за его окно. Разброс делает каждую сессию и перерыв чуть "
+                        + "другой длины, как у живого игрока.")
                 .section("Описание")
                 .wide(new JScrollPane(description), false)
                 .build(true);
@@ -83,6 +93,9 @@ final class GeneralSection implements Section {
         onlyPreferred.setSelected(c.general().onlyKillPreferred());
         runTravel.setSelected(c.general().runModeTravel());
         runChase.setSelected(c.general().runModeChase());
+        Form.set(work, c.session().workMinutes());
+        Form.set(rest, c.session().breakMinutes());
+        Form.set(jitter, c.session().jitterMinutes());
         description.setText(c.description());
         description.setCaretPosition(0);
     }
@@ -92,8 +105,10 @@ final class GeneralSection implements Section {
         BotConfig.General g = new BotConfig.General(map.mapId(), offensive.get(), roam.get(), run.get(),
                 runFromEnemies.isSelected(), runInSight.isSelected(), Form.intOf(remember), sequential.isSelected(),
                 onlyPreferred.isSelected(), runTravel.isSelected(), runChase.isSelected());
-        return c.withModule(BotConfig.Module.values()[module.getSelectedIndex()]).withGeneral(g)
+        BotConfig.Session session = new BotConfig.Session(Form.intOf(work), Form.intOf(rest), Form.intOf(jitter));
+        BotConfig out = c.withModule(BotConfig.Module.values()[module.getSelectedIndex()]).withGeneral(g)
                 .withDescription(description.getText().strip());
+        return session.equals(c.session()) ? out : out.withSession(session);
     }
 
     /** Configuration 1/2 and a formation. */

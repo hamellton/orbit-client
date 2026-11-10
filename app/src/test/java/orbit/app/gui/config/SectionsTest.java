@@ -67,7 +67,8 @@ class SectionsTest {
                 c.safety(), c.zones(), Map.of(26, List.of(new BotConfig.SafetySpot("PORTAL", 1000, 2000, "ALWAYS", "NEVER"))),
                 c.modules(), Map.of("darkbot.GROUP", Json.MAPPER.readTree("{\"ACCEPT_INVITES\": false}")),
                 new BotConfig.Buy(true, List.of(new BotConfig.BuyRule("ammunition_laser_lcb-10", 10_000, 50_000),
-                        new BotConfig.BuyRule("ammunition_rocket_plt-2026", 200, 1_000)), 1_000_000, 5_000));
+                        new BotConfig.BuyRule("ammunition_rocket_plt-2026", 200, 1_000)), 1_000_000, 5_000))
+                .withSession(new BotConfig.Session(120, 20, 10));
     }
 
     @Test

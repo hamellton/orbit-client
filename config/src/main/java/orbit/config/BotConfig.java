@@ -41,7 +41,8 @@ public record BotConfig(
         Map<Integer, List<SafetySpot>> safetySpots,
         Map<String, JsonNode> modules,
         Map<String, JsonNode> extra,
-        Buy buy) {
+        Buy buy,
+        Session session) {
 
     public static final int SCHEMA = 1;
 
@@ -60,6 +61,35 @@ public record BotConfig(
         modules = modules == null ? Map.of() : sorted(modules);
         extra = extra == null ? Map.of() : sorted(extra);
         buy = buy == null ? Buy.OFF : buy;
+        session = session == null ? Session.ENDLESS : session;
+    }
+
+    public BotConfig(int schema, String description, Module module, General general, Map<String, NpcRule> npcs,
+                     Loot loot, Collect collect, Pet pet, Safety safety, Map<Integer, Zones> zones,
+                     Map<Integer, List<SafetySpot>> safetySpots, Map<String, JsonNode> modules,
+                     Map<String, JsonNode> extra, Buy buy) {
+        this(schema, description, module, general, npcs, loot, collect, pet, safety, zones, safetySpots, modules, extra,
+                buy, null);
+    }
+
+    public BotConfig withSession(Session ss) {
+        return new BotConfig(schema, description, module, general, npcs, loot, collect, pet, safety, zones, safetySpots,
+                modules, extra, buy, ss);
+    }
+
+    /**
+     * Sessions like a player's (AstraBot's break time): work {@code workMinutes}, then a break of
+     * {@code breakMinutes}, both moved by up to {@code jitterMinutes}; {@code workMinutes} 0 = no limit.
+     */
+    public record Session(int workMinutes, int breakMinutes, int jitterMinutes) {
+
+        public static final Session ENDLESS = new Session(0, 0, 0);
+
+        public Session {
+            workMinutes = Math.max(0, workMinutes);
+            breakMinutes = Math.max(0, breakMinutes);
+            jitterMinutes = Math.max(0, jitterMinutes);
+        }
     }
 
     public BotConfig(int schema, String description, Module module, General general, Map<String, NpcRule> npcs,
@@ -72,7 +102,7 @@ public record BotConfig(
 
     public BotConfig withBuy(Buy b) {
         return new BotConfig(schema, description, module, general, npcs, loot, collect, pet, safety, zones, safetySpots,
-                modules, extra, b);
+                modules, extra, b, session);
     }
 
     /**
@@ -99,45 +129,45 @@ public record BotConfig(
     }
 
     public BotConfig withModule(Module m) {
-        return new BotConfig(schema, description, m, general, npcs, loot, collect, pet, safety, zones, safetySpots, modules, extra, buy);
+        return new BotConfig(schema, description, m, general, npcs, loot, collect, pet, safety, zones, safetySpots, modules, extra, buy, session);
     }
 
     public BotConfig withGeneral(General g) {
-        return new BotConfig(schema, description, module, g, npcs, loot, collect, pet, safety, zones, safetySpots, modules, extra, buy);
+        return new BotConfig(schema, description, module, g, npcs, loot, collect, pet, safety, zones, safetySpots, modules, extra, buy, session);
     }
 
     public BotConfig withNpcs(Map<String, NpcRule> n) {
-        return new BotConfig(schema, description, module, general, n, loot, collect, pet, safety, zones, safetySpots, modules, extra, buy);
+        return new BotConfig(schema, description, module, general, n, loot, collect, pet, safety, zones, safetySpots, modules, extra, buy, session);
     }
 
     public BotConfig withSafety(Safety s) {
-        return new BotConfig(schema, description, module, general, npcs, loot, collect, pet, s, zones, safetySpots, modules, extra, buy);
+        return new BotConfig(schema, description, module, general, npcs, loot, collect, pet, s, zones, safetySpots, modules, extra, buy, session);
     }
 
     public BotConfig withDescription(String d) {
-        return new BotConfig(schema, d, module, general, npcs, loot, collect, pet, safety, zones, safetySpots, modules, extra, buy);
+        return new BotConfig(schema, d, module, general, npcs, loot, collect, pet, safety, zones, safetySpots, modules, extra, buy, session);
     }
 
     public BotConfig withLoot(Loot l) {
-        return new BotConfig(schema, description, module, general, npcs, l, collect, pet, safety, zones, safetySpots, modules, extra, buy);
+        return new BotConfig(schema, description, module, general, npcs, l, collect, pet, safety, zones, safetySpots, modules, extra, buy, session);
     }
 
     public BotConfig withCollect(Collect c) {
-        return new BotConfig(schema, description, module, general, npcs, loot, c, pet, safety, zones, safetySpots, modules, extra, buy);
+        return new BotConfig(schema, description, module, general, npcs, loot, c, pet, safety, zones, safetySpots, modules, extra, buy, session);
     }
 
     public BotConfig withPet(Pet p) {
-        return new BotConfig(schema, description, module, general, npcs, loot, collect, p, safety, zones, safetySpots, modules, extra, buy);
+        return new BotConfig(schema, description, module, general, npcs, loot, collect, p, safety, zones, safetySpots, modules, extra, buy, session);
     }
 
     public BotConfig withZones(Map<Integer, Zones> z) {
-        return new BotConfig(schema, description, module, general, npcs, loot, collect, pet, safety, z, safetySpots, modules, extra, buy);
+        return new BotConfig(schema, description, module, general, npcs, loot, collect, pet, safety, z, safetySpots, modules, extra, buy, session);
     }
 
     public BotConfig withModuleSettings(String key, JsonNode settings) {
         Map<String, JsonNode> m = new TreeMap<>(modules);
         m.put(key, settings);
-        return new BotConfig(schema, description, module, general, npcs, loot, collect, pet, safety, zones, safetySpots, m, extra, buy);
+        return new BotConfig(schema, description, module, general, npcs, loot, collect, pet, safety, zones, safetySpots, m, extra, buy, session);
     }
 
     /** Settings of a module, or an empty object. */

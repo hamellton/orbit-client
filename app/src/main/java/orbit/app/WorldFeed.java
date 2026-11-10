@@ -118,6 +118,12 @@ public final class WorldFeed {
         return state;
     }
 
+    /** A new login is about to start: the last one's logout and clock no longer count. */
+    public void newSession() {
+        loggedOut = false;
+        sessionStart = 0;
+    }
+
     public boolean loggedOut() {
         return loggedOut;
     }

@@ -108,7 +108,9 @@ public final class OrbitMain {
         }
         boolean devScenario = o.fly != null || o.go != null || o.hunt != null || o.then != null || o.logout
                 || o.repairFree || o.repairAt != null;
-        NamedConfig config = devScenario ? null : loadConfig(o);
+        if (!devScenario && hasPlan(o) && o.config != null) {
+            loadConfig(o.config, true); // a broken --config stops here, before the password is asked
+        }
         char[] master = MasterPassword.obtain(false);
         Vault vault;
         try {
@@ -157,6 +159,10 @@ public final class OrbitMain {
                 return auth.serverForMap(s, mapId);
             }
         };
+        if (!devScenario && hasPlan(o)) {
+            supervise(o, feed, profile, auth, source, listener);
+            return;
+        }
         GameConnection conn = new GameConnection(source, listener, ConnectionSettings.defaults(Proxy.NO_PROXY),
                 StartupSequence.clientLike(profile));
         Thread runner = Thread.ofPlatform().name("game").start(conn::run);
@@ -169,13 +175,6 @@ public final class OrbitMain {
         }
         if (o.repairFree || o.repairAt != null) {
             startFreeRepair(feed, conn, o.faction, o.repairAt);
-        }
-        if (config != null) {
-            ModuleRun run = startModule(feed, conn, config.name(), config.config(), o.minutes, profile,
-                    Path.of("local", "stop-" + o.account), shopFor(auth, conn));
-            runUntilClosed(feed, o.headless, () -> run.finish(conn), runner);
-            System.exit(0); // the window's threads would keep the program alive
-            return;
         }
         runUntilClosed(feed, o.headless, conn::close, runner);
     }
@@ -213,35 +212,160 @@ public final class OrbitMain {
     }
 
     /** The config to run: {@code --config}, else the account's one from {@code local/accounts.json}; checked. */
-    private record NamedConfig(String name, orbit.config.BotConfig config) {
+    /** A config to run: {@code --config}, the account's config or its timetable. */
+    private static boolean hasPlan(Options o) throws java.io.IOException {
+        if (o.config != null) {
+            return true;
+        }
+        var acc = orbit.config.AccountSettings.load(orbit.config.AccountSettings.DEFAULT_FILE).account(o.account);
+        boolean plan = acc.config() != null || (acc.schedule().enabled() && !acc.schedule().entries().isEmpty());
+        if (!plan) {
+            log.info("Конфиг не выбран (--config или «Аккаунты» в orbit configs) — бот только держит связь");
+        }
+        return plan;
     }
 
-    private static NamedConfig loadConfig(Options o) throws java.io.IOException {
-        String name = o.config;
-        if (name == null) {
-            name = orbit.config.AccountSettings.load(orbit.config.AccountSettings.DEFAULT_FILE).account(o.account).config();
-        }
-        if (name == null) {
-            log.info("Конфиг не выбран (--config или «Аккаунты» в orbit configs) — бот только держит связь");
+    /** A checked config, or {@code null} (logged) when it cannot run; {@code exitOnError} for the start. */
+    private static orbit.config.BotConfig loadConfig(String name, boolean exitOnError) throws java.io.IOException {
+        orbit.config.BotConfig c;
+        try {
+            c = orbit.config.ConfigStore.openDefault().load(name);
+        } catch (java.io.IOException e) {
+            if (exitOnError) {
+                throw e;
+            }
+            log.error("Конфиг «{}»: {}", name, e.getMessage());
             return null;
         }
-        orbit.config.BotConfig c = orbit.config.ConfigStore.openDefault().load(name);
         List<orbit.config.ConfigCheck.Problem> problems = orbit.config.ConfigCheck.check(c, orbit.world.maps.MapCatalog.bundled());
         for (orbit.config.ConfigCheck.Problem p : problems) {
             log.warn("Конфиг «{}»: {}", name, p);
         }
         if (orbit.config.ConfigCheck.hasErrors(problems)) {
-            System.err.println("Конфиг «" + name + "» с ошибками — бот не запущен");
-            System.exit(2);
+            if (exitOnError) {
+                System.err.println("Конфиг «" + name + "» с ошибками — бот не запущен");
+                System.exit(2);
+            }
+            log.error("Конфиг «{}» с ошибками — сессия пропущена", name);
+            return null;
         }
         log.info("Конфиг «{}»: модуль {}, карта {}", name, c.module(),
                 orbit.world.maps.MapCatalog.bundled().info(c.general().workingMap()).name());
-        return new NamedConfig(name, c);
+        return c;
+    }
+
+    /**
+     * Sessions: the planner says when to play which config (timetable, work/break, {@code --minutes});
+     * each session is a fresh login, played until its end, then a logout at a portal; between them the
+     * bot is offline. Closing the window or {@code local/stop-<account>} ends it all gracefully.
+     */
+    private static void supervise(Options o, WorldFeed feed, ClientProfile profile, AuthClient auth, SessionSource source,
+                                  GameListener listener) throws Exception {
+        var account = orbit.config.AccountSettings.load(orbit.config.AccountSettings.DEFAULT_FILE).account(o.account);
+        var planner = new orbit.config.SessionPlanner(account, o.config, o.account.hashCode(), new java.util.Random());
+        Path stopFile = Path.of("local", "stop-" + o.account);
+        long testEnd = o.minutes > 0 ? System.currentTimeMillis() + o.minutes * 60_000L : Long.MAX_VALUE;
+        java.util.concurrent.atomic.AtomicBoolean closed = new java.util.concurrent.atomic.AtomicBoolean();
+        java.util.concurrent.atomic.AtomicReference<ModuleRun> current = new java.util.concurrent.atomic.AtomicReference<>();
+        java.util.concurrent.atomic.AtomicReference<GameConnection> currentConn = new java.util.concurrent.atomic.AtomicReference<>();
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            GameConnection c = currentConn.get();
+            if (c != null) {
+                c.close();
+            }
+        }));
+        Thread sessions = Thread.ofPlatform().name("sessions").start(() -> {
+            try {
+                while (!closed.get()) {
+                    java.time.LocalDateTime now = java.time.LocalDateTime.now();
+                    var plan = planner.next(now, name -> {
+                        try {
+                            return orbit.config.ConfigStore.openDefault().load(name).session();
+                        } catch (java.io.IOException e) {
+                            return null;
+                        }
+                    });
+                    if (!plan.online()) {
+                        restUntil(feed, closed, stopFile, plan.until(), "не в игре: " + plan.reason());
+                        continue;
+                    }
+                    orbit.config.BotConfig cfg = loadConfig(plan.config(), false);
+                    if (cfg == null) {
+                        restUntil(feed, closed, stopFile, now.plusMinutes(1), "конфиг «" + plan.config() + "» не запускается");
+                        continue;
+                    }
+                    long end = plan.until() == null ? Long.MAX_VALUE
+                            : plan.until().atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli();
+                    String why = plan.reason();
+                    if (testEnd < end) {
+                        end = testEnd;
+                        why = "--minutes " + o.minutes;
+                    }
+                    feed.newSession();
+                    GameConnection conn = new GameConnection(source, listener, ConnectionSettings.defaults(Proxy.NO_PROXY),
+                            StartupSequence.clientLike(profile));
+                    currentConn.set(conn);
+                    Thread game = Thread.ofPlatform().name("game").start(conn::run);
+                    ModuleRun run = startModule(feed, conn, plan.config(), cfg, end, why, profile, stopFile,
+                            shopFor(auth, conn));
+                    current.set(run);
+                    run.done().await();
+                    conn.close();
+                    game.join(10_000);
+                    current.set(null);
+                    if (closed.get() || run.commanded().get() || System.currentTimeMillis() >= testEnd
+                            || run.runner().state() == orbit.bot.run.BotRunner.State.FAILED) {
+                        break;
+                    }
+                    if (!plan.breakAfter().isZero() && System.currentTimeMillis() >= end - 1_000) {
+                        restUntil(feed, closed, stopFile, java.time.LocalDateTime.now().plus(plan.breakAfter()), "перерыв");
+                    }
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            } catch (RuntimeException | java.io.IOException e) {
+                log.error("Ошибка расписания сессий", e);
+            }
+            log.info("Сессии завершены");
+        });
+        runUntilClosed(feed, o.headless, () -> {
+            closed.set(true);
+            ModuleRun run = current.get();
+            GameConnection c = currentConn.get();
+            if (run != null && c != null) {
+                run.finish(c);
+            }
+        }, sessions);
+        closed.set(true);
+        sessions.join(5_000);
+        System.exit(0); // the window's threads would keep the program alive
+    }
+
+    /** Offline until a moment (or a stop): the window shows why and until when. */
+    private static void restUntil(WorldFeed feed, java.util.concurrent.atomic.AtomicBoolean closed, Path stopFile,
+                                  java.time.LocalDateTime until, String why) throws InterruptedException {
+        java.time.LocalDateTime end = until == null ? java.time.LocalDateTime.now().plusMinutes(1) : until;
+        String text = why + " до " + end.toLocalTime().withNano(0);
+        log.info("Не в игре: {}", text);
+        feed.setState(text);
+        feed.setAction(null);
+        while (!closed.get() && java.time.LocalDateTime.now().isBefore(end)) {
+            if (Files.exists(stopFile)) {
+                try {
+                    Files.deleteIfExists(stopFile);
+                } catch (java.io.IOException ignored) {
+                    // checked again next second
+                }
+                closed.set(true);
+                break;
+            }
+            Thread.sleep(1_000);
+        }
     }
 
     /** A running module: the loop thread and a way to finish it with a logout. */
     private record ModuleRun(orbit.bot.run.BotRunner runner, java.util.concurrent.atomic.AtomicBoolean stopRequested,
-                             CountDownLatch done) {
+                             CountDownLatch done, java.util.concurrent.atomic.AtomicBoolean commanded) {
 
         /** Asks for a graceful stop (portal, logout) and waits for it, at most two minutes; then closes. */
         void finish(GameConnection conn) {
@@ -258,7 +382,7 @@ public final class OrbitMain {
     }
 
     private static ModuleRun startModule(WorldFeed feed, GameConnection conn, String configName,
-                                         orbit.config.BotConfig config, int minutes,
+                                         orbit.config.BotConfig config, long untilMillis, String untilReason,
                                          ClientProfile profile, Path stopFile, orbit.bot.run.ShopAccess shop) {
         orbit.world.maps.MapCatalog catalog = orbit.world.maps.MapCatalog.bundled();
         java.util.Random random = new java.util.Random();
@@ -279,14 +403,17 @@ public final class OrbitMain {
         orbit.bot.run.BotRunner runner = new orbit.bot.run.BotRunner(ctx, feed::loggedOut, feed::setAction);
         runner.setShop(shop);
         java.util.concurrent.atomic.AtomicBoolean stopRequested = new java.util.concurrent.atomic.AtomicBoolean();
+        java.util.concurrent.atomic.AtomicBoolean commanded = new java.util.concurrent.atomic.AtomicBoolean();
         CountDownLatch done = new CountDownLatch(1);
-        long until = minutes > 0 ? System.currentTimeMillis() + minutes * 60_000L : Long.MAX_VALUE;
+        long until = untilMillis;
         Thread.ofPlatform().name("bot-loop").daemon().start(() -> {
             try {
                 waitAlive(feed);
                 Thread.sleep(4_000 + random.nextInt(3_000)); // look around after logging in
-                if (minutes > 0) {
-                    log.info("Бот работает {} мин, затем выйдет из игры", minutes);
+                if (until != Long.MAX_VALUE) {
+                    log.info("Бот работает до {} ({}), затем выйдет из игры",
+                            java.time.LocalTime.ofInstant(java.time.Instant.ofEpochMilli(until),
+                                    java.time.ZoneId.systemDefault()).withNano(0), untilReason);
                 }
                 long nextWatch = 0;
                 while (true) {
@@ -303,12 +430,13 @@ public final class OrbitMain {
                         } catch (java.io.IOException e) {
                             log.warn("Не удалить {}: {}", stopFile, e.getMessage());
                         }
+                        commanded.set(true);
                         runner.stop("остановлен по команде (" + stopFile.getFileName() + ")");
                     }
                     if (stopRequested.get()) {
                         runner.stop("остановлен пользователем");
                     } else if (System.currentTimeMillis() > until) {
-                        runner.stop("время работы вышло");
+                        runner.stop("время вышло: " + untilReason);
                     }
                     runner.tick();
                     var st = runner.state();
@@ -324,16 +452,13 @@ public final class OrbitMain {
             } catch (RuntimeException e) {
                 log.error("Ошибка в цикле бота", e);
             } finally {
-                done.countDown();
                 if (!stopRequested.get()) {
-                    // finished by itself (time, deaths, error): end the program
-                    conn.close();
-                    log.info("Программа завершается");
-                    System.exit(0);
+                    conn.close(); // finished by itself (time, deaths, error, command): the session is over
                 }
+                done.countDown();
             }
         });
-        return new ModuleRun(runner, stopRequested, done);
+        return new ModuleRun(runner, stopRequested, done, commanded);
     }
 
     /**
