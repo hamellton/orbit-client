@@ -383,7 +383,7 @@ public final class CubikonModule implements BotModule {
         }
         spot = best;
         long margin = DUE_GRACE_MS;
-        long waitMs = bestReady > 0 ? Math.max(0, bestReady - wall) + margin
+        long waitMs = bestReady > 0 ? Math.max(LOOK_MS, bestReady + margin - wall)
                 : respawn > 0 ? LOOK_MS
                 : waitSec > 0 ? waitSec * 1_000L : Long.MAX_VALUE / 2_000_000;
         waitUntil = now + waitMs * 1_000_000L + ctx.pause(0, 5_000);
