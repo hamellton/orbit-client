@@ -231,7 +231,8 @@ public final class DarkBotImport {
                 sab.path("ENABLED").asBoolean(false) ? SAB : null,
                 sab.path("PERCENT").asDouble(0), sab.path("NPC_AMOUNT").asInt(0),
                 rsb.path("ENABLED").asBoolean(false) ? RSB : null,
-                l.path("GROUP_NPCS").asBoolean(true), l.path("NPC_DISTANCE_IGNORE").asInt(0));
+                l.path("GROUP_NPCS").asBoolean(true), l.path("NPC_DISTANCE_IGNORE").asInt(0), null, false,
+                true, null); // DarkBot circles round its target unless an NPC has NO_CIRCLE
     }
 
     private static BotConfig.Collect collect(JsonNode c) {

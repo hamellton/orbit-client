@@ -374,7 +374,9 @@ public record BotConfig(
         /** the pet uses the NPC locator to find it */
         PET_LOCATOR,
         /** a moment for the pet's kamikaze (gates) */
-        KAMIKAZE
+        KAMIKAZE,
+        /** do not fly round it */
+        NO_CIRCLE
     }
 
     /**
@@ -390,17 +392,29 @@ public record BotConfig(
      * @param ignoreFartherThan ignore NPCs farther than this
      * @param rocket      rocket type to keep selected ({@code null} = as in the game, {@link #NO_ROCKETS} = none)
      * @param fireRockets the bot launches rockets itself (ships without the automatic rocket CPU)
+     * @param circle      fly round the target at its radius (NPCs flagged {@code NO_CIRCLE} excepted)
+     * @param fallback    ammunition to take, in order, when the wanted one has run out
      */
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public record Loot(String ammo, String sab, double sabBelow, int sabNpcShieldMin, String rsb,
-                       boolean groupNpcs, int ignoreFartherThan, String rocket, boolean fireRockets) {
+                       boolean groupNpcs, int ignoreFartherThan, String rocket, boolean fireRockets, boolean circle,
+                       List<String> fallback) {
 
         public static final String NO_ROCKETS = "none";
         public static final Loot DEFAULT = new Loot(null, null, 0, 0, null, true, 0);
 
+        public Loot {
+            fallback = fallback == null ? List.of() : List.copyOf(fallback);
+        }
+
         public Loot(String ammo, String sab, double sabBelow, int sabNpcShieldMin, String rsb, boolean groupNpcs,
                     int ignoreFartherThan) {
             this(ammo, sab, sabBelow, sabNpcShieldMin, rsb, groupNpcs, ignoreFartherThan, null, false);
+        }
+
+        public Loot(String ammo, String sab, double sabBelow, int sabNpcShieldMin, String rsb, boolean groupNpcs,
+                    int ignoreFartherThan, String rocket, boolean fireRockets) {
+            this(ammo, sab, sabBelow, sabNpcShieldMin, rsb, groupNpcs, ignoreFartherThan, rocket, fireRockets, false, null);
         }
     }
 

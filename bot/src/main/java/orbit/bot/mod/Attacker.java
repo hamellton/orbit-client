@@ -34,6 +34,8 @@ public final class Attacker {
     private long nextApproach;
     private int kills;
     private boolean t0Cubikon;
+    private int circleDir;
+    private String fallbackTold;
     /** Wanted ammunition already reported missing (logged once). */
     private String missingAmmo;
     private String missingRocket;
@@ -69,6 +71,7 @@ public final class Attacker {
         }
         targetId = s.id();
         shotAt = false;
+        circleDir = 0;
         t0Cubikon = CubikonModule.isCubikon(s);
         if (t0Cubikon) {
             ctx.stats().cubeFought(s.id());
@@ -123,6 +126,10 @@ public final class Attacker {
             double k = Math.max(0, (d - radius) / d);
             ctx.nav().moveTo(h.x() + (tx - h.x()) * k, h.y() + (ty - h.y()) * k, false);
             nextApproach = now + (follow ? ctx.pause(400, 800) : ctx.pause(700, 1_200));
+        } else if (move && c.loot().circle() && (rule == null || !rule.has(BotConfig.NpcFlag.NO_CIRCLE))
+                && now >= nextApproach) {
+            circle(h, t, radius);
+            nextApproach = now + ctx.pause(900, 1_500);
         }
         if (move) {
             ctx.nav().tick();
@@ -138,7 +145,13 @@ public final class Attacker {
             }
             return true;
         }
-        String ammo = ammo(c, w, t);
+        String main = ammo(c, w, t);
+        String ammo = usable(c, w, main);
+        if (ammo != null && !ammo.equals(main) && !ammo.equals(fallbackTold)) {
+            fallbackTold = ammo;
+            log.info("Патроны {} кончились — беру запасные {}", orbit.config.ItemCatalog.label(main),
+                    orbit.config.ItemCatalog.label(ammo));
+        }
         WorldSnapshot.Item selected = w.selected("lasers");
         String sab = c.loot().sab() != null ? c.loot().sab() : "ammunition_laser_sab-50";
         if (ammo != null && ammo.equals(sab) && selected != null && !selected.id().equals(sab)) {
@@ -202,6 +215,23 @@ public final class Attacker {
         return true;
     }
 
+    /** Each circling click moves on this much of the circle (radians), like a player dragging the mouse round. */
+    static final double CIRCLE_STEP = Math.toRadians(35);
+
+    /**
+     * Within the radius: the next point a little further round the target, at the radius give or take a
+     * few percent, always the same way round for one target.
+     */
+    private void circle(WorldSnapshot.Hero h, WorldSnapshot.Ship t, double radius) {
+        if (circleDir == 0) {
+            circleDir = ctx.random().nextBoolean() ? 1 : -1;
+        }
+        double angle = Math.atan2(h.y() - t.y(), h.x() - t.x())
+                + circleDir * CIRCLE_STEP * (0.8 + 0.4 * ctx.random().nextDouble());
+        double r = radius * (0.92 + 0.1 * ctx.random().nextDouble());
+        ctx.nav().moveTo(t.x() + Math.cos(angle) * r, t.y() + Math.sin(angle) * r, false);
+    }
+
     /** Rockets are launched this close at most (a little beyond the laser radius). */
     static final double ROCKET_EXTRA = 200;
 
@@ -252,6 +282,24 @@ public final class Attacker {
     static String rocket(BotConfig c, WorldSnapshot w, WorldSnapshot.Ship t) {
         BotConfig.NpcRule r = Targets.rule(c, t, w.hero().mapId());
         return r != null && r.rocket() != null ? r.rocket() : c.loot().rocket();
+    }
+
+    /** The wanted ammunition if there is enough, else the first fallback that has enough, else the wanted. */
+    static String usable(BotConfig c, WorldSnapshot w, String wanted) {
+        if (wanted == null) {
+            return null;
+        }
+        WorldSnapshot.Item item = w.items().get(wanted);
+        if (item != null && item.counter() >= MIN_AMMO) {
+            return wanted;
+        }
+        for (String f : c.loot().fallback()) {
+            WorldSnapshot.Item fi = w.items().get(f);
+            if (fi != null && fi.counter() >= MIN_AMMO) {
+                return f;
+            }
+        }
+        return wanted;
     }
 
     /**

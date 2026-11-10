@@ -39,6 +39,9 @@ final class KillSection implements Section {
     }
 
     private final ItemBox rocket = new ItemBox(ROCKET_CHOICES, true);
+    private final ItemBox fallback1 = new ItemBox(ItemCatalog.LASERS, true);
+    private final ItemBox fallback2 = new ItemBox(ItemCatalog.LASERS, true);
+    private final JCheckBox circle = new JCheckBox("Кружить вокруг цели на её радиусе");
     private final JCheckBox fireRockets = new JCheckBox("Пускать ракеты самому (если на корабле нет ракетного CPU)");
     private final JSpinner ignoreFarther = Form.number(0, 50_000, 500);
     private final NpcTable npcs;
@@ -95,6 +98,7 @@ final class KillSection implements Section {
         view = new Form()
                 .section("Патроны")
                 .row("Лазерные патроны", ammo)
+                .row("Запасные, если кончились", Form.inline(fallback1, fallback2))
                 .row("", Form.inline(useSab, sabBelow, new javax.swing.JLabel("%")))
                 .row("Патроны SAB", sab)
                 .row("Щит NPC не меньше", sabNpcShield)
@@ -106,6 +110,9 @@ final class KillSection implements Section {
                 .note("С ракетным CPU сервер сам пускает выбранные ракеты, пока идёт атака: бот только держит нужный "
                         + "тип. Свой тип для отдельного NPC — колонка «Ракеты» в списке.")
                 .section("Цели")
+                .row("", circle)
+                .note("Как в DarkBot: корабль летает по кругу вокруг цели, часть выстрелов проходит мимо. У NPC с "
+                        + "флагом NO_CIRCLE бот не кружит; пока ждёт куб на споте — тоже стоит.")
                 .row("", groupNpcs)
                 .row("Не замечать NPC дальше", ignoreFarther)
                 .section("Список NPC")
@@ -115,6 +122,16 @@ final class KillSection implements Section {
                         + "(бить, даже если чужой), IGNORE_ATTACKED, PASSIVE (не убегать от него), AGGRESSIVE_FOLLOW (преследовать), NO_CIRCLE, PET_LOCATOR, KAMIKAZE.")
                 .wide(list, true)
                 .build(false);
+    }
+
+    private java.util.List<String> fallbacks() {
+        java.util.List<String> out = new java.util.ArrayList<>();
+        for (ItemBox b : new ItemBox[] {fallback1, fallback2}) {
+            if (b.get() != null && !out.contains(b.get())) {
+                out.add(b.get());
+            }
+        }
+        return out;
     }
 
     private void sync() {
@@ -147,6 +164,9 @@ final class KillSection implements Section {
         rsb.set(l.rsb() != null ? l.rsb() : "ammunition_laser_rsb-75");
         groupNpcs.setSelected(l.groupNpcs());
         rocket.set(l.rocket());
+        fallback1.set(l.fallback().size() > 0 ? l.fallback().get(0) : null);
+        fallback2.set(l.fallback().size() > 1 ? l.fallback().get(1) : null);
+        circle.setSelected(l.circle());
         fireRockets.setSelected(l.fireRockets());
         Form.set(ignoreFarther, l.ignoreFartherThan());
         npcs.load(c.npcs());
@@ -161,7 +181,7 @@ final class KillSection implements Section {
         BotConfig.Loot l = new BotConfig.Loot(ammo.get(), useSab.isSelected() ? sab.get() : null,
                 useSab.isSelected() ? Form.fraction(sabBelow) : loaded.sabBelow(), Form.intOf(sabNpcShield),
                 useRsb.isSelected() ? rsb.get() : null, groupNpcs.isSelected(), Form.intOf(ignoreFarther), rocket.get(),
-                fireRockets.isSelected());
+                fireRockets.isSelected(), circle.isSelected(), fallbacks());
         Map<String, BotConfig.NpcRule> list = new TreeMap<>(npcs.get());
         return c.withLoot(l).withNpcs(list);
     }

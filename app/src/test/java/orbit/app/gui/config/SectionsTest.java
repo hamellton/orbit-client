@@ -51,7 +51,8 @@ class SectionsTest {
                         "-=[ Cubikon ]=-", new BotConfig.NpcRule(550, -100, true, Set.of("IGNORE_OWNERSHIP", "K"), Set.of(18, 22, 26, -1), null),
                         "-=[ Protegit ]=-", new BotConfig.NpcRule(500, 50, false, Set.of("PASSIVE"), Set.of(), "ammunition_laser_mcb-50")))
                 .withLoot(new BotConfig.Loot("ammunition_laser_ucb-100", "ammunition_laser_sab-50",
-                        0.92, 120_000, null, true, 15_500, "ammunition_rocket_plt-2021", true))
+                        0.92, 120_000, null, true, 15_500, "ammunition_rocket_plt-2021", true, true,
+                        List.of("ammunition_laser_mcb-25", "ammunition_laser_lcb-10")))
                 .withCollect(new BotConfig.Collect(Map.of("BONUS_BOX", new BotConfig.BoxRule(true, 150, 1)), 400, true, true))
                 .withPet(new BotConfig.Pet(true, "ENEMY_LOCATOR"))
                 .withSafety(new BotConfig.Safety(0.5, 0.65, 0.05, 0.45, new BotConfig.ShipMode(2, "some_future_formation"),
