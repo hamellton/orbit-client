@@ -688,6 +688,60 @@ final class Hud {
         }
     }
 
+    // ---- a big map ----
+
+    /** Over a big map, top left under the map's name: the target, then who attacks the ship (names, hull). */
+    int fightPanel(Graphics2D g, int x, int y, int width, WorldSnapshot w) {
+        WorldSnapshot.Hero h = w.hero();
+        int top = y;
+        Card target = target(w);
+        if (target != null) {
+            translucent(g, x, y, width, target.height(width));
+            target.paint(g, x, y, width);
+            y += target.height(width) + 8;
+        }
+        Card attackers = attackers(w);
+        if (attackers != null) {
+            translucent(g, x, y, width, attackers.height(width));
+            attackers.paint(g, x, y, width);
+            y += attackers.height(width) + 8;
+        }
+        return y - top;
+    }
+
+    /**
+     * Over a big map, bottom left: the ship as in the game — name, ship, level; hull, shield and nano hull;
+     * configuration and speed. Drawn upwards from {@code bottom}.
+     */
+    void shipPanel(Graphics2D g, int x, int bottom, int width, WorldSnapshot.Hero h) {
+        if (h.id() == 0) {
+            return;
+        }
+        boolean nano = h.health().nanoHullMax() > 0;
+        String name = h.name() + (h.shipType().isBlank() ? "" : "  " + shipName(h.shipType()));
+        String right = (h.config() > 0 ? "конф. " + h.config() : "") + (h.speed() > 0 ? "  ·  " + h.speed() : "")
+                + (h.level() > 0 ? "  ·  ур. " + h.level() : "");
+        int rows = titleLines(name, right, width);
+        int height = PAD + rows * LINE + (nano ? 3 : 2) * (BAR + 4) + PAD - 4;
+        int y = bottom - height;
+        translucent(g, x, y, width, height);
+        frame(g, x, y, width, height, MinimapPanel.HERO);
+        titleRow(g, x, y, width, name, right, TEXT);
+        int by = y + PAD + rows * LINE;
+        Health hp = h.health();
+        bar(g, x + PAD, by, width - 2 * PAD, BAR, hp.hp(), hp.hpMax(), HP_BAR, false);
+        bar(g, x + PAD, by + BAR + 4, width - 2 * PAD, BAR, hp.shield(), hp.shieldMax(), SHIELD_BAR, false);
+        if (nano) {
+            bar(g, x + PAD, by + 2 * (BAR + 4), width - 2 * PAD, BAR, hp.nanoHull(), hp.nanoHullMax(), NANO_BAR, false);
+        }
+    }
+
+    /** A shadow behind a card drawn over the map, so it reads on the bright parts of the picture. */
+    private static void translucent(Graphics2D g, int x, int y, int w, int h) {
+        g.setColor(new Color(0, 0, 0, 90));
+        g.fill(new RoundRectangle2D.Double(x - 2, y - 1, w + 4, h + 4, 14, 14));
+    }
+
 
     /** Over a small map: title and config on the left, status on the right, action, hull and shield. */
     void strip(Graphics2D g, int x, int y, int width, WorldFeed feed, String config) {

@@ -286,6 +286,12 @@ final class MinimapPanel extends JPanel {
             hud.strip(g, (int) Math.round(ox), (int) Math.round(oy + mh), (int) Math.round(mw), feed, config.get());
         } else {
             mapChip(g, ox, oy, hero, map);
+            if (mw >= BIG_MAP) {
+                // a big map has room for the fight and the ship, as in the game's own windows
+                int panel = (int) Math.min(300, mw * 0.26);
+                hud.fightPanel(g, (int) Math.round(ox) + 10, (int) Math.round(oy) + 46, panel, w);
+                hud.shipPanel(g, (int) Math.round(ox) + 10, (int) Math.round(oy + mh) - 10, panel, hero);
+            }
         }
     }
 
@@ -322,6 +328,9 @@ final class MinimapPanel extends JPanel {
         g.setColor(color);
         g.drawString(text, (float) x, (float) y);
     }
+
+    /** From this map width the fight and the ship are shown over the map too. */
+    static final double BIG_MAP = 760;
 
     /** Up to this many attackers get a name on the map; a swarm is listed in the corner panel only. */
     private static final int MAX_ATTACKER_LABELS = 3;
