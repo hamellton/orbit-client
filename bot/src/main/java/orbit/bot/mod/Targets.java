@@ -38,9 +38,16 @@ public final class Targets {
 
     /** The best target within {@code maxDistance}: lowest priority value, then nearest. */
     public static WorldSnapshot.Ship best(BotConfig c, WorldSnapshot w, double maxDistance) {
+        return best(c, w, maxDistance, s -> false);
+    }
+
+    /** As {@link #best(BotConfig, WorldSnapshot, double)}, leaving out the ships {@code skip} says. */
+    public static WorldSnapshot.Ship best(BotConfig c, WorldSnapshot w, double maxDistance,
+                                          java.util.function.Predicate<WorldSnapshot.Ship> skip) {
         WorldSnapshot.Hero h = w.hero();
         return w.ships().values().stream()
                 .filter(s -> attackable(c, s, h.mapId()))
+                .filter(s -> !skip.test(s))
                 .filter(s -> s.distanceTo(h.x(), h.y()) <= maxDistance)
                 .min(Comparator.<WorldSnapshot.Ship>comparingInt(s -> rule(c, s, h.mapId()).priority())
                         .thenComparingDouble(s -> s.distanceTo(h.x(), h.y())))

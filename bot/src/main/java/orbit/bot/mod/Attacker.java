@@ -48,6 +48,27 @@ public final class Attacker {
     private long rocketFireAt;
     /** The ammunition selected before the bot switched to SAB, to go back to when no ammunition is configured. */
     private String beforeSab;
+    /** Hull plus shield of the target when it last went down, and when. */
+    private double lastHealth = -1;
+    private long healthDropAt;
+    /** NPCs given up on (no damage for {@link #NO_DAMAGE_MS}) until the time stored. */
+    private final java.util.Map<Integer, Long> givenUp = new java.util.HashMap<>();
+    /** Shooting this long without the target losing anything: something is wrong (no ammunition, out of range). */
+    static final long NO_DAMAGE_MS = 30_000;
+    public static final long GIVE_UP_MS = 120_000;
+
+    /** An NPC the bot gave up on a moment ago (not to be picked again right away). */
+    public boolean gaveUp(int id) {
+        Long until = givenUp.get(id);
+        if (until == null) {
+            return false;
+        }
+        if (ctx.now() > until) {
+            givenUp.remove(id);
+            return false;
+        }
+        return true;
+    }
 
     public Attacker(BotContext ctx) {
         this.ctx = ctx;
@@ -79,6 +100,8 @@ public final class Attacker {
         }
         selectAt = ctx.now() + ctx.pause(300, 900);
         pressAt = 0;
+        lastHealth = -1;
+        healthDropAt = ctx.now();
         WorldSnapshot.Hero h = ctx.world().get().hero();
         log.info("Цель: {} в {}", s.name(), (int) s.distanceTo(h.x(), h.y()));
     }
@@ -137,6 +160,11 @@ public final class Attacker {
         }
         if (h.attackTargetId() == targetId) {
             shotAt = true;
+            if (noDamage(t, now)) {
+                return false;
+            }
+        } else {
+            healthDropAt = now; // not shooting yet: nothing to expect
         }
         if (h.selectedId() != targetId) {
             if (now >= selectAt) {
@@ -292,7 +320,7 @@ public final class Attacker {
     }
 
     /** The wanted ammunition if there is enough, else the first fallback that has enough, else the wanted. */
-    static String usable(BotConfig c, WorldSnapshot w, String wanted) {
+    public static String usable(BotConfig c, WorldSnapshot w, String wanted) {
         if (wanted == null) {
             return null;
         }
@@ -304,6 +332,15 @@ public final class Attacker {
             WorldSnapshot.Item fi = w.items().get(f);
             if (fi != null && fi.counter() >= MIN_AMMO) {
                 return f;
+            }
+        }
+        if (item == null || item.counter() <= 0) {
+            // nothing of the wanted nor of the spares: any laser ammunition there is, the cheap first, SAB last
+            for (orbit.config.ItemCatalog.Item l : orbit.config.ItemCatalog.LASERS) {
+                WorldSnapshot.Item li = w.items().get(l.id());
+                if (li != null && li.counter() >= MIN_AMMO && !l.id().contains("sab")) {
+                    return l.id();
+                }
             }
         }
         return wanted;
@@ -322,5 +359,28 @@ public final class Attacker {
             return l.sab();
         }
         return r != null && r.ammo() != null ? r.ammo() : l.ammo();
+    }
+
+    /** True (and the target dropped) when the ship has shot at an NPC for a while without it losing anything. */
+    private boolean noDamage(WorldSnapshot.Ship t, long now) {
+        if (!t.health().known() || t0Cubikon) {
+            healthDropAt = now;
+            return false;
+        }
+        double health = t.health().hp() + Math.max(0, t.health().shield());
+        if (lastHealth < 0 || health < lastHealth) {
+            healthDropAt = now;
+        }
+        lastHealth = health;
+        if (now - healthDropAt < NO_DAMAGE_MS * 1_000_000) {
+            return false;
+        }
+        WorldSnapshot.Item laser = ctx.world().get().selected("lasers");
+        log.warn("{} не теряет HP {} с (патроны {}) — бросаю цель", t.name(), NO_DAMAGE_MS / 1000,
+                laser == null ? "?" : orbit.config.ItemCatalog.label(laser.id()) + " ×" + (long) laser.counter());
+        givenUp.put(t.id(), now + GIVE_UP_MS * 1_000_000);
+        ctx.nav().stop();
+        clear();
+        return true;
     }
 }

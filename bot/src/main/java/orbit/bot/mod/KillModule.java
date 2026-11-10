@@ -65,7 +65,7 @@ public final class KillModule implements BotModule {
         }
         if (kill) {
             double range = c.loot().ignoreFartherThan() > 0 ? c.loot().ignoreFartherThan() : Double.MAX_VALUE;
-            WorldSnapshot.Ship t = Targets.best(c, w, range);
+            WorldSnapshot.Ship t = Targets.best(c, w, range, s -> attacker.gaveUp(s.id()));
             if (t != null) {
                 roamTo = null;
                 attacker.target(t);

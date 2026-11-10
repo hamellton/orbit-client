@@ -82,4 +82,32 @@ class AttackerTest {
         }
         assertEquals("ammunition_laser_ucb-100", sim.world.snapshot(sim.now).selected("lasers").id());
     }
+
+    @Test
+    void givesUpATargetThatLosesNothingAndDoesNotPickItAgainAtOnce() {
+        Sim sim = new Sim(config(false, null, Set.of()), 1, 10_400, 6_000);
+        sim.lasers("ammunition_laser_lcb-10");
+        sim.npc(7, "-=[ Target ]=-", 10_000, 6_000);
+        Attacker a = new Attacker(sim.ctx);
+        a.target(sim.world.snapshot(sim.now).ships().get(7));
+        boolean kept = true;
+        for (int t = 0; t < 400 && kept; t++) { // 40 s; the fake server never takes HP off
+            kept = a.tick(true);
+            sim.now += 100 * Sim.MS;
+        }
+        assertTrue(!kept, "dropped after 30 s without damage");
+        assertEquals(0, a.targetId());
+        assertTrue(a.gaveUp(7));
+        sim.now += (Attacker.GIVE_UP_MS + 1_000) * Sim.MS;
+        assertTrue(!a.gaveUp(7), "after a while it may be tried again");
+    }
+
+    @Test
+    void anyLaserAmmunitionWhenNeitherTheMainNorASpareIsOnBoard() {
+        Sim sim = new Sim(config(false, null, Set.of()), 1, 10_400, 6_000);
+        sim.lasers("ammunition_laser_mcb-25", "ammunition_laser_sab-50");
+        // the config wants LCB-10, none on board, no spares: MCB-25, not SAB
+        assertEquals("ammunition_laser_mcb-25", Attacker.usable(sim.ctx.config().get(), sim.world.snapshot(sim.now),
+                "ammunition_laser_lcb-10"));
+    }
 }

@@ -213,6 +213,7 @@ public final class CubikonModule implements BotModule {
         double cy = spot != null ? spot[1] : h.y();
         return w.ships().values().stream()
                 .filter(x -> Targets.attackable(c, x, h.mapId()))
+                .filter(x -> !attacker.gaveUp(x.id()))
                 .filter(x -> Math.hypot(x.x() - cx, x.y() - cy) <= range)
                 .filter(x -> chase || x.distanceTo(h.x(), h.y()) <= Targets.radius(c, x, h.mapId()) + REACH_EXTRA)
                 .filter(x -> !"ATTACKERS".equals(mode) || x.attackTargetId() == h.id() || h.attackers().contains(x.id()))
