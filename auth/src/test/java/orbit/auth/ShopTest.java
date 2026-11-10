@@ -45,4 +45,14 @@ class ShopTest {
         assertTrue(Shop.isError("{\"isError\":1,\"data\":{\"errorMessage\":\"x\"}}"));
         assertFalse(Shop.isError("{\"isError\":0,\"data\":{\"money\":\"1\"}}"));
     }
+
+    @Test
+    void readsAJavaScriptObjectLiteral() throws IOException {
+        String page = "<script>Shop.Parameters = {categories: ['battery', 'rocket'], itemData: {"
+                + "'ammunition_laser_lcb-10': {category: 'battery', code: 'lcb-10', price: 10, currency: 'virtual', maxAmount: 100000, name: 'LCB {10}'},"
+                + "}};</script>";
+        var items = Shop.parse(page);
+        assertEquals(1, items.size());
+        assertEquals(10, items.get("ammunition_laser_lcb-10").price());
+    }
 }

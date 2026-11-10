@@ -28,7 +28,14 @@ public final class Shop {
         }
     }
 
-    private static final ObjectMapper JSON = new ObjectMapper();
+    /** The page's Shop.Parameters is a JavaScript object literal: keys may be unquoted, quotes single. */
+    private static final ObjectMapper JSON = com.fasterxml.jackson.databind.json.JsonMapper.builder()
+            .enable(com.fasterxml.jackson.core.json.JsonReadFeature.ALLOW_UNQUOTED_FIELD_NAMES)
+            .enable(com.fasterxml.jackson.core.json.JsonReadFeature.ALLOW_SINGLE_QUOTES)
+            .enable(com.fasterxml.jackson.core.json.JsonReadFeature.ALLOW_TRAILING_COMMA)
+            .enable(com.fasterxml.jackson.core.json.JsonReadFeature.ALLOW_NON_NUMERIC_NUMBERS)
+            .enable(com.fasterxml.jackson.core.json.JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS)
+            .build();
     static final String AMMO_PAGE = "/indexInternal.es?action=internalDock&tpl=internalDockAmmo";
     static final String START_PAGE = "/indexInternal.es?action=internalStart";
 
@@ -47,7 +54,30 @@ public final class Shop {
         if (r.status() != 200) {
             throw new IOException("магазин ответил " + r.status());
         }
-        return parse(r.body());
+        try {
+            return parse(r.body());
+        } catch (IOException e) {
+            keep(r.body());
+            throw new IOException(e.getMessage() + " (страница сохранена в " + LAST_PAGE + ")", e);
+        }
+    }
+
+    /** Where a shop page that could not be read is kept for a look (local, owner-only). */
+    static final java.nio.file.Path LAST_PAGE = java.nio.file.Path.of("local", "shop-last-page.html");
+
+    private static void keep(String body) {
+        try {
+            java.nio.file.Files.createDirectories(LAST_PAGE.getParent());
+            java.nio.file.Files.writeString(LAST_PAGE, body == null ? "" : body);
+            try {
+                java.nio.file.Files.setPosixFilePermissions(LAST_PAGE,
+                        java.nio.file.attribute.PosixFilePermissions.fromString("rw-------"));
+            } catch (UnsupportedOperationException ignored) {
+                // not a POSIX file system
+            }
+        } catch (IOException ignored) {
+            // only a diagnostic
+        }
     }
 
     /** Buys {@code amount} units; returns the shop's answer (short, secrets masked). */
@@ -88,16 +118,18 @@ public final class Shop {
         int depth = 0;
         int end = -1;
         boolean inString = false;
+        char quote = '"';
         for (int i = start; i < html.length(); i++) {
             char ch = html.charAt(i);
             if (inString) {
                 if (ch == '\\') {
                     i++;
-                } else if (ch == '"') {
+                } else if (ch == quote) {
                     inString = false;
                 }
-            } else if (ch == '"') {
+            } else if (ch == '"' || ch == '\'') {
                 inString = true;
+                quote = ch;
             } else if (ch == '{') {
                 depth++;
             } else if (ch == '}' && --depth == 0) {
