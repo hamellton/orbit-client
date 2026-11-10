@@ -40,8 +40,13 @@ public record AccountSettings(Map<String, Entry> accounts) {
         }
     }
 
+    /** {@code main@ru5} without its own entry takes the one of {@code main}. */
     public Entry account(String name) {
-        return accounts.getOrDefault(name, new Entry(null, null));
+        Entry e = accounts.get(name);
+        if (e == null && name.contains("@")) {
+            e = accounts.get(name.substring(0, name.indexOf('@')));
+        }
+        return e != null ? e : new Entry(null, null);
     }
 
     public AccountSettings with(String name, Entry entry) {

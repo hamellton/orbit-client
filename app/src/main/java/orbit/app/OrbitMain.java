@@ -165,11 +165,27 @@ public final class OrbitMain {
     private record Rig(WorldFeed feed, AuthClient auth, SessionSource source, GameListener listener) {
     }
 
+    /** The vault name of {@code main@ru5}: {@code main}. */
+    static String loginOf(String account) {
+        int at = account.indexOf('@');
+        return at < 0 ? account : account.substring(0, at);
+    }
+
+    /** The server of {@code main@ru5}: {@code ru5}; {@code null} = the account's default. */
+    static String serverOf(String account) {
+        int at = account.indexOf('@');
+        return at < 0 ? null : account.substring(at + 1).strip().toLowerCase(java.util.Locale.ROOT);
+    }
+
+    /**
+     * @param account a vault name, or {@code name@server} for another server of the same login
+     *                ({@code main@ru5}); logs, tabs, stop files and «Аккаунты» use the whole string
+     */
     private static Rig rig(String account, Vault vault) throws AuthException {
         AuthClient auth = new AuthClient(new HttpSession("", Proxy.NO_PROXY, null), AuthClient.Endpoints.production());
-        AccountLogin login = new AccountLogin(auth, vault, account);
+        AccountLogin login = new AccountLogin(auth, vault, loginOf(account), serverOf(account));
         WorldFeed feed = new WorldFeed("бот, " + account, account);
-        feed.setServer(vault.get(account) != null ? vault.get(account).server() : "");
+        feed.setServer(login.server());
         GameListener listener = new GameListener() {
             @Override
             public void onPacket(Packet p) {
@@ -219,8 +235,8 @@ public final class OrbitMain {
         long delay = 0;
         boolean gui = !o.headless && !java.awt.GraphicsEnvironment.isHeadless();
         for (String account : o.accounts) {
-            if (vault.get(account) == null) {
-                log.error("Аккаунта «{}» нет в хранилище — пропускаю", account);
+            if (vault.get(loginOf(account)) == null) {
+                log.error("Аккаунта «{}» нет в хранилище — пропускаю", loginOf(account));
                 continue;
             }
             if (!hasPlan(o, account)) {
