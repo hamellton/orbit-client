@@ -44,8 +44,9 @@ class SessionSummaryTest {
         var lines = SessionSummary.lines(r, s, 0.5);
         assertTrue(lines.get(1).startsWith("Кредиты: 25 600") && lines.get(1).contains("51 200/ч"), lines.get(1));
         assertTrue(lines.contains("Кубы: бои 1, добито 0"), lines.toString());
-        assertTrue(lines.contains("Luminium: 20"), lines.toString());
-        assertTrue(lines.contains("UCB-100: 101"), lines.toString());
-        assertTrue(lines.contains("Ксеномит: 20"), lines.toString());
+        assertTrue(lines.contains("Убито 3  (6/ч)   ящиков 0"), lines.toString());
+        assertTrue(lines.contains("Luminium: 20  (40/ч)"), lines.toString());
+        assertTrue(lines.contains("UCB-100: 101  (202/ч)"), lines.toString());
+        assertTrue(lines.contains("Ксеномит: 20  (40/ч)"), lines.toString());
     }
 }

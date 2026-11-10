@@ -20,12 +20,13 @@ public final class SessionSummary {
         out.add(row("Опыт", r.experience(), hours));
         out.add(row("Честь", r.honor(), hours));
         if (s != null) {
-            out.add("Кубы: бои " + s.cubesFought() + ", добито " + s.cubesKilled.get());
-            out.add("Убито " + s.kills.get() + "   ящиков " + s.boxes.get());
+            out.add("Кубы: бои " + s.cubesFought() + ", добито " + s.cubesKilled.get() + rate(s.cubesKilled.get(), hours));
+            out.add("Убито " + s.kills.get() + rate(s.kills.get(), hours) + "   ящиков " + s.boxes.get()
+                    + rate(s.boxes.get(), hours));
             out.add("Ремонтов " + s.repairs.get() + "   смертей " + s.deaths.get());
         }
         for (Map.Entry<String, Double> e : r.items().entrySet()) {
-            out.add(itemName(e.getKey()) + ": " + num(e.getValue()));
+            out.add(row(itemName(e.getKey()), e.getValue(), hours));
         }
         return out;
     }
@@ -35,9 +36,15 @@ public final class SessionSummary {
         return String.join("; ", lines(r, s, hours));
     }
 
+    /** From a minute of play on the rate per hour is shown (a guess at first, steadier later). */
+    static final double RATE_FROM_HOURS = 1.0 / 60;
+
     private static String row(String name, double v, double hours) {
-        String perHour = hours >= 0.05 ? "  (" + num(v / hours) + "/ч)" : "";
-        return name + ": " + num(v) + perHour;
+        return name + ": " + num(v) + rate(v, hours);
+    }
+
+    private static String rate(double v, double hours) {
+        return hours >= RATE_FROM_HOURS && v != 0 ? "  (" + num(v / hours) + "/ч)" : "";
     }
 
     static String num(double v) {
