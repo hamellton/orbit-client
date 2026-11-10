@@ -46,7 +46,8 @@ public final class MainWindow {
     public static void open(WorldFeed feed, Runnable onClose) {
         SwingUtilities.invokeLater(() -> {
             FlatDarkLaf.setup();
-            JFrame frame = frame("Orbit — " + feed.mode(), onClose);
+            JFrame frame = frame("Orbit — " + feed.title(), onClose);
+            new Timer(1_000, e -> frame.setTitle("Orbit — " + feed.title())).start();
             JPanel content = new JPanel(new BorderLayout());
             content.add(toolbar(), BorderLayout.NORTH);
             content.add(accountView(feed), BorderLayout.CENTER);
@@ -77,8 +78,17 @@ public final class MainWindow {
                 bar.add(stop);
                 page.add(bar, BorderLayout.NORTH);
                 page.add(accountView(t.feed()), BorderLayout.CENTER);
-                pane.addTab(t.feed().account() == null ? t.feed().mode() : t.feed().account(), page);
+                pane.addTab(t.feed().title(), page);
             }
+            // names follow the game: the ship's nickname appears once the account is in game
+            new Timer(1_000, e -> {
+                for (int i = 0; i < tabs.size(); i++) {
+                    String title = tabs.get(i).feed().title();
+                    if (!title.equals(pane.getTitleAt(i))) {
+                        pane.setTitleAt(i, title);
+                    }
+                }
+            }).start();
             JPanel content = new JPanel(new BorderLayout());
             content.add(toolbar(), BorderLayout.NORTH);
             content.add(pane, BorderLayout.CENTER);

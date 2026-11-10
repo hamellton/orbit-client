@@ -169,6 +169,7 @@ public final class OrbitMain {
         AuthClient auth = new AuthClient(new HttpSession("", Proxy.NO_PROXY, null), AuthClient.Endpoints.production());
         AccountLogin login = new AccountLogin(auth, vault, account);
         WorldFeed feed = new WorldFeed("бот, " + account, account);
+        feed.setServer(vault.get(account) != null ? vault.get(account).server() : "");
         GameListener listener = new GameListener() {
             @Override
             public void onPacket(Packet p) {

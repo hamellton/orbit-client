@@ -71,6 +71,20 @@ public final class WorldFeed {
         return account;
     }
 
+    private volatile String server = "";
+
+    /** The account's server code ({@code int1}), for titles. */
+    public void setServer(String s) {
+        server = s == null ? "" : s;
+    }
+
+    /** {@code int1 · FREEMASON} once in game, {@code int1 · main} before (the account's name). */
+    public String title() {
+        String nick = snapshot().hero().name();
+        String who = nick != null && !nick.isBlank() ? nick : account != null ? account : mode;
+        return server.isEmpty() ? who : server + " · " + who;
+    }
+
     public void onPacket(Packet p, long nanos) {
         packets.incrementAndGet();
         int heroBefore = world.snapshot(nanos).hero().id();
