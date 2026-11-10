@@ -37,9 +37,12 @@ final class BuyWatch {
         return t;
     });
     private long nextCheck;
+    /** No purchase before the game has listed the items: right after a login nothing is known yet. */
+    static final long SETTLE_MS = 30_000;
 
     BuyWatch(BotContext ctx) {
         this.ctx = ctx;
+        this.nextCheck = ctx.now() + SETTLE_MS * 1_000_000;
     }
 
     void setShop(ShopAccess s) {
@@ -57,9 +60,19 @@ final class BuyWatch {
             return;
         }
         WorldSnapshot w = ctx.world().get();
+        if (w.hero().id() == 0 || w.items().isEmpty()) {
+            return; // not in game or the item bar not received yet
+        }
         for (BotConfig.BuyRule r : b.items()) {
             WorldSnapshot.Item item = w.items().get(r.item());
-            double left = item == null ? 0 : item.counter();
+            if (item == null) {
+                // unknown is not zero: never buy what the game has not counted
+                if (told.add("?" + r.item())) {
+                    log.warn("{}: игра не прислала количество — не покупаю", ItemCatalog.label(r.item()));
+                }
+                continue;
+            }
+            double left = item.counter();
             if (left >= r.below()) {
                 told.remove(r.item());
                 continue;

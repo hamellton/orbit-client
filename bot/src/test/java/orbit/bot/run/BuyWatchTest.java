@@ -64,7 +64,7 @@ class BuyWatchTest {
         FakeShop shop = new FakeShop();
         BuyWatch w = new BuyWatch(sim.ctx);
         w.setShop(shop);
-        runFor(sim, w, 30_000);
+        runFor(sim, w, 60_000);
         // 50 000 wanted, 30 000 at most per purchase, 300 000 credits to spend at 10 each = 30 000
         assertEquals(List.of("ammunition_laser_lcb-10 x30000"), shop.bought);
     }
@@ -77,7 +77,7 @@ class BuyWatchTest {
         FakeShop shop = new FakeShop();
         BuyWatch w = new BuyWatch(sim.ctx);
         w.setShop(shop);
-        runFor(sim, w, 30_000);
+        runFor(sim, w, 60_000);
         assertTrue(shop.bought.isEmpty(), shop.bought.toString());
     }
 
@@ -89,7 +89,19 @@ class BuyWatchTest {
         FakeShop shop = new FakeShop();
         BuyWatch w = new BuyWatch(sim.ctx);
         w.setShop(shop);
-        runFor(sim, w, 30_000);
+        runFor(sim, w, 60_000);
         assertTrue(shop.bought.isEmpty());
+    }
+
+    @Test
+    void neverBuysBeforeTheGameHasCountedTheItems() throws Exception {
+        BotConfig.Buy buy = new BotConfig.Buy(true, List.of(new BotConfig.BuyRule("ammunition_laser_lcb-10", 20_000, 50_000)),
+                0, 0);
+        Sim sim = new Sim(BotConfig.empty().withBuy(buy), 26, 7_500, 3_900); // logged in, item bar not sent yet
+        FakeShop shop = new FakeShop();
+        BuyWatch w = new BuyWatch(sim.ctx);
+        w.setShop(shop);
+        runFor(sim, w, 60_000);
+        assertTrue(shop.bought.isEmpty(), "nothing known, nothing bought: " + shop.bought);
     }
 }
