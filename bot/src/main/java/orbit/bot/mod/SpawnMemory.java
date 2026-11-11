@@ -150,6 +150,25 @@ public final class SpawnMemory {
     }
 
     /** A Cubikon died (or vanished in sight) at (x, y). */
+    /** When the bot last watched the map: its latest sighting or death of a cube there, 0 if never. */
+    public synchronized long lastActivity(int mapId) {
+        return maps.getOrDefault(mapId, List.of()).stream().mapToLong(s -> Math.max(s.lastSeen(), s.lastKill())).max()
+                .orElse(0);
+    }
+
+    /**
+     * Forgets when cubes last died on the map — while the bot was away others may have killed them, so the
+     * old deaths say nothing now. Where the spawns are and how long a cube takes to come back stay.
+     */
+    public synchronized void forgetTimes(int mapId) {
+        List<Spawn> list = maps.get(mapId);
+        if (list == null) {
+            return;
+        }
+        list.replaceAll(s -> new Spawn(s.x(), s.y(), s.seen(), 0, 0, s.respawnMs()));
+        save();
+    }
+
     public synchronized void killed(int mapId, int x, int y, long nowMs) {
         List<Spawn> list = maps.computeIfAbsent(mapId, k -> new ArrayList<>());
         int i = find(list, x, y);

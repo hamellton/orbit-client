@@ -285,11 +285,21 @@ public final class CubikonModule implements BotModule {
     /** Remembers Cubikons appearing and dying in sight. */
     private void watch(WorldSnapshot w, boolean learn) {
         WorldSnapshot.Hero h = w.hero();
+        long now = wallMs();
         if (h.mapId() != cubesMap) {
             cubes.clear(); // a new map: what we tracked is not dead, just elsewhere
             cubesMap = h.mapId();
+            // away longer than a cube takes to come back: others may have killed them meanwhile — the old
+            // times say nothing now, check the spawns afresh (where they are and the respawn stay)
+            long respawn = memory.mapRespawn(h.mapId());
+            long last = memory.lastActivity(h.mapId());
+            if (learn && last > 0 && respawn > 0 && now - last > respawn) {
+                log.info("Кубы: на {} не был {} мин — время спаунов устарело, проверяю заново",
+                        ctx.maps().info(h.mapId()).name(), (now - last) / 60_000);
+                memory.forgetTimes(h.mapId());
+                emptyAt.clear();
+            }
         }
-        long now = wallMs();
         for (WorldSnapshot.Ship s : w.ships().values()) {
             if (s.npc() && isCubikon(s)) {
                 if (!cubes.containsKey(s.id()) && learn) {

@@ -112,4 +112,19 @@ class CubeMapsTest {
         memory.killed(18, 8000, 3900, 11 * MIN);
         assertEquals(16 * MIN, memory.spawns(18).getFirst().expectedAt(memory.mapRespawn(18)), "due in 5 minutes, not unknown");
     }
+
+    @Test
+    void oldDeathsAreForgottenButPlacesAndRespawnStay() {
+        SpawnMemory memory = SpawnMemory.inMemory();
+        memory.seen(18, 8000, 3900, 0);
+        memory.killed(18, 8000, 3900, MIN);
+        memory.seen(18, 8000, 3900, 6 * MIN);
+        memory.killed(18, 8000, 3900, 7 * MIN);
+        assertEquals(7 * MIN, memory.lastActivity(18));
+        memory.forgetTimes(18);
+        SpawnMemory.Spawn s = memory.spawns(18).getFirst();
+        assertEquals(-1, s.expectedAt(memory.mapRespawn(18)), "when the next one comes: unknown again");
+        assertEquals(5 * MIN, memory.mapRespawn(18), "the respawn is kept");
+        assertEquals(8000, s.x(), "and the place");
+    }
 }
