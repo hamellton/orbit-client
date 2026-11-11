@@ -132,8 +132,9 @@ public final class BoxPicker {
                 .orElse(null);
     }
 
-    static boolean cargoFull(BotConfig c, WorldSnapshot w) {
-        return !BotConfig.Collect.CARGO_NONE.equals(c.collect().cargo()) && w.hero().cargoMax() > 0
+    boolean cargoFull(BotConfig c, WorldSnapshot w) {
+        String mode = ctx.stats().cargoMode != null ? ctx.stats().cargoMode : c.collect().cargo();
+        return !BotConfig.Collect.CARGO_NONE.equals(mode) && w.hero().cargoMax() > 0
                 && w.cargoFree() <= c.collect().cargoFullAt();
     }
 

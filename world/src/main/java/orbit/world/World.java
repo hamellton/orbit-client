@@ -403,6 +403,10 @@ public final class World {
                         tradePrices.put(o[0], o[1]);
                     }
                 }
+                // palladium is exchanged, not bought: a rate above 0 (5-2's trader) is its price; −1 elsewhere
+                if (p.palladiumExchangeRate > 0) {
+                    tradePrices.put(8, p.palladiumExchangeRate);
+                }
                 tradeNanos = nanos;
                 log.info("Торговля открыта ({}): прометий {}, сепром {}, зарядов осталось {}",
                         p.type == 3 ? "торговый модуль питомца" : "переработчик, тип " + p.type, p.prometiumPrice,

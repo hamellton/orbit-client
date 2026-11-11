@@ -263,7 +263,7 @@ public final class BotRunner {
             fail("модуль " + moduleKind + " не поддерживается");
             return;
         }
-        if (cargo.tick(module.busy())) {
+        if (cargo.tick(module.busy(), module.cargoPlan(ctx.config().get()))) {
             module.pause();
             state = State.TRAVELLING;
             show("Трюм полон — продаю руду");

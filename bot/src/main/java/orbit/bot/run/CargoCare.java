@@ -60,12 +60,14 @@ final class CargoCare {
         this.pet = pet;
     }
 
-    /** The hold is full by the config's measure, and the config does something about it. */
-    static boolean full(BotConfig c, WorldSnapshot w) {
+    /** The hold is full by the config's measure, and something is done about it ({@code mode} not NONE). */
+    static boolean full(BotConfig c, WorldSnapshot w, String mode) {
         long free = w.cargoFree();
-        return !BotConfig.Collect.CARGO_NONE.equals(c.collect().cargo()) && w.hero().cargoMax() > 0
+        return !BotConfig.Collect.CARGO_NONE.equals(mode) && w.hero().cargoMax() > 0
                 && free <= c.collect().cargoFullAt();
     }
+
+    private CargoPlan plan = new CargoPlan(BotConfig.Collect.CARGO_NONE, 0, List.of());
 
     /** Russian names of the common ores, for the log. */
     static String oreName(int type) {
@@ -84,11 +86,11 @@ final class CargoCare {
         };
     }
 
-    /** What the config sells and the hold has: ore → count. */
-    static List<int[]> sellable(BotConfig c, WorldSnapshot w) {
+    /** What the plan sells and the hold has: ore → count. */
+    static List<int[]> sellable(CargoPlan plan, WorldSnapshot w) {
         List<int[]> out = new ArrayList<>();
         Map<Integer, Integer> prices = w.inventory().tradePrices();
-        for (int ore : c.collect().sellOres()) {
+        for (int ore : plan.ores()) {
             long n = Math.round(w.inventory().ores().getOrDefault(ore, 0.0));
             // a trade window seen: only what it buys
             if (n > 0 && (prices.isEmpty() || prices.getOrDefault(ore, 0) > 0)) {
@@ -103,11 +105,13 @@ final class CargoCare {
      *
      * @param busy the module is in the middle of something (a fight): the trip waits for it
      */
-    boolean tick(boolean busy) {
+    boolean tick(boolean busy, CargoPlan modulePlan) {
         BotConfig c = ctx.config().get();
         WorldSnapshot w = ctx.world().get();
         long now = ctx.now();
-        String mode = c.collect().cargo();
+        plan = modulePlan != null ? modulePlan : new CargoPlan(c.collect().cargo(), 0, c.collect().sellOres());
+        String mode = plan.mode();
+        ctx.stats().cargoMode = mode;
         boolean wantSale = BotConfig.Collect.CARGO_BASE.equals(mode) || BotConfig.Collect.CARGO_PET.equals(mode);
         if (!mode.equals(lastMode)) {
             // another way of selling chosen: the pause after the old way's failure does not hold it back
@@ -121,13 +125,13 @@ final class CargoCare {
             }
         }
         if (step == null) {
-            if (!wantSale || !full(c, w) || ms(now - failedAt) < RETRY_MS) {
-                if (!full(c, w)) {
+            if (!wantSale || !full(c, w, mode) || ms(now - failedAt) < RETRY_MS) {
+                if (!full(c, w, mode)) {
                     told = "";
                 }
                 return false;
             }
-            List<int[]> sell = sellable(c, w);
+            List<int[]> sell = sellable(plan, w);
             if (sell.isEmpty()) {
                 tell("Трюм полон, а продавать нечего (" + held(w) + ") — больше не беру груз");
                 return false;
@@ -148,7 +152,7 @@ final class CargoCare {
             if (busy) {
                 return false; // the fight first
             }
-            baseMap = nearestBase(w.hero());
+            baseMap = plan.map() != 0 ? plan.map() : nearestBase(w.hero());
             if (baseMap == 0) {
                 tell("Трюм полон, но пути к своей базе нет — больше не беру груз");
                 return false;
@@ -219,10 +223,10 @@ final class CargoCare {
     }
 
     private boolean asked(BotConfig c, WorldSnapshot w, long now) {
-        boolean base = BotConfig.Collect.CARGO_BASE.equals(c.collect().cargo());
+        boolean base = BotConfig.Collect.CARGO_BASE.equals(plan.mode());
         if (w.inventory().tradeNanos() > since) {
             toSell.clear();
-            toSell.addAll(sellable(c, w));
+            toSell.addAll(sellable(plan, w));
             if (toSell.isEmpty()) {
                 log.info("Торговец не покупает то, что в трюме ({}) — больше не беру груз", held(w));
                 return done(false);
@@ -245,7 +249,7 @@ final class CargoCare {
     }
 
     private boolean selling(WorldSnapshot w, long now) {
-        boolean base = BotConfig.Collect.CARGO_BASE.equals(ctx.config().get().collect().cargo());
+        boolean base = BotConfig.Collect.CARGO_BASE.equals(plan.mode());
         if (now < nextSellAt) {
             return base;
         }

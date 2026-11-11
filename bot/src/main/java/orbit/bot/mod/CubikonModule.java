@@ -206,7 +206,7 @@ public final class CubikonModule implements BotModule {
             // longer only while a sale is really under way and the cube's cargo box really lies there (one the
             // config picks up): the hold is about to have room for it (live 2026-11-11: 20 s for nothing otherwise)
             int[] dead = deadAt;
-            boolean selling = ctx.stats().selling && BoxPicker.cargoFull(c, w) && w.collectables().values().stream()
+            boolean selling = ctx.stats().selling && boxes.cargoFull(c, w) && w.collectables().values().stream()
                     .anyMatch(b -> b.boxType() != null && b.boxType().startsWith("FROM_SHIP")
                             && Math.hypot(b.x() - dead[0], b.y() - dead[1]) <= c.collect().radius()
                             && c.collect().boxes().getOrDefault(b.boxType(), new BotConfig.BoxRule(false, 0, 0)).collect());

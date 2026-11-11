@@ -14,6 +14,7 @@ public final class Modules {
     public static BotModule create(BotConfig.Module m, BotContext ctx) {
         return switch (m) {
             case KILL_COLLECT -> new KillModule(ctx, true, true);
+            case PALLADIUM -> new orbit.bot.mod.PalladiumModule(ctx);
             case KILL -> new KillModule(ctx, true, false);
             case COLLECT -> new KillModule(ctx, false, true);
             case CUBIKON -> new CubikonModule(ctx, ctx.dataDir() == null ? SpawnMemory.inMemory()

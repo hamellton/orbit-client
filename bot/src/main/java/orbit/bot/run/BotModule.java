@@ -34,6 +34,11 @@ public interface BotModule {
         return -1;
     }
 
+    /** The module's own way with a full hold ({@code null}: the config's «Полный трюм»). */
+    default CargoPlan cargoPlan(orbit.config.BotConfig c) {
+        return null;
+    }
+
     /** True when it is a bad moment to leave (e.g. a boss almost dead). */
     default boolean busy() {
         return false;
