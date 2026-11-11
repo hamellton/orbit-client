@@ -111,4 +111,16 @@ class ShipSetupTest {
         assertEquals(15, ShipSetup.formationId(DRILL));
         assertEquals(null, ShipSetup.formationId("drone_formation_f-3d-wl"));
     }
+
+    @Test
+    void aFormationWantedAgainLaterIsANewRequest() {
+        ShipSetup ship = setup();
+        answers = false;
+        run(ship, new BotConfig.ShipMode(1, DRILL), 1_000);
+        assertEquals(List.of(DRILL), asked);
+        answers = true;
+        run(ship, new BotConfig.ShipMode(1, RING), 5_000); // the situation changed: Ring now (the ship has it)
+        run(ship, new BotConfig.ShipMode(1, DRILL), 2_000); // and Drill again, 6 s after the first request
+        assertEquals(List.of(DRILL, DRILL), asked, "asked at once, not 8 s after the old unanswered request");
+    }
 }

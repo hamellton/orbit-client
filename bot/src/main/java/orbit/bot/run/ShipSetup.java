@@ -110,6 +110,9 @@ public final class ShipSetup {
                 log.debug("Формация {}: сервер подтвердил (№{})", asked, h.formation());
                 asked = null;
             }
+            if (asked != null && !asked.equals(f)) {
+                asked = null; // another formation is wanted now: a later request for the old one is new, not a repeat
+            }
             Integer known = ids.containsKey(f) ? ids.get(f) : formationId(f);
             // asking for the formation the ship already has gets no answer: check the server's number first
             boolean on = item != null && item.selected() || known != null && known == h.formation();
