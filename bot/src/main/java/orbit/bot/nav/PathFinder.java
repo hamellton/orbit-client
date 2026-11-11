@@ -136,9 +136,26 @@ public final class PathFinder {
     public static PathFinder of(WorldSnapshot w, MapCatalog catalog, boolean throughDanger, boolean avoidMines,
                                 int baseRadius, orbit.config.BotConfig.ZoneGrid avoided,
                                 orbit.config.BotConfig.ZoneGrid preferred) {
+        return of(w, catalog, throughDanger, avoidMines, baseRadius, avoided, preferred, List.of());
+    }
+
+    /**
+     * The same, flying round {@code players}: circles {x, y, r} round the players who attacked the ship this session
+     * (soft, like a base: given up when the goal lies inside; none round the ship itself — it flies straight out).
+     */
+    public static PathFinder of(WorldSnapshot w, MapCatalog catalog, boolean throughDanger, boolean avoidMines,
+                                int baseRadius, orbit.config.BotConfig.ZoneGrid avoided,
+                                orbit.config.BotConfig.ZoneGrid preferred, List<double[]> players) {
         MapCatalog.MapInfo map = catalog.info(w.hero().mapId());
         List<Obstacle> list = new ArrayList<>();
         List<Obstacle> bases = new ArrayList<>();
+        for (double[] p : players) {
+            if (Math.hypot(p[0] - w.hero().x(), p[1] - w.hero().y()) > p[2]) {
+                Obstacle o = circle(p[0], p[1], p[2]);
+                list.add(o);
+                bases.add(o);
+            }
+        }
         if (avoided != null && !avoided.isEmpty()) {
             for (Obstacle o : rects(avoided, map.width(), map.height())) {
                 list.add(o);

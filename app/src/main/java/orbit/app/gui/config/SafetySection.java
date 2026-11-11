@@ -36,6 +36,8 @@ final class SafetySection implements Section {
     private final JSpinner fleeRemember = Form.number(5, 3_600, 5);
     private final JCheckBox fleeJump = new JCheckBox("Прыгать, если догоняют или бьют у портала");
     private final JSpinner fleeWait = Form.number(0, 3_600, 10);
+    private final JCheckBox avoid = new JCheckBox("Обходить тех, кто стрелял или убил (за сессию)");
+    private final JSpinner avoidRadius = Form.number(500, 10_000, 100);
     private final JComponent view;
 
     SafetySection() {
@@ -61,6 +63,9 @@ final class SafetySection implements Section {
                 .row("", fleeJump)
                 .row("После прыжка ждать, с", fleeWait)
                 .note("Летит к порталу, куда успеет первым, потом возвращается.")
+                .row("", avoid)
+                .row("Держаться от них дальше, чем", avoidRadius)
+                .note("Не убегает на портал: работает дальше, но на другом краю карты. Работает и при «Не убегать».")
                 .section("Гибель")
                 .row("Стоп после смертей", maxDeaths)
                 .note("0 — без ограничения.")
@@ -110,6 +115,8 @@ final class SafetySection implements Section {
         Form.set(fleeRemember, f.rememberSec());
         fleeJump.setSelected(f.jump());
         Form.set(fleeWait, f.waitSec());
+        avoid.setSelected(f.avoid());
+        Form.set(avoidRadius, f.avoidRadius());
     }
 
     @Override
@@ -119,7 +126,7 @@ final class SafetySection implements Section {
         }
         BotConfig.Flee f = new BotConfig.Flee(FLEE_MODES[fleeMode.getSelectedIndex()], names(fleePlayers.getText()),
                 names(fleeNever.getText()), Form.intOf(fleeSight), Form.intOf(fleeRemember), fleeJump.isSelected(),
-                Form.intOf(fleeWait));
+                Form.intOf(fleeWait), avoid.isSelected(), Form.intOf(avoidRadius));
         if (!f.equals(c.flee())) {
             c = c.withFlee(f);
         }

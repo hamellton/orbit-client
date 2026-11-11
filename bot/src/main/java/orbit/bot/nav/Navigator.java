@@ -112,12 +112,43 @@ public final class Navigator {
         return false;
     }
 
-    static double distanceToSegment(double px, double py, double ax, double ay, double bx, double by) {
+    public static double distanceToSegment(double px, double py, double ax, double ay, double bx, double by) {
         double dx = bx - ax;
         double dy = by - ay;
         double len2 = dx * dx + dy * dy;
         double t = len2 == 0 ? 0 : Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / len2));
         return Math.hypot(px - (ax + t * dx), py - (ay + t * dy));
+    }
+
+    private Supplier<List<double[]>> players = List::of;
+
+    /**
+     * Circles {x, y, r} round the players to keep away from (those who attacked the ship this session): flown round,
+     * and {@link #inDanger} for the modules' choice of targets.
+     */
+    public void setAvoidedPlayers(Supplier<List<double[]>> circles) {
+        players = circles;
+    }
+
+    /** The point lies within a circle of {@link #setAvoidedPlayers}. */
+    public boolean inDanger(double x, double y) {
+        for (double[] p : players.get()) {
+            if (Math.hypot(p[0] - x, p[1] - y) <= p[2]) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Such a circle (the ship outside it) lies on the way to the current click: re-plan round it. */
+    private boolean playerOnCourse(WorldSnapshot.Hero h, double x, double y, Destination d) {
+        for (double[] p : players.get()) {
+            if (Math.hypot(p[0] - h.x(), p[1] - h.y()) > p[2] && Math.hypot(p[0] - d.x(), p[1] - d.y()) > p[2]
+                    && distanceToSegment(p[0], p[1], h.x(), h.y(), x, y) < p[2]) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** Fly round the mines on the map (the config's «Обходить мины»). */
@@ -208,7 +239,7 @@ public final class Navigator {
         WorldSnapshot w = world.get();
         int map = w.hero().mapId();
         PathFinder p = PathFinder.of(w, catalog, false, avoidMines.getAsBoolean(), baseRadius.getAsInt(),
-                avoided.apply(map), preferred.apply(map));
+                avoided.apply(map), preferred.apply(map), players.get());
         return (x, y) -> {
             double[] f = p.nearestFree(x, y);
             return f != null && Math.hypot(f[0] - x, f[1] - y) < 200;
@@ -252,7 +283,8 @@ public final class Navigator {
                 && Math.hypot(clickX - d.x(), clickY - d.y()) > CLICK_SPREAD * 2;
         // around a zone: click the next corner shortly before reaching this one, like a player steering
         boolean turn = flyingToClick && viaWaypoint && Math.hypot(clickX - h.x(), clickY - h.y()) < TURN_AHEAD;
-        boolean mineAhead = flyingToClick && (mineOnCourse(w, h, clickX, clickY) || baseOnCourse(w, h, clickX, clickY, d));
+        boolean mineAhead = flyingToClick && (mineOnCourse(w, h, clickX, clickY) || baseOnCourse(w, h, clickX, clickY, d)
+                || playerOnCourse(h, clickX, clickY, d));
         if (flyingToClick && !refine && !turn && !mineAhead) {
             return; // on course
         }
@@ -260,7 +292,7 @@ public final class Navigator {
             return;
         }
         PathFinder paths = PathFinder.of(w, catalog, false, avoidMines.getAsBoolean(), baseRadius.getAsInt(),
-                avoided.apply(h.mapId()), preferred.apply(h.mapId()));
+                avoided.apply(h.mapId()), preferred.apply(h.mapId()), players.get());
         List<double[]> route = paths.path(h.x(), h.y(), d.x(), d.y());
         if (route.isEmpty()) {
             if (now - noWayLoggedNanos > 10_000_000_000L) {

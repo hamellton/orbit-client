@@ -139,12 +139,22 @@ public record BotConfig(
      * @param rememberSec stay away this long after the enemy is out of sight
      * @param jump        jump through the portal when the enemy follows or shoots there
      * @param waitSec     wait this long on the other side before going back
+     * @param avoid       keep away from the players who shot at the ship or killed it this session (whatever
+     *                    {@code mode} says): work on, but no nearer than {@code avoidRadius} to one in sight
+     * @param avoidRadius how far from such a player
      */
     @JsonInclude(JsonInclude.Include.NON_EMPTY)
     public record Flee(FleeMode mode, Set<String> players, Set<String> never, int sight, int rememberSec, boolean jump,
-                       int waitSec) {
+                       int waitSec, boolean avoid, int avoidRadius) {
+
+        public static final int AVOID_RADIUS = 2_500;
 
         public static final Flee OFF = new Flee(FleeMode.OFF, null, null, 2_000, 60, true, 90);
+
+        public Flee(FleeMode mode, Set<String> players, Set<String> never, int sight, int rememberSec, boolean jump,
+                    int waitSec) {
+            this(mode, players, never, sight, rememberSec, jump, waitSec, false, AVOID_RADIUS);
+        }
 
         public Flee {
             mode = mode == null ? FleeMode.OFF : mode;
@@ -153,6 +163,7 @@ public record BotConfig(
             sight = sight <= 0 ? 2_000 : sight;
             rememberSec = Math.max(0, rememberSec);
             waitSec = Math.max(0, waitSec);
+            avoidRadius = avoidRadius <= 0 ? AVOID_RADIUS : avoidRadius;
         }
 
         /** From the older switches in {@link General} (and DarkBot's RUNNING section). */

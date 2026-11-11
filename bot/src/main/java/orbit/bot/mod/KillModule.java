@@ -66,7 +66,7 @@ public final class KillModule implements BotModule {
         }
         if (kill) {
             double range = c.loot().ignoreFartherThan() > 0 ? c.loot().ignoreFartherThan() : Double.MAX_VALUE;
-            WorldSnapshot.Ship t = Targets.best(c, w, range, s -> attacker.gaveUp(s.id()));
+            WorldSnapshot.Ship t = Targets.best(c, w, range, s -> attacker.gaveUp(s.id()) || ctx.nav().inDanger(s.x(), s.y()));
             if (t != null) {
                 roamTo = null;
                 attacker.target(t);
@@ -83,11 +83,14 @@ public final class KillModule implements BotModule {
         ctx.ship().want(ctx.config().get().general().roam());
         if (roamTo == null || ctx.nav().idle() || now > roamUntil) {
             MapCatalog.MapInfo map = ctx.maps().info(w.hero().mapId());
-            double[] inZone = Zones.randomPreferred(ctx.config().get(), map, ctx.random());
             double margin = Math.min(map.width(), map.height()) * 0.1;
-            // DarkBot's preferred zone: roam inside it (the palladium field); none — the whole map
-            roamTo = inZone != null ? inZone : new double[] {margin + ctx.random().nextDouble() * (map.width() - 2 * margin),
-                    margin + ctx.random().nextDouble() * (map.height() - 2 * margin)};
+            // DarkBot's preferred zone: roam inside it (the palladium field); none — the whole map; away from a
+            // player who attacked the ship (a few tries, then anywhere)
+            for (int i = 0; i < 12 && (i == 0 || ctx.nav().inDanger(roamTo[0], roamTo[1])); i++) {
+                double[] inZone = Zones.randomPreferred(ctx.config().get(), map, ctx.random());
+                roamTo = inZone != null ? inZone : new double[] {margin + ctx.random().nextDouble() * (map.width() - 2 * margin),
+                        margin + ctx.random().nextDouble() * (map.height() - 2 * margin)};
+            }
             roamUntil = now + 90_000_000_000L;
             ctx.nav().moveTo(roamTo[0], roamTo[1], false);
         }

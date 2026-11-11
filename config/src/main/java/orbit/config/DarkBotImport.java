@@ -127,7 +127,7 @@ public final class DarkBotImport {
                 grp.path("KICK_NO_INVITED").asBoolean(false), null,
                 grp.path("OPEN_INVITES").asBoolean(false) ? Boolean.TRUE : null);
         return c.withFlee(new BotConfig.Flee(f.mode(), null, null, running.path("MAX_SIGHT_DISTANCE").asInt(2_000),
-                f.rememberSec(), true, 90)).withGroup(group);
+                f.rememberSec(), true, 90, f.avoid(), f.avoidRadius())).withGroup(group);
     }
 
     /**

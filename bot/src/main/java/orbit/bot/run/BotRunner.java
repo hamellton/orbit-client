@@ -74,6 +74,9 @@ public final class BotRunner {
     private final CargoCare cargo;
     private final orbit.bot.nav.CpuJumper jumper;
     private final BoxCheckSolver boxCheck;
+    private final Offenders offenders;
+    private int offendersSeen;
+    private boolean avoiding;
     private BotModule module;
     private BotConfig.Module moduleKind;
     private State state = State.STARTING;
@@ -100,6 +103,8 @@ public final class BotRunner {
         this.pet = new PetCare(ctx);
         this.cargo = new CargoCare(ctx, pet);
         this.boxCheck = new BoxCheckSolver(ctx);
+        this.offenders = new Offenders(ctx);
+        ctx.nav().setAvoidedPlayers(offenders::circles);
         this.jumper = new orbit.bot.nav.CpuJumper(ctx.world(), ctx.actions(), ctx.maps(), ctx.clock(), ctx.random(),
                 ctx.dataDir() == null ? null : ctx.dataDir().resolve("jump-uridium.json"));
         loadModule();
@@ -249,6 +254,7 @@ public final class BotRunner {
             inBoxCheck = false;
             log.info("Проверки больше нет — продолжаю");
         }
+        offenders.observe(w);
         if (w.death() != null && module != null && hangarRequest == 0 && state != State.STOPPING) {
             int want = module.hangarOnDeath(activeHangar, w);
             if (want != 0 && want != activeHangar) {
@@ -302,6 +308,25 @@ public final class BotRunner {
             state = State.FLEEING;
             show("Бегу от " + flee.threat());
             return;
+        }
+        if (offenders.on()) {
+            if (offenders.sightings() != offendersSeen) {
+                offendersSeen = offenders.sightings();
+                if (module != null) {
+                    module.pause(); // targets near him are left: the module chooses again away from him
+                }
+            }
+            String who = offenders.escape(w);
+            if (who != null) {
+                if (!avoiding && module != null) {
+                    module.pause();
+                }
+                avoiding = true;
+                state = State.WORKING;
+                show("Ухожу от " + who);
+                return;
+            }
+            avoiding = false;
         }
         if (safety.tick(module != null && module.busy())) {
             if (module != null) {

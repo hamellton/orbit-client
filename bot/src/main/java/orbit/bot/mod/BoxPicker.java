@@ -160,6 +160,8 @@ public final class BoxPicker {
                         : Math.hypot(b.x() - anchorX, b.y() - anchorY) <= (within > 0 ? within : c.collect().radius()))
                 .filter(b -> !c.collect().ignoreContested() || !contested(w, b))
                 .filter(b -> !c.general().avoidMines() || !orbit.bot.nav.PathFinder.nearMine(w, b.x(), b.y()))
+                // not by a player who attacked the ship this session (the config's «Обходить тех, кто стрелял»)
+                .filter(b -> !ctx.nav().inDanger(b.x(), b.y()))
                 // DarkBot's collector: the box priority first (lower first), then the nearest
                 .min(Comparator.<WorldSnapshot.Collectable>comparingInt(b -> {
                     BotConfig.BoxRule r = c.collect().boxes().get(key(b));
