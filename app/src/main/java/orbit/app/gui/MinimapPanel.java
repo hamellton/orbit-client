@@ -333,25 +333,6 @@ final class MinimapPanel extends JPanel {
             g.draw(diamond);
         }
 
-        // the enemy locator's point: a pulsing target sign while it is fresh
-        WorldSnapshot.Pet pet = w.pet();
-        if (pet.active() && pet.locatorWithin(w.nanos(), Hud.LOCATOR_SHOWN_MS)) {
-            double lx = p.x(pet.locatorX());
-            double ly = p.y(pet.locatorY());
-            double r = (7 + 2 * Math.sin(w.nanos() / 2e8)) * u;
-            g.setColor(LOCATOR);
-            g.setStroke(new BasicStroke((float) (1.6 * u)));
-            g.draw(new Ellipse2D.Double(lx - r, ly - r, 2 * r, 2 * r));
-            g.draw(new Line2D.Double(lx - r - 4 * u, ly, lx - r + 3 * u, ly));
-            g.draw(new Line2D.Double(lx + r - 3 * u, ly, lx + r + 4 * u, ly));
-            g.draw(new Line2D.Double(lx, ly - r - 4 * u, lx, ly - r + 3 * u));
-            g.draw(new Line2D.Double(lx, ly + r - 3 * u, lx, ly + r + 4 * u));
-            g.setStroke(new BasicStroke(1f));
-            if (!compact) {
-                g.setFont(labelFont);
-                drawLabel(g, "пеленгатор", lx + r + 5 * u, ly + 4 * u, LOCATOR);
-            }
-        }
         long sinceClick = System.nanoTime() - clickAt;
         if (clickAt != 0 && sinceClick < CLICK_MARK_NS) {
             float a = 1f - (float) sinceClick / CLICK_MARK_NS;
@@ -391,6 +372,7 @@ final class MinimapPanel extends JPanel {
                 g.draw(new Ellipse2D.Double(p.x(target.x()) - 7 * u, p.y(target.y()) - 7 * u, 14 * u, 14 * u));
                 g.setStroke(new BasicStroke(1f));
             }
+            locatorRing(g, w, p, u, target, labelFont);
             // the hero: a glow, then the dot
             g.setColor(new Color(HERO.getRed(), HERO.getGreen(), HERO.getBlue(), 60));
             g.fill(new Ellipse2D.Double(hx - 9 * u, hy - 9 * u, 18 * u, 18 * u));
@@ -426,6 +408,31 @@ final class MinimapPanel extends JPanel {
             g.clip(frame);
             hud.strip(g, (int) Math.round(vx), (int) Math.round(vy + vh), (int) Math.round(vw), feed, config.get());
             g.setClip(clip);
+        }
+    }
+
+    /**
+     * The pet's enemy locator point: a ring like the selected target's, in its own colour. On the selected target
+     * itself it goes round the red ring at the same gap, so one ring or two never overlap.
+     */
+    private void locatorRing(Graphics2D g, WorldSnapshot w, Projection p, double u, Ship target, Font labelFont) {
+        WorldSnapshot.Pet pet = w.pet();
+        if (!pet.active() || !pet.locatorWithin(w.nanos(), Hud.LOCATOR_SHOWN_MS)) {
+            return;
+        }
+        double lx = p.x(pet.locatorX());
+        double ly = p.y(pet.locatorY());
+        boolean onTarget = target != null && Math.hypot(p.x(target.x()) - lx, p.y(target.y()) - ly) <= 10 * u;
+        double cx = onTarget ? p.x(target.x()) : lx;
+        double cy = onTarget ? p.y(target.y()) : ly;
+        double r = onTarget ? 10 * u : 7 * u;
+        g.setColor(LOCATOR);
+        g.setStroke(new BasicStroke((float) (1.5 * u)));
+        g.draw(new Ellipse2D.Double(cx - r, cy - r, 2 * r, 2 * r));
+        g.setStroke(new BasicStroke(1f));
+        if (!onTarget && !compact) {
+            g.setFont(labelFont);
+            drawLabel(g, "пеленгатор", cx + r + 4 * u, cy + 4 * u, LOCATOR);
         }
     }
 
