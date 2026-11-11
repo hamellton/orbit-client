@@ -165,4 +165,57 @@ class BotRunnerTest {
         assertEquals(1, r.portalHops(18), "1-8 → 1-6: one portal");
         assertTrue(r.portalHops(18) < BotRunner.CPU_FROM_HOPS);
     }
+
+    /** Killed (portal 200, spot 300, base free on offer), revived as the runner picks, alive again; the picked type. */
+    private static int dieAndRevive(Sim sim, BotRunner r) {
+        KillScreenPostCommand k = new KillScreenPostCommand();
+        k.killerName = "camper";
+        k.options = List.of(option(KillScreenOptionTypeModule.OPTIONTYPE_BASIC_REPAIR, 0),
+                option(KillScreenOptionTypeModule.OPTIONTYPE_AT_JUMPGATE_REPAIR, 200),
+                option(KillScreenOptionTypeModule.OPTIONTYPE_AT_DEATHLOCATION_REPAIR, 300));
+        sim.world.apply(k, sim.now);
+        int before = sim.repairs.size();
+        for (int t = 0; t < 300 && sim.repairs.size() == before; t++) {
+            sim.run(r::tick, 100);
+        }
+        ShipInitializationCommand si = new ShipInitializationCommand();
+        si.userId = 1;
+        si.mapId = 26;
+        si.factionId = 3;
+        si.x = 10_000;
+        si.y = 6_000;
+        si.speed = 400;
+        si.hitPoints = 100_000;
+        si.hitMax = 100_000;
+        sim.world.apply(si, sim.now);
+        sim.run(r::tick, 1_000);
+        return sim.repairs.getLast()[0];
+    }
+
+    @Test
+    void killedAgainAndAgainAfterPaidRevivesTheShipRevivesAtTheBaseOnce() throws Exception {
+        BotConfig c = CubikonModuleTest.config(90, false)
+                .withSafety(new BotConfig.Safety(0.5, 0.9, 0.5, 0, null, null, 0, "PORTAL", 0, 0, 2, 3));
+        Sim sim = new Sim(c, 26, 10_000, 6_000);
+        BotRunner r = new BotRunner(sim.ctx, () -> false, s -> { });
+        int portal = KillScreenOptionTypeModule.OPTIONTYPE_AT_JUMPGATE_REPAIR;
+        int base = KillScreenOptionTypeModule.OPTIONTYPE_BASIC_REPAIR;
+        assertEquals(portal, dieAndRevive(sim, r));
+        assertEquals(portal, dieAndRevive(sim, r), "killed again a few seconds later: the second paid one");
+        assertEquals(base, dieAndRevive(sim, r), "the limit: the base");
+        assertEquals(portal, dieAndRevive(sim, r), "the count starts again");
+    }
+
+    @Test
+    void livingLongerThanTheWindowAfterAPaidReviveStartsTheCountAgain() throws Exception {
+        BotConfig c = CubikonModuleTest.config(90, false)
+                .withSafety(new BotConfig.Safety(0.5, 0.9, 0.5, 0, null, null, 0, "PORTAL", 0, 0, 2, 3));
+        Sim sim = new Sim(c, 26, 10_000, 6_000);
+        BotRunner r = new BotRunner(sim.ctx, () -> false, s -> { });
+        int portal = KillScreenOptionTypeModule.OPTIONTYPE_AT_JUMPGATE_REPAIR;
+        assertEquals(portal, dieAndRevive(sim, r));
+        assertEquals(portal, dieAndRevive(sim, r));
+        sim.now += 4 * 60_000 * Sim.MS; // four quiet minutes
+        assertEquals(portal, dieAndRevive(sim, r), "not «in a row» any more");
+    }
 }

@@ -11,6 +11,10 @@ import org.slf4j.LoggerFactory;
  * The kill screen: waits like a player reading it, then takes the repair the config asks for
  * ({@code BASE}, {@code PORTAL}, {@code SPOT}) whatever it costs if affordable, otherwise the base; a
  * single option is taken as it is. Counts deaths for {@code maxDeaths}.
+ * <p>Paid revives in a row are limited ({@code paidRevives}): killed again within {@code paidReviveMinutes} of a
+ * revive at the portal or on the spot (live 2026-11-11: a player kept killing the ship at the portal) counts as
+ * «in a row»; past the limit the ship revives at the base once and the count starts again. The count is kept
+ * in the account's data folder, so a restart does not reset it.
  */
 public final class Revive {
 
@@ -22,9 +26,27 @@ public final class Revive {
     private long repairAt;
     private long repairedAt = Long.MIN_VALUE / 2;
     private long resumeAt;
+    /** Paid revives in a row, and when the last one was (wall ms); kept in {@link #STREAK_FILE}. */
+    private int streak;
+    private long paidAtMs;
+    private final long wallBase = System.currentTimeMillis();
+    private final long nanoBase;
+
+    static final String STREAK_FILE = "revive-streak.json";
 
     public Revive(BotContext ctx) {
         this.ctx = ctx;
+        this.nanoBase = ctx.now();
+        loadStreak();
+    }
+
+    /** Wall-clock ms on the bot's clock (a fake clock in tests). */
+    private long wallMs() {
+        return wallBase + (ctx.now() - nanoBase) / 1_000_000;
+    }
+
+    int streak() {
+        return streak;
     }
 
     public int deaths() {
@@ -58,6 +80,10 @@ public final class Revive {
             ctx.nav().stop();
             repairAt = now + Math.max(0, s.waitBeforeReviveSec()) * 1_000_000_000L + ctx.pause(2_000, 6_000);
             log.warn("Корабль уничтожен ({}) — смертей {}", death == null ? "?" : death.killer(), deaths);
+            if (streak > 0 && wallMs() - paidAtMs > Math.max(1, s.paidReviveMinutes()) * 60_000L) {
+                streak = 0; // lived long enough after the last paid revive: not «in a row»
+                saveStreak();
+            }
             if (death != null) {
                 log.info("Варианты ремонта: {}", death.options().stream().map(Revive::describe).toList());
             }
@@ -68,7 +94,12 @@ public final class Revive {
         if (limitReached()) {
             return true; // the runner stops the bot
         }
-        WorldSnapshot.RepairOption pick = choose(death, s.revive());
+        String wanted = s.revive();
+        if (!"BASE".equals(wanted) && s.paidRevives() > 0 && streak >= s.paidRevives()) {
+            log.info("Убит {} раз подряд после платного возрождения — сейчас на базе, потом снова как в конфиге", streak);
+            wanted = "BASE";
+        }
+        WorldSnapshot.RepairOption pick = choose(death, wanted);
         int faction = w.hero().factionId();
         if (pick == null) {
             log.warn("Подходящего ремонта нет — жду");
@@ -82,7 +113,45 @@ public final class Revive {
         log.info("Ремонт: {}", describe(pick));
         ctx.repair().take(pick.type(), faction);
         repairedAt = now;
+        if (base(pick)) {
+            streak = 0;
+        } else {
+            streak++;
+            paidAtMs = wallMs();
+        }
+        saveStreak();
         return true;
+    }
+
+    private java.nio.file.Path streakFile() {
+        return ctx.dataDir() == null ? null : ctx.dataDir().resolve(STREAK_FILE);
+    }
+
+    private void loadStreak() {
+        java.nio.file.Path f = streakFile();
+        if (f == null || !java.nio.file.Files.exists(f)) {
+            return;
+        }
+        try {
+            com.fasterxml.jackson.databind.JsonNode n = new com.fasterxml.jackson.databind.ObjectMapper().readTree(f.toFile());
+            streak = n.path("streak").asInt(0);
+            paidAtMs = n.path("paidAt").asLong(0);
+        } catch (java.io.IOException e) {
+            log.warn("Не прочитать {}: {}", f, e.getMessage());
+        }
+    }
+
+    private void saveStreak() {
+        java.nio.file.Path f = streakFile();
+        if (f == null) {
+            return;
+        }
+        try {
+            java.nio.file.Files.createDirectories(f.toAbsolutePath().getParent());
+            java.nio.file.Files.writeString(f, "{\"streak\": " + streak + ", \"paidAt\": " + paidAtMs + "}\n");
+        } catch (java.io.IOException e) {
+            log.warn("Не записать {}: {}", f, e.getMessage());
+        }
     }
 
     /**

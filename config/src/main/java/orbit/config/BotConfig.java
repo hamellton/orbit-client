@@ -46,7 +46,7 @@ public record BotConfig(
         Flee flee,
         GroupRules group) {
 
-    public static final int SCHEMA = 2;
+    public static final int SCHEMA = 3;
 
     public BotConfig {
         schema = schema == 0 ? SCHEMA : schema;
@@ -531,13 +531,25 @@ public record BotConfig(
      * @param heal          use heal items (repair robot, pod) without stopping
      * @param maxDeaths     stop the bot after this many deaths; 0 or less = no limit (DarkBot: -1)
      * @param revive        {@code BASE}, {@code PORTAL} or {@code SPOT} (DarkBot names)
+     * @param paidRevives   a revive at the portal or on the spot this many times in a row at most, then one at the
+     *                      base (free) and the count starts again; 0 = no limit
+     * @param paidReviveMinutes «in a row»: killed again within this many minutes after a paid revive
      */
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public record Safety(double repairHpMin, double repairHpMax, double repairHpNoNpc, double repairToShield,
                          ShipMode repairMode, Heal heal, int maxDeaths, String revive,
-                         int waitBeforeReviveSec, int waitAfterReviveSec) {
+                         int waitBeforeReviveSec, int waitAfterReviveSec, int paidRevives, int paidReviveMinutes) {
 
+        public static final int DEFAULT_PAID_REVIVES = 2;
+        public static final int DEFAULT_PAID_REVIVE_MINUTES = 3;
         public static final Safety DEFAULT = new Safety(0.5, 0.9, 0.5, 0, null, null, 10, "PORTAL", 10, 10);
+
+        public Safety(double repairHpMin, double repairHpMax, double repairHpNoNpc, double repairToShield,
+                      ShipMode repairMode, Heal heal, int maxDeaths, String revive,
+                      int waitBeforeReviveSec, int waitAfterReviveSec) {
+            this(repairHpMin, repairHpMax, repairHpNoNpc, repairToShield, repairMode, heal, maxDeaths, revive,
+                    waitBeforeReviveSec, waitAfterReviveSec, DEFAULT_PAID_REVIVES, DEFAULT_PAID_REVIVE_MINUTES);
+        }
 
         public Safety {
             repairMode = repairMode == null ? new ShipMode(2, null) : repairMode;

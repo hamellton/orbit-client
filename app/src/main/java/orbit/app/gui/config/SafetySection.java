@@ -23,6 +23,8 @@ final class SafetySection implements Section {
     private final Threshold healPod = new Threshold("Ремкапсула (Aegis, Hammerclaw) при HP ниже");
     private final JSpinner maxDeaths = Form.number(0, 100_000, 1);
     private final JComboBox<String> revive = new JComboBox<>(REVIVE_NAMES);
+    private final JSpinner paidRevives = Form.number(0, 50, 1);
+    private final JSpinner paidMinutes = Form.number(1, 120, 1);
     private final JSpinner waitBefore = Form.number(0, 3600, 5);
     private final JSpinner waitAfter = Form.number(0, 3600, 5);
     private static final BotConfig.FleeMode[] FLEE_MODES = BotConfig.FleeMode.values();
@@ -64,6 +66,9 @@ final class SafetySection implements Section {
                 .note("0 — без ограничения.")
                 .row("Возрождение", revive)
                 .note("Любой ценой; не хватит средств — на базе.")
+                .row("Платно подряд, раз", paidRevives)
+                .row("«Подряд» — убит за, мин", paidMinutes)
+                .note("Потом раз на базе, счёт заново. 0 — без лимита.")
                 .row("Ждать до возрождения, с", waitBefore)
                 .row("Ждать после возрождения, с", waitAfter)
                 .build(true);
@@ -93,6 +98,8 @@ final class SafetySection implements Section {
         Form.set(maxDeaths, Math.max(0, s.maxDeaths()));
         int r = java.util.Arrays.asList(REVIVE).indexOf(s.revive());
         revive.setSelectedIndex(r < 0 ? 1 : r);
+        Form.set(paidRevives, Math.max(0, s.paidRevives()));
+        Form.set(paidMinutes, Math.max(1, s.paidReviveMinutes()));
         Form.set(waitBefore, s.waitBeforeReviveSec());
         Form.set(waitAfter, s.waitAfterReviveSec());
         BotConfig.Flee f = c.flee();
@@ -119,7 +126,8 @@ final class SafetySection implements Section {
         return c.withSafety(new BotConfig.Safety(Form.fraction(repairMin), Form.fraction(repairMax),
                 Form.fraction(repairNoNpc), Form.fraction(repairShield), repairMode.get(),
                 new BotConfig.Heal(healHp.get(), healShield.get(), healPod.get()), Form.intOf(maxDeaths),
-                REVIVE[revive.getSelectedIndex()], Form.intOf(waitBefore), Form.intOf(waitAfter)));
+                REVIVE[revive.getSelectedIndex()], Form.intOf(waitBefore), Form.intOf(waitAfter),
+                Form.intOf(paidRevives), Form.intOf(paidMinutes)));
     }
 
     static java.util.Set<String> names(String text) {

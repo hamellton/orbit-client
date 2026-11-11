@@ -25,6 +25,18 @@ final class Migrations {
                 general.put("baseRadius", BotConfig.General.DEFAULT_BASE_RADIUS);
             }
         }
+        if (schema < 3) {
+            // 3: paid revives in a row are limited (2 within 3 minutes, then one at the base)
+            // (no safety section: the defaults, which have the limit already)
+            if (tree.path("safety") instanceof ObjectNode safety) {
+                if (!safety.has("paidRevives")) {
+                    safety.put("paidRevives", BotConfig.Safety.DEFAULT_PAID_REVIVES);
+                }
+                if (!safety.has("paidReviveMinutes")) {
+                    safety.put("paidReviveMinutes", BotConfig.Safety.DEFAULT_PAID_REVIVE_MINUTES);
+                }
+            }
+        }
         tree.put("schema", BotConfig.SCHEMA);
         try {
             return Json.MAPPER.treeToValue(tree, BotConfig.class);
