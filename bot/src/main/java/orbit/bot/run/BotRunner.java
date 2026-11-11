@@ -207,7 +207,11 @@ public final class BotRunner {
             offline = false;
             log.info("Связь восстановлена — продолжаю");
         }
-        if (revive.tick()) {
+        boolean reviving = revive.tick();
+        if (reviving && state == State.STOPPING && w.death() == null && h.alive()) {
+            reviving = false; // back in game while logging out: no pause after the revive, out at once
+        }
+        if (reviving) {
             if (module != null) {
                 module.pause();
             }
@@ -418,11 +422,8 @@ public final class BotRunner {
             log.info("Вышел из игры");
             return;
         }
-        if (safety.tick(false)) {
-            show("Ремонт перед выходом");
-            logoutAt = 0;
-            return;
-        }
+        // straight to the portal and out: the hull is not repaired first, no escape jump on the way
+        safety.healOnly();
         MapCatalog.Portal p = ctx.maps().portals(h.mapId()).stream()
                 .filter(x -> x.faction() == 0 || x.faction() == h.factionId())
                 .min(Comparator.comparingDouble(x -> Math.hypot(x.x() - h.x(), x.y() - h.y()))).orElse(null);

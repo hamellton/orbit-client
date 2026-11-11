@@ -56,6 +56,28 @@ public final class Safety {
      * @param fighting the module has a target
      * @return true while safety steers the ship (the module must not act)
      */
+    /**
+     * Healing on the go only (abilities, repair robot), no trip to repair and no escape jump: for the way out,
+     * which must not wait for the hull (live 2026-11-11: stopped right after a revive, the ship repaired first).
+     */
+    public void healOnly() {
+        WorldSnapshot w = ctx.world().get();
+        WorldSnapshot.Hero h = w.hero();
+        double hp = h.health().hpPercent();
+        if (hp < 0) {
+            return;
+        }
+        long now = ctx.now();
+        double hull = h.health().hp();
+        if (lastHp >= 0 && hull < lastHp - 1) {
+            hurtAt = now;
+        }
+        lastHp = hull;
+        repairing = false;
+        boolean attacked = !h.attackers().isEmpty() || now - hurtAt < HURT_MS * 1_000_000;
+        heal(w, ctx.config().get().safety(), now, hp, attacked);
+    }
+
     public boolean tick(boolean fighting) {
         WorldSnapshot w = ctx.world().get();
         WorldSnapshot.Hero h = w.hero();

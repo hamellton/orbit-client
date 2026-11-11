@@ -237,4 +237,29 @@ class BotRunnerTest {
         assertTrue(sim.sent.subList(sent, sim.sent.size()).stream().anyMatch(p -> p instanceof orbit.protocol.gen.MoveRequest),
                 "flies on within half a second");
     }
+
+    @Test
+    void stoppingWithALowHullFliesStraightOutWithoutRepairing() throws Exception {
+        // live 2026-11-11: stopped right after a revive at the portal; the ship repaired first, then left
+        BotConfig c = CubikonModuleTest.config(90, false)
+                .withSafety(new BotConfig.Safety(0.5, 0.9, 0.5, 0, null, null, 10, "PORTAL", 0, 0));
+        Sim sim = new Sim(c, 26, 10_000, 6_000);
+        BotRunner r = new BotRunner(sim.ctx, () -> false, s -> { });
+        sim.run(r::tick, 1_000);
+        orbit.protocol.gen.AttackHitCommand hit = new orbit.protocol.gen.AttackHitCommand();
+        hit.attackerId = 99;
+        hit.victimId = 1;
+        hit.victimHitpoints = 12_000;
+        hit.victimShield = 0;
+        sim.world.apply(hit, sim.now);
+        r.stop("по кнопке");
+        boolean out = false;
+        for (int t = 0; t < 900 && !out; t++) {
+            sim.run(r::tick, 100);
+            out = sim.sent.stream().anyMatch(p -> p instanceof UIButtonTriggerRequest u && "logout".equals(u.itemId));
+        }
+        assertTrue(out, "logged out with 12% HP, not waiting for the repair");
+        assertTrue(sim.sent.stream().noneMatch(p -> p instanceof orbit.protocol.gen.JumpRequest), "no escape jump");
+        assertTrue(!r.status().contains("Ремонт"), r.status());
+    }
 }
