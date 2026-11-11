@@ -77,6 +77,8 @@ final class Offenders {
             deathTaken = false;
         } else if (!deathTaken) {
             deathTaken = true;
+            // killed while getting away: no «got away» after the revive (live 2026-11-12 on gb2 it said so)
+            near = "";
             String killer = w.death().killer();
             // a player's kill: he is (or was) a player ship in sight; NPC kills are not remembered
             WorldSnapshot.Ship k = w.ships().values().stream()
