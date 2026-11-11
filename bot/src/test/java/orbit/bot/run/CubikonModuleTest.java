@@ -549,4 +549,20 @@ class CubikonModuleTest {
         assertTrue(m.status().contains("на 134/39") || m.status().contains("на 134/79") || m.status().contains("на 75/"),
                 "on to a spot: " + m.status());
     }
+
+    @Test
+    void theLocatorsZeroPointMeansNothingFound() throws Exception {
+        // live 2026-11-11: after the cube died the locator sent 0/0, and the ship flew off to the map's corner
+        Sim sim = new Sim(withLocator(config(90, false)), 26, 12_000, 4_500);
+        CubikonModule m = new CubikonModule(sim.ctx, SpawnMemory.inMemory());
+        sim.now += 1_000 * Sim.MS; // a point at the clock's zero would read as «none»
+        locator(sim, 5_000, 11_000);
+        sim.run(m::tick, 500);
+        assertTrue(m.status().startsWith("Пеленгатор"), m.status());
+        locator(sim, 0, 0);
+        sim.run(m::tick, 3_000);
+        assertTrue(!m.status().startsWith("Пеленгатор"), "the old point is dropped too: " + m.status());
+        var d = sim.ctx.nav().destination();
+        assertTrue(d == null || Math.hypot(d.x(), d.y()) > 1_000, "not to 0/0: " + d);
+    }
 }

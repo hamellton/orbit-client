@@ -243,7 +243,9 @@ public final class World {
                     p.enabled ? p.repairCosts : -1, pet.comboRepair());
             case orbit.protocol.gen.PetOutOfFuelCommand p -> pet = pet(pet.owned(), pet.alive(), false, pet.active(), pet.id(),
                     pet.name(), pet.level(), pet.health(), pet.fuel(), pet.fuelMax(), pet.heat(), pet.heatMax(), pet.gear());
-            case orbit.protocol.gen.PetGearLocatorUpdate p -> pet = petLocator(p.x, p.y, nanos);
+            // 0/0 is «nothing found» (live 2026-11-11: the bot flew to the map's corner after it), not a point
+            case orbit.protocol.gen.PetGearLocatorUpdate p -> pet = p.x == 0 && p.y == 0 ? petLocator(0, 0, 0)
+                    : petLocator(p.x, p.y, nanos);
             case orbit.protocol.gen.PetBuffCommand p when p.effectId == 6 -> pet = petWith(pet.gearNanos(), pet.gears(),
                     pet.repairCost(), p.effectAction == 0);
             case PetLevelUpdateCommand p -> pet = pet(pet.owned(), pet.alive(), pet.hasFuel(), pet.active(), pet.id(),
