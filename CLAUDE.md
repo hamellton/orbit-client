@@ -59,6 +59,8 @@ Gradle needs JDK 21 (`export JAVA_HOME=$(/usr/libexec/java_home -v 21)`; the def
 - `scripts/sniff-session.sh [--observe]` — sniffer (or the bot window in observer mode) + official client (direct mode via `--host-resolver-rules`).
   Terminals inside VSCode set `ELECTRON_RUN_AS_NODE=1`; the script unsets it.
 - `scripts/update-maps.sh` — refresh `reference/maps/maps.json` from the client's maps-config.
+- `scripts/update-npcs.sh` — refresh `reference/maps/npcs.json` (game NPC number → name, 13 = Cubikon)
+  from the client's embedded `game.xml`; the pet locator's targets are these numbers.
 - `scripts/update-protocol.sh [--force]` — after a game patch: download swf, decompile selected
   packages, parse, validate, diff, regenerate, build. Logic in `tools/update_protocol.py`.
 - `RecordedTrafficTest` reads `recordings/` (local only) and requires byte-exact round trips.
