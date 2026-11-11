@@ -248,7 +248,7 @@ public final class World {
             case orbit.protocol.gen.PetGearLocatorUpdate p -> {
                 if (p.x < LOCATOR_CORNER && p.y < LOCATOR_CORNER) {
                     if (pet.locatorNanos() != 0) {
-                        log.info("Пеленгатор: цели нет (точка {}/{})", p.x, p.y);
+                        log.info("Пеленгатор: цель не найдена (игра прислала точку {}/{} — это «ничего»)", p.x, p.y);
                     }
                     pet = petLocator(0, 0, 0);
                 } else {

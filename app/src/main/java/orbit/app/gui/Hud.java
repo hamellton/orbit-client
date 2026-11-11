@@ -525,9 +525,9 @@ final class Hud {
         // by the point's age: the server names the mode 12–32 s after the points start
         String locator = !out ? null
                 : pet.locatorWithin(now, LOCATOR_SHOWN_MS)
-                ? "Пеленгатор: цель у " + pet.locatorX() / 100 + "/" + pet.locatorY() / 100 + "  ·  "
+                ? "Пеленгатор нашёл цель: " + pet.locatorX() / 100 + "/" + pet.locatorY() / 100 + "  ·  "
                         + Math.max(0, (now - pet.locatorNanos()) / 1_000_000_000L) + " с назад"
-                : pet.gear() == orbit.protocol.gen.PetGearTypeModule.PETGEARTYPE_ENEMY_LOCATOR ? "Пеленгатор: цели не видно"
+                : pet.gear() == orbit.protocol.gen.PetGearTypeModule.PETGEARTYPE_ENEMY_LOCATOR ? "Пеленгатор: цель не найдена"
                 : null;
         return new Card() {
             @Override
@@ -560,7 +560,7 @@ final class Hud {
                 }
                 if (locator != null) {
                     g.setFont(font(Font.PLAIN, 11f));
-                    g.setColor(locator.contains("цель у") ? MinimapPanel.LOCATOR : DIM);
+                    g.setColor(locator.contains("нашёл") ? MinimapPanel.LOCATOR : DIM);
                     g.drawString(clip(g, locator, width - 2 * pad), x + pad,
                             y + pad + rows * line + 2 * bar + 4 + (pet.fuel() >= 0 ? line : 0) + 13);
                 }

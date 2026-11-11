@@ -71,6 +71,16 @@ public final class PetCare {
         this.ctx = ctx;
     }
 
+    /** A mode's name for the log: «Поиск врагов», not «Поиск врагов (Enemy Locator)». */
+    static String gearName(String gear) {
+        return "«" + orbit.config.ItemCatalog.label(gear).replaceFirst("\\s*\\(.*\\)$", "") + "»";
+    }
+
+    /** What the locator looks for, by the game's NPC number: 13 is the Cubikon (seen 2026-11-11). */
+    public static String locatorTarget(int npc) {
+        return npc == BotConfig.Pet.CUBIKON_LOCATOR ? "Cubikon" : "NPC №" + npc + " (имя неизвестно)";
+    }
+
     /** The {@code PetGearTypeModule} number of a config name ({@code ENEMY_LOCATOR}…), -1 for none. */
     static int gearId(String name) {
         if (name == null) {
@@ -107,12 +117,12 @@ public final class PetCare {
                 kamikazeOn = false;
                 boomAt = now;
                 cooldownTold = false;
-                log.info("Питомец взорвался (камикадзе)");
+                log.info("Питомец взорвался в режиме «Камикадзе»");
             }
             if (cfg.noRepair()) {
                 tell("Питомец уничтожен — починка выключена в конфиге");
             } else if (ms(now - repairedAt) > REPAIR_RETRY_MS) {
-                log.info("Питомец уничтожен — чиню{}", pet.repairCost() >= 0 ? " (цена " + pet.repairCost() + ")" : "");
+                log.info("Питомец уничтожен — чиню{}", pet.repairCost() >= 0 ? " за " + pet.repairCost() : "");
                 ctx.actions().pet(PetRequest.PETREQUESTTYPE_REPAIR_DESTROYED_PET);
                 repairedAt = now;
             }
@@ -153,27 +163,30 @@ public final class PetCare {
         WorldSnapshot.Item button = w.items().get(KAMIKAZE_ITEM);
         if (button != null && button.timerMax() > 0 && button.timerNanos() > boomAt && !cooldownTold) {
             cooldownTold = true; // the game's own number, once after a blast (the client's data: 120/60/30 s by level)
-            log.info("Камикадзе: кулдаун игры {} с", Math.round(button.timerMax() / 1000));
+            log.info("Камикадзе снова будет доступен через {} с — так считает игра", Math.round(button.timerMax() / 1000));
         }
         boolean ready = button == null || button.activatable() && button.remainingMs(now) == 0;
         boolean can = k.enabled() && pet.gears().contains(PetGearTypeModule.PETGEARTYPE_KAMIKAZE) && ready
                 && ms(now - boomAt) >= Math.max(KAMIKAZE_MIN_COOLDOWN_MS, k.everyMinutes() * 60_000L);
-        boolean crowd = can && crowd(k, w, pet);
-        if (crowd) {
+        String crowd = can ? crowd(k, w, pet) : null;
+        if (crowd != null) {
             crowdSeenAt = now;
         }
-        boolean want = can && (crowd || kamikazeOn && ms(now - crowdSeenAt) < KAMIKAZE_HOLD_MS);
+        boolean want = can && (crowd != null || kamikazeOn && ms(now - crowdSeenAt) < KAMIKAZE_HOLD_MS);
         if (want && !kamikazeOn) {
-            log.info("Питомец: камикадзе — рядом враги");
+            log.info("Питомец: включаю «Камикадзе» — рядом {}", crowd);
             kamikazeSince = now;
         } else if (!want && kamikazeOn) {
-            log.info("Питомец: камикадзе отменён — врагов рядом нет");
+            log.info("Питомец: «Камикадзе» больше не нужен — рядом нет целей, возвращаю {}", gearName(cfg.gear()));
         }
         kamikazeOn = want;
     }
 
-    /** NPCs round the pet (round the ship while the pet is not seen): enough of them, or a flagged one. */
-    private boolean crowd(BotConfig.Kamikaze k, WorldSnapshot w, WorldSnapshot.Pet pet) {
+    /**
+     * NPCs round the pet (round the ship while the pet is not seen): enough of them, or a flagged one —
+     * said for the log («Cubikon (флаг KAMIKAZE)», «5 NPC»), {@code null} when neither.
+     */
+    private String crowd(BotConfig.Kamikaze k, WorldSnapshot w, WorldSnapshot.Pet pet) {
         WorldSnapshot.Ship own = w.ships().get(pet.id());
         WorldSnapshot.Hero h = w.hero();
         int cx = own != null ? own.x() : h.x();
@@ -188,11 +201,11 @@ public final class PetCare {
             if (k.flagged()) {
                 BotConfig.NpcRule r = orbit.bot.mod.Targets.rule(c, s, h.mapId());
                 if (r != null && r.has(BotConfig.NpcFlag.KAMIKAZE)) {
-                    return true;
+                    return s.name().replaceAll("^[^A-Za-zА-Яа-я]+|[^A-Za-zА-Яа-я]+$", "") + " (у него флаг KAMIKAZE)";
                 }
             }
         }
-        return k.minNpcs() > 0 && n >= k.minNpcs();
+        return k.minNpcs() > 0 && n >= k.minNpcs() ? n + " NPC (нужно от " + k.minNpcs() + ")" : null;
     }
 
     private boolean combo(BotConfig.Pet cfg, WorldSnapshot.Hero h, WorldSnapshot.Pet pet, long now) {
@@ -208,7 +221,8 @@ public final class PetCare {
                 || ms(now - comboAt) < COMBO_EVERY_MS) {
             return false;
         }
-        log.info("Питомец: комбо-ремонт (HP {}%)", Math.round(hp * 100));
+        log.info("Питомец: чиню корабль комбо-ремонтом — HP {}%, по кораблю не стреляют {} с",
+                Math.round(hp * 100), ms(now - hurtAt) / 1000);
         ctx.actions().petGear(combo, 0);
         comboAt = now;
         askedGear = combo;
@@ -218,12 +232,12 @@ public final class PetCare {
 
     private void gear(BotConfig.Pet cfg, WorldSnapshot.Pet pet, long now) {
         int want = kamikazeOn ? PetGearTypeModule.PETGEARTYPE_KAMIKAZE : gearId(cfg.gear());
-        String label = kamikazeOn ? "Камикадзе" : orbit.config.ItemCatalog.label(cfg.gear());
+        String label = kamikazeOn ? "«Камикадзе»" : gearName(cfg.gear());
         if (want < 0) {
             return;
         }
         if (!pet.gears().isEmpty() && !pet.gears().contains(want)) {
-            tell("У питомца нет режима " + label);
+            tell("У питомца нет режима " + label + " — оставляю тот, что включён в игре");
             return;
         }
         // the server's word after our request: another mode means it was turned down or changed (Guard)
@@ -252,14 +266,18 @@ public final class PetCare {
             }
             tries++;
             if (tries == GEAR_TRIES) {
-                log.warn("Питомец: сервер не держит режим {} — повторю через минуту", label);
+                log.warn("Питомец: игра не включает режим {} — попробую снова через минуту", label);
             }
         } else {
             tries = 0;
             firstTryAt = now;
         }
         int param = want == PetGearTypeModule.PETGEARTYPE_ENEMY_LOCATOR ? cfg.locatorTarget() : 0;
-        log.info("Питомец: режим {}{}", label, param != 0 ? ", цель №" + param : "");
+        if (kamikazeOn) {
+            log.debug("Питомец: режим {}", label); // the reason is in the line before
+        } else {
+            log.info("Питомец: включаю режим {}{}", label, param != 0 ? " — ищет " + locatorTarget(param) : "");
+        }
         ctx.actions().petGear(want, param);
         askedGear = want;
         askedAt = now;

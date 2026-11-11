@@ -518,7 +518,7 @@ class CubikonModuleTest {
         }
         var d = sim.ctx.nav().destination();
         assertTrue(d != null && Math.hypot(d.x() - 5_000, d.y() - 11_000) < 400, "to the locator's point: " + d);
-        assertTrue(m.status().startsWith("Пеленгатор"), m.status());
+        assertTrue(m.status().contains("по пеленгатору"), m.status());
     }
 
     @Test
@@ -534,7 +534,7 @@ class CubikonModuleTest {
         CubikonModule p = new CubikonModule(plain.ctx, SpawnMemory.inMemory());
         locator(plain, 5_000, 11_000);
         plain.run(p::tick, 3_000);
-        assertTrue(!p.status().startsWith("Пеленгатор"), p.status());
+        assertTrue(!p.status().contains("по пеленгатору"), p.status());
     }
 
     @Test
@@ -545,7 +545,7 @@ class CubikonModuleTest {
         sim.run(m::tick, 500);
         locator(sim, 12_300, 4_600);
         sim.run(m::tick, 8_000);
-        assertTrue(!m.status().startsWith("Пеленгатор"), "the point is dropped: " + m.status());
+        assertTrue(!m.status().contains("по пеленгатору"), "the point is dropped: " + m.status());
         assertTrue(m.status().contains("на 134/39") || m.status().contains("на 134/79") || m.status().contains("на 75/"),
                 "on to a spot: " + m.status());
     }
@@ -558,10 +558,10 @@ class CubikonModuleTest {
         sim.now += 1_000 * Sim.MS; // a point at the clock's zero would read as «none»
         locator(sim, 5_000, 11_000);
         sim.run(m::tick, 500);
-        assertTrue(m.status().startsWith("Пеленгатор"), m.status());
+        assertTrue(m.status().contains("по пеленгатору"), m.status());
         locator(sim, 37, 64); // near the corner: «0/0» in the log's hundreds
         sim.run(m::tick, 3_000);
-        assertTrue(!m.status().startsWith("Пеленгатор"), "the old point is dropped too: " + m.status());
+        assertTrue(!m.status().contains("по пеленгатору"), "the old point is dropped too: " + m.status());
         var d = sim.ctx.nav().destination();
         assertTrue(d == null || Math.hypot(d.x(), d.y()) > 1_000, "not to 0/0: " + d);
     }

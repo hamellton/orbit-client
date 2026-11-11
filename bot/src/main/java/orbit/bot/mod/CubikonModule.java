@@ -280,13 +280,14 @@ public final class CubikonModule implements BotModule {
         double dist = Math.hypot(lead[0] - h.x(), lead[1] - h.y());
         if (!leadTold) {
             leadTold = true;
-            log.info("Пеленгатор: куб у {}/{} ({} от нас) — лечу к нему", lead[0] / 100, lead[1] / 100, (int) dist);
+            log.info("Пеленгатор нашёл Cubikon на {}/{}, в {} от нас — лечу к нему", lead[0] / 100, lead[1] / 100,
+                    String.format("%,d", (int) dist).replace(',', ' '));
         }
         attacker.clear();
         moveOn = false;
         if (dist < IN_VIEW / 2) {
             // close enough to see it: it would be in the world now
-            log.info("Пеленгатор: у {}/{} куба не видно — дальше по спотам", lead[0] / 100, lead[1] / 100);
+            log.info("Пеленгатор: долетел до {}/{}, но куба там нет — ищу по спотам", lead[0] / 100, lead[1] / 100);
             emptyLead = lead;
             emptyLeadAt = wallMs();
             leadTold = false;
@@ -299,7 +300,7 @@ public final class CubikonModule implements BotModule {
             ctx.nav().moveTo(lead[0], lead[1], false);
         }
         ctx.nav().tick();
-        status = "Пеленгатор: куб у " + lead[0] / 100 + "/" + lead[1] / 100;
+        status = "Лечу к кубу по пеленгатору: " + lead[0] / 100 + "/" + lead[1] / 100;
     }
 
     @Override
