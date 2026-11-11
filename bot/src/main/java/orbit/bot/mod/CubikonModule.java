@@ -203,12 +203,13 @@ public final class CubikonModule implements BotModule {
                 status = "Ящик с куба";
                 return;
             }
-            boolean selling = BoxPicker.cargoFull(c, w) && (BotConfig.Collect.CARGO_PET.equals(c.collect().cargo())
-                    || BotConfig.Collect.CARGO_BASE.equals(c.collect().cargo()))
-                    && c.collect().sellOres().stream().anyMatch(o -> w.inventory().ores().getOrDefault(o, 0.0) >= 1)
-                    // only worth it when the config picks up the cube's cargo box at all
-                    && c.collect().boxes().entrySet().stream()
-                            .anyMatch(e -> e.getKey().startsWith("FROM_SHIP") && e.getValue().collect());
+            // longer only while a sale is really under way and the cube's cargo box really lies there (one the
+            // config picks up): the hold is about to have room for it (live 2026-11-11: 20 s for nothing otherwise)
+            int[] dead = deadAt;
+            boolean selling = ctx.stats().selling && BoxPicker.cargoFull(c, w) && w.collectables().values().stream()
+                    .anyMatch(b -> b.boxType() != null && b.boxType().startsWith("FROM_SHIP")
+                            && Math.hypot(b.x() - dead[0], b.y() - dead[1]) <= c.collect().radius()
+                            && c.collect().boxes().getOrDefault(b.boxType(), new BotConfig.BoxRule(false, 0, 0)).collect());
             long wait = selling ? BOX_WAIT_SELLING_MS : BOX_WAIT_MS;
             if (setting(s, "collectBoxes", true) && ctx.now() - deadAtNanos < wait * 1_000_000) {
                 ctx.nav().stop();

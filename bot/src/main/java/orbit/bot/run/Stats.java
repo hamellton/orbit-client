@@ -11,6 +11,8 @@ public final class Stats {
     /** NPCs the bot was shooting at when they died. */
     public final AtomicInteger kills = new AtomicInteger();
     public final AtomicInteger boxes = new AtomicInteger();
+    /** A full hold is being sold right now ({@code CargoCare}): the modules may wait for the room it makes. */
+    public volatile boolean selling;
     public final AtomicInteger deaths = new AtomicInteger();
     /** Trips to a portal to repair. */
     public final AtomicInteger repairs = new AtomicInteger();

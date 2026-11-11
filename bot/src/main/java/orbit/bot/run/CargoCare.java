@@ -155,6 +155,7 @@ final class CargoCare {
             since = now;
             ctx.traveler().travel(baseMap, Double.NaN, Double.NaN);
         }
+        ctx.stats().selling = true;
         return switch (step) {
             case TO_BASE -> toBase(w, now);
             case TO_REFINERY -> toRefinery(w, now);
@@ -249,6 +250,7 @@ final class CargoCare {
     }
 
     private boolean done(boolean sold) {
+        ctx.stats().selling = false;
         if (!sold) {
             failedAt = ctx.now();
         }
@@ -258,6 +260,7 @@ final class CargoCare {
     }
 
     private boolean fail(String why) {
+        ctx.stats().selling = false;
         log.warn("Продажа не вышла: {} — попробую через {} мин, пока не беру груз", why, RETRY_MS / 60_000);
         failedAt = ctx.now();
         pet.setTrade(false);
