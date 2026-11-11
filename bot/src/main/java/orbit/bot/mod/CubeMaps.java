@@ -98,11 +98,15 @@ public final class CubeMaps {
      * The map to work on now.
      *
      * @param cubeHere a Cubikon is alive on the hero's map: stay
+     * @param fighting the ship shoots a Cubikon here: stay even when the timetable has moved on
      * @param nowMs    wall clock, for the spawn memory
      */
     public int choose(JsonNode s, int workingMap, int heroMap, double hx, double hy, int faction, boolean cubeHere,
-                      SpawnMemory memory, long nowMs, LocalTime time) {
+                      boolean fighting, SpawnMemory memory, long nowMs, LocalTime time) {
         List<Integer> maps = candidates(s, workingMap, time);
+        if (fighting) {
+            return remember(heroMap, null); // a cube under fire is finished first, whatever the plan says now
+        }
         if (cubeHere && maps.contains(heroMap)) {
             return remember(heroMap, "куб здесь");
         }

@@ -37,11 +37,11 @@ class CubeMapsTest {
         CubeMaps maps = new CubeMaps(MapCatalog.bundled());
         JsonNode s = settings("{\"maps\": [18, 22, 26], \"mapMode\": \"ROUND\"}");
         SpawnMemory memory = SpawnMemory.inMemory();
-        assertEquals(22, maps.choose(s, 22, 22, 7500, 4000, 2, false, memory, 0, NOON), "starts where the ship is");
+        assertEquals(22, maps.choose(s, 22, 22, 7500, 4000, 2, false, false, memory, 0, NOON), "starts where the ship is");
         maps.killedOn(s, 22, 22, NOON);
-        assertEquals(26, maps.choose(s, 22, 22, 7500, 4000, 2, false, memory, 0, NOON));
+        assertEquals(26, maps.choose(s, 22, 22, 7500, 4000, 2, false, false, memory, 0, NOON));
         maps.killedOn(s, 22, 26, NOON);
-        assertEquals(18, maps.choose(s, 22, 26, 7500, 4000, 2, false, memory, 0, NOON), "and round again");
+        assertEquals(18, maps.choose(s, 22, 26, 7500, 4000, 2, false, false, memory, 0, NOON), "and round again");
     }
 
     @Test
@@ -58,7 +58,7 @@ class CubeMapsTest {
         long here = CubeMaps.expectedCube(22, memory, t0);
         assertTrue(here > t0 + 20 * MIN, "2-6 is due late: " + (here - t0) / MIN + " min");
         // 3-6 never seen: a cube may be there now; the way is a few jumps, far less than half an hour
-        assertEquals(26, maps.choose(s, 22, 22, 7500, 4000, 2, false, memory, t0, NOON));
+        assertEquals(26, maps.choose(s, 22, 22, 7500, 4000, 2, false, false, memory, t0, NOON));
         assertTrue(maps.travelMs(26, 22, 7500, 4000, 2) < 20 * MIN);
     }
 
@@ -67,8 +67,18 @@ class CubeMapsTest {
         CubeMaps maps = new CubeMaps(MapCatalog.bundled());
         JsonNode s = settings("{\"maps\": [22, 26]}");
         SpawnMemory memory = SpawnMemory.inMemory();
-        assertEquals(22, maps.choose(s, 22, 22, 7500, 4000, 2, true, memory, 0, NOON), "a cube is here");
+        assertEquals(22, maps.choose(s, 22, 22, 7500, 4000, 2, true, false, memory, 0, NOON), "a cube is here");
         // both unknown: here costs nothing, there costs the way — stay
-        assertEquals(22, maps.choose(s, 22, 22, 7500, 4000, 2, false, memory, 0, NOON));
+        assertEquals(22, maps.choose(s, 22, 22, 7500, 4000, 2, false, false, memory, 0, NOON));
+    }
+
+    @Test
+    void aCubeUnderFireIsFinishedEvenWhenTheTimetableMovesOn() throws Exception {
+        // live 2026-11-11: the window switched to 1-6 while the ship was circling a cube on 2-6 — it left at once
+        CubeMaps maps = new CubeMaps(MapCatalog.bundled());
+        JsonNode s = settings("{\"mapSchedule\": [{\"from\": \"00:00\", \"to\": \"23:59\", \"maps\": [18]}]}");
+        SpawnMemory memory = SpawnMemory.inMemory();
+        assertEquals(22, maps.choose(s, 22, 22, 7500, 4000, 2, true, true, memory, 0, NOON), "the fight first");
+        assertEquals(18, maps.choose(s, 22, 22, 7500, 4000, 2, false, false, memory, 0, NOON), "then the timetable");
     }
 }

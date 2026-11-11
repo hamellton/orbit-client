@@ -114,8 +114,9 @@ public final class CubikonModule implements BotModule {
                 log.warn("Прыжок через CPU пока не готов — между картами лечу порталами");
             }
             boolean cubeHere = cubesMap == h.mapId() && !cubes.isEmpty();
-            workMap = maps.choose(s, c.general().workingMap(), h.mapId(), h.x(), h.y(), h.factionId(), cubeHere, memory,
-                    wallMs(), wallTime());
+            boolean fighting = cubeHere && cubes.containsKey(attacker.targetId());
+            workMap = maps.choose(s, c.general().workingMap(), h.mapId(), h.x(), h.y(), h.factionId(), cubeHere, fighting,
+                    memory, wallMs(), wallTime());
             workMapAt = now;
         }
         return workMap;
