@@ -29,6 +29,8 @@ final class GeneralSection implements Section {
     private final JCheckBox runTravel = new JCheckBox("Перелёты — в конфиге бегства");
     private final JCheckBox runChase = new JCheckBox("Догонять цель в конфиге бегства");
     private final JCheckBox avoidMines = new JCheckBox("Обходить мины");
+    private final JCheckBox avoidBases = new JCheckBox("Облетать вражеские базы на");
+    private final JSpinner baseRadius = Form.number(100, 3000, 50);
     private final JTextArea description = new JTextArea(5, 50);
     private final JSpinner work = Form.number(0, 24 * 60, 10);
     private final JSpinner rest = Form.number(0, 24 * 60, 5);
@@ -38,6 +40,7 @@ final class GeneralSection implements Section {
     GeneralSection(MapCatalog maps) {
         map = new MapBox(maps);
         description.setLineWrap(true);
+        avoidBases.addActionListener(e -> baseRadius.setEnabled(avoidBases.isSelected()));
         description.setWrapStyleWord(true);
         view = new Form()
                 .section("Модуль")
@@ -51,6 +54,8 @@ final class GeneralSection implements Section {
                 .row("", runChase)
                 .row("", avoidMines)
                 .note("Обходит все мины, ящики у мин не берёт.")
+                .row("", Form.inline(avoidBases, baseRadius))
+                .note("Чужие клановые станции, штабы и турели чужих фракций.")
                 .note("Догоняет, если цель дальше радиуса на 300+; AGGRESSIVE_FOLLOW — всегда.")
                 .section("Облёт карты")
                 .row("", sequential)
@@ -90,6 +95,9 @@ final class GeneralSection implements Section {
         runTravel.setSelected(c.general().runModeTravel());
         runChase.setSelected(c.general().runModeChase());
         avoidMines.setSelected(c.general().avoidMines());
+        avoidBases.setSelected(c.general().baseRadius() > 0);
+        Form.set(baseRadius, c.general().baseRadius() > 0 ? c.general().baseRadius() : BotConfig.General.DEFAULT_BASE_RADIUS);
+        baseRadius.setEnabled(avoidBases.isSelected());
         Form.set(work, c.session().workMinutes());
         Form.set(rest, c.session().breakMinutes());
         Form.set(jitter, c.session().jitterMinutes());
@@ -102,7 +110,8 @@ final class GeneralSection implements Section {
         BotConfig.General g = new BotConfig.General(map.mapId(), offensive.get(), roam.get(), run.get(),
                 c.general().runFromEnemies(), c.general().runFromEnemiesInSight(), c.general().rememberEnemiesSec(),
                 sequential.isSelected(),
-                onlyPreferred.isSelected(), runTravel.isSelected(), runChase.isSelected(), avoidMines.isSelected());
+                onlyPreferred.isSelected(), runTravel.isSelected(), runChase.isSelected(), avoidMines.isSelected(),
+                avoidBases.isSelected() ? Form.intOf(baseRadius) : 0);
         BotConfig.Session session = new BotConfig.Session(Form.intOf(work), Form.intOf(rest), Form.intOf(jitter));
         BotConfig out = c.withModule(BotConfig.Module.values()[module.getSelectedIndex()]).withGeneral(g)
                 .withDescription(description.getText().strip());

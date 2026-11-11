@@ -58,13 +58,28 @@ public final class PathFinder {
     }
 
     private final List<Obstacle> obstacles;
+    /** The enemy bases among {@link #obstacles}: given up when the goal itself lies in one (a portal by a base). */
+    private final List<Obstacle> bases;
     private final double width;
     private final double height;
 
     PathFinder(List<Obstacle> obstacles, double width, double height) {
+        this(obstacles, List.of(), width, height);
+    }
+
+    PathFinder(List<Obstacle> obstacles, List<Obstacle> bases, double width, double height) {
         this.obstacles = obstacles;
+        this.bases = bases;
         this.width = width;
         this.height = height;
+    }
+
+    /** Asset types of stations that shoot ships of other factions ({@code AssetTypeModule}). */
+    static final java.util.Set<Integer> BASE_TYPES = java.util.Set.of(36, 37, 46, 47, 55, 56, 57, 58);
+
+    /** An enemy station: a battle station or its module, a headquarters or a station turret of another faction. */
+    public static boolean enemyBase(WorldSnapshot.Asset a, int heroFaction) {
+        return BASE_TYPES.contains(a.type()) && a.factionId() != 0 && a.factionId() != heroFaction;
     }
 
     /**
@@ -83,8 +98,24 @@ public final class PathFinder {
 
     /** As {@link #of(WorldSnapshot, MapCatalog, boolean)}, with the mines as round obstacles if {@code avoidMines}. */
     public static PathFinder of(WorldSnapshot w, MapCatalog catalog, boolean throughDanger, boolean avoidMines) {
+        return of(w, catalog, throughDanger, avoidMines, 0);
+    }
+
+    /** The same, keeping {@code baseRadius} off enemy stations ({@code 0} = not). */
+    public static PathFinder of(WorldSnapshot w, MapCatalog catalog, boolean throughDanger, boolean avoidMines,
+                                int baseRadius) {
         MapCatalog.MapInfo map = catalog.info(w.hero().mapId());
         List<Obstacle> list = new ArrayList<>();
+        List<Obstacle> bases = new ArrayList<>();
+        if (baseRadius > 0) {
+            for (WorldSnapshot.Asset a : w.assets().values()) {
+                if (enemyBase(a, w.hero().factionId())) {
+                    Obstacle o = circle(a.x(), a.y(), baseRadius);
+                    list.add(o);
+                    bases.add(o);
+                }
+            }
+        }
         if (avoidMines) {
             WorldSnapshot.Hero h = w.hero();
             for (WorldSnapshot.Mine m : w.mines().values()) {
@@ -104,7 +135,7 @@ public final class PathFinder {
                 }
             }
         }
-        return new PathFinder(List.copyOf(list), map.width(), map.height());
+        return new PathFinder(List.copyOf(list), List.copyOf(bases), map.width(), map.height());
     }
 
     static Obstacle circle(double cx, double cy, double radius) {
@@ -226,6 +257,12 @@ public final class PathFinder {
      * way exists.
      */
     public List<double[]> path(double sx, double sy, double gx, double gy) {
+        if (bases.stream().anyMatch(b -> b.contains(gx, gy))) {
+            // the goal is by an enemy base (a portal next to it): there is no way but in
+            List<Obstacle> rest = new ArrayList<>(obstacles);
+            rest.removeIf(o -> bases.contains(o) && o.contains(gx, gy));
+            return new PathFinder(List.copyOf(rest), List.of(), width, height).path(sx, sy, gx, gy);
+        }
         if (!free(sx, sy)) {
             // already inside a zone (a mine dropped next to the ship, a zone that appeared): every line from
             // here crosses it, so first the shortest way out, then the usual path

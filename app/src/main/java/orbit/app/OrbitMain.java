@@ -738,6 +738,7 @@ public final class OrbitMain {
         orbit.bot.run.ConfigWatch watch = new orbit.bot.run.ConfigWatch(orbit.config.ConfigStore.openDefault(), configName,
                 config, catalog);
         nav.setAvoidMines(() -> watch.current().general().avoidMines());
+        nav.setAvoidBases(() -> watch.current().general().baseRadius());
         orbit.bot.run.BotContext ctx = new orbit.bot.run.BotContext(feed::snapshot, watch::current, actions, nav, traveler,
                 catalog, random, System::nanoTime, conn::repair, ship, dataDir(feed), stats);
         orbit.bot.run.BotRunner runner = new orbit.bot.run.BotRunner(ctx, feed::loggedOut, feed::setAction);

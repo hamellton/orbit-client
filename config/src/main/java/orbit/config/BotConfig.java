@@ -46,7 +46,7 @@ public record BotConfig(
         Flee flee,
         GroupRules group) {
 
-    public static final int SCHEMA = 1;
+    public static final int SCHEMA = 2;
 
     public BotConfig {
         schema = schema == 0 ? SCHEMA : schema;
@@ -347,17 +347,22 @@ public record BotConfig(
      * @param roamSequential roam the map in order instead of at random
      * @param runModeTravel  fly between maps and spots in the {@code run} mode (fast), not {@code roam}
      * @param runModeChase   catch up with a target that is far beyond its radius in the {@code run} mode
+     * @param baseRadius     keep this far from enemy stations: other factions' battle stations, their modules,
+     *                       headquarters and station turrets ({@code 0} = fly anywhere); AstraBot's {@code radiusForBases}
      */
     public record General(int workingMap, ShipMode offensive, ShipMode roam, ShipMode run,
                           boolean runFromEnemies, boolean runFromEnemiesInSight, int rememberEnemiesSec,
                           boolean roamSequential, boolean onlyKillPreferred, boolean runModeTravel,
-                          boolean runModeChase, boolean avoidMines) {
+                          boolean runModeChase, boolean avoidMines, int baseRadius) {
+
+        /** Enemy bases kept off by default, like AstraBot. */
+        public static final int DEFAULT_BASE_RADIUS = 500;
 
         public General(int workingMap, ShipMode offensive, ShipMode roam, ShipMode run, boolean runFromEnemies,
                        boolean runFromEnemiesInSight, int rememberEnemiesSec, boolean roamSequential,
                        boolean onlyKillPreferred, boolean runModeTravel, boolean runModeChase) {
             this(workingMap, offensive, roam, run, runFromEnemies, runFromEnemiesInSight, rememberEnemiesSec,
-                    roamSequential, onlyKillPreferred, runModeTravel, runModeChase, false);
+                    roamSequential, onlyKillPreferred, runModeTravel, runModeChase, false, DEFAULT_BASE_RADIUS);
         }
 
         public General(int workingMap, ShipMode offensive, ShipMode roam, ShipMode run, boolean runFromEnemies,
@@ -380,6 +385,7 @@ public record BotConfig(
             roam = roam == null ? new ShipMode(1, null) : roam;
             run = run == null ? new ShipMode(2, null) : run;
             rememberEnemiesSec = rememberEnemiesSec <= 0 ? 300 : rememberEnemiesSec;
+            baseRadius = Math.max(0, baseRadius);
         }
     }
 

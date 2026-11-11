@@ -18,7 +18,13 @@ final class Migrations {
         if (schema > BotConfig.SCHEMA) {
             throw new IOException("Конфиг новой версии (схема " + schema + ") — обновите бота");
         }
-        // no migrations yet: schema 1 is the first
+        if (schema < 2) {
+            // 2: enemy bases are kept off (500, like AstraBot) unless a config says otherwise
+            ObjectNode general = tree.path("general") instanceof ObjectNode g ? g : tree.putObject("general");
+            if (!general.has("baseRadius")) {
+                general.put("baseRadius", BotConfig.General.DEFAULT_BASE_RADIUS);
+            }
+        }
         tree.put("schema", BotConfig.SCHEMA);
         try {
             return Json.MAPPER.treeToValue(tree, BotConfig.class);

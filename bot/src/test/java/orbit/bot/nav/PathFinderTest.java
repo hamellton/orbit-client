@@ -175,4 +175,61 @@ class PathFinderTest {
         double[] last = path.getLast();
         assertTrue(Math.hypot(last[0] - 13850, last[1] - 4700) < 1, "and on to the goal");
     }
+
+    /** The hero (faction 1) on 1-1 and a station of {@code faction} at (station) — a battle station, type 36. */
+    private static orbit.world.World withStation(int heroX, int heroY, int stationX, int stationY, int faction) {
+        orbit.world.World w = new orbit.world.World();
+        orbit.protocol.gen.ShipInitializationCommand si = new orbit.protocol.gen.ShipInitializationCommand();
+        si.userId = 1;
+        si.mapId = 1;
+        si.factionId = 1;
+        si.x = heroX;
+        si.y = heroY;
+        w.apply(si, 1);
+        orbit.protocol.gen.AssetCreateCommand a = new orbit.protocol.gen.AssetCreateCommand();
+        a.assetId = 77;
+        a.type = new orbit.protocol.gen.AssetTypeModule();
+        a.type.typeValue = 36;
+        a.userName = "Lynx";
+        a.factionId = faction;
+        a.posX = stationX;
+        a.posY = stationY;
+        w.apply(a, 1);
+        return w;
+    }
+
+    @Test
+    void anEnemyBaseIsFlownRound() {
+        WorldSnapshot s = withStation(4000, 6000, 7000, 6000, 2).snapshot(1);
+        PathFinder finder = PathFinder.of(s, orbit.world.maps.MapCatalog.bundled(), false, false, 500);
+        List<double[]> path = finder.path(4000, 6000, 10000, 6000);
+        assertTrue(path.size() > 1, "round it, not straight through");
+        double sx = 4000;
+        double sy = 6000;
+        for (double[] p : path) {
+            assertTrue(Navigator.distanceToSegment(7000, 6000, sx, sy, p[0], p[1]) >= 499, "kept 500 off the base");
+            sx = p[0];
+            sy = p[1];
+        }
+    }
+
+    @Test
+    void ourOwnBaseAndAnOffSwitchFlyStraight() {
+        WorldSnapshot own = withStation(4000, 6000, 7000, 6000, 1).snapshot(1);
+        assertEquals(1, PathFinder.of(own, orbit.world.maps.MapCatalog.bundled(), false, false, 500)
+                .path(4000, 6000, 10000, 6000).size(), "our faction's station does not shoot us");
+        WorldSnapshot enemy = withStation(4000, 6000, 7000, 6000, 2).snapshot(1);
+        assertEquals(1, PathFinder.of(enemy, orbit.world.maps.MapCatalog.bundled(), false, false, 0)
+                .path(4000, 6000, 10000, 6000).size(), "radius 0: the option is off");
+    }
+
+    @Test
+    void aPortalByAnEnemyBaseIsStillReached() {
+        WorldSnapshot s = withStation(4000, 6000, 7000, 6000, 2).snapshot(1);
+        List<double[]> path = PathFinder.of(s, orbit.world.maps.MapCatalog.bundled(), false, false, 500)
+                .path(4000, 6000, 7200, 6000);
+        assertFalse(path.isEmpty());
+        double[] last = path.getLast();
+        assertTrue(Math.hypot(last[0] - 7200, last[1] - 6000) < 1, "right to the goal, not the zone's edge");
+    }
 }

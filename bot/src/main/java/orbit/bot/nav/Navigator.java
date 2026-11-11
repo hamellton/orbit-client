@@ -49,6 +49,35 @@ public final class Navigator {
     private final Consumer<Packet> sender;
     private final MapCatalog catalog;
     private java.util.function.BooleanSupplier avoidMines = () -> false;
+    private java.util.function.IntSupplier baseRadius = () -> 0;
+    private final java.util.Set<Integer> basesTold = new java.util.HashSet<>();
+
+    /** Keep this far from enemy stations (the config's «Облетать вражеские базы»; 0 = not). */
+    public void setAvoidBases(java.util.function.IntSupplier radius) {
+        baseRadius = radius;
+    }
+
+    /**
+     * An enemy station (newly in sight) on the way to the current click: re-plan round it. Stations show up
+     * only near the ship, so a long flight learns of them on the way. Not when the destination is by it.
+     */
+    private boolean baseOnCourse(WorldSnapshot w, WorldSnapshot.Hero h, double x, double y, Destination d) {
+        int r = baseRadius.getAsInt();
+        if (r <= 0) {
+            return false;
+        }
+        for (WorldSnapshot.Asset a : w.assets().values()) {
+            if (PathFinder.enemyBase(a, h.factionId()) && Math.hypot(a.x() - d.x(), a.y() - d.y()) > r
+                    && Math.hypot(a.x() - h.x(), a.y() - h.y()) > r
+                    && distanceToSegment(a.x(), a.y(), h.x(), h.y(), x, y) < r) {
+                if (basesTold.add(a.id())) {
+                    log.info("Вражеская база на пути у {}/{} — облетаю", a.x() / 100, a.y() / 100);
+                }
+                return true;
+            }
+        }
+        return false;
+    }
 
     private final java.util.Set<String> minesTold = new java.util.HashSet<>();
 
@@ -172,14 +201,14 @@ public final class Navigator {
                 && Math.hypot(clickX - d.x(), clickY - d.y()) > CLICK_SPREAD * 2;
         // around a zone: click the next corner shortly before reaching this one, like a player steering
         boolean turn = flyingToClick && viaWaypoint && Math.hypot(clickX - h.x(), clickY - h.y()) < TURN_AHEAD;
-        boolean mineAhead = flyingToClick && mineOnCourse(w, h, clickX, clickY);
+        boolean mineAhead = flyingToClick && (mineOnCourse(w, h, clickX, clickY) || baseOnCourse(w, h, clickX, clickY, d));
         if (flyingToClick && !refine && !turn && !mineAhead) {
             return; // on course
         }
         if (now - lastSendNanos < MIN_INTERVAL_MS * 1_000_000 || (now < retryAtNanos && !turn && !mineAhead)) {
             return;
         }
-        PathFinder paths = PathFinder.of(w, catalog, false, avoidMines.getAsBoolean());
+        PathFinder paths = PathFinder.of(w, catalog, false, avoidMines.getAsBoolean(), baseRadius.getAsInt());
         List<double[]> route = paths.path(h.x(), h.y(), d.x(), d.y());
         if (route.isEmpty()) {
             log.warn("Нет пути к {}/{}", (int) d.x() / 100, (int) d.y() / 100);
