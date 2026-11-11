@@ -294,7 +294,7 @@ public final class World {
             case AttributeShieldUpdateCommand p -> hero.health = hero.health.withShield(p.shieldNow, p.shieldMax);
             case HitpointInfoCommand p -> hero.health = hero.health.withHp(p.hitpoints, p.hitpointsMax)
                     .withNanoHull(p.nanoHull, p.nanoHullMax);
-            case AttributeShipSpeedUpdateCommand p -> setHeroSpeed(p.newSpeed, nanos);
+            case AttributeShipSpeedUpdateCommand p -> setHeroSpeed(p.newSpeed, nanos, "обновление");
             case AttributeCreditsUpdateCommand p -> {
                 hero.credits = p.credits;
                 hero.uridium = p.uridium;
@@ -575,6 +575,7 @@ public final class World {
         hero.mapId = p.mapId;
         hero.motion = Motion.at(p.x, p.y, nanos);
         hero.speed = p.speed;
+        log.info("Скорость корабля при входе: {} ({})", p.speed, p.typeId);
         hero.health = new Health(p.hitPoints, p.hitMax, p.shield, p.shieldMax, p.nanoHull, p.maxNanoHull);
         hero.factionId = p.factionId;
         hero.clanId = p.clanId;
@@ -614,7 +615,12 @@ public final class World {
         }
     }
 
-    private void setHeroSpeed(int speed, long nanos) {
+    /** @param source which packet set it, for the log (where a speed came from: live 2026-11-11, 458 on every ship) */
+    private void setHeroSpeed(int speed, long nanos, String source) {
+        if (speed != hero.speed) {
+            log.info("Скорость корабля: {} → {} ({}, на {}/{})", hero.speed, speed, source,
+                    (int) hero.motion.x(nanos) / 100, (int) hero.motion.y(nanos) / 100);
+        }
         hero.speed = speed;
         Motion m = hero.motion;
         if (m.moving(nanos)) {
@@ -864,7 +870,7 @@ public final class World {
                 switch (key) {
                     case "c" -> hero.cargoMax = parseInt(a[3], hero.cargoMax);
                     case "CC" -> hero.config = parseInt(a[3], hero.config);
-                    case "v" -> setHeroSpeed(parseInt(a[3], hero.speed), nanos);
+                    case "v" -> setHeroSpeed(parseInt(a[3], hero.speed), nanos, "сообщение v");
                     case "JV" -> jumpVouchers = parseInt(a[3], jumpVouchers);
                     case "JCPU" -> jumpCpu(a, nanos);
                     default -> {
