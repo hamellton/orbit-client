@@ -106,7 +106,7 @@ public final class DarkBotImport {
         BotConfig.Loot loot = loot(root.path("LOOT"));
         BotConfig.Collect collect = collect(root.path("COLLECT"));
         BotConfig.Pet pet = new BotConfig.Pet(root.path("PET").path("ENABLED").asBoolean(false),
-                textOrNull(root.path("PET").path("MODULE_ID")));
+                petGear(textOrNull(root.path("PET").path("MODULE_ID"))));
         BotConfig.Safety safety = safety(general.path("SAFETY"), root.path("CUSTOM_CONFIGS"), enabled);
         Map<Integer, BotConfig.Zones> zones = zones(root.path("PREFERRED"), root.path("AVOIDED"));
         Map<Integer, List<BotConfig.SafetySpot>> spots = safetySpots(root.path("SAFETY"));
@@ -128,6 +128,23 @@ public final class DarkBotImport {
                 grp.path("OPEN_INVITES").asBoolean(false) ? Boolean.TRUE : null);
         return c.withFlee(new BotConfig.Flee(f.mode(), null, null, running.path("MAX_SIGHT_DISTANCE").asInt(2_000),
                 f.rememberSec(), true, 90)).withGroup(group);
+    }
+
+    /**
+     * DarkBot's short pet mode names ({@code PET.MODULE_ID}: the palladium profile has {@code RESOURCE}) as the
+     * game's gear names the bot uses; the game's own names pass as they are.
+     */
+    static String petGear(String id) {
+        if (id == null) {
+            return null;
+        }
+        return switch (id.toUpperCase(java.util.Locale.ROOT)) {
+            case "RESOURCE", "RESOURCES", "RESOURCE_COLLECTOR" -> "AUTO_RESOURCE_COLLECTION";
+            case "LOOT", "LOOTER" -> "AUTO_LOOT";
+            case "LOCATOR", "ENEMY_LOCATOR" -> "ENEMY_LOCATOR";
+            case "REPAIR" -> "REPAIR_PET";
+            default -> id;
+        };
     }
 
     static BotConfig.Module module(String cls) {

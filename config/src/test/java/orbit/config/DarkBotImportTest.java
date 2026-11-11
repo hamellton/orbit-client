@@ -185,4 +185,12 @@ class DarkBotImportTest {
         assertEquals("KAMIKAZE", DarkBotImport.flagName("a.b.GateNpcFlagKAMIKAZE"));
         assertEquals("K", DarkBotImport.flagName("K"));
     }
+
+    @Test
+    void darkBotsShortPetModesBecomeTheGamesGears() {
+        // the user's PALLADIUM profile: PET.MODULE_ID = RESOURCE (the resource collector)
+        assertEquals("AUTO_RESOURCE_COLLECTION", DarkBotImport.petGear("RESOURCE"));
+        assertEquals("GUARD", DarkBotImport.petGear("GUARD"));
+        assertEquals("ENEMY_LOCATOR", DarkBotImport.petGear("ENEMY_LOCATOR"));
+    }
 }
