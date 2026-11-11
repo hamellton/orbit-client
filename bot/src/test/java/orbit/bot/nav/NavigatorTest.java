@@ -156,4 +156,23 @@ class NavigatorTest {
         assertTrue(sent.size() >= 2, "a new click from the new position");
         assertEquals(3000, sent.get(1).positionX);
     }
+
+    @Test
+    void aNewDestinationIsClickedAtOnceWhileStillFlyingToTheOldOne() {
+        // «Выйти у портала» mid-flight (live 2026-11-11): the ship flew on to the old point first
+        Navigator nav = navigator(9, 2000, 2000);
+        nav.moveTo(18000, 2000, false);
+        nav.tick();
+        assertEquals(1, sent.size());
+        now += 3_000 * MS; // flying east, far from there yet
+        nav.tick();
+        nav.moveTo(2500, 11000, true); // a portal elsewhere
+        for (int i = 0; i < 20 && sent.size() < 2; i++) {
+            now += 100 * MS;
+            nav.tick();
+        }
+        assertEquals(2, sent.size(), "the new destination is clicked within two seconds");
+        assertTrue(sent.getLast().targetY > 6000, "towards the new one: " + sent.getLast().targetY);
+        assertTrue(world.snapshot(now).hero().moving());
+    }
 }

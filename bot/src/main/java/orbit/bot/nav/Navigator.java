@@ -108,9 +108,16 @@ public final class Navigator {
 
     /** Starts flying to a point of the current map; the first click goes out on the next {@link #tick}. */
     public void moveTo(double x, double y, boolean precise) {
+        Destination old = destination;
         destination = new Destination(x, y, precise);
         retryAtNanos = clock.getAsLong();
         clicks = 0;
+        if (old == null || old.x() != x || old.y() != y) {
+            // a new destination: the ship still flying to the last click is not «on course» for it — click now
+            // (a stop at a portal must not wait until the old flight ends)
+            clickX = Integer.MIN_VALUE;
+            clickY = Integer.MIN_VALUE;
+        }
     }
 
     /** Forgets the destination; the ship keeps flying to its last click, like a player letting go. */
