@@ -23,7 +23,9 @@ import orbit.world.maps.MapCatalog;
 
 /**
  * «Зоны»: preferred and avoided areas drawn on the map, cell by cell (a 30 × 30 grid over the map,
- * the way DarkBot stores them). Drag with the left button to paint, with the right one to erase.
+ * the way DarkBot stores them). «Рисовать / Стирать» says what the left button does (the right one does the
+ * opposite); «Кисть» paints cell by cell while dragging, «Прямоугольник» fills the dragged frame on release, as
+ * DarkBot's editor does.
  */
 final class ZonesSection implements Section {
 
@@ -39,6 +41,9 @@ final class ZonesSection implements Section {
     private final Map<Integer, boolean[][][]> grids = new TreeMap<>(); // map → [layer][y][x]
     private Map<Integer, List<BotConfig.SafetySpot>> spots = Map.of();
     private final JComponent view;
+    private final javax.swing.JRadioButton draw = new javax.swing.JRadioButton("Рисовать");
+    private final javax.swing.JRadioButton erase = new javax.swing.JRadioButton("Стирать");
+    private final javax.swing.JComboBox<String> shape = new javax.swing.JComboBox<>(new String[] {"Кисть", "Прямоугольник"});
 
     ZonesSection(MapCatalog catalog) {
         this.catalog = catalog;
@@ -47,6 +52,11 @@ final class ZonesSection implements Section {
         ButtonGroup g = new ButtonGroup();
         g.add(preferred);
         g.add(avoided);
+        ButtonGroup act = new ButtonGroup();
+        act.add(draw);
+        act.add(erase);
+        draw.setSelected(true);
+        shape.setToolTipText("Кисть — по клеткам, пока ведёте; прямоугольник — вся рамка при отпускании");
         JButton clear = new JButton("Очистить");
         clear.addActionListener(e -> {
             boolean[][] layer = layer(map.mapId());
@@ -58,7 +68,7 @@ final class ZonesSection implements Section {
         // never scrolls: the controls in one line (wrapping when narrow), the whole map in the rest of the tab
         javax.swing.JLabel help = new javax.swing.JLabel("ⓘ");
         help.setForeground(Color.GRAY);
-        help.setToolTipText("ЛКМ — закрасить, ПКМ — стереть. Зоны свои для каждой карты.");
+        help.setToolTipText("ЛКМ — как выбрано (рисовать или стирать), ПКМ — наоборот. Зоны свои для каждой карты.");
         canvas.setToolTipText(null);
         preferred.setText("Предпочтительная");
         avoided.setText("Запретная");
@@ -68,6 +78,10 @@ final class ZonesSection implements Section {
         controls.add(new javax.swing.JLabel("   Зона"));
         controls.add(preferred);
         controls.add(avoided);
+        controls.add(new javax.swing.JLabel("   "));
+        controls.add(draw);
+        controls.add(erase);
+        controls.add(shape);
         controls.add(clear);
         controls.add(help);
         JPanel page = new JPanel(new java.awt.BorderLayout(0, 4));
@@ -154,6 +168,11 @@ final class ZonesSection implements Section {
     private final class Canvas extends JPanel {
 
         private Boolean paintValue;
+        /** The rectangle tool: where the drag started and where the mouse is (cells), or {@code null}. */
+        private int[] from;
+        private int[] to;
+        /** The cell under the mouse, for the highlight. */
+        private int[] hover;
 
         Canvas() {
             setPreferredSize(new Dimension(640, 420));
@@ -162,18 +181,57 @@ final class ZonesSection implements Section {
             MouseAdapter m = new MouseAdapter() {
                 @Override
                 public void mousePressed(MouseEvent e) {
-                    paintValue = !SwingUtilities.isRightMouseButton(e);
-                    paintAt(e);
+                    boolean left = !SwingUtilities.isRightMouseButton(e);
+                    paintValue = left == draw.isSelected(); // the right button does the opposite
+                    if (rectangle()) {
+                        from = cell(e);
+                        to = from;
+                        repaint();
+                    } else {
+                        paintAt(e);
+                    }
                 }
 
                 @Override
                 public void mouseDragged(MouseEvent e) {
-                    paintAt(e);
+                    hover = cell(e);
+                    if (rectangle()) {
+                        if (from != null) {
+                            int[] c = cell(e);
+                            to = c != null ? c : to;
+                            repaint();
+                        }
+                    } else {
+                        paintAt(e);
+                    }
                 }
 
                 @Override
                 public void mouseReleased(MouseEvent e) {
+                    if (rectangle() && from != null && to != null && paintValue != null) {
+                        boolean[][] layer = layer(map.mapId());
+                        for (int y = Math.min(from[1], to[1]); y <= Math.max(from[1], to[1]); y++) {
+                            for (int x = Math.min(from[0], to[0]); x <= Math.max(from[0], to[0]); x++) {
+                                layer[y][x] = paintValue;
+                            }
+                        }
+                    }
+                    from = null;
+                    to = null;
                     paintValue = null;
+                    repaint();
+                }
+
+                @Override
+                public void mouseMoved(MouseEvent e) {
+                    hover = cell(e);
+                    repaint();
+                }
+
+                @Override
+                public void mouseExited(MouseEvent e) {
+                    hover = null;
+                    repaint();
                 }
             };
             addMouseListener(m);
@@ -193,17 +251,35 @@ final class ZonesSection implements Section {
             return new java.awt.Rectangle((getWidth() - w) / 2, (getHeight() - h) / 2, w, h);
         }
 
+        private boolean rectangle() {
+            return shape.getSelectedIndex() == 1;
+        }
+
+        /** The grid cell under the mouse, or {@code null} off the map. */
+        private int[] cell(MouseEvent e) {
+            java.awt.Rectangle a = area();
+            int x = (e.getX() - a.x) * RESOLUTION / Math.max(1, a.width);
+            int y = (e.getY() - a.y) * RESOLUTION / Math.max(1, a.height);
+            return x >= 0 && y >= 0 && x < RESOLUTION && y < RESOLUTION ? new int[] {x, y} : null;
+        }
+
         private void paintAt(MouseEvent e) {
             if (paintValue == null) {
                 return;
             }
-            java.awt.Rectangle a = area();
-            int x = (e.getX() - a.x) * RESOLUTION / Math.max(1, a.width);
-            int y = (e.getY() - a.y) * RESOLUTION / Math.max(1, a.height);
-            if (x >= 0 && y >= 0 && x < RESOLUTION && y < RESOLUTION) {
-                layer(map.mapId())[y][x] = paintValue;
+            int[] c = cell(e);
+            if (c != null) {
+                layer(map.mapId())[c[1]][c[0]] = paintValue;
                 repaint();
             }
+        }
+
+        /** A cell's rectangle on the screen. */
+        private java.awt.Rectangle cellRect(java.awt.Rectangle a, int x0, int y0, int x1, int y1) {
+            int sx = a.x + x0 * a.width / RESOLUTION;
+            int sy = a.y + y0 * a.height / RESOLUTION;
+            return new java.awt.Rectangle(sx, sy, a.x + (x1 + 1) * a.width / RESOLUTION - sx,
+                    a.y + (y1 + 1) * a.height / RESOLUTION - sy);
         }
 
         @Override
@@ -235,6 +311,22 @@ final class ZonesSection implements Section {
             for (int i = 1; i < RESOLUTION; i++) {
                 g.drawLine(a.x + i * a.width / RESOLUTION, a.y, a.x + i * a.width / RESOLUTION, a.y + a.height);
                 g.drawLine(a.x, a.y + i * a.height / RESOLUTION, a.x + a.width, a.y + i * a.height / RESOLUTION);
+            }
+            // what the mouse would change: the frame being dragged, or the cell under it
+            boolean erasing = paintValue != null ? !paintValue : erase.isSelected();
+            Color mark = erasing ? new Color(255, 255, 255, 150) : (preferred.isSelected() ? PREFERRED : AVOIDED);
+            if (from != null && to != null) {
+                java.awt.Rectangle r = cellRect(a, Math.min(from[0], to[0]), Math.min(from[1], to[1]),
+                        Math.max(from[0], to[0]), Math.max(from[1], to[1]));
+                g.setColor(new Color(mark.getRed(), mark.getGreen(), mark.getBlue(), 60));
+                g.fill(r);
+                g.setColor(new Color(mark.getRed(), mark.getGreen(), mark.getBlue(), 220));
+                g.setStroke(new BasicStroke(1.5f, BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER, 10f, new float[] {5f, 4f}, 0f));
+                g.draw(r);
+            } else if (hover != null) {
+                g.setColor(new Color(mark.getRed(), mark.getGreen(), mark.getBlue(), 200));
+                g.setStroke(new BasicStroke(1.5f));
+                g.draw(cellRect(a, hover[0], hover[1], hover[0], hover[1]));
             }
             g.setColor(new Color(120, 140, 170));
             g.setStroke(new BasicStroke(1.5f));
