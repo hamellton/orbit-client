@@ -154,4 +154,15 @@ class BotRunnerTest {
         sim.run(r::tick, 3_000);
         assertEquals(BotRunner.State.TRAVELLING, r.state());
     }
+
+    @Test
+    void oneMapAwayIsNotWorthAJumpCpu() throws Exception {
+        MapCatalog maps = MapCatalog.bundled();
+        int map18 = maps.portals(18).stream().filter(p -> p.toName().equals("1-8")).findFirst().orElseThrow().toId();
+        var portal = maps.portals(map18).stream().filter(p -> p.toId() == 18).findFirst().orElseThrow();
+        Sim sim = new Sim(CubikonModuleTest.config(90, false), map18, portal.x(), portal.y());
+        BotRunner r = new BotRunner(sim.ctx, () -> false, s -> { });
+        assertEquals(1, r.portalHops(18), "1-8 → 1-6: one portal");
+        assertTrue(r.portalHops(18) < BotRunner.CPU_FROM_HOPS);
+    }
 }

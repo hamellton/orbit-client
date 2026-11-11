@@ -344,7 +344,7 @@ public final class BotRunner {
 
     private void travel(int map) {
         int budget = module.jumpUridiumPerDay();
-        if (budget >= 0 && travelTarget != map && jumper.worthTrying(map)) {
+        if (budget >= 0 && travelTarget != map && jumper.worthTrying(map) && portalHops(map) >= CPU_FROM_HOPS) {
             // the jump CPU first (a voucher, or uridium within the day's budget); portals when it does not work.
             // It works at a portal or in our station only: fly to the nearest portal first.
             WorldSnapshot w = ctx.world().get();
@@ -389,6 +389,20 @@ public final class BotRunner {
         ctx.ship().want(ctx.config().get().general().travel());
         t.tick();
         show("Лечу на " + ctx.maps().info(map).name());
+    }
+
+    /**
+     * The jump CPU only for a way of this many portals or more: one portal is about as quick and costs nothing
+     * (live 2026-11-11: from 1-8 a voucher was spent on 1-6, one portal away).
+     */
+    static final int CPU_FROM_HOPS = 2;
+
+    /** Portals on the way to {@code map} (a big number when there is no way by portals). */
+    int portalHops(int map) {
+        WorldSnapshot.Hero h = ctx.world().get().hero();
+        int hops = orbit.bot.nav.Router.route(ctx.maps(), h.mapId(), h.x(), h.y(), map, h.factionId(),
+                h.level() > 0 ? h.level() : Integer.MAX_VALUE).size();
+        return hops == 0 ? Integer.MAX_VALUE : hops;
     }
 
     /** To the nearest portal (out of the crowd), wait a moment, press logout, keep still until the server ends it. */

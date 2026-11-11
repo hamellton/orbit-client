@@ -256,6 +256,25 @@ final class AccountView extends JPanel {
         all.addActionListener(e -> orbit.app.gui.config.ConfigWindow.open(orbit.config.ConfigStore.openDefault(),
                 orbit.config.AccountSettings.DEFAULT_FILE, null));
         actions.add(all);
+        JButton pause = new JButton("Пауза");
+        Runnable showPause = () -> {
+            orbit.bot.run.BotRunner r = tab.feed().runner();
+            boolean on = r != null && r.paused();
+            pause.setEnabled(r != null && r.takesOrders());
+            pause.setText(on ? "Продолжить" : "Пауза");
+            pause.setToolTipText(r == null || !r.takesOrders() ? "Бот не в игре"
+                    : on ? "Бот снова работает по конфигу" : "Бот ждёт, корабль летает только по кликам на карте");
+        };
+        pause.addActionListener(e -> {
+            orbit.bot.run.BotRunner r = tab.feed().runner();
+            if (r != null) {
+                r.setPaused(!r.paused());
+            }
+            showPause.run();
+        });
+        showPause.run();
+        timer(500, e -> showPause.run());
+        actions.add(pause);
         if (tab.managed() != null) {
             ManagedAccount a = tab.managed();
             JButton toggle = new JButton();
