@@ -59,7 +59,8 @@ public final class KillModule implements BotModule {
             status = "Бой";
             return;
         }
-        if (collect && boxes.tick()) {
+        // no fight: any box in sight (DarkBot's collector); its radius only counts next to a target
+        if (collect && boxes.tickAnywhere()) {
             status = "Ящик";
             return;
         }

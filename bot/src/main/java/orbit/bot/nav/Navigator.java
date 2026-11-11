@@ -200,6 +200,21 @@ public final class Navigator {
     }
 
     /** No destination left: reached or stopped. */
+    /**
+     * Which points the ship can get to now: within 200 of the nearest free point (DarkBot's collector:
+     * {@code drive.getClosestDistance(box) < 200}). One path finder for many points.
+     */
+    public java.util.function.BiPredicate<Integer, Integer> reachability() {
+        WorldSnapshot w = world.get();
+        int map = w.hero().mapId();
+        PathFinder p = PathFinder.of(w, catalog, false, avoidMines.getAsBoolean(), baseRadius.getAsInt(),
+                avoided.apply(map), preferred.apply(map));
+        return (x, y) -> {
+            double[] f = p.nearestFree(x, y);
+            return f != null && Math.hypot(f[0] - x, f[1] - y) < 200;
+        };
+    }
+
     public boolean idle() {
         return destination == null;
     }

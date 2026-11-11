@@ -19,6 +19,23 @@ class PalladiumModuleTest {
     }
 
     @Test
+    void palladiumInSightIsHarvestedThoughOutsideTheCollectRadius() {
+        // live 2026-11-11: the ship roamed the field, the palladium (AddOreCommand, ore 8) was never taken
+        Sim sim = new Sim(config(), 93, 20_000, 20_000);
+        orbit.protocol.gen.AddOreCommand ore = new orbit.protocol.gen.AddOreCommand();
+        ore.hash = "p1";
+        ore.oreType = new orbit.protocol.gen.OreTypeModule();
+        ore.oreType.typeValue = 8;
+        ore.x = 21_500;
+        ore.y = 20_000;
+        sim.world.apply(ore, sim.now);
+        BotRunner r = new BotRunner(sim.ctx, () -> false, s -> { });
+        sim.run(r::tick, 6_000);
+        assertTrue(sim.sent.stream().anyMatch(p -> p instanceof orbit.protocol.gen.HarvestRequest h && "p1".equals(h.itemHash)),
+                "flew 1 500 to it and harvested it (radius 400 counts only next to a target, as in DarkBot)");
+    }
+
+    @Test
     void fiveThreeAndFiveTwoAreLinkedByPortals() {
         assertTrue(!orbit.bot.nav.Router.route(MapCatalog.bundled(), 93, 10_000, 6_000, 92, 2, 25).isEmpty(), "5-3 → 5-2");
     }

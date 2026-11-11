@@ -45,9 +45,24 @@ public final class BoxPicker {
         hash = null;
     }
 
+    private boolean anywhere;
+
     /** True while busy with a box (the caller should not move the ship). Boxes near the ship. */
     public boolean tick() {
         return tick(Double.NaN, Double.NaN);
+    }
+
+    /**
+     * Any box in sight the ship can fly to, not only those in the collect radius — DarkBot's collector when there
+     * is no fight (its radius counts only next to a target): the palladium module roams and takes all it sees.
+     */
+    public boolean tickAnywhere() {
+        anywhere = true;
+        try {
+            return tick(Double.NaN, Double.NaN);
+        } finally {
+            anywhere = false;
+        }
     }
 
     /**
@@ -92,7 +107,7 @@ public final class BoxPicker {
         ctx.nav().tick();
         if (box != null && ctx.nav().idle() && !h.moving()) {
             if (collectAt == 0) {
-                BotConfig.BoxRule r = c.collect().boxes().get(box.boxType());
+                BotConfig.BoxRule r = c.collect().boxes().get(key(box));
                 collectAt = now + ctx.pause(100, 300) + (r == null ? 0 : r.waitMs() * 1_000_000L);
             }
             if (now >= collectAt && now - collectedAt > 3_000_000_000L) {
@@ -112,24 +127,37 @@ public final class BoxPicker {
     private WorldSnapshot.Collectable find(BotConfig c, WorldSnapshot w, long now) {
         WorldSnapshot.Hero h = w.hero();
         ignored.values().removeIf(t -> now - t > 120_000_000_000L);
+        java.util.function.BiPredicate<Integer, Integer> reach = anywhere ? ctx.nav().reachability() : null;
         return w.collectables().values().stream()
-                .filter(b -> b.kind() == WorldSnapshot.CollectableKind.BOX)
+                .filter(b -> b.kind() == WorldSnapshot.CollectableKind.BOX || b.kind() == WorldSnapshot.CollectableKind.ORE)
                 .filter(b -> !ignored.containsKey(b.hash()))
                 .filter(b -> {
-                    BotConfig.BoxRule r = c.collect().boxes().get(b.boxType());
+                    BotConfig.BoxRule r = c.collect().boxes().get(key(b));
                     return r != null && r.collect();
                 })
                 // not in the config's avoided zone (DarkBot's «avoided zones»)
                 .filter(b -> !Zones.avoided(c, w.hero().mapId(), b.x(), b.y(), ctx.maps()))
                 // a full hold (the config does something about it): no more boxes that fill it
-                .filter(b -> !BotConfig.Collect.fillsCargo(b.boxType()) || !cargoFull(c, w))
-                .filter(b -> Double.isNaN(anchorX)
+                .filter(b -> !BotConfig.Collect.fillsCargo(key(b)) || !cargoFull(c, w))
+                .filter(b -> reach != null ? reach.test(b.x(), b.y()) : Double.isNaN(anchorX)
                         ? Math.hypot(b.x() - h.x(), b.y() - h.y()) <= c.collect().radius()
                         : Math.hypot(b.x() - anchorX, b.y() - anchorY) <= (within > 0 ? within : c.collect().radius()))
                 .filter(b -> !c.collect().ignoreContested() || !contested(w, b))
                 .filter(b -> !c.general().avoidMines() || !orbit.bot.nav.PathFinder.nearMine(w, b.x(), b.y()))
-                .min(Comparator.comparingDouble(b -> Math.hypot(b.x() - h.x(), b.y() - h.y())))
+                // DarkBot's collector: the box priority first (lower first), then the nearest
+                .min(Comparator.<WorldSnapshot.Collectable>comparingInt(b -> {
+                    BotConfig.BoxRule r = c.collect().boxes().get(key(b));
+                    return r == null ? 0 : r.priority();
+                }).thenComparingDouble(b -> Math.hypot(b.x() - h.x(), b.y() - h.y())))
                 .orElse(null);
+    }
+
+    /**
+     * The config's name of a collectable: the box's type, or {@code ore_<n>} for ore (DarkBot's names: the
+     * palladium of 5-3 is {@code ore_8}, sent as {@code AddOreCommand}).
+     */
+    static String key(WorldSnapshot.Collectable b) {
+        return b.kind() == WorldSnapshot.CollectableKind.ORE ? "ore_" + b.oreType() : b.boxType();
     }
 
     boolean cargoFull(BotConfig c, WorldSnapshot w) {
