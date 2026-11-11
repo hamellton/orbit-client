@@ -565,12 +565,13 @@ public record BotConfig(
      * @param minNpcs  this many NPCs within {@code radius} of the pet (0 = not a reason)
      * @param flagged  an NPC flagged {@link NpcFlag#KAMIKAZE} in the NPC list within {@code radius}
      * @param radius   around the pet
-     * @param everyMinutes not again sooner after the pet blew up (it is repaired each time)
+     * @param everyMinutes not again sooner after the pet blew up (it is repaired each time); 0 = as soon as the game's
+     *                     cooldown allows
      */
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public record Kamikaze(boolean enabled, int minNpcs, boolean flagged, int radius, int everyMinutes) {
 
-        public static final Kamikaze OFF = new Kamikaze(false, 0, true, 600, 5);
+        public static final Kamikaze OFF = new Kamikaze(false, 0, true, 600, 0);
 
         public Kamikaze {
             radius = radius <= 0 ? 600 : radius;

@@ -57,6 +57,8 @@ public final class PetCare {
     private long boomAt = Long.MIN_VALUE / 2;
     /** Kamikaze is kept this long after the crowd thinned, so a moving fight does not flip the mode. */
     static final long KAMIKAZE_HOLD_MS = 5_000;
+    /** The kamikaze gear's button; its timer is the game's cooldown. */
+    static final String KAMIKAZE_ITEM = "equipment_petgear_g-kk1";
     private long crowdSeenAt = Long.MIN_VALUE / 2;
 
     public PetCare(BotContext ctx) {
@@ -140,7 +142,10 @@ public final class PetCare {
     /** Whether the kamikaze mode is wanted now; logs the switches. */
     private void kamikaze(BotConfig.Pet cfg, WorldSnapshot w, WorldSnapshot.Pet pet, long now) {
         BotConfig.Kamikaze k = cfg.kamikaze();
-        boolean can = k.enabled() && pet.gears().contains(PetGearTypeModule.PETGEARTYPE_KAMIKAZE)
+        // the game's own cooldown: the gear's button on the item bar (its timer), and the config's limit on top
+        WorldSnapshot.Item button = w.items().get(KAMIKAZE_ITEM);
+        boolean ready = button == null || button.activatable() && button.remainingMs(now) == 0;
+        boolean can = k.enabled() && pet.gears().contains(PetGearTypeModule.PETGEARTYPE_KAMIKAZE) && ready
                 && ms(now - boomAt) >= k.everyMinutes() * 60_000L;
         boolean crowd = can && crowd(k, w, pet);
         if (crowd) {

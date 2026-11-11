@@ -170,4 +170,49 @@ class PetCareTest {
         sim.run(pet::tick, 5_000);
         assertEquals(PetGearTypeModule.PETGEARTYPE_KAMIKAZE, gears(sim).getLast().gearTypeToActivate.typeValue);
     }
+
+    @Test
+    void withNoLimitOfItsOwnKamikazeWaitsForTheGamesCooldownOnly() {
+        BotConfig c = BotConfig.empty()
+                .withNpcs(java.util.Map.of("-=[ Cubikon ]=-", new BotConfig.NpcRule(550, 0, true,
+                        java.util.Set.of("KAMIKAZE"), java.util.Set.of(), null)))
+                .withPet(new BotConfig.Pet(true, "ENEMY_LOCATOR", 13, false, 0, new BotConfig.Kamikaze(true, 0, true, 600, 0)));
+        Sim sim = new Sim(c, 26, 10_000, 6_000);
+        owned(sim);
+        PetCare pet = new PetCare(sim.ctx);
+        sim.run(pet::tick, 6_000);
+        launched(sim);
+        sim.npc(70, "-=[ Cubikon ]=-", 10_300, 6_000);
+        // the pet's gears on the item bar, as after the login
+        orbit.protocol.gen.MenuInitializationCommand menu = new orbit.protocol.gen.MenuInitializationCommand();
+        orbit.protocol.gen.MenuCategoryInitializationCommand cat = new orbit.protocol.gen.MenuCategoryInitializationCommand();
+        cat.categoryId = "pet";
+        orbit.protocol.gen.MenuItemInitializationCommand it = new orbit.protocol.gen.MenuItemInitializationCommand();
+        it.status = new orbit.protocol.gen.MenuItemStatusCommand();
+        it.status.menuItemId = "equipment_petgear_g-kk1";
+        it.status.available = true;
+        it.status.activatable = true;
+        cat.menuItems = List.of(it);
+        menu.categories = List.of(cat);
+        sim.world.apply(menu, sim.now);
+        // the gear's button cooling down (as the game would show it after a blast)
+        orbit.protocol.gen.MenuItemTimerCommand cd = new orbit.protocol.gen.MenuItemTimerCommand();
+        cd.menuItemId = "equipment_petgear_g-kk1";
+        cd.activatable = false;
+        cd.time = 20_000;
+        cd.maxTime = 20_000;
+        cd.timerState = new orbit.protocol.gen.TimerStateModule();
+        cd.timerState.timerStateValue = 2;
+        sim.world.apply(cd, sim.now);
+        sim.run(pet::tick, 5_000);
+        int k = PetGearTypeModule.PETGEARTYPE_KAMIKAZE;
+        assertTrue(gears(sim).stream().noneMatch(r -> r.gearTypeToActivate.typeValue == k), "the game's cooldown runs");
+        orbit.protocol.gen.MenuItemTimerCommand ready = new orbit.protocol.gen.MenuItemTimerCommand();
+        ready.menuItemId = "equipment_petgear_g-kk1";
+        ready.activatable = true;
+        ready.timerState = new orbit.protocol.gen.TimerStateModule();
+        sim.world.apply(ready, sim.now);
+        sim.run(pet::tick, 5_000);
+        assertEquals(k, gears(sim).getLast().gearTypeToActivate.typeValue, "ready: at once, no minutes of its own");
+    }
 }

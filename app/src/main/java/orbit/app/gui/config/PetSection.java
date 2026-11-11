@@ -53,7 +53,7 @@ final class PetSection implements Section {
                 .row("", kamikazeFlagged)
                 .row("Радиус вокруг питомца", kamikazeRadius)
                 .row("Не чаще раза в, мин", kamikazeEvery)
-                .note("Хватит одного условия. Потом — основной режим; взорвавшегося питомца бот чинит.")
+                .note("Хватит одного условия. 0 мин — по кулдауну игры. Потом — основной режим; питомца бот чинит.")
                 .build(true);
     }
 
