@@ -293,4 +293,11 @@ public final class Actions {
     public void tradeClose() {
         legacy("TWC");
     }
+
+    /** Clicks a map asset whose action the server offers ({@code MapAssetActivationRequest}): the refinery before trading. */
+    public void activateAsset(int assetId) {
+        orbit.protocol.gen.MapAssetActivationRequest r = new orbit.protocol.gen.MapAssetActivationRequest();
+        r.mapAssetId = assetId;
+        sender.accept(r);
+    }
 }

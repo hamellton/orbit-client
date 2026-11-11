@@ -82,7 +82,10 @@ class CargoCareTest {
         BotRunner r = new BotRunner(sim.ctx, () -> false, s -> { });
         for (int t = 0; t < 400 && sim.sent.stream().noneMatch(p -> p instanceof TradeRequest); t++) {
             sim.run(r::tick, 100);
+            offerWhenNear(sim, 900, 20_080, 11_500);
         }
+        assertTrue(sim.sent.stream().anyMatch(p -> p instanceof orbit.protocol.gen.MapAssetActivationRequest a
+                && a.mapAssetId == 900), "the refinery clicked first, as the client does");
         var h = sim.hero();
         assertTrue(Math.hypot(h.x() - 20_080, h.y() - 11_500) <= CargoCare.AT_REFINERY + 50, "at the refinery: " + h);
         assertTrue(sim.sent.stream().anyMatch(p -> p instanceof TradeRequest), "the trade window asked for");
@@ -190,7 +193,19 @@ class CargoCareTest {
         sim.config = config(BotConfig.Collect.CARGO_BASE); // the user switches to the base
         for (int t = 0; t < 400 && sim.sent.stream().noneMatch(p -> p instanceof TradeRequest); t++) {
             sim.run(r::tick, 100);
+            offerWhenNear(sim, 900, 20_080, 11_500);
         }
         assertTrue(sim.sent.stream().anyMatch(p -> p instanceof TradeRequest), "off to the refinery at once, no 5-minute pause");
+    }
+
+    /** The server offers the refinery's action within ~500 (recorded at 2-8: offered at 504). */
+    private static void offerWhenNear(Sim sim, int assetId, int x, int y) {
+        var h = sim.hero();
+        if (Math.hypot(h.x() - x, h.y() - y) <= 500 && !sim.world.snapshot(sim.now).activatable().containsKey(assetId)) {
+            orbit.protocol.gen.MapAssetActionAvailableCommand a = new orbit.protocol.gen.MapAssetActionAvailableCommand();
+            a.mapAssetId = assetId;
+            a.activatable = true;
+            sim.world.apply(a, sim.now);
+        }
     }
 }

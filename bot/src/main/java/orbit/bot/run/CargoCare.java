@@ -19,7 +19,9 @@ import org.slf4j.LoggerFactory;
  *   <li>{@code PET} — the pet's trade pod opens the trade window anywhere ({@code PetTradeWindowShowCommand}):
  *       sell the same way while the ship keeps working, then the pet's own mode again.</li>
  * </ul>
- * As recorded on ru1 2026-11-11: at the refinery (2-8, ~500 away) {@code TradeRequest} → {@code OreTradeInfoCommand}
+ * As recorded on ru1 2026-11-11: at the refinery (2-8, ~500 away) the server offers it
+ * ({@code MapAssetActionAvailableCommand}), the client clicks it ({@code MapAssetActivationRequest}) and asks for the
+ * trade window in the same moment ({@code TradeRequest}) → {@code OreTradeInfoCommand}
  * with the prices; with the pet the trade pod alone brings the same prices and the window, no request; then one
  * {@code TradeSellOreRequest} per ore, whole amounts, and {@code TWC} closes the window. Nothing to sell (only ores the config keeps) — no trip,
  * the hold simply stops filling. A sale that does not open is not tried again for {@link #RETRY_MS}.
@@ -46,6 +48,8 @@ final class CargoCare {
     private long nextSellAt;
     private final List<int[]> toSell = new ArrayList<>();
     private long soldUnits;
+    /** When the ship came within {@link #AT_REFINERY} of the refinery (0 not yet). */
+    private long nearSince;
     private String lastMode = "";
     private boolean askedAgain;
     private int baseMap;
@@ -153,6 +157,7 @@ final class CargoCare {
                     ctx.maps().info(baseMap).name(), list(sell));
             step = Step.TO_BASE;
             since = now;
+            nearSince = 0;
             ctx.traveler().travel(baseMap, Double.NaN, Double.NaN);
         }
         ctx.stats().selling = true;
@@ -188,7 +193,15 @@ final class CargoCare {
             return ms(now - since) > 10_000 ? fail("на " + ctx.maps().info(h.mapId()).name() + " не видно переработчика") : true;
         }
         double dist = Math.hypot(r.x() - h.x(), r.y() - h.y());
-        if (dist > AT_REFINERY) {
+        // close enough once the server offers the refinery's action (the client trades only then)
+        boolean offered = w.activatable().containsKey(r.id());
+        if (dist <= AT_REFINERY && nearSince == 0) {
+            nearSince = now;
+        }
+        if (dist > AT_REFINERY || !offered) {
+            if (nearSince != 0 && ms(now - nearSince) > 20_000) {
+                return fail("у переработчика, а сервер не предлагает торговлю");
+            }
             if (ctx.nav().idle() || ctx.nav().destination().x() != r.x()) {
                 ctx.nav().moveTo(r.x(), r.y(), true);
             }
@@ -198,6 +211,7 @@ final class CargoCare {
         }
         ctx.nav().stop();
         log.info("У переработчика — открываю торговлю");
+        ctx.actions().activateAsset(r.id());
         ctx.actions().tradeOpen();
         step = Step.ASKED;
         since = now;
