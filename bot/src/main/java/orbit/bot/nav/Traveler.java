@@ -144,7 +144,9 @@ public final class Traveler {
             }
             return;
         }
-        List<MapCatalog.Portal> route = Router.route(catalog, h.mapId(), h.x(), h.y(), targetMap, h.factionId());
+        // level 0 = not known yet (dead login): every map, as before
+        List<MapCatalog.Portal> route = Router.route(catalog, h.mapId(), h.x(), h.y(), targetMap, h.factionId(),
+                h.level() > 0 ? h.level() : Integer.MAX_VALUE);
         if (route.isEmpty()) {
             fail("нет пути с карты " + catalog.info(h.mapId()).name() + " на " + catalog.info(targetMap).name());
             return;

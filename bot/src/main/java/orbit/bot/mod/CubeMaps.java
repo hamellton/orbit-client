@@ -150,11 +150,18 @@ public final class CubeMaps {
         return Math.max(arrive, cube);
     }
 
+    /** The pilot's level for the routes (Blacklight from 24); set by the module. */
+    int level = Integer.MAX_VALUE;
+
+    public void setLevel(int level) {
+        this.level = level > 0 ? level : Integer.MAX_VALUE;
+    }
+
     long travelMs(int map, int heroMap, double hx, double hy, int faction) {
         if (map == heroMap) {
             return 0;
         }
-        int hops = Router.route(catalog, heroMap, hx, hy, map, faction).size();
+        int hops = Router.route(catalog, heroMap, hx, hy, map, faction, level).size();
         return hops == 0 ? Long.MAX_VALUE / 4 : hops * HOP_MS;
     }
 

@@ -140,4 +140,35 @@ class CpuJumperTest {
         now += 3 * 60_000 * MS;
         assertTrue(j.worthTrying(26), "two minutes later the jump is tried again, not after ten");
     }
+
+    @Test
+    void theJumpCpuWorksAtAPortalOrInOurStation() {
+        jumper(true, 481, 0); // the hero on 2-6
+        MapCatalog maps = MapCatalog.bundled();
+        MapCatalog.Portal portal = maps.portals(22).getFirst();
+        ShipInitializationCommand at = new ShipInitializationCommand();
+        at.userId = 1;
+        at.mapId = 22;
+        at.factionId = 2;
+        at.x = portal.x() + 100;
+        at.y = portal.y();
+        at.hitPoints = 1;
+        at.hitMax = 1;
+        world.apply(at, now);
+        assertTrue(CpuJumper.placeForJump(world.snapshot(now), maps), "next to a portal");
+        at.x = 7500;
+        at.y = 7900; // a Cubikon spawn
+        world.apply(at, now);
+        assertTrue(!CpuJumper.placeForJump(world.snapshot(now), maps), "not on a spawn");
+        orbit.protocol.gen.BeaconCommand b = new orbit.protocol.gen.BeaconCommand();
+        b.positionX = 7500;
+        b.positionY = 7900;
+        b.positionAheadX = 7500;
+        b.positionAheadY = 7900;
+        b.inStation = true;
+        world.apply(b, now);
+        int home = maps.info(22).homeFaction();
+        assertEquals(home == 0 || home == 2, CpuJumper.placeForJump(world.snapshot(now), maps),
+                "in a station on a map of our faction (or nobody's), not in an enemy's");
+    }
 }

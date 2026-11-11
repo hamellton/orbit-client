@@ -69,6 +69,36 @@ public final class CpuJumper {
         this.ledger = ledger;
     }
 
+    /** A ship this close to a portal counts as at it, also before the server's next position report. */
+    public static final double AT_PORTAL = 300;
+
+    /**
+     * Where the jump CPU works: at a portal, or in a station that is not an enemy's (the user, 2026-11-11;
+     * the recorded jumps were made at portals, the one tried on a Cubikon spawn under fire was called off).
+     */
+    public static boolean placeForJump(WorldSnapshot w, MapCatalog catalog) {
+        WorldSnapshot.Hero h = w.hero();
+        if (h.beacon().nearJumpGate() || nearestPortal(w, catalog) != null
+                && Math.hypot(nearestPortal(w, catalog).x() - h.x(), nearestPortal(w, catalog).y() - h.y()) <= AT_PORTAL) {
+            return true;
+        }
+        int home = catalog.info(h.mapId()).homeFaction();
+        return h.beacon().inStation() && (home == 0 || home == h.factionId());
+    }
+
+    /** The nearest portal of the map the ship may use (its faction's or anyone's), or {@code null}. */
+    public static MapCatalog.Portal nearestPortal(WorldSnapshot w, MapCatalog catalog) {
+        WorldSnapshot.Hero h = w.hero();
+        return catalog.portals(h.mapId()).stream()
+                .filter(p -> p.faction() == 0 || p.faction() == h.factionId())
+                .min(java.util.Comparator.comparingDouble(p -> Math.hypot(p.x() - h.x(), p.y() - h.y()))).orElse(null);
+    }
+
+    /** A jump is under way (asked, confirmed or counting down). */
+    public boolean running() {
+        return step != null;
+    }
+
     /** Why the last jump did not happen (for the log), or {@code null}. */
     public String failure() {
         return failure;

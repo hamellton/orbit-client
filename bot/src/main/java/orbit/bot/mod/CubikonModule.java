@@ -110,6 +110,7 @@ public final class CubikonModule implements BotModule {
             JsonNode s = c.modules().get(BotConfig.Module.CUBIKON.key());
             boolean cubeHere = cubesMap == h.mapId() && !cubes.isEmpty();
             boolean fighting = cubeHere && cubes.containsKey(attacker.targetId());
+            maps.setLevel(h.level());
             workMap = maps.choose(s, c.general().workingMap(), h.mapId(), h.x(), h.y(), h.factionId(), cubeHere, fighting,
                     memory, wallMs(), wallTime());
             workMapAt = now;

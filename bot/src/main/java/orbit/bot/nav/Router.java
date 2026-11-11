@@ -21,8 +21,22 @@ public final class Router {
     private Router() {
     }
 
-    /** Portals to take, one per map, from the current map to {@code toMap}; empty if there or unreachable. */
+    /** The Blacklight maps 1-BL, 2-BL, 3-BL: not open below level {@link #BLACKLIGHT_LEVEL}. */
+    static final java.util.Set<Integer> BLACKLIGHT = java.util.Set.of(306, 307, 308);
+    static final int BLACKLIGHT_LEVEL = 24;
+
+    /** As {@link #route(MapCatalog, int, double, double, int, int, int)} for a pilot who may enter every map. */
     public static List<MapCatalog.Portal> route(MapCatalog catalog, int fromMap, double x, double y, int toMap, int faction) {
+        return route(catalog, fromMap, x, y, toMap, faction, Integer.MAX_VALUE);
+    }
+
+    /**
+     * Portals to take, one per map, from the current map to {@code toMap}; empty if there or unreachable.
+     *
+     * @param level the pilot's level: below 24 the Blacklight maps are left out (they do not let him in)
+     */
+    public static List<MapCatalog.Portal> route(MapCatalog catalog, int fromMap, double x, double y, int toMap, int faction,
+                                                int level) {
         if (fromMap == toMap) {
             return List.of();
         }
@@ -43,7 +57,8 @@ public final class Router {
                 break;
             }
             for (MapCatalog.Portal p : catalog.portals(n.map())) {
-                if (p.toId() <= 0 || (p.faction() != 0 && p.faction() != faction)) {
+                if (p.toId() <= 0 || (p.faction() != 0 && p.faction() != faction)
+                        || (level < BLACKLIGHT_LEVEL && BLACKLIGHT.contains(p.toId()))) {
                     continue;
                 }
                 double cost = n.cost() + Math.hypot(p.x() - n.x(), p.y() - n.y()) + JUMP_COST;

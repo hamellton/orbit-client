@@ -81,4 +81,20 @@ class CubeMapsTest {
         assertEquals(22, maps.choose(s, 22, 22, 7500, 4000, 2, true, true, memory, 0, NOON), "the fight first");
         assertEquals(18, maps.choose(s, 22, 22, 7500, 4000, 2, false, false, memory, 0, NOON), "then the timetable");
     }
+
+    @Test
+    void belowLevel24TheWayLeavesTheBlacklightMapsOut() {
+        MapCatalog maps = MapCatalog.bundled();
+        java.util.Set<Integer> bl = java.util.Set.of(306, 307, 308);
+        for (int from : new int[] {18, 22, 26}) {
+            for (int to : new int[] {18, 22, 26}) {
+                if (from == to) {
+                    continue;
+                }
+                var low = orbit.bot.nav.Router.route(maps, from, 10_000, 6_500, to, 2, 23);
+                assertTrue(!low.isEmpty(), from + " → " + to + " is reachable without Blacklight");
+                assertTrue(low.stream().noneMatch(p -> bl.contains(p.toId())), from + " → " + to + ": " + low);
+            }
+        }
+    }
 }

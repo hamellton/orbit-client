@@ -216,7 +216,23 @@ public final class BotRunner {
     private void travel(int map) {
         int budget = module.jumpUridiumPerDay();
         if (budget >= 0 && travelTarget != map && jumper.worthTrying(map)) {
-            // the jump CPU first (a voucher, or uridium within the day's budget); portals when it does not work
+            // the jump CPU first (a voucher, or uridium within the day's budget); portals when it does not work.
+            // It works at a portal or in our station only: fly to the nearest portal first.
+            WorldSnapshot w = ctx.world().get();
+            if (!jumper.running() && !orbit.bot.nav.CpuJumper.placeForJump(w, ctx.maps())) {
+                orbit.world.maps.MapCatalog.Portal p = orbit.bot.nav.CpuJumper.nearestPortal(w, ctx.maps());
+                if (p != null) {
+                    module.pause();
+                    if (ctx.nav().idle() || ctx.nav().destination().x() != p.x() || ctx.nav().destination().y() != p.y()) {
+                        ctx.nav().moveTo(p.x(), p.y(), true);
+                    }
+                    ctx.ship().want(ctx.config().get().general().travel());
+                    ctx.nav().tick();
+                    state = State.TRAVELLING;
+                    show("К порталу для прыжка CPU на " + ctx.maps().info(map).name());
+                    return;
+                }
+            }
             orbit.bot.nav.CpuJumper.Result r = jumper.tick(map, budget);
             if (r == orbit.bot.nav.CpuJumper.Result.RUNNING) {
                 module.pause();
