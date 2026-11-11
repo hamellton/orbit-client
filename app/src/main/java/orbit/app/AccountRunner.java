@@ -134,6 +134,28 @@ final class AccountRunner implements ManagedAccount {
     }
 
     @Override
+    public void stopNow() {
+        Runnable kill;
+        synchronized (this) {
+            if (phase == Phase.STOPPED || sessions == null) {
+                return;
+            }
+            phase = Phase.STOPPING;
+            kill = sessions.kill();
+        }
+        feed.setState("закрывается без выхода…");
+        Thread.ofPlatform().name("kill-" + name).start(() -> {
+            MDC.put("account", name);
+            kill.run();
+        });
+    }
+
+    @Override
+    public boolean inGame() {
+        return phase == Phase.RUNNING && feed.sessionStartNanos() != 0 && !feed.loggedOut() && !feed.linkLost();
+    }
+
+    @Override
     public String config() {
         OrbitMain.Sessions s = sessions;
         if (s != null) {

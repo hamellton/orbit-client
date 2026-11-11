@@ -185,9 +185,9 @@ public final class ManagerWindow {
         JButton start = button("Запустить", this::start, "Войти в игру и работать по конфигу или расписанию");
         start.setBackground(new Color(0x0e4a66));
         bar.add(start);
-        bar.add(button("Остановить", this::stop, "Долетит до портала и выйдет из игры"));
+        bar.add(button("Остановить", this::stop, "В игре — выйти у портала или закрыть сразу; не в игре — сразу"));
         bar.add(button("Запустить все", this::startAll, "Все остановленные аккаунты с конфигом; входы — с паузами 15–45 с"));
-        bar.add(button("Остановить все", this::stopAll, "Все аккаунты долетят до портала и выйдут из игры"));
+        bar.add(button("Остановить все", this::stopAll, "Те, что в игре, — выйти у портала или закрыть сразу; остальные — сразу"));
         bar.add(gap());
         bar.add(button("Конфиги и расписание…", () -> orbit.app.gui.config.ConfigWindow.open(
                 orbit.config.ConfigStore.openDefault(), AccountSettings.DEFAULT_FILE, null),
@@ -356,10 +356,19 @@ public final class ManagerWindow {
 
     private void stop() {
         String n = needSelected();
-        if (n != null) {
-            account(n).stop();
-            refresh();
+        if (n == null) {
+            return;
         }
+        ManagedAccount a = account(n);
+        if (a.phase() == ManagedAccount.Phase.STOPPING) {
+            if (JOptionPane.showConfirmDialog(frame, "«" + n + "» уже выходит из игры. Закрыть сразу, не дожидаясь выхода?",
+                    "Остановить", JOptionPane.OK_CANCEL_OPTION, JOptionPane.QUESTION_MESSAGE) == JOptionPane.OK_OPTION) {
+                a.stopNow();
+            }
+        } else {
+            StopDialog.stop(frame, "Остановить «" + n + "»", List.of(a), "");
+        }
+        refresh();
     }
 
     private void startAll() {
@@ -387,7 +396,7 @@ public final class ManagerWindow {
     }
 
     private void stopAll() {
-        managed.values().forEach(ManagedAccount::stop);
+        StopDialog.stop(frame, "Остановить все", List.copyOf(managed.values()), "");
         refresh();
     }
 
@@ -421,7 +430,7 @@ public final class ManagerWindow {
         }
         AccountView view = new AccountView(tab);
         view.putClientProperty("JTabbedPane.tabClosable", true);
-        view.putClientProperty("JTabbedPane.tabCloseToolTipText", "Закрыть вкладку (запущенный аккаунт сначала выйдет из игры)");
+        view.putClientProperty("JTabbedPane.tabCloseToolTipText", "Закрыть вкладку (запущенный аккаунт будет остановлен)");
         pane.addTab(a.feed().title(), AccountStatus.dot(() -> status(a)), view);
         rebuildOverview();
     }
@@ -432,13 +441,9 @@ public final class ManagerWindow {
             return;
         }
         ManagedAccount a = tabs.get(index - FIRST_TAB).managed();
-        if (a.phase() == ManagedAccount.Phase.RUNNING) {
-            if (JOptionPane.showConfirmDialog(frame, "Остановить «" + a.name() + "» (долетит до портала и выйдет из игры) "
-                    + "и закрыть вкладку?", "Закрыть вкладку", JOptionPane.OK_CANCEL_OPTION,
-                    JOptionPane.QUESTION_MESSAGE) != JOptionPane.OK_OPTION) {
-                return;
-            }
-            a.stop();
+        if (a.phase() == ManagedAccount.Phase.RUNNING
+                && !StopDialog.stop(frame, "Закрыть вкладку", List.of(a), "и закрыть вкладку")) {
+            return; // in game and the user cancelled; not in game: stopped at once without a question
         }
         dropTab(index);
         refresh();
@@ -558,7 +563,7 @@ public final class ManagerWindow {
     private static String stateText(ManagedAccount a) {
         return switch (a.phase()) {
             case STOPPED -> a.problem() != null ? "Остановлен — " + a.problem() : "Остановлен";
-            case STOPPING -> "Выходит из игры…";
+            case STOPPING -> a.feed().state();
             case RUNNING -> {
                 AccountStatus s = AccountStatus.of(a.feed());
                 yield s == AccountStatus.OFFLINE ? a.feed().state() : s.label;
@@ -587,14 +592,11 @@ public final class ManagerWindow {
             onClosed.run();
             return;
         }
-        if (JOptionPane.showConfirmDialog(frame, "Запущено аккаунтов: " + running.size() + ". Остановить их (долетят до "
-                + "портала и выйдут из игры) и закрыть бота?", "Закрыть", JOptionPane.OK_CANCEL_OPTION,
-                JOptionPane.QUESTION_MESSAGE) != JOptionPane.OK_OPTION) {
+        if (!StopDialog.stop(frame, "Закрыть бота", running, "и закрыть бота")) {
             return;
         }
-        running.forEach(ManagedAccount::stop);
         JDialog wait = new JDialog(frame, "Закрытие", false);
-        JLabel text = new JLabel("Аккаунты выходят из игры…");
+        JLabel text = new JLabel("Аккаунты останавливаются…");
         text.setBorder(BorderFactory.createEmptyBorder(16, 20, 16, 20));
         wait.setContentPane(text);
         wait.pack();
@@ -603,7 +605,7 @@ public final class ManagerWindow {
         long giveUp = System.currentTimeMillis() + 150_000; // a logout waits two minutes at most
         new Timer(500, e -> {
             long left = running.stream().filter(a -> a.phase() != ManagedAccount.Phase.STOPPED).count();
-            text.setText("Аккаунты выходят из игры… осталось " + left);
+            text.setText("Аккаунты останавливаются… осталось " + left);
             wait.pack();
             if (left == 0 || System.currentTimeMillis() > giveUp) {
                 ((Timer) e.getSource()).stop();

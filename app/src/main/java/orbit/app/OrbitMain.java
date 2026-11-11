@@ -478,8 +478,9 @@ public final class OrbitMain {
      * @param config       the config the account runs now
      * @param switchConfig run another config from now on (also saved as the account's config)
      */
+    /** @param kill ends everything at once: the connection is closed without flying to a portal */
     record Sessions(Thread thread, Runnable close, java.util.function.Supplier<String> config,
-                            java.util.function.Consumer<String> switchConfig) {
+                            java.util.function.Consumer<String> switchConfig, Runnable kill) {
     }
 
     static Sessions sessions(Options o, String accountName, Rig rig, ClientProfile profile, long startDelayMs,
@@ -636,7 +637,23 @@ public final class OrbitMain {
                 run.watch().switchTo(name);
             }
         };
-        return new Sessions(sessions, close, playing::get, switchConfig);
+        Runnable kill = () -> {
+            closed.set(true);
+            ModuleRun run = current.get();
+            if (run != null) {
+                run.stopRequested().set(true); // a stop, not a lost connection: no retry
+            }
+            GameConnection c = currentConn.get();
+            if (c != null) {
+                if (feed.sessionStartNanos() != 0 && !feed.loggedOut()) {
+                    log.warn("Экстренная остановка: соединение закрыто без выхода у портала");
+                } else {
+                    log.info("Остановлен (ещё не в игре)");
+                }
+                c.close();
+            }
+        };
+        return new Sessions(sessions, close, playing::get, switchConfig, kill);
     }
 
     /** After this many sessions in a row without a game connection the account stops. */
@@ -738,7 +755,9 @@ public final class OrbitMain {
                 while (feed.sessionStartNanos() == 0 || feed.snapshot().hero().id() == 0 || !feed.snapshot().hero().alive()) {
                     if (connectionOver.getAsBoolean()) {
                         connectionEnded.set(!stopRequested.get());
-                        log.warn("Вход в игру не состоялся: {}", feed.state());
+                        if (!stopRequested.get()) {
+                            log.warn("Вход в игру не состоялся: {}", feed.state());
+                        }
                         return;
                     }
                     if (stopRequested.get() || Files.exists(stopFile)) {
@@ -784,10 +803,12 @@ public final class OrbitMain {
                     } else if (System.currentTimeMillis() > until) {
                         runner.stop("время вышло: " + untilReason);
                     }
-                    if (connectionOver.getAsBoolean() && !feed.loggedOut() && !stopRequested.get()) {
-                        connectionEnded.set(true);
-                        log.warn("Связь с игрой закончилась без выхода: {}", feed.state());
-                        break;
+                    if (connectionOver.getAsBoolean() && !feed.loggedOut()) {
+                        if (!stopRequested.get()) {
+                            connectionEnded.set(true);
+                            log.warn("Связь с игрой закончилась без выхода: {}", feed.state());
+                        }
+                        break; // no connection: nothing to fly or log out with
                     }
                     runner.tick();
                     var st = runner.state();

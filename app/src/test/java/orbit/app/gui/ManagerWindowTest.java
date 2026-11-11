@@ -33,6 +33,8 @@ class ManagerWindowTest {
         final List<Long> starts = new ArrayList<>();
         String refuse;
         Phase phase = Phase.STOPPED;
+        boolean inGame;
+        int killed;
 
         Fake(String name) {
             this.name = name;
@@ -74,6 +76,19 @@ class ManagerWindowTest {
             if (phase == Phase.RUNNING) {
                 phase = Phase.STOPPING;
             }
+        }
+
+        @Override
+        public void stopNow() {
+            if (phase != Phase.STOPPED) {
+                killed++;
+                phase = Phase.STOPPING;
+            }
+        }
+
+        @Override
+        public boolean inGame() {
+            return inGame && phase == Phase.RUNNING;
         }
 
         @Override
@@ -163,6 +178,26 @@ class ManagerWindowTest {
 
         assertNull(w.startOne("alpha", 0, false));
         assertEquals(3, w.pane.getTabCount(), "a new start brings the tab back");
+    }
+
+    @Test
+    void accountsNotInGameStopAtOnceWithoutAQuestion(@TempDir Path dir) throws Exception {
+        Map<String, Fake> fakes = new HashMap<>();
+        ManagerWindow w = new ManagerWindow(vault(dir), n -> fakes.computeIfAbsent(n, Fake::new));
+        w.refresh();
+        assertNull(w.startOne("alpha", 0, false));
+        assertNull(w.startOne("beta", 0, false));
+        // both still logging in (or waiting out a maintenance): no portal to fly to, no dialog (none headless)
+        assertTrue(StopDialog.stop(null, "test", List.of(fakes.get("alpha"), fakes.get("beta")), ""));
+        assertEquals(1, fakes.get("alpha").killed);
+        assertEquals(1, fakes.get("beta").killed);
+
+        fakes.get("alpha").phase = ManagedAccount.Phase.STOPPED;
+        fakes.get("beta").phase = ManagedAccount.Phase.STOPPED;
+        assertNull(w.startOne("alpha", 0, false));
+        w.closeTab(2); // the × of an account not in game: stopped at once, the tab goes
+        assertEquals(2, fakes.get("alpha").killed);
+        assertEquals(3, w.pane.getTabCount(), "«Аккаунты», «Все» and beta's tab are left");
     }
 
     @Test

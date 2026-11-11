@@ -28,6 +28,12 @@ public interface ManagedAccount {
     /** Flies to a portal and logs out, in the background. */
     void stop();
 
+    /** Closes the game connection at once, no portal, no logout (an emergency, or nothing to log out of). */
+    void stopNow();
+
+    /** Running and with its ship in game now (a stop then means a flight to a portal). */
+    boolean inGame();
+
     /** The config it runs now, or the account's config when stopped; {@code null} = none. */
     String config();
 

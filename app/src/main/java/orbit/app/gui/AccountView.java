@@ -265,8 +265,10 @@ final class AccountView extends JPanel {
                     if (why != null) {
                         javax.swing.JOptionPane.showMessageDialog(this, why, a.name(), javax.swing.JOptionPane.WARNING_MESSAGE);
                     }
+                } else if (a.phase() == ManagedAccount.Phase.STOPPING) {
+                    a.stopNow(); // the portal exit takes too long: close at once
                 } else {
-                    a.stop();
+                    StopDialog.stop(this, "Остановить «" + a.name() + "»", List.of(a), "");
                 }
             });
             Runnable show = () -> {
@@ -274,11 +276,14 @@ final class AccountView extends JPanel {
                 toggle.setText(switch (p) {
                     case STOPPED -> "Запустить";
                     case RUNNING -> "Остановить";
-                    case STOPPING -> "Останавливается…";
+                    case STOPPING -> "Закрыть сразу";
                 });
-                toggle.setEnabled(p != ManagedAccount.Phase.STOPPING);
-                toggle.setToolTipText(p == ManagedAccount.Phase.STOPPED ? "Войти в игру и работать по конфигу аккаунта"
-                        : "Долетит до портала и выйдет из игры; остальные аккаунты продолжат");
+                toggle.setToolTipText(switch (p) {
+                    case STOPPED -> "Войти в игру и работать по конфигу аккаунта";
+                    case RUNNING -> a.inGame() ? "Выйти у портала или закрыть сразу; остальные аккаунты продолжат"
+                            : "Ещё не в игре — остановится сразу";
+                    case STOPPING -> "Идёт выход у портала; закрыть соединение сразу, не дожидаясь";
+                });
             };
             show.run();
             timer(500, e -> show.run());
