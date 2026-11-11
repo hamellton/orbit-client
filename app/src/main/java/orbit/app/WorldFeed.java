@@ -158,7 +158,13 @@ public final class WorldFeed {
         return server.isEmpty() ? who : server + " · " + who;
     }
 
+    /** Remember every NPC met with its map ({@link orbit.world.maps.NpcMaps}); the app turns it on, tests do not. */
+    public static volatile boolean learnNpcMaps;
+
     public void onPacket(Packet p, long nanos) {
+        if (learnNpcMaps && p instanceof orbit.protocol.gen.ShipCreateCommand c && c.npc) {
+            orbit.world.maps.NpcMaps.shared().learn(world.snapshot(nanos).hero().mapId(), c.userName);
+        }
         packets.incrementAndGet();
         WorldSnapshot.Hero before = world.snapshot(nanos).hero();
         int heroBefore = before.id();

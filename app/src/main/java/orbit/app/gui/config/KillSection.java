@@ -94,9 +94,17 @@ final class KillSection implements Section {
             // every NPC of the game by name (the bot knows «Protegit» also as «-=[ Protegit ]=-»), or one typed in
             java.util.List<String> names = orbit.world.maps.NpcCatalog.bundled().all().stream()
                     .map(orbit.world.maps.NpcCatalog.Npc::name).distinct().toList();
-            String name = NpcPicker.pick(table, "Добавить NPC", names, null, true);
+            java.util.Map<String, BotConfig.NpcRule> current;
+            try {
+                current = npcs.get();
+            } catch (IllegalArgumentException ex) {
+                current = java.util.Map.of(); // a half-edited list (a name twice) only loses its maps here
+            }
+            NpcPicker.Pick pick = NpcPicker.pick(table, "Добавить NPC", names, null, true, NpcPicker.byMap(current));
+            String name = pick == null ? null : pick.item();
             if (name != null && !name.isBlank()) {
-                int row = table.convertRowIndexToView(npcs.add(name.strip(), 0));
+                // chosen through a map's filter: the rule is for that map
+                int row = table.convertRowIndexToView(npcs.add(name.strip(), pick.map()));
                 table.setRowSelectionInterval(row, row);
                 table.scrollRectToVisible(table.getCellRect(row, 0, true));
             }

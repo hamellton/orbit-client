@@ -64,6 +64,7 @@ public final class OrbitMain {
     public static void main(String[] args) throws Exception {
         // a dark macOS title bar; read when AWT starts, so before any window
         System.setProperty("apple.awt.application.appearance", "NSAppearanceNameDarkAqua");
+        WorldFeed.learnNpcMaps = true; // the NPCs met are remembered by map (local/npc-maps.json)
         if (args.length == 0) {
             manager(Options.parse(List.of()));
             return;

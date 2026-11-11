@@ -34,13 +34,16 @@ final class PetSection implements Section {
     private final JSpinner kamikazeRadius = Form.number(100, 3_000, 50);
     private final JSpinner kamikazeEvery = Form.number(0, 120, 1);
     private final JComponent view;
+    /** The config's NPC list, for the maps in the locator's list. */
+    private java.util.Map<String, BotConfig.NpcRule> npcs = java.util.Map.of();
 
     PetSection() {
         locator.setHorizontalAlignment(javax.swing.SwingConstants.LEFT);
         locator.setToolTipText("Кого ищет пеленгатор — откроется список с поиском");
         locator.addActionListener(e -> {
-            String chosen = NpcPicker.pick(locator, "Цель пеленгатора", java.util.List.of(locatorTargets()),
-                    locator.getText().replaceFirst(" ▾$", ""), false);
+            NpcPicker.Pick pick = NpcPicker.pick(locator, "Цель пеленгатора", java.util.List.of(locatorTargets()),
+                    locator.getText().replaceFirst(" ▾$", ""), false, NpcPicker.byMap(npcs));
+            String chosen = pick == null ? null : pick.item();
             if (chosen != null) {
                 locator.setText(chosen + " ▾");
             }
@@ -96,6 +99,7 @@ final class PetSection implements Section {
 
     @Override
     public void load(BotConfig c) {
+        npcs = c.npcs();
         BotConfig.Pet p = c.pet();
         enabled.setSelected(p.enabled());
         gear.set(p.gear());

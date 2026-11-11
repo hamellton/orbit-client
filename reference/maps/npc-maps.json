@@ -1,0 +1,9 @@
+{
+  "9": ["-=[ Recruit Streuner ]=-", "-=[ Streuner ]=-"],
+  "10": ["-=[ Lordakia ]=-", "-=[ Recruit Streuner ]=-", "-=[ Streuner ]=-", "..::{ Boss Lordakia }::..", "..::{ Boss Streuner }::.."],
+  "12": ["-=[ Lordakia ]=-", "-=[ Mordon ]=-", "-=[ Saimon ]=-", "-=[ Sibelon ]=-", "..::{ Boss Saimon }::..", "..::{ Boss Sibelon }::.."],
+  "16": ["-=[ Deadly Battleray ]=-"],
+  "18": ["-=[ Kristallin ]=-"],
+  "25": ["* Lordakium Spore *", "-=[ Lordakia ]=-", "-=[ Lordakium ]=-", "-=[ Rabbit ]=-", "-=[ Sibelonit ]=-", "..::{ Boss Sibelonit }::.."],
+  "26": ["-=[ Cubikon ]=-", "-=[ Kristallin ]=-", "-=[ Kristallon ]=-", "-=[ Plagued Kristallin ]=-", "-=[ Protegit ]=-", "-=[ Rabbit ]=-", "..::{ Boss Kristallin }::.."]
+}
