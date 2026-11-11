@@ -189,7 +189,7 @@ public final class CubikonModule implements BotModule {
             double reach = Targets.radius(c, cube, h.mapId()) + 50;
             boolean onBox = boxesOk && boxes.tick(cube.x(), cube.y(), reach);
             attacker.tick(!onBox);
-            status = onBox ? "Ящик у куба" : "Бой: Cubikon";
+            status = onBox ? "Подбираю " + boxes.currentName() + " у куба" : "Бой: Cubikon";
             return;
         }
         if (onCube) {
@@ -200,7 +200,7 @@ public final class CubikonModule implements BotModule {
             // the cube is dead: on to the next spawn whoever shoots at us; its boxes are still picked up
             attacker.clear();
             if (setting(s, "collectBoxes", true) && boxes.tick(deadAt[0], deadAt[1])) {
-                status = "Ящик с куба";
+                status = "Подбираю " + boxes.currentName() + " с куба";
                 return;
             }
             // longer only while a sale is really under way and the cube's cargo box really lies there (one the
@@ -257,7 +257,7 @@ public final class CubikonModule implements BotModule {
             }
         }
         if (setting(s, "collectBoxes", true) && spot != null && boxes.tick(spot[0], spot[1])) {
-            status = "Ящик";
+            status = "Подбираю " + boxes.currentName();
             return;
         }
         camp(s, h);

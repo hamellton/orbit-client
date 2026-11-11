@@ -20,9 +20,16 @@ public final class SessionSummary {
         out.add(row("Опыт", r.experience(), hours));
         out.add(row("Честь", r.honor(), hours));
         if (s != null) {
-            out.add("Кубы: бои " + s.cubesFought() + ", добито " + s.cubesKilled.get() + rate(s.cubesKilled.get(), hours));
-            out.add("Убито " + s.kills.get() + rate(s.kills.get(), hours) + "   ящиков " + s.boxes.get()
-                    + rate(s.boxes.get(), hours));
+            if (s.cubesFought() > 0) {
+                out.add("Кубы: бои " + s.cubesFought() + ", добито " + s.cubesKilled.get() + rate(s.cubesKilled.get(), hours));
+            }
+            out.add("Убито NPC " + s.kills.get() + rate(s.kills.get(), hours));
+            Map<String, Integer> picked = s.pickedSoFar();
+            if (!picked.isEmpty()) {
+                List<String> parts = new ArrayList<>();
+                picked.forEach((name, n) -> parts.add(name + " " + n + rate(n, hours)));
+                out.add("Подобрано: " + String.join(", ", parts));
+            }
             out.add("Ремонтов " + s.repairs.get() + "   смертей " + s.deaths.get());
         }
         for (Map.Entry<String, Double> e : r.items().entrySet()) {

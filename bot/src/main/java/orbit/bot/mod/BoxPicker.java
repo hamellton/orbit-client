@@ -20,6 +20,8 @@ public final class BoxPicker {
 
     private final BotContext ctx;
     private String hash;
+    /** The config's name of the box being taken ({@code ore_8}, {@code BONUS_BOX}). */
+    private String current = "";
     private long collectAt;
     private long collectedAt;
     private int tries;
@@ -39,6 +41,11 @@ public final class BoxPicker {
 
     public boolean busy() {
         return hash != null;
+    }
+
+    /** «палладий»: what is being picked up now, for the status. */
+    public String currentName() {
+        return orbit.config.LootNames.of(current);
     }
 
     public void clear() {
@@ -88,7 +95,8 @@ public final class BoxPicker {
         if (hash != null && !w.collectables().containsKey(hash)) {
             boxes++;
             ctx.stats().boxes.incrementAndGet();
-            log.info("Ящик собран ({})", boxes);
+            int n = ctx.stats().picked(orbit.config.LootNames.of(current));
+            log.info("Подобрал {} (за сессию: {})", orbit.config.LootNames.of(current), n);
             hash = null;
         }
         if (hash == null) {
@@ -97,6 +105,7 @@ public final class BoxPicker {
                 return false;
             }
             hash = box.hash();
+            current = key(box);
             collectAt = 0;
             collectedAt = 0;
             tries = 0;

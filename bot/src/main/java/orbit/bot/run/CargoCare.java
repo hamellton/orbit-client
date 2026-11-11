@@ -72,21 +72,9 @@ final class CargoCare {
 
     private CargoPlan plan = new CargoPlan(BotConfig.Collect.CARGO_NONE, 0, List.of());
 
-    /** Russian names of the common ores, for the log. */
+    /** Russian names of the ores, for the log. */
     static String oreName(int type) {
-        return switch (type) {
-            case 0 -> "прометий";
-            case 1 -> "эндуриум";
-            case 2 -> "тербий";
-            case 3 -> "ксеномит";
-            case 4 -> "прометид";
-            case 5 -> "дюраниум";
-            case 6 -> "промериум";
-            case 7 -> "сепром";
-            case 8 -> "палладий";
-            case 28 -> "осмий";
-            default -> "руда №" + type;
-        };
+        return orbit.config.LootNames.ore(type);
     }
 
     /** What the plan sells and the hold has: ore → count. */

@@ -47,6 +47,7 @@ public final class Hunter {
     private long pressedAt;
     private long nextApproach;
     private String boxHash;
+    private String boxName = "ящик";
     private long collectAt;
     private long collectedAt;
     private long repairedAt = Long.MIN_VALUE / 2;
@@ -190,7 +191,7 @@ public final class Hunter {
         WorldSnapshot.Hero h = w.hero();
         if (boxHash != null && !w.collectables().containsKey(boxHash)) {
             boxes++;
-            log.info("Ящик собран ({})", boxes);
+            log.info("Подобрал {} (всего {})", boxName, boxes);
             boxHash = null;
         }
         if (boxHash == null) {
@@ -202,6 +203,7 @@ public final class Hunter {
                 return false;
             }
             boxHash = box.hash();
+            boxName = orbit.config.LootNames.of(box.boxType());
             collectAt = 0;
             collectedAt = 0;
             nav.moveTo(box.x(), box.y(), true);

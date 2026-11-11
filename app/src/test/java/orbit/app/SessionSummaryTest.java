@@ -41,10 +41,16 @@ class SessionSummaryTest {
         s.kills.set(3);
         s.cubeFought(77);
         s.cubeFought(77);
+        s.picked("палладий");
+        s.picked("палладий");
+        s.picked("бонус-бокс");
         var lines = SessionSummary.lines(r, s, 0.5);
         assertTrue(lines.get(1).startsWith("Кредиты: 25 600") && lines.get(1).contains("51 200/ч"), lines.get(1));
         assertTrue(lines.contains("Кубы: бои 1, добито 0"), lines.toString());
-        assertTrue(lines.contains("Убито 3  (6/ч)   ящиков 0"), lines.toString());
+        assertTrue(lines.contains("Убито NPC 3  (6/ч)"), lines.toString());
+        assertTrue(lines.contains("Подобрано: палладий 2  (4/ч), бонус-бокс 1  (2/ч)"), lines.toString());
+        assertTrue(SessionSummary.lines(r, new Stats(), 0.5).stream().noneMatch(l -> l.startsWith("Кубы")),
+                "no cube line without cubes");
         assertTrue(lines.contains("Luminium: 20  (40/ч)"), lines.toString());
         assertTrue(lines.contains("UCB-100: 101  (202/ч)"), lines.toString());
         assertTrue(lines.contains("Ксеномит: 20  (40/ч)"), lines.toString());
