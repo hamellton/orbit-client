@@ -143,7 +143,26 @@ public record WorldSnapshot(long nanos, Hero hero, Map<Integer, Ship> ships, Map
      * @param resources  loot id → amount, from {@code InventoryItemUpdatedCommand}
      * @param bootyKeys  legacy key code ({@code BK}, {@code BKB}, …) → count
      */
-    public record Inventory(Map<Integer, Double> ores, Map<String, Double> resources, Map<String, Integer> bootyKeys) {
+    /**
+     * @param tradePrices ore → price from the last trade window ({@code TradeReplyCommand}: the ores it buys), with
+     * @param tradeNanos  when it came (0 never)
+     * @param petTradeNanos when the pet's trade pod opened the trade window ({@code PetTradeWindowShowCommand})
+     */
+    public record Inventory(Map<Integer, Double> ores, Map<String, Double> resources, Map<String, Integer> bootyKeys,
+                            Map<Integer, Integer> tradePrices, long tradeNanos, long petTradeNanos) {
+
+        /** Xenomit does not take room in the hold (cargoSpace = max − the other ores, both recordings agree). */
+        public static final int XENOMIT = 3;
+
+        /** Ore in the hold that takes room. */
+        public long cargoUsed() {
+            return Math.round(ores.entrySet().stream().filter(e -> e.getKey() != XENOMIT).mapToDouble(Map.Entry::getValue).sum());
+        }
+    }
+
+    /** Free room in the hold now: the capacity less the ore in it (-1 before the game said). */
+    public long cargoFree() {
+        return hero.cargoMax() < 0 || inventory.ores().isEmpty() ? hero.cargoFree() : hero.cargoMax() - inventory.cargoUsed();
     }
 
     /**

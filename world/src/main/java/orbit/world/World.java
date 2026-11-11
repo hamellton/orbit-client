@@ -181,6 +181,10 @@ public final class World {
     /** Items placed on the slot bars (keys 1–0 and the extra bars). */
     private final java.util.Set<String> slotItems = new java.util.LinkedHashSet<>();
     private final Map<Integer, Double> ores = new LinkedHashMap<>();
+    /** The trade window's prices (the ores it buys) and when they came; the pet trade pod's window. */
+    private final Map<Integer, Integer> tradePrices = new LinkedHashMap<>();
+    private long tradeNanos;
+    private long petTradeNanos;
     private final Map<String, Double> resources = new LinkedHashMap<>();
     private final Map<String, Integer> bootyKeys = new LinkedHashMap<>();
 
@@ -379,6 +383,16 @@ public final class World {
                     heroHitBy.put(p.attackerId, nanos);
                 }
             }
+            case orbit.protocol.gen.TradeReplyCommand p -> {
+                tradePrices.clear();
+                for (orbit.protocol.gen.OrePriceModule o : p.priceInfos) {
+                    if (o.oreType != null) {
+                        tradePrices.put((int) o.oreType.typeValue, o.price);
+                    }
+                }
+                tradeNanos = nanos;
+            }
+            case orbit.protocol.gen.PetTradeWindowShowCommand p -> petTradeNanos = nanos;
             case AttributeOreCountUpdateCommand p -> {
                 ores.clear();
                 for (OreCountModule o : p.oreCountList) {
@@ -422,7 +436,8 @@ public final class World {
         }
         return new WorldSnapshot(nanos, h, Map.copyOf(shipViews), Map.copyOf(collectables), Map.copyOf(portals),
                 Map.copyOf(assets), Map.copyOf(zones), group, Map.copyOf(items),
-                new WorldSnapshot.Inventory(Map.copyOf(ores), Map.copyOf(resources), Map.copyOf(bootyKeys)), pet,
+                new WorldSnapshot.Inventory(Map.copyOf(ores), Map.copyOf(resources), Map.copyOf(bootyKeys),
+                        Map.copyOf(tradePrices), tradeNanos, petTradeNanos), pet,
                 Map.copyOf(activatable), jumpingTo, death, java.util.Set.copyOf(slotItems), recentKills(nanos),
                 new WorldSnapshot.Rewards(gainedCredits, gainedUridium, gainedHonor, gainedExperience, Map.copyOf(loot)),
                 List.copyOf(invitations), List.copyOf(contacts.values()), Map.copyOf(mines),

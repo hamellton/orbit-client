@@ -65,6 +65,7 @@ public final class BotRunner {
     private final Flee flee;
     private final GroupWatch groupWatch;
     private final PetCare pet;
+    private final CargoCare cargo;
     private final orbit.bot.nav.CpuJumper jumper;
     private BotModule module;
     private BotConfig.Module moduleKind;
@@ -90,6 +91,7 @@ public final class BotRunner {
         this.flee = new Flee(ctx);
         this.groupWatch = new GroupWatch(ctx);
         this.pet = new PetCare(ctx);
+        this.cargo = new CargoCare(ctx, pet);
         this.jumper = new orbit.bot.nav.CpuJumper(ctx.world(), ctx.actions(), ctx.maps(), ctx.clock(), ctx.random(),
                 ctx.dataDir() == null ? null : ctx.dataDir().resolve("jump-uridium.json"));
         loadModule();
@@ -259,6 +261,12 @@ public final class BotRunner {
         }
         if (module == null) {
             fail("модуль " + moduleKind + " не поддерживается");
+            return;
+        }
+        if (cargo.tick(module.busy())) {
+            module.pause();
+            state = State.TRAVELLING;
+            show("Трюм полон — продаю руду");
             return;
         }
         int map = module.workingMap();

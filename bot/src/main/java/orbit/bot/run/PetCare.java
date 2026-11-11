@@ -66,6 +66,23 @@ public final class PetCare {
     static final long KAMIKAZE_MIN_COOLDOWN_MS = 30_000;
     private long crowdSeenAt = Long.MIN_VALUE / 2;
     private boolean cooldownTold;
+    /** Selling ore through the pet's trade pod ({@link CargoCare}): its mode while it lasts. */
+    private volatile boolean trade;
+
+    /** The trade pod wanted (true) or the config's mode again (false). */
+    void setTrade(boolean on) {
+        if (on != trade) {
+            log.info(on ? "Питомец: включаю «Торговый модуль» — продаю руду" : "Питомец: продажа окончена, возвращаю {}",
+                    gearName(ctx.config().get().pet().gear()));
+        }
+        trade = on;
+    }
+
+    /** The pet is out with a trade pod: selling through it can work. */
+    boolean canTrade() {
+        WorldSnapshot.Pet p = ctx.world().get().pet();
+        return ctx.config().get().pet().enabled() && p.active() && p.gears().contains(PetGearTypeModule.PETGEARTYPE_TRADE_POD);
+    }
 
     public PetCare(BotContext ctx) {
         this.ctx = ctx;
@@ -150,10 +167,14 @@ public final class PetCare {
         }
         launchAt = 0;
         told = "";
-        if (combo(cfg, h, pet, now)) {
+        if (!trade && combo(cfg, h, pet, now)) {
             return;
         }
-        kamikaze(cfg, w, pet, now);
+        if (!trade) {
+            kamikaze(cfg, w, pet, now);
+        } else {
+            kamikazeOn = false;
+        }
         gear(cfg, pet, now);
     }
 
@@ -232,8 +253,9 @@ public final class PetCare {
     }
 
     private void gear(BotConfig.Pet cfg, WorldSnapshot.Pet pet, long now) {
-        int want = kamikazeOn ? PetGearTypeModule.PETGEARTYPE_KAMIKAZE : gearId(cfg.gear());
-        String label = kamikazeOn ? "«Камикадзе»" : gearName(cfg.gear());
+        int want = trade ? PetGearTypeModule.PETGEARTYPE_TRADE_POD
+                : kamikazeOn ? PetGearTypeModule.PETGEARTYPE_KAMIKAZE : gearId(cfg.gear());
+        String label = trade ? "«Торговый модуль»" : kamikazeOn ? "«Камикадзе»" : gearName(cfg.gear());
         if (want < 0) {
             return;
         }
@@ -274,7 +296,7 @@ public final class PetCare {
             firstTryAt = now;
         }
         int param = want == PetGearTypeModule.PETGEARTYPE_ENEMY_LOCATOR ? cfg.locatorTarget() : 0;
-        if (kamikazeOn) {
+        if (kamikazeOn || trade) {
             log.debug("Питомец: режим {}", label); // the reason is in the line before
         } else {
             log.info("Питомец: включаю режим {}{}", label, param != 0 ? " — ищет " + locatorTarget(param) : "");

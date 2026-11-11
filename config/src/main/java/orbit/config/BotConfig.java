@@ -531,17 +531,51 @@ public record BotConfig(
     /**
      * @param boxes  box type ({@code BONUS_BOX}, {@code CARGO_BOX}…) → rule
      * @param radius collect boxes within this distance of the hero
+     * @param cargo  what to do when the cargo hold is full: {@link #CARGO_NONE}, {@link #CARGO_STOP} (no more boxes
+     *               that fill it), {@link #CARGO_BASE} (sell at the own base's refinery), {@link #CARGO_PET} (sell
+     *               through the pet's trade pod)
+     * @param cargoFullAt the hold counts as full at this much free space or less
+     * @param sellOres the ores sold ({@code OreTypeModule} numbers: 0 prometium, 1 endurium, 2 terbium, 4 prometid,
+     *                 5 duranium, 6 promerium, 7 seprom…)
      */
     @JsonInclude(JsonInclude.Include.NON_EMPTY)
     public record Collect(Map<String, BoxRule> boxes, int radius, boolean stayAwayFromEnemies,
-                          boolean ignoreContested) {
+                          boolean ignoreContested, String cargo, int cargoFullAt, List<Integer> sellOres) {
 
+        public static final String CARGO_NONE = "NONE";
+        public static final String CARGO_STOP = "STOP";
+        public static final String CARGO_BASE = "BASE";
+        public static final String CARGO_PET = "PET";
+        /** The raw and refined ores sold by default; promerium and seprom are kept for upgrades. */
+        public static final List<Integer> DEFAULT_SELL = List.of(0, 1, 2, 4, 5);
         public static final Collect DEFAULT = new Collect(null, 400, true, true);
 
         public Collect {
             boxes = boxes == null ? Map.of() : sorted(boxes);
             radius = radius <= 0 ? 400 : radius;
+            cargo = cargo == null || cargo.isBlank() ? CARGO_NONE : cargo;
+            sellOres = sellOres == null ? DEFAULT_SELL : List.copyOf(sellOres);
         }
+
+        public Collect(Map<String, BoxRule> boxes, int radius, boolean stayAwayFromEnemies, boolean ignoreContested) {
+            this(boxes, radius, stayAwayFromEnemies, ignoreContested, CARGO_NONE, 0, null);
+        }
+
+        /**
+         * A box that fills the cargo hold: a ship's cargo ({@code FROM_SHIP…}), ore ({@code ore_…}) and the ore
+         * resources (Mucosum, Boltrum, Prismatium, Scrapium, Luminium, Bifenon… — ore types in the game).
+         */
+        public static boolean fillsCargo(String boxType) {
+            if (boxType == null) {
+                return false;
+            }
+            String t = boxType.toUpperCase(java.util.Locale.ROOT);
+            return t.startsWith("FROM_SHIP") || t.startsWith("ORE_") || CARGO_ORES.contains(t.replaceFirst("_\\d+$", ""));
+        }
+
+        private static final java.util.Set<String> CARGO_ORES = java.util.Set.of("PROMETIUM", "ENDURIUM", "TERBIUM",
+                "XENOMIT", "PROMETID", "DURANIUM", "PROMERIUM", "SEPROM", "PALLADIUM", "MUCOSUM", "BOLTRUM", "SCRAPIUM",
+                "PRISMATIUM", "LUMINIUM", "BIFENON", "OSMIUM", "CHROMIN");
     }
 
     /** @param waitMs wait on the box this long before the pickup (some boxes need it) */

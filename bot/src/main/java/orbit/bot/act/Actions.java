@@ -272,4 +272,20 @@ public final class Actions {
         r.optParam = (short) optParam;
         sender.accept(r);
     }
+
+    /** Opens the trade window ({@code TradeRequest}, as a click on the refinery or the window's maximise); the
+     *  server answers with the ore prices when trading is possible here (at the refinery, or with the pet's trade pod). */
+    public void tradeOpen() {
+        sender.accept(new orbit.protocol.gen.TradeRequest());
+    }
+
+    /** Sells {@code count} of an ore ({@code OreTypeModule} number), as the trade window's «sell» button. */
+    public void tradeSell(int oreType, long count) {
+        orbit.protocol.gen.TradeSellOreRequest r = new orbit.protocol.gen.TradeSellOreRequest();
+        r.toSell = new orbit.protocol.gen.OreCountModule();
+        r.toSell.oreType = new orbit.protocol.gen.OreTypeModule();
+        r.toSell.oreType.typeValue = (short) oreType;
+        r.toSell.count = count;
+        sender.accept(r);
+    }
 }

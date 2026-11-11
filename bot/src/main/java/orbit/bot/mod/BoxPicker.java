@@ -119,6 +119,8 @@ public final class BoxPicker {
                     BotConfig.BoxRule r = c.collect().boxes().get(b.boxType());
                     return r != null && r.collect();
                 })
+                // a full hold (the config does something about it): no more boxes that fill it
+                .filter(b -> !BotConfig.Collect.fillsCargo(b.boxType()) || !cargoFull(c, w))
                 .filter(b -> Double.isNaN(anchorX)
                         ? Math.hypot(b.x() - h.x(), b.y() - h.y()) <= c.collect().radius()
                         : Math.hypot(b.x() - anchorX, b.y() - anchorY) <= (within > 0 ? within : c.collect().radius()))
@@ -126,6 +128,11 @@ public final class BoxPicker {
                 .filter(b -> !c.general().avoidMines() || !orbit.bot.nav.PathFinder.nearMine(w, b.x(), b.y()))
                 .min(Comparator.comparingDouble(b -> Math.hypot(b.x() - h.x(), b.y() - h.y())))
                 .orElse(null);
+    }
+
+    static boolean cargoFull(BotConfig c, WorldSnapshot w) {
+        return !BotConfig.Collect.CARGO_NONE.equals(c.collect().cargo()) && w.hero().cargoMax() > 0
+                && w.cargoFree() <= c.collect().cargoFullAt();
     }
 
     /** Another player is closer to the box than we are. */

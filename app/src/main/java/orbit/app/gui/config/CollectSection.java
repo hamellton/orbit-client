@@ -23,6 +23,16 @@ final class CollectSection implements Section {
     private final Boxes boxes = new Boxes();
     private final JTable table = new JTable(boxes);
     private final JComponent view;
+    static final String[] CARGO = {BotConfig.Collect.CARGO_NONE, BotConfig.Collect.CARGO_STOP, BotConfig.Collect.CARGO_BASE,
+            BotConfig.Collect.CARGO_PET};
+    static final String[] CARGO_NAMES = {"Ничего не делать", "Перестать собирать груз", "Продать на базе",
+            "Продать через питомца (торговый модуль)"};
+    /** The ores the trade window buys, in the game's numbers, with their names. */
+    static final int[] ORES = {0, 1, 2, 4, 5, 6, 7};
+    static final String[] ORE_NAMES = {"Прометий", "Эндуриум", "Тербий", "Прометид", "Дюраниум", "Промериум", "Сепром"};
+    private final javax.swing.JComboBox<String> cargo = new javax.swing.JComboBox<>(CARGO_NAMES);
+    private final JSpinner cargoFullAt = Form.number(0, 100_000, 50);
+    private final JCheckBox[] sell = new JCheckBox[ORES.length];
 
     CollectSection() {
         table.setAutoCreateRowSorter(true);
@@ -44,11 +54,21 @@ final class CollectSection implements Section {
         JScrollPane scroll = new JScrollPane(table);
         scroll.setPreferredSize(new java.awt.Dimension(600, 300));
         scroll.setMinimumSize(new java.awt.Dimension(240, 140));
+        for (int i = 0; i < ORES.length; i++) {
+            sell[i] = new JCheckBox(ORE_NAMES[i]);
+        }
+        cargo.addActionListener(e -> syncCargo());
+        cargo.setToolTipText("Трюм занимают руда и ресурсы (кроме ксеномита); бонусные и бути-ящики — нет");
         view = new Form()
                 .section("Сбор")
                 .row("Собирать в радиусе", radius)
                 .row("", stayAway)
                 .row("", ignoreContested)
+                .section("Полный трюм")
+                .row("Когда трюм полон", cargo)
+                .row("Полон при свободном месте ≤", cargoFullAt)
+                .row("Продавать", Form.inline(sell))
+                .note("Нечего продать — бот просто перестаёт брать груз. Промериум и сепром обычно берегут для улучшений.")
                 .section("Ящики")
                 .note("Ожидание — сколько стоять на ящике перед сбором.")
                 .wide(Form.inline(add, remove), false)
@@ -72,6 +92,21 @@ final class CollectSection implements Section {
         stayAway.setSelected(c.collect().stayAwayFromEnemies());
         ignoreContested.setSelected(c.collect().ignoreContested());
         boxes.load(c.collect().boxes());
+        int ci = java.util.Arrays.asList(CARGO).indexOf(c.collect().cargo());
+        cargo.setSelectedIndex(Math.max(0, ci));
+        Form.set(cargoFullAt, c.collect().cargoFullAt());
+        for (int i = 0; i < ORES.length; i++) {
+            sell[i].setSelected(c.collect().sellOres().contains(ORES[i]));
+        }
+        syncCargo();
+    }
+
+    private void syncCargo() {
+        boolean selling = cargo.getSelectedIndex() >= 2;
+        for (JCheckBox b : sell) {
+            b.setEnabled(selling);
+        }
+        cargoFullAt.setEnabled(cargo.getSelectedIndex() >= 1);
     }
 
     @Override
@@ -79,8 +114,14 @@ final class CollectSection implements Section {
         if (table.isEditing()) {
             table.getCellEditor().stopCellEditing();
         }
+        List<Integer> ores = new ArrayList<>();
+        for (int i = 0; i < ORES.length; i++) {
+            if (sell[i].isSelected()) {
+                ores.add(ORES[i]);
+            }
+        }
         return c.withCollect(new BotConfig.Collect(boxes.get(), Form.intOf(radius), stayAway.isSelected(),
-                ignoreContested.isSelected()));
+                ignoreContested.isSelected(), CARGO[cargo.getSelectedIndex()], Form.intOf(cargoFullAt), ores));
     }
 
     private static final class Boxes extends AbstractTableModel {
