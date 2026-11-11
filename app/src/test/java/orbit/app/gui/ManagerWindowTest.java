@@ -16,10 +16,36 @@ import orbit.app.WorldFeed;
 import orbit.secrets.Account;
 import orbit.secrets.Vault;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 class ManagerWindowTest {
+
+    @BeforeEach
+    void ownTicksFile(@TempDir Path dir) {
+        System.setProperty("orbit.manager.file", dir.resolve("manager.properties").toString()); // never local/
+    }
+
+    @Test
+    void onlyTickedAccountsAreStartedAndTheTicksAreKept(@TempDir Path dir) throws Exception {
+        Map<String, Fake> fakes = new HashMap<>();
+        Vault v = vault(dir);
+        ManagerWindow w = new ManagerWindow(v, n -> fakes.computeIfAbsent(n, Fake::new));
+        w.refresh();
+        assertEquals(Boolean.TRUE, w.model.getValueAt(1, 0), "a new account is ticked");
+        w.model.setValueAt(false, 1, 0);
+        w.startAll();
+        assertEquals(List.of(0L), fakes.get("alpha").starts);
+        assertTrue(fakes.get("beta") == null || fakes.get("beta").starts.isEmpty(), "the unticked one is not touched");
+
+        ManagerWindow again = new ManagerWindow(v, n -> new Fake(n));
+        again.refresh();
+        assertEquals(Boolean.TRUE, again.model.getValueAt(0, 0));
+        assertEquals(Boolean.FALSE, again.model.getValueAt(1, 0), "the ticks are kept");
+        again.model.pickAll(true);
+        assertTrue(again.model.allPicked());
+    }
 
     @BeforeAll
     static void headless() {
@@ -114,18 +140,18 @@ class ManagerWindowTest {
         ManagerWindow w = new ManagerWindow(vault(dir), n -> fakes.computeIfAbsent(n, Fake::new));
         w.refresh();
         assertEquals(List.of("alpha", "beta"), w.model.names);
-        assertEquals("pilot-a", w.model.getValueAt(0, 1));
-        assertEquals("int1", w.model.getValueAt(0, 2));
-        assertEquals("SOCKS5 10.0.0.9:1080 (логин u)", w.model.getValueAt(0, 3));
-        assertEquals("напрямую", w.model.getValueAt(1, 3));
-        assertEquals("ru1", w.model.getValueAt(1, 2));
+        assertEquals("pilot-a", w.model.getValueAt(0, 2));
+        assertEquals("int1", w.model.getValueAt(0, 3));
+        assertEquals("SOCKS5 10.0.0.9:1080 (логин u)", w.model.getValueAt(0, 4));
+        assertEquals("напрямую", w.model.getValueAt(1, 4));
+        assertEquals("ru1", w.model.getValueAt(1, 3));
         for (int r = 0; r < 2; r++) {
             for (int c = 0; c < w.model.getColumnCount(); c++) {
                 String cell = String.valueOf(w.model.getValueAt(r, c));
                 assertFalse(cell.contains("Pw9#x") || cell.contains("Qx7!fake") || cell.contains("Zz3?fake"), cell);
             }
         }
-        assertEquals("Остановлен", w.model.getValueAt(0, 6).toString());
+        assertEquals("Остановлен", w.model.getValueAt(0, 7).toString());
     }
 
     @Test

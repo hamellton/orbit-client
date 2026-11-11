@@ -61,10 +61,16 @@ public final class ManagerWindow {
     final Model model = new Model();
     private final JTable table = new JTable(model);
     private final JLabel hint = new JLabel(" ");
+    /**
+     * Accounts left out of «Запустить отмеченные» (unticked), kept in {@code local/manager.properties}; new accounts
+     * are ticked. Another file with {@code -Dorbit.manager.file=…}.
+     */
+    java.nio.file.Path picksFile = java.nio.file.Path.of(System.getProperty("orbit.manager.file", "local/manager.properties"));
 
     ManagerWindow(Vault vault, Function<String, ManagedAccount> factory) {
         this.vault = vault;
         this.factory = factory;
+        model.onPick = this::savePicks;
         pane.putClientProperty("JTabbedPane.tabType", "card");
         pane.putClientProperty("JTabbedPane.scrollButtonsPolicy", "asNeeded");
         pane.setTabLayoutPolicy(JTabbedPane.SCROLL_TAB_LAYOUT);
@@ -154,10 +160,21 @@ public final class ManagerWindow {
         table.setAutoCreateRowSorter(false);
         table.getTableHeader().setReorderingAllowed(false);
         table.setDefaultRenderer(Object.class, new Renderer());
-        int[] widths = {110, 120, 60, 200, 120, 150, 230, 70, 230};
+        loadPicks();
+        int[] widths = {28, 110, 120, 60, 200, 120, 150, 230, 70, 230};
         for (int i = 0; i < widths.length; i++) {
             table.getColumnModel().getColumn(i).setPreferredWidth(widths[i]);
         }
+        table.getColumnModel().getColumn(0).setMaxWidth(36);
+        table.getTableHeader().setToolTipText("Отмеченные запускает «Запустить отмеченные»; щелчок по ✓ — отметить все или снять");
+        table.getTableHeader().addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mouseClicked(java.awt.event.MouseEvent e) {
+                if (table.columnAtPoint(e.getPoint()) == 0) {
+                    model.pickAll(!model.allPicked());
+                }
+            }
+        });
         table.addMouseListener(new java.awt.event.MouseAdapter() {
             @Override
             public void mouseClicked(java.awt.event.MouseEvent e) {
@@ -186,7 +203,7 @@ public final class ManagerWindow {
         start.setBackground(new Color(0x0e4a66));
         bar.add(start);
         bar.add(button("Остановить", this::stop, "Выйти у портала или закрыть сразу"));
-        bar.add(button("Запустить все", this::startAll, "Входы с паузой 15–45 с"));
+        bar.add(button("Запустить отмеченные", this::startAll, "Аккаунты с галочкой, входы с паузой 15–45 с"));
         bar.add(button("Остановить все", this::stopAll, "Выйти у портала или закрыть сразу"));
         bar.add(gap());
         bar.add(button("Конфиги…", () -> orbit.app.gui.config.ConfigWindow.open(
@@ -371,12 +388,23 @@ public final class ManagerWindow {
         refresh();
     }
 
-    private void startAll() {
+    void startAll() {
+        List<String> picked = model.names.stream().filter(model::picked).toList();
+        if (picked.isEmpty()) {
+            JOptionPane.showMessageDialog(frame, "Ни один аккаунт не отмечен — поставьте галочки в первом столбце.",
+                    "Запустить отмеченные", JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+        startEach(picked);
+    }
+
+    /** Starts the stopped ones of {@code names}, logins spread out; says which could not start. */
+    void startEach(List<String> names) {
         java.util.Random random = new java.util.Random();
         long delay = 0;
         List<String> failed = new ArrayList<>();
         int started = 0;
-        for (String n : model.names) {
+        for (String n : names) {
             ManagedAccount a = account(n);
             if (a.phase() != ManagedAccount.Phase.STOPPED) {
                 continue;
@@ -391,7 +419,40 @@ public final class ManagerWindow {
         }
         if (!failed.isEmpty()) {
             JOptionPane.showMessageDialog(frame, "Запущено: " + started + ". Не запущены:\n" + String.join("\n", failed),
-                    "Запустить все", JOptionPane.WARNING_MESSAGE);
+                    "Запустить отмеченные", JOptionPane.WARNING_MESSAGE);
+        }
+    }
+
+    private void loadPicks() {
+        java.util.Properties p = new java.util.Properties();
+        try (var in = java.nio.file.Files.newBufferedReader(picksFile, java.nio.charset.StandardCharsets.UTF_8)) {
+            p.load(in);
+        } catch (java.nio.file.NoSuchFileException e) {
+            return;
+        } catch (java.io.IOException e) {
+            org.slf4j.LoggerFactory.getLogger(ManagerWindow.class).warn("Не прочитать {}: {}", picksFile, e.getMessage());
+            return;
+        }
+        model.unpicked.clear();
+        for (String n : p.getProperty("unticked", "").split("\\n")) {
+            if (!n.isBlank()) {
+                model.unpicked.add(n);
+            }
+        }
+    }
+
+    private void savePicks() {
+        java.util.Properties p = new java.util.Properties();
+        p.setProperty("unticked", String.join("\n", model.unpicked));
+        try {
+            if (picksFile.getParent() != null) {
+                java.nio.file.Files.createDirectories(picksFile.getParent());
+            }
+            try (var out = java.nio.file.Files.newBufferedWriter(picksFile, java.nio.charset.StandardCharsets.UTF_8)) {
+                p.store(out, "Orbit: accounts without a tick (not started by «Запустить отмеченные»)");
+            }
+        } catch (java.io.IOException e) {
+            org.slf4j.LoggerFactory.getLogger(ManagerWindow.class).warn("Не сохранить {}: {}", picksFile, e.getMessage());
         }
     }
 
@@ -550,7 +611,7 @@ public final class ManagerWindow {
             double hours = feed.sessionHours();
             results = money(r.credits(), hours) + " кр · " + money(r.uridium(), hours) + " ур";
         }
-        return new Object[] {n, acc.username(), acc.home(), proxy, config == null ? "—" : config, schedule,
+        return new Object[] {model.picked(n), n, acc.username(), acc.home(), proxy, config == null ? "—" : config, schedule,
             new State(stateText(a), stateColor(a)), session, results};
     }
 
@@ -626,10 +687,53 @@ public final class ManagerWindow {
     }
 
     static final class Model extends AbstractTableModel {
-        private static final String[] COLUMNS = {"Аккаунт", "Логин", "Сервер", "Прокси", "Конфиг", "Расписание",
+        private static final String[] COLUMNS = {"✓", "Аккаунт", "Логин", "Сервер", "Прокси", "Конфиг", "Расписание",
             "Состояние", "Сессия", "Итоги"};
         List<String> names = List.of();
         List<Object[]> rows = List.of();
+        /** Names without a tick; everything else is ticked (so new accounts are). */
+        final java.util.Set<String> unpicked = new java.util.TreeSet<>();
+        Runnable onPick = () -> { };
+
+        boolean picked(String name) {
+            return !unpicked.contains(name);
+        }
+
+        boolean allPicked() {
+            return names.stream().allMatch(this::picked);
+        }
+
+        void pick(String name, boolean on) {
+            if (on ? unpicked.remove(name) : unpicked.add(name)) {
+                int r = names.indexOf(name);
+                if (r >= 0 && r < rows.size()) {
+                    rows.get(r)[0] = on;
+                    fireTableCellUpdated(r, 0);
+                }
+                onPick.run();
+            }
+        }
+
+        void pickAll(boolean on) {
+            names.forEach(n -> pick(n, on));
+        }
+
+        @Override
+        public Class<?> getColumnClass(int column) {
+            return column == 0 ? Boolean.class : Object.class;
+        }
+
+        @Override
+        public boolean isCellEditable(int row, int column) {
+            return column == 0;
+        }
+
+        @Override
+        public void setValueAt(Object value, int row, int column) {
+            if (column == 0 && row < names.size()) {
+                pick(names.get(row), Boolean.TRUE.equals(value));
+            }
+        }
 
         @Override
         public int getRowCount() {
