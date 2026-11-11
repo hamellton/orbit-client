@@ -136,6 +136,17 @@ class PalladiumModuleTest {
     }
 
     @Test
+    void theAccountsShipsWinOverTheConfigs() throws Exception {
+        Sim sim = new Sim(twoShips(), 93, 10_000, 6_000);
+        sim.ctx.ships().setPalladium(5, 6); // chosen for the account
+        hold(sim, 1_000);
+        BotRunner r = new BotRunner(sim.ctx, () -> false, s -> { });
+        r.setActiveHangar(5);
+        sim.run(r::tick, 2_000);
+        assertEquals(6, r.hangarRequest(), "the account's sell ship, not the config's");
+    }
+
+    @Test
     void destroyedWithPalladiumTheSellShipInsteadOfARevive() throws Exception {
         Sim sim = new Sim(twoShips(), 93, 10_000, 6_000);
         hold(sim, 300);

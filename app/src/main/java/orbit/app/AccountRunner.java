@@ -178,7 +178,7 @@ final class AccountRunner implements ManagedAccount {
         try {
             var file = AccountSettings.DEFAULT_FILE;
             var all = AccountSettings.load(file);
-            all.with(name, new AccountSettings.Entry(config, all.account(name).schedule())).save(file);
+            all.with(name, all.account(name).withConfig(config)).save(file);
         } catch (IOException e) {
             MDC.put("account", name);
             log.warn("Не сохранить выбор конфига: {}", e.getMessage());

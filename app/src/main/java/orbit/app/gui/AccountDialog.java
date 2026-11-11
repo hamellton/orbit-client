@@ -47,6 +47,9 @@ final class AccountDialog {
     private final JLabel proxyResult = new JLabel(" ");
     private final JComboBox<String> config = new JComboBox<>();
     private final JLabel error = new JLabel(" ");
+    private final JComboBox<ShipItem> collectShip = new JComboBox<>();
+    private final JComboBox<ShipItem> sellShip = new JComboBox<>();
+    private final JLabel shipsResult = new JLabel(" ");
     private final char echo;
     private boolean saved;
 
@@ -75,12 +78,16 @@ final class AccountDialog {
             proxy.setText(a.proxy() == null ? "" : a.proxy());
             password.putClientProperty("JTextField.placeholderText", a.password() != null ? "не менять" : "не задан");
             try {
-                String c = AccountSettings.load(AccountSettings.DEFAULT_FILE).account(editing).config();
+                AccountSettings.Entry entry = AccountSettings.load(AccountSettings.DEFAULT_FILE).account(editing);
+                String c = entry.config();
                 config.setSelectedItem(c == null ? NO_CONFIG : c);
+                fillShips(entry.ships(), entry.palladium());
             } catch (java.io.IOException ignored) {
                 // stays «—»
+                fillShips(java.util.List.of(), null);
             }
         } else {
+            fillShips(java.util.List.of(), null);
             server.setSelectedItem("int1");
             name.putClientProperty("JTextField.placeholderText", "напр. main");
         }
@@ -104,6 +111,18 @@ final class AccountDialog {
         checkRow.add(proxyResult, BorderLayout.CENTER);
         row = row(form, row, "", checkRow, null);
         row = row(form, row, "Конфиг", config, "Что бот делает в игре");
+        JLabel palladium = new JLabel("Палладий, два корабля");
+        palladium.setFont(palladium.getFont().deriveFont(java.awt.Font.BOLD));
+        row = row(form, row, "", palladium, null);
+        row = row(form, row, "Корабль сбора", collectShip, "Собирает палладий на 5-3");
+        row = row(form, row, "Корабль продажи", sellShip, "Стоит на 5-2 у торговца и продаёт палладий");
+        JButton refresh = new JButton("Обновить с сайта");
+        refresh.setEnabled(editing != null);
+        refresh.addActionListener(e -> refreshShips(refresh));
+        JPanel shipsRow = new JPanel(new BorderLayout(8, 0));
+        shipsRow.add(refresh, BorderLayout.WEST);
+        shipsRow.add(shipsResult, BorderLayout.CENTER);
+        row = row(form, row, "", shipsRow, "Список кораблей аккаунта; бот обновляет его и сам при каждом входе");
         if (running) {
             JLabel note = new JLabel("Логин, пароль и прокси — со следующего запуска");
             note.setForeground(Hud.DIM);
@@ -268,9 +287,10 @@ final class AccountDialog {
                     a = a.withServer(srv);
                 }
             }
+            AccountSettings.PalladiumShips pair = chosenShips();
             vault.put(n, a);
             vault.save();
-            saveConfig(n);
+            saveConfig(n, pair);
             saved = true;
             dialog.dispose();
         } catch (VaultException | IllegalArgumentException e) {
@@ -280,18 +300,126 @@ final class AccountDialog {
         }
     }
 
-    private void saveConfig(String n) {
+    private void saveConfig(String n, AccountSettings.PalladiumShips pair) {
         Object c = config.getSelectedItem();
         String cfg = c == null || NO_CONFIG.equals(c) ? null : c.toString();
         try {
             var file = AccountSettings.DEFAULT_FILE;
             var all = AccountSettings.load(file);
             var entry = all.account(n);
-            if (!java.util.Objects.equals(entry.config(), cfg) || !all.accounts().containsKey(n)) {
-                all.with(n, new AccountSettings.Entry(cfg, entry.schedule())).save(file);
+            var next = entry.withConfig(cfg).withPalladium(pair);
+            if (!next.equals(entry) || !all.accounts().containsKey(n)) {
+                all.with(n, next).save(file);
             }
         } catch (java.io.IOException e) {
             showError("Конфиг не сохранён: " + e.getMessage());
         }
+    }
+
+    /** A ship in the lists: «Ангар 2: Goliath (Venom)»; the site's id stays behind it. */
+    private record ShipItem(int id, String label) {
+        @Override
+        public String toString() {
+            return label;
+        }
+    }
+
+    private static final ShipItem NO_SHIP = new ShipItem(0, "— не выбран");
+
+    /** The lists from the known ships; a chosen id the list does not have yet is kept as «ангар id». */
+    private void fillShips(java.util.List<AccountSettings.Ship> ships, AccountSettings.PalladiumShips chosen) {
+        int collect = chosen != null ? chosen.collect() : idOf(collectShip);
+        int sell = chosen != null ? chosen.sell() : idOf(sellShip);
+        java.util.List<ShipItem> items = new java.util.ArrayList<>();
+        items.add(NO_SHIP);
+        for (int i = 0; i < ships.size(); i++) {
+            items.add(new ShipItem(ships.get(i).id(), "Ангар " + (i + 1) + ": " + ships.get(i).label()));
+        }
+        for (int want : new int[] {collect, sell}) {
+            if (want > 0 && items.stream().noneMatch(s -> s.id() == want)) {
+                items.add(new ShipItem(want, "ангар " + want + " (нет в списке с сайта)"));
+            }
+        }
+        for (JComboBox<ShipItem> box : java.util.List.of(collectShip, sellShip)) {
+            box.removeAllItems();
+            items.forEach(box::addItem);
+        }
+        select(collectShip, collect);
+        select(sellShip, sell);
+        if (ships.isEmpty()) {
+            shipsResult.setForeground(Hud.DIM);
+            shipsResult.setText(editing == null ? "Список появится после первого запуска" : "Список ещё не загружен");
+        }
+    }
+
+    private static int idOf(JComboBox<ShipItem> box) {
+        ShipItem s = (ShipItem) box.getSelectedItem();
+        return s == null ? 0 : s.id();
+    }
+
+    private static void select(JComboBox<ShipItem> box, int id) {
+        for (int i = 0; i < box.getItemCount(); i++) {
+            if (box.getItemAt(i).id() == id) {
+                box.setSelectedIndex(i);
+                return;
+            }
+        }
+        box.setSelectedIndex(0);
+    }
+
+    /** The chosen pair, {@code null} for none; both or neither, and two different ships. */
+    private AccountSettings.PalladiumShips chosenShips() {
+        int c = idOf(collectShip);
+        int s = idOf(sellShip);
+        if (c == 0 && s == 0) {
+            return null;
+        }
+        if (c == 0 || s == 0) {
+            throw new IllegalArgumentException("Палладий: выберите оба корабля — сбора и продажи (или ни одного)");
+        }
+        if (c == s) {
+            throw new IllegalArgumentException("Палладий: корабль сбора и корабль продажи должны быть разными");
+        }
+        return new AccountSettings.PalladiumShips(c, s);
+    }
+
+    /** The ships from the site by the saved login (no password, through the account's proxy). */
+    private void refreshShips(JButton button) {
+        button.setEnabled(false);
+        shipsResult.setForeground(Hud.DIM);
+        shipsResult.setText("Загружаю…");
+        new SwingWorker<java.util.List<AccountSettings.Ship>, Void>() {
+            private String failure;
+
+            @Override
+            protected java.util.List<AccountSettings.Ship> doInBackground() {
+                try {
+                    return orbit.app.OrbitMain.siteShips(vault, editing);
+                } catch (java.io.IOException | RuntimeException e) {
+                    failure = e.getMessage();
+                    return null;
+                }
+            }
+
+            @Override
+            protected void done() {
+                button.setEnabled(true);
+                java.util.List<AccountSettings.Ship> ships = null;
+                try {
+                    ships = get();
+                } catch (Exception e) {
+                    failure = String.valueOf(e.getMessage());
+                }
+                if (ships == null) {
+                    shipsResult.setForeground(new java.awt.Color(0xff6b5b));
+                    shipsResult.setText(Theme.wrapped("Не загрузить: " + failure, 300));
+                } else {
+                    fillShips(ships, null);
+                    shipsResult.setForeground(new java.awt.Color(0x34d399));
+                    shipsResult.setText("Кораблей: " + ships.size());
+                }
+                dialog.pack();
+            }
+        }.execute();
     }
 }

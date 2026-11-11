@@ -24,8 +24,22 @@ import java.util.Map;
  */
 public final class Hangars {
 
-    /** One hangar: its id, whether it is the active one, and its ship ({@code ship_goliath}…, or "" unknown). */
-    public record Hangar(int id, boolean active, String ship) {
+    /**
+     * One hangar: its id, whether it is the active one, its ship ({@code ship_goliath}…, or "" unknown) and its
+     * design's loot id when the answer names one ({@code null} otherwise; not seen in the answer yet).
+     */
+    public record Hangar(int id, boolean active, String ship, String design) {
+
+        public Hangar(int id, boolean active, String ship) {
+            this(id, active, ship, null);
+        }
+    }
+
+    private static volatile String lastShape = "";
+
+    /** The field names (no values) of the last list's first hangar: to learn where the site puts the design. */
+    public static String lastShape() {
+        return lastShape;
     }
 
     private static final ObjectMapper JSON = new ObjectMapper();
@@ -61,10 +75,37 @@ public final class Hangars {
         }
         List<Hangar> out = new ArrayList<>();
         for (JsonNode h : each) {
-            JsonNode l = h.path("general").path("ship").path("L");
-            String ship = l.isInt() && lootIds.has(l.asInt()) ? lootIds.get(l.asInt()).asText() : "";
-            out.add(new Hangar(h.path("hangarID").asInt(), h.path("hangar_is_active").asBoolean(), ship));
+            JsonNode ship = h.path("general").path("ship");
+            out.add(new Hangar(h.path("hangarID").asInt(), h.path("hangar_is_active").asBoolean(), loot(ship.path("L"), lootIds),
+                    design(ship, lootIds)));
         }
+        if (!each.isEmpty()) {
+            JsonNode h = each.getFirst();
+            lastShape = "hangar " + names(h) + ", general " + names(h.path("general")) + ", ship "
+                    + names(h.path("general").path("ship"));
+        }
+        return out;
+    }
+
+    private static String loot(JsonNode index, JsonNode lootIds) {
+        return index.isInt() && lootIds.has(index.asInt()) ? lootIds.get(index.asInt()).asText() : "";
+    }
+
+    /** A design loot id if the ship entry names one ({@code design_…}, by index or as text); else {@code null}. */
+    private static String design(JsonNode ship, JsonNode lootIds) {
+        for (String k : new String[] {"SM", "D", "design"}) {
+            JsonNode v = ship.path(k);
+            String id = v.isInt() ? loot(v, lootIds) : v.isTextual() ? v.asText() : "";
+            if (id.startsWith("design_")) {
+                return id;
+            }
+        }
+        return null;
+    }
+
+    private static List<String> names(JsonNode n) {
+        List<String> out = new ArrayList<>();
+        n.fieldNames().forEachRemaining(out::add);
         return out;
     }
 

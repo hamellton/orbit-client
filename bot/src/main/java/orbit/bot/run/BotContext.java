@@ -21,7 +21,13 @@ import orbit.world.maps.MapCatalog;
  */
 public record BotContext(Supplier<WorldSnapshot> world, Supplier<BotConfig> config, Actions actions, Navigator nav,
                          Traveler traveler, MapCatalog maps, Random random, LongSupplier clock, Repair repair,
-                         ShipSetup ship, java.nio.file.Path dataDir, Stats stats) {
+                         ShipSetup ship, java.nio.file.Path dataDir, Stats stats, AccountShips ships) {
+
+    public BotContext(Supplier<WorldSnapshot> world, Supplier<BotConfig> config, Actions actions, Navigator nav,
+                      Traveler traveler, MapCatalog maps, Random random, LongSupplier clock, Repair repair,
+                      ShipSetup ship, java.nio.file.Path dataDir, Stats stats) {
+        this(world, config, actions, nav, traveler, maps, random, clock, repair, ship, dataDir, stats, new AccountShips());
+    }
 
     @FunctionalInterface
     public interface Repair {

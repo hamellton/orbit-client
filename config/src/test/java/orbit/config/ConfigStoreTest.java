@@ -85,4 +85,20 @@ class ConfigStoreTest {
         assertFalse(Files.readString(f).contains("password"));
         assertEquals(new AccountSettings.Entry(null, null), back.account("other"));
     }
+
+    @Test
+    void theAccountKeepsItsShipsAndThePalladiumPair(@TempDir Path dir) throws IOException {
+        Path f = dir.resolve("accounts.json");
+        AccountSettings.Entry e = new AccountSettings.Entry("PALLADIUM", null)
+                .withHangars(List.of(new AccountSettings.Ship(11, "ship_goliath", null),
+                        new AccountSettings.Ship(12, "ship_g-champion", "design_venom")))
+                .withPalladium(new AccountSettings.PalladiumShips(11, 12));
+        new AccountSettings(null).with("main", e).save(f);
+        AccountSettings.Entry back = AccountSettings.load(f).account("main");
+        assertEquals(e, back);
+        assertEquals("Goliath", back.ships().get(0).label());
+        assertEquals("G-Champion (Venom)", back.ships().get(1).label());
+        assertEquals(e, back.withConfig("PALLADIUM").withSchedule(back.schedule()), "the config switch keeps the ships");
+        assertFalse(new AccountSettings.PalladiumShips(11, 11).usable());
+    }
 }

@@ -340,6 +340,52 @@ public final class OrbitMain {
     }
 
     /**
+     * The account's ships from the site by its saved dosid (through its proxy, never directly when it has one),
+     * for the account window; no game page, no password. Kept in the account's settings like a login's list.
+     *
+     * @throws java.io.IOException with a message for the user (no dosid, proxy down, the site said no)
+     */
+    public static List<orbit.config.AccountSettings.Ship> siteShips(Vault vault, String account) throws java.io.IOException {
+        orbit.secrets.Account a = vault.get(loginOf(account));
+        if (a == null) {
+            throw new java.io.IOException("аккаунта нет в хранилище");
+        }
+        String server = serverOf(account) != null ? serverOf(account) : a.home();
+        String dosid = a.dosidFor(server);
+        if (dosid == null || dosid.isBlank()) {
+            throw new java.io.IOException("нет сохранённого входа на сайт — запустите аккаунт один раз");
+        }
+        orbit.secrets.ProxySpec spec;
+        try {
+            spec = a.proxySpec();
+        } catch (IllegalArgumentException e) {
+            throw new java.io.IOException("неверный прокси: " + e.getMessage());
+        }
+        try (ProxyRoute route = spec.direct() ? ProxyRoute.none() : ProxyRoute.of(spec)) {
+            route.verify();
+            AuthClient auth = new AuthClient(new HttpSession("", route.httpProxy()), AuthClient.Endpoints.production());
+            String origin = auth.openSite(server, dosid);
+            List<orbit.auth.Hangars.Hangar> list;
+            try {
+                list = new orbit.auth.Hangars(auth.http(), origin).list();
+            } catch (java.io.IOException | RuntimeException e) {
+                throw new java.io.IOException("сайт не отдал список (вход на сайт устарел?) — запустите аккаунт,"
+                        + " список обновится сам");
+            }
+            List<orbit.config.AccountSettings.Ship> ships = list.stream()
+                    .map(h -> new orbit.config.AccountSettings.Ship(h.id(), h.ship(), h.design())).toList();
+            synchronized (OrbitMain.class) {
+                var file = orbit.config.AccountSettings.DEFAULT_FILE;
+                var all = orbit.config.AccountSettings.load(file);
+                all.with(account, all.account(account).withHangars(ships)).save(file);
+            }
+            return ships;
+        } catch (AuthException e) {
+            throw new java.io.IOException(e.getMessage());
+        }
+    }
+
+    /**
      * Several accounts in one program: each with its own web login, game connection, sessions, window
      * tab in the window and log ({@code logs/orbit-<account>.log}); the vault and what the bot learns
      * (Cubikon spawns) are shared. Logins are spread out so the site does not see a burst. A tab's stop
@@ -571,10 +617,10 @@ public final class OrbitMain {
                         conn.run();
                     });
                     ModuleRun run = startModule(feed, conn, cfgName, cfg, end, why, profile, stopFile,
-                            shopFor(auth, conn), () -> !game.isAlive());
+                            shopFor(auth, conn), () -> !game.isAlive(), accountShips(accountName));
                     current.set(run);
                     if (cfg.module() == orbit.config.BotConfig.Module.PALLADIUM) {
-                        watchHangar(auth, conn, run.runner(), lastHost); // which ship is in use (two-ship palladium)
+                        watchHangar(auth, conn, run.runner(), lastHost, accountName, cfg); // which ship is in use
                     }
                     if (closed.get()) {
                         // stopped while logging in: the stop found no module to finish, so finish this one
@@ -640,7 +686,7 @@ public final class OrbitMain {
             try {
                 var file = orbit.config.AccountSettings.DEFAULT_FILE;
                 var all = orbit.config.AccountSettings.load(file);
-                all.with(accountName, new orbit.config.AccountSettings.Entry(name, all.account(accountName).schedule()))
+                all.with(accountName, all.account(accountName).withConfig(name))
                         .save(file);
             } catch (java.io.IOException e) {
                 log.warn("Не сохранить выбор конфига: {}", e.getMessage());
@@ -674,7 +720,8 @@ public final class OrbitMain {
      * them (id, ship) — the two-ship palladium needs it to know whether the collect or the sell ship is out.
      */
     private static void watchHangar(AuthClient auth, GameConnection conn, orbit.bot.run.BotRunner runner,
-                                    java.util.concurrent.atomic.AtomicReference<String> lastHost) {
+                                    java.util.concurrent.atomic.AtomicReference<String> lastHost, String accountName,
+                                    orbit.config.BotConfig cfg) {
         java.util.Map<String, String> ctx = org.slf4j.MDC.getCopyOfContextMap();
         Thread.ofVirtual().name("hangars").start(() -> {
             if (ctx != null) {
@@ -690,6 +737,10 @@ public final class OrbitMain {
                 String host = conn.session().host();
                 lastHost.set(host);
                 var list = new orbit.auth.Hangars(auth.http(), host).list();
+                rememberHangars(accountName, list, cfg);
+                if (!HANGAR_SHAPE_LOGGED.getAndSet(true)) {
+                    log.info("Ангары: поля ответа сайта (без значений) — {}", orbit.auth.Hangars.lastShape());
+                }
                 var active = list.stream().filter(orbit.auth.Hangars.Hangar::active).findFirst().orElse(null);
                 log.info("Ангары: {}; сейчас {}", list.stream().map(h -> h.id() + " " + shipName(h.ship())).toList(),
                         active == null ? "не понять" : active.id() + " " + shipName(active.ship()));
@@ -703,6 +754,59 @@ public final class OrbitMain {
             }
         });
     }
+
+    /**
+     * The account's ships for the bot: the palladium pair chosen in the account's settings ({@code 0} = none, the
+     * module then takes the config's, imported from DarkBot).
+     */
+    private static orbit.bot.run.AccountShips accountShips(String accountName) {
+        orbit.bot.run.AccountShips ships = new orbit.bot.run.AccountShips();
+        try {
+            var p = orbit.config.AccountSettings.load(orbit.config.AccountSettings.DEFAULT_FILE).account(accountName).palladium();
+            if (p != null && p.usable()) {
+                ships.setPalladium(p.collect(), p.sell());
+            }
+        } catch (java.io.IOException e) {
+            log.warn("Настройки аккаунта не прочитать: {}", e.getMessage());
+        }
+        return ships;
+    }
+
+    /**
+     * Keeps the site's list of ships in the account's settings (the account window picks from it); an account
+     * without a palladium pair takes the config's one (DarkBot's), if both of those ships are the account's.
+     */
+    private static synchronized void rememberHangars(String accountName, List<orbit.auth.Hangars.Hangar> list,
+                                                     orbit.config.BotConfig cfg) {
+        try {
+            var file = orbit.config.AccountSettings.DEFAULT_FILE;
+            var all = orbit.config.AccountSettings.load(file);
+            var entry = all.account(accountName); // main@ru5 without its own entry: main's, kept as its own from now
+            List<orbit.config.AccountSettings.Ship> ships = list.stream()
+                    .map(h -> new orbit.config.AccountSettings.Ship(h.id(), h.ship(), h.design())).toList();
+            var next = entry.withHangars(ships);
+            if (entry.palladium() == null || !entry.palladium().usable()) {
+                var s = cfg.modules().get(orbit.config.BotConfig.Module.PALLADIUM.key());
+                int c = s == null ? 0 : s.path("collectHangar").asInt(0);
+                int sell = s == null ? 0 : s.path("sellHangar").asInt(0);
+                var pair = new orbit.config.AccountSettings.PalladiumShips(c, sell);
+                java.util.Set<Integer> ids = new java.util.HashSet<>();
+                ships.forEach(x -> ids.add(x.id()));
+                if (pair.usable() && ids.contains(c) && ids.contains(sell)) {
+                    next = next.withPalladium(pair);
+                    log.info("Ангары палладия из конфига перенесены в настройки аккаунта");
+                }
+            }
+            if (!next.equals(all.accounts().get(accountName))) {
+                all.with(accountName, next).save(file);
+            }
+        } catch (java.io.IOException | RuntimeException e) {
+            log.warn("Список кораблей не сохранить: {}", e.getMessage());
+        }
+    }
+
+    private static final java.util.concurrent.atomic.AtomicBoolean HANGAR_SHAPE_LOGGED =
+            new java.util.concurrent.atomic.AtomicBoolean();
 
     private static String shipName(String lootId) {
         return lootId == null || lootId.isBlank() ? "?" : lootId.replaceFirst("^ship_", "");
@@ -797,7 +901,7 @@ public final class OrbitMain {
     private static ModuleRun startModule(WorldFeed feed, GameConnection conn, String configName,
                                          orbit.config.BotConfig config, long untilMillis, String untilReason,
                                          ClientProfile profile, Path stopFile, orbit.bot.run.ShopAccess shop,
-                                         java.util.function.BooleanSupplier connectionOver) {
+                                         java.util.function.BooleanSupplier connectionOver, orbit.bot.run.AccountShips ships) {
         orbit.world.maps.MapCatalog catalog = orbit.world.maps.MapCatalog.bundled();
         java.util.Random random = new java.util.Random();
         orbit.bot.nav.Navigator nav = new orbit.bot.nav.Navigator(feed::snapshot, conn::send, catalog, random, System::nanoTime);
@@ -819,7 +923,7 @@ public final class OrbitMain {
             return z == null ? null : z.avoided();
         });
         orbit.bot.run.BotContext ctx = new orbit.bot.run.BotContext(feed::snapshot, watch::current, actions, nav, traveler,
-                catalog, random, System::nanoTime, conn::repair, ship, dataDir(feed), stats);
+                catalog, random, System::nanoTime, conn::repair, ship, dataDir(feed), stats, ships);
         orbit.bot.run.BotRunner runner = new orbit.bot.run.BotRunner(ctx, feed::loggedOut, feed::setAction);
         runner.setShop(shop);
         runner.setLinkLost(feed::linkLost);

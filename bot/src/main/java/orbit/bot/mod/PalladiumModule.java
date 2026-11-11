@@ -25,6 +25,7 @@ public final class PalladiumModule implements BotModule {
     /** The palladium ore ({@code OreTypeModule.PALLADIUM}). */
     public static final int PALLADIUM = 8;
 
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(PalladiumModule.class);
     private final BotContext ctx;
     private final KillModule work;
 
@@ -39,12 +40,22 @@ public final class PalladiumModule implements BotModule {
         return s == null ? com.fasterxml.jackson.databind.node.MissingNode.getInstance() : s;
     }
 
+    /**
+     * The account's ships when chosen for it (account settings); otherwise the config's (imported from DarkBot,
+     * where they sit in the plugin's settings).
+     */
+    private boolean accountShips() {
+        int c = ctx.ships().palladiumCollect();
+        int s = ctx.ships().palladiumSell();
+        return c > 0 && s > 0 && c != s;
+    }
+
     int collectHangar() {
-        return settings().path("collectHangar").asInt(0);
+        return accountShips() ? ctx.ships().palladiumCollect() : settings().path("collectHangar").asInt(0);
     }
 
     int sellHangar() {
-        return settings().path("sellHangar").asInt(0);
+        return accountShips() ? ctx.ships().palladiumSell() : settings().path("sellHangar").asInt(0);
     }
 
     /** Two ships: both hangars set and not turned off. */
@@ -63,9 +74,15 @@ public final class PalladiumModule implements BotModule {
 
     private int active;
 
+    private boolean toldNoShips;
+
     @Override
     public int hangarWanted(int active, orbit.world.WorldSnapshot w) {
         this.active = active;
+        if (!toldNoShips && settings().path("twoShips").asBoolean(true) && !twoShips()) {
+            toldNoShips = true;
+            log.warn("Палладий: два корабля, но ангары сбора и продажи для аккаунта не выбраны — продаю одним кораблём");
+        }
         if (!twoShips() || active == 0) {
             return 0;
         }

@@ -190,8 +190,8 @@ final class AccountsPanel {
                         time(entries.getValueAt(r, 1)), time(entries.getValueAt(r, 2)), BREAK.equals(cfg) ? null : cfg));
             }
             Object c = config.getSelectedItem();
-            settings = settings.with(current, new AccountSettings.Entry("—".equals(c) || c == null ? null : (String) c,
-                    new Schedule(scheduleOn.isSelected(), list, Form.intOf(jitter))));
+            settings = settings.with(current, settings.account(current).withConfig("—".equals(c) || c == null ? null : (String) c)
+                    .withSchedule(new Schedule(scheduleOn.isSelected(), list, Form.intOf(jitter))));
             return true;
         } catch (RuntimeException e) {
             JOptionPane.showMessageDialog(view, "Расписание «" + current + "»: " + e.getMessage(), "Аккаунты",
