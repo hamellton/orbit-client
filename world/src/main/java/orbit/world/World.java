@@ -94,6 +94,8 @@ import orbit.world.WorldSnapshot.Zone;
  */
 public final class World {
 
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(World.class);
+
     private static final class ShipState {
         final int id;
         ShipKind kind;
@@ -523,6 +525,9 @@ public final class World {
         double ax = m.x(nanos) - p.positionAheadX;
         double ay = m.y(nanos) - p.positionAheadY;
         if (Math.min(Math.hypot(dx, dy), Math.hypot(ax, ay)) > Math.max(BEACON_JUMP, 2.0 * hero.speed)) {
+            // the server has the ship elsewhere: a lag, a jump, a move it did not take — it is right
+            log.info("Сервер поправил позицию корабля: было {}/{}, стало {}/{}", (int) m.x(nanos) / 100,
+                    (int) m.y(nanos) / 100, p.positionX / 100, p.positionY / 100);
             hero.motion = Motion.at(p.positionX, p.positionY, nanos);
         }
     }
