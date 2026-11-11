@@ -31,6 +31,7 @@ class AuthClientTest {
 
     private HttpServer server;
     private int sasPosts;
+    private boolean maintenance;
     private String origin;
 
     @BeforeEach
@@ -105,6 +106,17 @@ class AuthClientTest {
         GameSession s = client().loginWithDosid("int1", DOSID);
         assertEquals(SESSION, s.sessionId());
         assertEquals(6005, s.gamePort());
+    }
+
+    @Test
+    void maintenanceIsWaitedOut() {
+        maintenance = true;
+        AuthException e = assertThrows(AuthException.class, () -> client().loginWithDosid("int1", DOSID));
+        assertEquals(AuthException.Reason.UNAVAILABLE, e.reason());
+        org.junit.jupiter.api.Assertions.assertTrue(e.retryable(), "a maintenance is retried later");
+        org.junit.jupiter.api.Assertions.assertTrue(e.getMessage().contains("техобслуживании"), e.getMessage());
+        AuthException p = assertThrows(AuthException.class, () -> client().loginWithPassword("pilot", "right"));
+        assertEquals(AuthException.Reason.UNAVAILABLE, p.reason(), "after a password login too");
     }
 
     @Test
@@ -220,6 +232,14 @@ class AuthClientTest {
         }
         String ua = String.valueOf(ex.getRequestHeaders().getFirst("User-Agent"));
         String query = String.valueOf(ex.getRequestURI().getQuery());
+        if (query.contains("action=maintenance")) {
+            send(ex, 200, "<html>Наши сервера подверглись диверсии пришельцев. Выбор сервера</html>", true);
+            return;
+        }
+        if (maintenance && query.contains("internalMapRevolution")) {
+            redirect(ex, "/indexInternal.es?action=maintenance&from=internalMapRevolution");
+            return;
+        }
         if (query.contains("internalMapRevolution")) {
             if (!ua.startsWith("BigPointClient/")) {
                 send(ex, 200, "<html>download the client</html>", true);

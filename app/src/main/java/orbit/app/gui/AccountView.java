@@ -65,7 +65,7 @@ final class AccountView extends JPanel {
         body.add(map);
         body.add(sideScroll);
 
-        JSplitPane split = new JSplitPane(JSplitPane.VERTICAL_SPLIT, body, log(tab.feed(), onDispose));
+        JSplitPane split = new JSplitPane(JSplitPane.VERTICAL_SPLIT, body, log(tab.feed(), tab.managed() != null, onDispose));
         split.setResizeWeight(0.82);
         split.setOneTouchExpandable(true);
         split.setBorder(BorderFactory.createEmptyBorder());
@@ -338,7 +338,8 @@ final class AccountView extends JPanel {
         return p;
     }
 
-    private static JComponent log(WorldFeed feed, List<Runnable> onDispose) {
+    /** @param strict only the account's own lines (the manager: each account its own log, nothing else) */
+    private static JComponent log(WorldFeed feed, boolean strict, List<Runnable> onDispose) {
         JTextArea log = new JTextArea();
         log.setEditable(false);
         log.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
@@ -357,7 +358,7 @@ final class AccountView extends JPanel {
                 log.replaceRange("", 0, excess);
             }
         };
-        GuiLogAppender.Subscription sub = GuiLogAppender.subscribe(feed.account(),
+        GuiLogAppender.Subscription sub = GuiLogAppender.subscribe(feed.account(), strict,
                 line -> SwingUtilities.invokeLater(() -> append.accept(line)));
         sub.backlog().forEach(append);
         onDispose.add(sub.cancel());

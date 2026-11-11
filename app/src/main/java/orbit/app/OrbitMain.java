@@ -516,6 +516,7 @@ public final class OrbitMain {
                             "очередь входа");
                 }
                 boolean rested = false;
+                int failures = 0; // sessions in a row whose game connection ended by itself
                 while (!closed.get() && System.currentTimeMillis() < testEnd) {
                     java.time.LocalDateTime now = java.time.LocalDateTime.now();
                     var plan = planner.next(now, name -> {
@@ -566,7 +567,7 @@ public final class OrbitMain {
                         conn.run();
                     });
                     ModuleRun run = startModule(feed, conn, cfgName, cfg, end, why, profile, stopFile,
-                            shopFor(auth, conn));
+                            shopFor(auth, conn), () -> !game.isAlive());
                     current.set(run);
                     if (closed.get()) {
                         // stopped while logging in: the stop found no module to finish, so finish this one
@@ -576,6 +577,20 @@ public final class OrbitMain {
                     conn.close();
                     game.join(10_000);
                     current.set(null);
+                    if (run.connectionEnded().get() && !closed.get()) {
+                        // the login failed or the server ended the session: try again later, a few times
+                        String reason = feed.state();
+                        if (++failures >= MAX_FAILED_SESSIONS) {
+                            log.error("Связь с игрой не удалась {} раза подряд — аккаунт остановлен: {}", failures, reason);
+                            break;
+                        }
+                        log.warn("Связь с игрой закончилась ({}) — повтор через {} мин (попытка {} из {})", reason,
+                                RETRY_AFTER_FAILURE.toMinutes(), failures, MAX_FAILED_SESSIONS);
+                        restUntil(feed, closed, stopFile, earlier(java.time.LocalDateTime.now().plus(RETRY_AFTER_FAILURE),
+                                limit), "вход не удался, повтор");
+                        continue;
+                    }
+                    failures = 0;
                     if (closed.get() || run.commanded().get() || System.currentTimeMillis() >= testEnd
                             || run.runner().state() == orbit.bot.run.BotRunner.State.FAILED) {
                         break;
@@ -624,6 +639,10 @@ public final class OrbitMain {
         return new Sessions(sessions, close, playing::get, switchConfig);
     }
 
+    /** After this many sessions in a row without a game connection the account stops. */
+    static final int MAX_FAILED_SESSIONS = 3;
+    static final java.time.Duration RETRY_AFTER_FAILURE = java.time.Duration.ofMinutes(5);
+
     private static java.time.LocalDateTime earlier(java.time.LocalDateTime a, java.time.LocalDateTime b) {
         return a == null ? b : b == null ? a : a.isBefore(b) ? a : b;
     }
@@ -651,9 +670,10 @@ public final class OrbitMain {
     }
 
     /** A running module: the loop thread and a way to finish it with a logout. */
+    /** @param connectionEnded the game connection ended by itself (failed login, server closed it), not a logout */
     private record ModuleRun(orbit.bot.run.BotRunner runner, java.util.concurrent.atomic.AtomicBoolean stopRequested,
                              CountDownLatch done, java.util.concurrent.atomic.AtomicBoolean commanded,
-                             orbit.bot.run.ConfigWatch watch) {
+                             orbit.bot.run.ConfigWatch watch, java.util.concurrent.atomic.AtomicBoolean connectionEnded) {
 
         /** Asks for a graceful stop (portal, logout) and waits for it, at most two minutes; then closes. */
         void finish(GameConnection conn) {
@@ -680,7 +700,8 @@ public final class OrbitMain {
 
     private static ModuleRun startModule(WorldFeed feed, GameConnection conn, String configName,
                                          orbit.config.BotConfig config, long untilMillis, String untilReason,
-                                         ClientProfile profile, Path stopFile, orbit.bot.run.ShopAccess shop) {
+                                         ClientProfile profile, Path stopFile, orbit.bot.run.ShopAccess shop,
+                                         java.util.function.BooleanSupplier connectionOver) {
         orbit.world.maps.MapCatalog catalog = orbit.world.maps.MapCatalog.bundled();
         java.util.Random random = new java.util.Random();
         orbit.bot.nav.Navigator nav = new orbit.bot.nav.Navigator(feed::snapshot, conn::send, catalog, random, System::nanoTime);
@@ -703,6 +724,7 @@ public final class OrbitMain {
         runner.setLinkLost(feed::linkLost);
         java.util.concurrent.atomic.AtomicBoolean stopRequested = new java.util.concurrent.atomic.AtomicBoolean();
         java.util.concurrent.atomic.AtomicBoolean commanded = new java.util.concurrent.atomic.AtomicBoolean();
+        java.util.concurrent.atomic.AtomicBoolean connectionEnded = new java.util.concurrent.atomic.AtomicBoolean();
         CountDownLatch done = new CountDownLatch(1);
         long until = untilMillis;
         java.util.Map<String, String> logContext = org.slf4j.MDC.getCopyOfContextMap();
@@ -711,8 +733,14 @@ public final class OrbitMain {
                 org.slf4j.MDC.setContextMap(logContext);
             }
             try {
-                // not in game yet (logging in, or the server keeps refusing): a stop still ends it
-                while (feed.snapshot().hero().id() == 0 || !feed.snapshot().hero().alive()) {
+                // not in game yet (logging in, or the server keeps refusing): a stop still ends it. The ship
+                // must be this session's: the feed outlives a restart and still knows the last one's ship
+                while (feed.sessionStartNanos() == 0 || feed.snapshot().hero().id() == 0 || !feed.snapshot().hero().alive()) {
+                    if (connectionOver.getAsBoolean()) {
+                        connectionEnded.set(!stopRequested.get());
+                        log.warn("Вход в игру не состоялся: {}", feed.state());
+                        return;
+                    }
                     if (stopRequested.get() || Files.exists(stopFile)) {
                         if (Files.exists(stopFile)) {
                             commanded.set(true);
@@ -756,6 +784,11 @@ public final class OrbitMain {
                     } else if (System.currentTimeMillis() > until) {
                         runner.stop("время вышло: " + untilReason);
                     }
+                    if (connectionOver.getAsBoolean() && !feed.loggedOut() && !stopRequested.get()) {
+                        connectionEnded.set(true);
+                        log.warn("Связь с игрой закончилась без выхода: {}", feed.state());
+                        break;
+                    }
                     runner.tick();
                     var st = runner.state();
                     if (st == orbit.bot.run.BotRunner.State.STOPPED || st == orbit.bot.run.BotRunner.State.FAILED) {
@@ -776,7 +809,7 @@ public final class OrbitMain {
                 done.countDown();
             }
         });
-        return new ModuleRun(runner, stopRequested, done, commanded, watch);
+        return new ModuleRun(runner, stopRequested, done, commanded, watch, connectionEnded);
     }
 
     /**

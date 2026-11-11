@@ -60,9 +60,11 @@ public class GuiLogAppender extends UnsynchronizedAppenderBase<ILoggingEvent> {
      * Lines logged so far and every new one.
      *
      * @param account only this account's lines and those of no account; {@code null} = all
+     * @param strict  only this account's lines, not those of no account (the manager's tabs)
      */
-    static Subscription subscribe(String account, Consumer<String> listener) {
-        java.util.function.Predicate<Line> mine = l -> account == null || l.account() == null || account.equals(l.account());
+    static Subscription subscribe(String account, boolean strict, Consumer<String> listener) {
+        java.util.function.Predicate<Line> mine = l -> account == null || account.equals(l.account())
+                || (!strict && l.account() == null);
         Consumer<Line> each = l -> {
             if (mine.test(l)) {
                 listener.accept(l.text());

@@ -84,14 +84,15 @@ final class AccountRunner implements ManagedAccount {
         } catch (AuthException | IOException | RuntimeException e) {
             problem = e.getMessage();
             log.error("Аккаунт «{}» не запущен: {}", name, e.getMessage());
-            return e.getMessage();
-        } finally {
             MDC.remove("account");
+            return e.getMessage();
         }
         phase = Phase.RUNNING;
         log.info("Аккаунт «{}» запущен{}", name, delayMs > 0 ? " (вход через " + delayMs / 1_000 + " с)" : "");
+        MDC.remove("account");
         Thread thread = sessions.thread();
         Thread.ofVirtual().name("watch-" + name).start(() -> {
+            MDC.put("account", name); // its lines belong to this account's log
             try {
                 thread.join();
             } catch (InterruptedException e) {
@@ -126,7 +127,10 @@ final class AccountRunner implements ManagedAccount {
             close = sessions.close();
         }
         feed.setState("выход из игры…");
-        Thread.ofPlatform().name("stop-" + name).start(close);
+        Thread.ofPlatform().name("stop-" + name).start(() -> {
+            MDC.put("account", name);
+            close.run();
+        });
     }
 
     @Override
@@ -154,7 +158,9 @@ final class AccountRunner implements ManagedAccount {
             var all = AccountSettings.load(file);
             all.with(name, new AccountSettings.Entry(config, all.account(name).schedule())).save(file);
         } catch (IOException e) {
+            MDC.put("account", name);
             log.warn("Не сохранить выбор конфига: {}", e.getMessage());
+            MDC.remove("account");
         }
     }
 }

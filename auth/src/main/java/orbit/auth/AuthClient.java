@@ -2,6 +2,8 @@ package orbit.auth;
 
 import java.io.IOException;
 import java.net.URI;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.regex.Matcher;
@@ -76,6 +78,9 @@ public final class AuthClient {
         HttpSession.Response landing = request(() -> http.get(endpoints.landingUrl()));
         Matcher form = LOGIN_FORM.matcher(landing.body());
         if (!form.find()) {
+            if (maintenance(landing)) {
+                throw maintenanceError();
+            }
             throw new AuthException(AuthException.Reason.UNEXPECTED_PAGE,
                     "На главной странице не найдена форма входа — сайт изменился или недоступен.");
         }
@@ -120,10 +125,28 @@ public final class AuthClient {
      * @param afterPasswordLogin whether the session was just created by a password login (then a
      *                           rejected session is our bug or a site change, not an expired dosid)
      */
+    /** Where a page the bot did not understand is kept (secrets masked), to see later what the site showed. */
+    static final Path UNEXPECTED_PAGE_FILE = Path.of("local", "debug", "unexpected-page.html");
+
+    private static Path keepForDiagnosis(HttpSession.Response page) {
+        try {
+            Files.createDirectories(UNEXPECTED_PAGE_FILE.getParent());
+            Files.writeString(UNEXPECTED_PAGE_FILE, "<!-- " + SecretMask.mask(String.valueOf(page.url())) + " "
+                    + java.time.LocalDateTime.now().withNano(0) + " -->\n" + SecretMask.mask(page.body()));
+            return UNEXPECTED_PAGE_FILE;
+        } catch (java.io.IOException | RuntimeException e) {
+            log.debug("Страницу не сохранить: {}", e.getMessage());
+            return null;
+        }
+    }
+
     GameSession loadGameSession(String origin, String dosid, boolean afterPasswordLogin) throws AuthException {
         HttpSession.Response page = request(() -> http.get(origin + "/indexInternal.es?action=internalMapRevolution"));
         Map<String, String> vars = FlashVars.parse(page.body());
         if (!vars.containsKey("sessionID") || !vars.containsKey("userID")) {
+            if (maintenance(page)) {
+                throw maintenanceError();
+            }
             String loginError = queryParam(page.url(), "loginError");
             boolean rejected = loginError != null
                     || !endpoints.accountHost().matcher(page.url().getHost()).matches()
@@ -138,9 +161,10 @@ public final class AuthClient {
                 throw new AuthException(AuthException.Reason.SESSION_EXPIRED,
                         "Сессия сайта недействительна или истекла (dosid)" + code + ". Войдите заново.");
             }
+            Path kept = keepForDiagnosis(page);
             throw new AuthException(AuthException.Reason.UNEXPECTED_PAGE,
                     "Страница игры не содержит параметров запуска — сайт изменился, либо аккаунт ещё "
-                            + "не прошёл начальную настройку в браузере.");
+                            + "не прошёл начальную настройку в браузере" + (kept == null ? "." : " (страница: " + kept + ")."));
         }
         SecretMask.register(vars.get("sessionID"));
         int userId = parseInt(vars, "userID");
@@ -185,7 +209,23 @@ public final class AuthClient {
         return addr;
     }
 
+    /**
+     * The site's maintenance page ({@code indexInternal.es?action=maintenance}, «сервера подверглись
+     * диверсии пришельцев…»): it shows up instead of the game page while the game servers are down.
+     */
+    private static boolean maintenance(HttpSession.Response page) {
+        return "maintenance".equals(queryParam(page.url(), "action"));
+    }
+
+    private static AuthException maintenanceError() {
+        return new AuthException(AuthException.Reason.UNAVAILABLE,
+                "Сервера игры на техобслуживании (сайт показывает страницу работ) — вход повторится позже.");
+    }
+
     private AuthException classifyLoginFailure(HttpSession.Response result) {
+        if (maintenance(result)) {
+            return maintenanceError();
+        }
         String where = result.url().getHost() + result.url().getPath();
         Matcher form = LOGIN_FORM.matcher(result.body());
         if (form.find()) {
