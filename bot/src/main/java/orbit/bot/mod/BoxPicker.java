@@ -20,6 +20,10 @@ public final class BoxPicker {
 
     private final BotContext ctx;
     private String hash;
+    /** Clicks on one box before it is left alone for two minutes. */
+    static final int MAX_TRIES = 4;
+    /** Before clicking a box again at least this long (a box without a wait of its own). */
+    static final long MIN_STAY_MS = 700;
     /** The config's name of the box being taken ({@code ore_8}, {@code BONUS_BOX}). */
     private String current = "";
     private long collectAt;
@@ -115,12 +119,15 @@ public final class BoxPicker {
         WorldSnapshot.Collectable box = w.collectables().get(hash);
         ctx.nav().tick();
         if (box != null && ctx.nav().idle() && !h.moving()) {
+            // DarkBot's collector: click at once (a human moment), then stay the box's wait (collect.boxes waitMs,
+            // ore_8 800 ms) plus 100 ms a retry while the game takes it; still there after that — click again
             if (collectAt == 0) {
-                BotConfig.BoxRule r = c.collect().boxes().get(key(box));
-                collectAt = now + ctx.pause(100, 300) + (r == null ? 0 : r.waitMs() * 1_000_000L);
+                collectAt = now + ctx.pause(100, 300);
             }
-            if (now >= collectAt && now - collectedAt > 3_000_000_000L) {
-                if (tries >= 2) {
+            BotConfig.BoxRule r = c.collect().boxes().get(key(box));
+            long stay = Math.max(MIN_STAY_MS, (r == null ? 0 : r.waitMs()) + Math.min(1_000, tries * 100L)) * 1_000_000L;
+            if (now >= collectAt && (collectedAt == 0 || now - collectedAt > stay)) {
+                if (tries >= MAX_TRIES) {
                     ignored.put(hash, now);
                     hash = null;
                     return false;

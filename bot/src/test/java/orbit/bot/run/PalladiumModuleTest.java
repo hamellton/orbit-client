@@ -36,6 +36,27 @@ class PalladiumModuleTest {
     }
 
     @Test
+    void palladiumIsClickedAtOnceAndTheWaitComesAfter() {
+        // DarkBot's collector: collect first, then stay the box's wait (ore_8: 800 ms in the user's profile)
+        Sim sim = new Sim(config(), 93, 20_000, 20_000);
+        orbit.protocol.gen.AddOreCommand ore = new orbit.protocol.gen.AddOreCommand();
+        ore.hash = "p1";
+        ore.oreType = new orbit.protocol.gen.OreTypeModule();
+        ore.oreType.typeValue = 8;
+        ore.x = 20_000;
+        ore.y = 20_000;
+        sim.world.apply(ore, sim.now);
+        BotRunner r = new BotRunner(sim.ctx, () -> false, s -> { });
+        sim.run(r::tick, 500);
+        java.util.function.LongSupplier clicks = () -> sim.sent.stream().filter(p -> p instanceof orbit.protocol.gen.HarvestRequest).count();
+        assertEquals(1, clicks.getAsLong(), "clicked within half a second, not after the 800 ms");
+        sim.run(r::tick, 500);
+        assertEquals(1, clicks.getAsLong(), "no second click inside the wait");
+        sim.run(r::tick, 600);
+        assertEquals(2, clicks.getAsLong(), "still there after the wait: clicked again");
+    }
+
+    @Test
     void fiveThreeAndFiveTwoAreLinkedByPortals() {
         assertTrue(!orbit.bot.nav.Router.route(MapCatalog.bundled(), 93, 10_000, 6_000, 92, 2, 25).isEmpty(), "5-3 → 5-2");
     }
