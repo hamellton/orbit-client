@@ -76,6 +76,7 @@ final class KillSection implements Section {
                 new javax.swing.JComboBox<>(NpcTable.rocketChoices())));
         table.getColumnModel().getColumn(7).setCellEditor(new javax.swing.DefaultCellEditor(
                 new javax.swing.JComboBox<>(NpcTable.launcherChoices())));
+        table.getColumnModel().getColumn(9).setCellEditor(new FlagsEditor()); // ticks from a list, not typing
         table.getColumnModel().getColumn(5).setCellEditor(new javax.swing.DefaultCellEditor(
                 new javax.swing.JComboBox<>(NpcTable.ammoChoices())));
         table.getTableHeader().setToolTipText("Приоритет: меньше — раньше. Карты: «3-6, 2-6» или «все».");
@@ -111,8 +112,7 @@ final class KillSection implements Section {
         javax.swing.JLabel help = new javax.swing.JLabel("ⓘ");
         help.setForeground(java.awt.Color.GRAY);
         help.setToolTipText("<html>Приоритет: меньше — раньше (−100 первым). Карты: «все» — везде.<br>"
-                + "Патроны «общие» — как выбрано выше.<br>Флаги: IGNORE_OWNERSHIP — бить чужих, IGNORE_ATTACKED, "
-                + "PASSIVE — не убегать,<br>AGGRESSIVE_FOLLOW — догонять, NO_CIRCLE, PET_LOCATOR, KAMIKAZE.</html>");
+                + "Патроны «общие» — как выбрано выше.<br>Флаги — клик по ячейке, галочки из списка.</html>");
         JPanel bar = new JPanel(new BorderLayout(8, 0));
         bar.add(Form.bar(title, help), BorderLayout.WEST);
         bar.add(Form.bar(search, add, remove), BorderLayout.EAST);
