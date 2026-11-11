@@ -53,6 +53,6 @@ class SessionSummaryTest {
                 "no cube line without cubes");
         assertTrue(lines.contains("Luminium: 20  (40/ч)"), lines.toString());
         assertTrue(lines.contains("UCB-100: 101  (202/ч)"), lines.toString());
-        assertTrue(lines.contains("Ксеномит: 20  (40/ч)"), lines.toString());
+        assertTrue(lines.contains("Доп. энергия: 20  (40/ч)"), lines.toString()); // XEN is extra energy, not xenomit
     }
 }

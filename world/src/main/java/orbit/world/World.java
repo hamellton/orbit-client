@@ -876,7 +876,7 @@ public final class World {
 
     /**
      * One reward log line: {@code CRE|URI|HON|EP|<gained>|<total>…}; items {@code LOT|BAT|ROK|AMI|<item>|<amount>};
-     * {@code XEN|<amount>}; {@code LOG|<gained>|<total>} (log disks).
+     * {@code XEN|<amount>} (extra energy); {@code LOG|<gained>|<total>} (log disks).
      */
     private void reward(String[] a) {
         switch (a[3]) {
@@ -889,7 +889,8 @@ public final class World {
                     loot.merge(a[4], Math.max(0, parseDouble(a[5], 0)), Double::sum);
                 }
             }
-            case "XEN" -> loot.merge("xenomit", Math.max(0, parseDouble(a[4], 0)), Double::sum);
+            // XEN is extra energy (the client's BOX_CONTENT_EXTRA_ENERGY), not xenomit (an ore in the hold)
+            case "XEN" -> loot.merge("extra_energy", Math.max(0, parseDouble(a[4], 0)), Double::sum);
             case "LOG" -> loot.merge("log_disk", Math.max(0, parseDouble(a[4], 0)), Double::sum);
             default -> {
                 // other notices (booty keys opening, messages)

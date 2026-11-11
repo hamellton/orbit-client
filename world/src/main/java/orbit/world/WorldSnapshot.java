@@ -141,7 +141,7 @@ public record WorldSnapshot(long nanos, Hero hero, Map<Integer, Ship> ships, Map
 
     /**
      * What the server's reward log ({@code 0|LM|ST|…}) has granted since the world model started:
-     * currencies and points, and items by id (resources, ammunition, rockets, mines, xenomit, log disks).
+     * currencies and points, and items by id (resources, ammunition, rockets, mines, extra energy, log disks).
      */
     public record Rewards(double credits, double uridium, double honor, double experience, Map<String, Double> items) {
 

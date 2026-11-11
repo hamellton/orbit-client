@@ -61,7 +61,7 @@ public final class SessionSummary {
     /** {@code resource_collectable_luminium} → Luminium, {@code ammunition_laser_ucb-100} → UCB-100. */
     static String itemName(String id) {
         return switch (id) {
-            case "xenomit" -> "Ксеномит";
+            case "extra_energy" -> "Доп. энергия";
             case "log_disk" -> "Лог-диски";
             default -> {
                 for (String p : new String[] {"resource_collectable_", "resource_"}) {

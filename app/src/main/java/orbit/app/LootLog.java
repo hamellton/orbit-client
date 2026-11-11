@@ -53,7 +53,7 @@ final class LootLog {
                 v = num(a[5]);
             }
             case "XEN" -> {
-                what = "ксеномита";
+                what = "доп. энергии";
                 v = num(a[4]);
             }
             case "LOG" -> {
