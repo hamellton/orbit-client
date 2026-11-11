@@ -45,7 +45,7 @@ public final class ShipSetup {
     static final long MISSING_WARN_MS = 20_000;
 
     /** No «ready» from the server this long after a formation timer started: try anyway, not to get stuck. */
-    static final long FORMATION_READY_WAIT_MS = 90_000;
+    static final long FORMATION_READY_WAIT_MS = 180_000;
 
     /**
      * The formations' cooldown ends when the server says «ready» (timer state 0), not when its «2000 ms» run
@@ -134,6 +134,10 @@ public final class ShipSetup {
             if (item != null && !on && !waiting && item.available() && cooledDown(item, now)
                     && now - formationAt > FORMATION_GAP_MS * 1_000_000
                     && now - configAt > FORMATION_AFTER_CONFIG_MS * 1_000_000) {
+                if (item.timerState() != orbit.protocol.gen.TimerStateModule.TIMERSTATE_READY) {
+                    log.warn("Формация {}: «готово» от сервера не пришло за {} с — пробую всё равно",
+                            orbit.config.ItemCatalog.label(f), FORMATION_READY_WAIT_MS / 1_000);
+                }
                 if (f.equals(asked)) {
                     log.warn("Формация {}: сервер не ответил за {} с (на корабле №{}, ждём №{}) — прошу ещё раз",
                             orbit.config.ItemCatalog.label(f), FORMATION_ANSWER_MS / 1_000, h.formation(), known);

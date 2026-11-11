@@ -97,4 +97,19 @@ class CubeMapsTest {
             }
         }
     }
+
+    @Test
+    void aMapNotLearnedYetTakesTheRespawnOfTheOthers() {
+        // live 2026-11-11 on 1-6: no respawn learned there, so a spawn whose cube died a minute ago counted as
+        // unknown and the ship went back to it; the cube comes back after 5 minutes on every x-6 map
+        SpawnMemory memory = SpawnMemory.inMemory();
+        memory.seen(22, 7500, 4000, 0);
+        memory.killed(22, 7500, 4000, MIN);
+        memory.seen(22, 7500, 4000, 6 * MIN);
+        assertEquals(5 * MIN, memory.mapRespawn(22));
+        assertEquals(5 * MIN, memory.mapRespawn(18), "1-6 borrows 2-6's");
+        memory.seen(18, 8000, 3900, 10 * MIN);
+        memory.killed(18, 8000, 3900, 11 * MIN);
+        assertEquals(16 * MIN, memory.spawns(18).getFirst().expectedAt(memory.mapRespawn(18)), "due in 5 minutes, not unknown");
+    }
 }

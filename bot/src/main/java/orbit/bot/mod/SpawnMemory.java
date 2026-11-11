@@ -166,8 +166,17 @@ public final class SpawnMemory {
      * The respawn time of the map: the shortest seen on any of its spawns (cubes seem to come back after
      * the same time everywhere, and a long sample only means the bot was elsewhere), or -1.
      */
+    /**
+     * The map's shortest learned respawn; a map not learned yet takes the other maps' (a Cubikon comes back
+     * after the same 5 minutes on every x-6 map), or -1 when nothing is known anywhere.
+     */
     public synchronized long mapRespawn(int mapId) {
-        return maps.getOrDefault(mapId, List.of()).stream().mapToLong(Spawn::respawnEstimate).filter(v -> v > 0)
+        long own = maps.getOrDefault(mapId, List.of()).stream().mapToLong(Spawn::respawnEstimate).filter(v -> v > 0)
+                .min().orElse(-1);
+        if (own > 0) {
+            return own;
+        }
+        return maps.values().stream().flatMap(List::stream).mapToLong(Spawn::respawnEstimate).filter(v -> v > 0)
                 .min().orElse(-1);
     }
 
