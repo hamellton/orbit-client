@@ -71,7 +71,10 @@ class LiveFactsReplayTest {
                     double actual = now - s[0];
                     String line = String.format("%s: %s announced %.0f, ready after %.0f ms", f.getFileName(), key, s[1], actual);
                     checked.add(line);
-                    if (Math.abs(actual - s[1]) > Math.max(1500, s[1] * 0.15)) {
+                    // the formations (group 47) announce 2 s but the server says «ready» 5–60 s later and
+                    // ignores changes until then (live 2026-11-11): never earlier, though
+                    boolean formations = key.equals("cooldown group 47");
+                    if (formations ? actual < s[1] - 1500 : Math.abs(actual - s[1]) > Math.max(1500, s[1] * 0.15)) {
                         wrong.add(line);
                     }
                 }

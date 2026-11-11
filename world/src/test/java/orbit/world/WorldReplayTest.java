@@ -67,7 +67,8 @@ class WorldReplayTest {
             if (end.selected("lasers") == null || end.selected("lasers").counter() <= 0) {
                 problems.add(f.getFileName() + ": no selected laser ammunition");
             }
-            if (end.inventory().ores().isEmpty() || h.cargoMax() <= 0 || h.cargoFree() < 0 || h.cargoFree() > h.cargoMax()) {
+            // free space below zero is an overfull hold (ru1, 2026-11-11: -11175 of 1600), not a model error
+            if (end.inventory().ores().isEmpty() || h.cargoMax() <= 0 || h.cargoFree() > h.cargoMax()) {
                 problems.add(f.getFileName() + ": cargo " + h.cargoFree() + "/" + h.cargoMax() + ", ores " + end.inventory().ores());
             }
             if (h.config() != 1 && h.config() != 2) {
