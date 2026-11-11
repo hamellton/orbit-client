@@ -232,11 +232,18 @@ public final class WorldFeed {
     private volatile long formationAskedAt = Long.MIN_VALUE / 2;
 
     private void formationDiagnosis(Packet p, long nanos) {
+        String name = p.getClass().getSimpleName();
+        String s = String.valueOf(p);
+        // the formations' timers at any time: when does the server say «ready» again after a change?
+        if ((name.startsWith("MenuItemTimer") && s.contains("drone_formation"))
+                || (name.equals("MenuItemCooldownGroupTimerCommand") && s.contains("typeValue=47}"))) {
+            log.info("Диагностика формации ⏱ +{} с после запроса: {}", (nanos - formationAskedAt) / 1_000_000_000,
+                    s.length() > 260 ? s.substring(0, 260) : s);
+            return;
+        }
         if (nanos - formationAskedAt > 3_000_000_000L) {
             return;
         }
-        String name = p.getClass().getSimpleName();
-        String s = String.valueOf(p);
         boolean relevant = name.contains("Formation") || name.equals("LegacyModule")
                 || (name.startsWith("MenuItem") && s.contains("drone_formation"))
                 || name.contains("Cooldown") || name.contains("Message") || name.contains("Notification");
