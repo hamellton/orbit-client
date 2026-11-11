@@ -57,6 +57,38 @@ class PalladiumModuleTest {
     }
 
     @Test
+    void aCaptchaStopsEverythingAndSaysWhatItAsks() {
+        // live 2026-11-12 on gb2: the game's box captcha came, the bot kept flying at the circle's edge
+        Sim sim = new Sim(config(), 93, 20_000, 20_000);
+        orbit.protocol.gen.AddOreCommand ore = new orbit.protocol.gen.AddOreCommand();
+        ore.hash = "p1";
+        ore.oreType = new orbit.protocol.gen.OreTypeModule();
+        ore.oreType.typeValue = 8;
+        ore.x = 21_000;
+        ore.y = 20_000;
+        sim.world.apply(ore, sim.now);
+        orbit.protocol.gen.CaptchaTriggerCommand c = new orbit.protocol.gen.CaptchaTriggerCommand();
+        c.type = (short) orbit.protocol.gen.CaptchaTriggerCommand.ECAPTCHATYPE_SOME_BLACK;
+        c.captchaParam = 3;
+        c.captchaTimer = 40;
+        c.posX = 20_000;
+        c.posY = 20_000;
+        c.Radius = 400;
+        c.blackBox = 5;
+        c.redBox = 3;
+        sim.world.apply(c, sim.now);
+        BotRunner r = new BotRunner(sim.ctx, () -> false, s -> { });
+        int sent = sim.sent.size();
+        sim.run(r::tick, 5_000);
+        assertTrue(sim.sent.subList(sent, sim.sent.size()).stream().noneMatch(p -> p instanceof orbit.protocol.gen.MoveRequest
+                || p instanceof orbit.protocol.gen.HarvestRequest), "no move, no pickup during the captcha: " + sim.sent);
+        assertTrue(r.status().matches("КАПЧА: соберите 3 чёрных ящика из 5, осталось 3[56] с"), r.status());
+        sim.world.apply(new orbit.protocol.gen.CaptchaResolvedCommand(), sim.now);
+        sim.run(r::tick, 3_000);
+        assertTrue(sim.sent.stream().anyMatch(p -> p instanceof orbit.protocol.gen.HarvestRequest), "back to work once solved");
+    }
+
+    @Test
     void fiveThreeAndFiveTwoAreLinkedByPortals() {
         assertTrue(!orbit.bot.nav.Router.route(MapCatalog.bundled(), 93, 10_000, 6_000, 92, 2, 25).isEmpty(), "5-3 → 5-2");
     }

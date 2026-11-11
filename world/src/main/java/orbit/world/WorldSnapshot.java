@@ -19,7 +19,46 @@ public record WorldSnapshot(long nanos, Hero hero, Map<Integer, Ship> ships, Map
                             Map<Integer, Long> activatable, int jumpingTo, Death death,
                             java.util.Set<String> slotItems, Map<Integer, Kill> destroyed, Rewards rewards,
                             List<Invitation> invitations, List<Contact> contacts, Map<String, Mine> mines,
-                            Boosters boosters, JumpCpu jumpCpu) {
+                            Boosters boosters, JumpCpu jumpCpu, Captcha captcha) {
+
+    /**
+     * The game's own human check ({@code CaptchaTriggerCommand}, live 2026-11-12 on gb2): pick some or all of the
+     * black or red boxes laid round the ship within the time; the ship is held inside the circle meanwhile. Solved —
+     * {@code CaptchaResolvedCommand}, failed — {@code CaptchaExplodeCommand}. {@code null} when there is none.
+     *
+     * @param type    {@code CaptchaTriggerCommand.ECAPTCHATYPE_*}: some black, all black, some red, all red
+     * @param amount  how many to pick (the «some» kinds)
+     * @param seconds the time given
+     * @param black   black boxes laid out (indexes 0…black−1), {@code red} red ones (the indexes after them)
+     */
+    public record Captcha(int type, int amount, int seconds, int x, int y, int radius, int black, int red, long sinceNanos) {
+
+        /** Red boxes to pick (types 2, 3), else black ones. */
+        public boolean pickRed() {
+            return type >= 2;
+        }
+
+        /** Seconds left, never below 0. */
+        public long secondsLeft(long nowNanos) {
+            return Math.max(0, seconds - (nowNanos - sinceNanos) / 1_000_000_000L);
+        }
+
+        /** «соберите 3 чёрных ящика за 40 с» / «соберите все красные ящики». */
+        public String task() {
+            String colour = pickRed() ? "красн" : "чёрн";
+            boolean all = type == 1 || type == 3;
+            if (all) {
+                return "соберите все " + colour + "ые ящики (" + (pickRed() ? red : black) + ")";
+            }
+            return "соберите " + amount + " " + colour + (amount % 10 == 1 && amount % 100 != 11 ? "ый ящик" : "ых ящика")
+                    + " из " + (pickRed() ? red : black);
+        }
+
+        /** «КАПЧА: соберите 3 чёрных ящика из 5, осталось 40 с» */
+        public String text(long nowNanos) {
+            return "КАПЧА: " + task() + (seconds > 0 ? ", осталось " + secondsLeft(nowNanos) + " с" : "");
+        }
+    }
 
     /**
      * The jump CPU (live 2026-11-11, ru1): {@code CPUInitializationCommand.advancedJumpCPUEquipped}; vouchers

@@ -414,6 +414,20 @@ public final class World {
                         p.palladiumExchangeRate > 0 ? ", палладий: обмен по " + p.palladiumExchangeRate : "");
             }
             case orbit.protocol.gen.PetTradeWindowShowCommand p -> petTradeNanos = nanos;
+            case orbit.protocol.gen.CaptchaTriggerCommand p -> {
+                captcha = new WorldSnapshot.Captcha(p.type, p.captchaParam, p.captchaTimer, p.posX, p.posY, p.Radius,
+                        p.blackBox, p.redBox, nanos);
+                log.warn("{} (чёрных {}, красных {}, круг у {}/{} радиусом {})", captcha.text(nanos), p.blackBox, p.redBox,
+                        p.posX / 100, p.posY / 100, p.Radius);
+            }
+            case orbit.protocol.gen.CaptchaResolvedCommand p -> {
+                log.warn("Капча пройдена");
+                captcha = null;
+            }
+            case orbit.protocol.gen.CaptchaExplodeCommand p -> {
+                log.error("Капча не пройдена — корабль взорван");
+                captcha = null;
+            }
             case AttributeOreCountUpdateCommand p -> {
                 ores.clear();
                 for (OreCountModule o : p.oreCountList) {
@@ -466,8 +480,10 @@ public final class World {
                         : WorldSnapshot.Boosters.NONE,
                 new WorldSnapshot.JumpCpu(jumpCpuEquipped, jumpVouchers, Map.copyOf(jumpPrices), jumpPricesNanos,
                         jumpConfirmedMap, jumpConfirmedPrice, jumpConfirmedNanos, jumpCountdownMap, jumpCountdownSeconds,
-                        jumpCountdownNanos));
+                        jumpCountdownNanos), captcha);
     }
+
+    private WorldSnapshot.Captcha captcha;
 
     private boolean jumpCpuEquipped;
     private int jumpVouchers = -1;

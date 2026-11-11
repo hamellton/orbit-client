@@ -411,6 +411,40 @@ final class MinimapPanel extends JPanel {
             hud.strip(g, (int) Math.round(vx), (int) Math.round(vy + vh), (int) Math.round(vw), feed, config.get());
             g.setClip(clip);
         }
+        if (w.captcha() != null) {
+            captcha(g, w, p, vx, vy, vw);
+        }
+    }
+
+    static final Color CAPTCHA = new Color(0xff3b30);
+
+    /** The game's human check: its circle on the map and the task with the time left, big, over the map. */
+    private void captcha(Graphics2D g, WorldSnapshot w, Projection p, double vx, double vy, double vw) {
+        WorldSnapshot.Captcha c = w.captcha();
+        double r = c.radius() * p.scale();
+        g.setColor(CAPTCHA);
+        g.setStroke(new BasicStroke(2f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND, 1f, new float[] {6f, 5f}, 0f));
+        g.draw(new Ellipse2D.Double(p.x(c.x()) - r, p.y(c.y()) - r, 2 * r, 2 * r));
+        g.setStroke(new BasicStroke(1f));
+        String text = c.text(w.nanos());
+        g.setFont(hud.font(Font.BOLD, compact ? 13f : 18f));
+        java.awt.FontMetrics fm = g.getFontMetrics();
+        int pad = compact ? 6 : 10;
+        int width = Math.min((int) vw - 20, fm.stringWidth(text) + 2 * pad);
+        int height = fm.getHeight() + 2 * pad - 4;
+        int x = (int) Math.round(vx + (vw - width) / 2);
+        int y = (int) Math.round(vy) + (compact ? 30 : 52);
+        g.setColor(new Color(120, 10, 10, 225));
+        g.fill(new java.awt.geom.RoundRectangle2D.Double(x, y, width, height, 10, 10));
+        g.setColor(CAPTCHA);
+        g.setStroke(new BasicStroke(2f));
+        g.draw(new java.awt.geom.RoundRectangle2D.Double(x, y, width, height, 10, 10));
+        g.setStroke(new BasicStroke(1f));
+        g.setColor(Color.WHITE);
+        Shape clip = g.getClip();
+        g.clip(new Rectangle2D.Double(x + pad, y, width - 2 * pad, height));
+        g.drawString(text, x + pad, y + pad + fm.getAscent() - 2);
+        g.setClip(clip);
     }
 
     /**
