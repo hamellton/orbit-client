@@ -411,18 +411,18 @@ final class MinimapPanel extends JPanel {
             hud.strip(g, (int) Math.round(vx), (int) Math.round(vy + vh), (int) Math.round(vw), feed, config.get());
             g.setClip(clip);
         }
-        if (w.captcha() != null) {
-            captcha(g, w, p, vx, vy, vw);
+        if (w.boxCheck() != null) {
+            boxCheck(g, w, p, vx, vy, vw);
         }
     }
 
-    static final Color CAPTCHA = new Color(0xff3b30);
+    static final Color BOX_CHECK = new Color(0xff3b30);
 
-    /** The game's human check: its circle on the map and the task with the time left, big, over the map. */
-    private void captcha(Graphics2D g, WorldSnapshot w, Projection p, double vx, double vy, double vw) {
-        WorldSnapshot.Captcha c = w.captcha();
+    /** The game's box check: its circle on the map and the task with the time left, big, over the map. */
+    private void boxCheck(Graphics2D g, WorldSnapshot w, Projection p, double vx, double vy, double vw) {
+        WorldSnapshot.BoxCheck c = w.boxCheck();
         double r = c.radius() * p.scale();
-        g.setColor(CAPTCHA);
+        g.setColor(BOX_CHECK);
         g.setStroke(new BasicStroke(2f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND, 1f, new float[] {6f, 5f}, 0f));
         g.draw(new Ellipse2D.Double(p.x(c.x()) - r, p.y(c.y()) - r, 2 * r, 2 * r));
         g.setStroke(new BasicStroke(1f));
@@ -436,7 +436,7 @@ final class MinimapPanel extends JPanel {
         int y = (int) Math.round(vy) + (compact ? 30 : 52);
         g.setColor(new Color(120, 10, 10, 225));
         g.fill(new java.awt.geom.RoundRectangle2D.Double(x, y, width, height, 10, 10));
-        g.setColor(CAPTCHA);
+        g.setColor(BOX_CHECK);
         g.setStroke(new BasicStroke(2f));
         g.draw(new java.awt.geom.RoundRectangle2D.Double(x, y, width, height, 10, 10));
         g.setStroke(new BasicStroke(1f));

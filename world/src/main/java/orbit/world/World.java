@@ -415,18 +415,18 @@ public final class World {
             }
             case orbit.protocol.gen.PetTradeWindowShowCommand p -> petTradeNanos = nanos;
             case orbit.protocol.gen.CaptchaTriggerCommand p -> {
-                captcha = new WorldSnapshot.Captcha(p.type, p.captchaParam, p.captchaTimer, p.posX, p.posY, p.Radius,
+                boxCheck = new WorldSnapshot.BoxCheck(p.type, p.captchaParam, p.captchaTimer, p.posX, p.posY, p.Radius,
                         p.blackBox, p.redBox, nanos);
-                log.warn("{} (чёрных {}, красных {}, круг у {}/{} радиусом {})", captcha.text(nanos), p.blackBox, p.redBox,
+                log.warn("{} (чёрных {}, красных {}, круг у {}/{} радиусом {})", boxCheck.text(nanos), p.blackBox, p.redBox,
                         p.posX / 100, p.posY / 100, p.Radius);
             }
             case orbit.protocol.gen.CaptchaResolvedCommand p -> {
-                log.warn("Капча пройдена");
-                captcha = null;
+                log.warn("Проверка с ящиками пройдена");
+                boxCheck = null;
             }
             case orbit.protocol.gen.CaptchaExplodeCommand p -> {
-                log.error("Капча не пройдена — корабль взорван");
-                captcha = null;
+                log.error("Проверка с ящиками не пройдена — корабль взорван");
+                boxCheck = null;
             }
             case AttributeOreCountUpdateCommand p -> {
                 ores.clear();
@@ -480,10 +480,10 @@ public final class World {
                         : WorldSnapshot.Boosters.NONE,
                 new WorldSnapshot.JumpCpu(jumpCpuEquipped, jumpVouchers, Map.copyOf(jumpPrices), jumpPricesNanos,
                         jumpConfirmedMap, jumpConfirmedPrice, jumpConfirmedNanos, jumpCountdownMap, jumpCountdownSeconds,
-                        jumpCountdownNanos), captcha);
+                        jumpCountdownNanos), boxCheck);
     }
 
-    private WorldSnapshot.Captcha captcha;
+    private WorldSnapshot.BoxCheck boxCheck;
 
     private boolean jumpCpuEquipped;
     private int jumpVouchers = -1;

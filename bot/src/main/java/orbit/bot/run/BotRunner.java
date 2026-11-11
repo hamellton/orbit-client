@@ -57,8 +57,8 @@ public final class BotRunner {
     private volatile int activeHangar;
     private volatile int hangarRequest;
     private boolean logoutHere;
-    /** A captcha is up: everything stopped until it is gone. */
-    private boolean inCaptcha;
+    /** The game's box check is up: everything stopped until it is gone. */
+    private boolean inBoxCheck;
     private long orderAt;
     private long holdUntil;
 
@@ -225,23 +225,23 @@ public final class BotRunner {
             offline = false;
             log.info("Связь восстановлена — продолжаю");
         }
-        // the game's human check: drop everything, keep still, say what it asks until it is solved or ends
+        // the game's box check: drop everything, keep still, say what it asks until it is solved or ends
         // (live 2026-11-12 on gb2: the bot kept flying at the circle's edge while the timer ran)
-        if (w.captcha() != null) {
-            if (!inCaptcha) {
-                inCaptcha = true;
-                log.warn("Бот остановлен на время капчи: все действия брошены, корабль стоит");
+        if (w.boxCheck() != null) {
+            if (!inBoxCheck) {
+                inBoxCheck = true;
+                log.warn("Бот остановлен на время проверки с ящиками: все действия брошены, корабль стоит");
                 if (module != null) {
                     module.pause();
                 }
                 ctx.nav().stop();
             }
-            show(w.captcha().text(w.nanos()));
+            show(w.boxCheck().text(w.nanos()));
             return;
         }
-        if (inCaptcha) {
-            inCaptcha = false;
-            log.info("Капчи больше нет — продолжаю");
+        if (inBoxCheck) {
+            inBoxCheck = false;
+            log.info("Проверки больше нет — продолжаю");
         }
         if (w.death() != null && module != null && hangarRequest == 0 && state != State.STOPPING) {
             int want = module.hangarOnDeath(activeHangar, w);

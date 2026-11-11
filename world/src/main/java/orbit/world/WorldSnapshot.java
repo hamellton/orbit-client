@@ -19,10 +19,10 @@ public record WorldSnapshot(long nanos, Hero hero, Map<Integer, Ship> ships, Map
                             Map<Integer, Long> activatable, int jumpingTo, Death death,
                             java.util.Set<String> slotItems, Map<Integer, Kill> destroyed, Rewards rewards,
                             List<Invitation> invitations, List<Contact> contacts, Map<String, Mine> mines,
-                            Boosters boosters, JumpCpu jumpCpu, Captcha captcha) {
+                            Boosters boosters, JumpCpu jumpCpu, BoxCheck boxCheck) {
 
     /**
-     * The game's own human check ({@code CaptchaTriggerCommand}, live 2026-11-12 on gb2): pick some or all of the
+     * The game's box check ({@code CaptchaTriggerCommand}, live 2026-11-12 on gb2): pick some or all of the
      * black or red boxes laid round the ship within the time; the ship is held inside the circle meanwhile. Solved —
      * {@code CaptchaResolvedCommand}, failed — {@code CaptchaExplodeCommand}. {@code null} when there is none.
      *
@@ -31,7 +31,7 @@ public record WorldSnapshot(long nanos, Hero hero, Map<Integer, Ship> ships, Map
      * @param seconds the time given
      * @param black   black boxes laid out (indexes 0…black−1), {@code red} red ones (the indexes after them)
      */
-    public record Captcha(int type, int amount, int seconds, int x, int y, int radius, int black, int red, long sinceNanos) {
+    public record BoxCheck(int type, int amount, int seconds, int x, int y, int radius, int black, int red, long sinceNanos) {
 
         /** Red boxes to pick (types 2, 3), else black ones. */
         public boolean pickRed() {
@@ -54,9 +54,9 @@ public record WorldSnapshot(long nanos, Hero hero, Map<Integer, Ship> ships, Map
                     + " из " + (pickRed() ? red : black);
         }
 
-        /** «КАПЧА: соберите 3 чёрных ящика из 5, осталось 40 с» */
+        /** «ПРОВЕРКА: соберите 3 чёрных ящика из 5, осталось 40 с» */
         public String text(long nowNanos) {
-            return "КАПЧА: " + task() + (seconds > 0 ? ", осталось " + secondsLeft(nowNanos) + " с" : "");
+            return "ПРОВЕРКА: " + task() + (seconds > 0 ? ", осталось " + secondsLeft(nowNanos) + " с" : "");
         }
     }
 

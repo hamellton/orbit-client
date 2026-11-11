@@ -57,8 +57,8 @@ class PalladiumModuleTest {
     }
 
     @Test
-    void aCaptchaStopsEverythingAndSaysWhatItAsks() {
-        // live 2026-11-12 on gb2: the game's box captcha came, the bot kept flying at the circle's edge
+    void theGamesBoxCheckStopsEverythingAndSaysWhatItAsks() {
+        // live 2026-11-12 on gb2: the game's box check came, the bot kept flying at the circle's edge
         Sim sim = new Sim(config(), 93, 20_000, 20_000);
         orbit.protocol.gen.AddOreCommand ore = new orbit.protocol.gen.AddOreCommand();
         ore.hash = "p1";
@@ -81,8 +81,8 @@ class PalladiumModuleTest {
         int sent = sim.sent.size();
         sim.run(r::tick, 5_000);
         assertTrue(sim.sent.subList(sent, sim.sent.size()).stream().noneMatch(p -> p instanceof orbit.protocol.gen.MoveRequest
-                || p instanceof orbit.protocol.gen.HarvestRequest), "no move, no pickup during the captcha: " + sim.sent);
-        assertTrue(r.status().matches("КАПЧА: соберите 3 чёрных ящика из 5, осталось 3[56] с"), r.status());
+                || p instanceof orbit.protocol.gen.HarvestRequest), "no move, no pickup during the box check: " + sim.sent);
+        assertTrue(r.status().matches("ПРОВЕРКА: соберите 3 чёрных ящика из 5, осталось 3[56] с"), r.status());
         sim.world.apply(new orbit.protocol.gen.CaptchaResolvedCommand(), sim.now);
         sim.run(r::tick, 3_000);
         assertTrue(sim.sent.stream().anyMatch(p -> p instanceof orbit.protocol.gen.HarvestRequest), "back to work once solved");
