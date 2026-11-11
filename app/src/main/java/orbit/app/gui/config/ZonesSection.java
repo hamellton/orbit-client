@@ -47,7 +47,7 @@ final class ZonesSection implements Section {
         ButtonGroup g = new ButtonGroup();
         g.add(preferred);
         g.add(avoided);
-        JButton clear = new JButton("Очистить слой");
+        JButton clear = new JButton("Очистить");
         clear.addActionListener(e -> {
             boolean[][] layer = layer(map.mapId());
             for (boolean[] row : layer) {
@@ -57,8 +57,7 @@ final class ZonesSection implements Section {
         });
         view = new Form()
                 .section("Зоны")
-                .note("Левая кнопка мыши — закрасить, правая — стереть. В предпочтительной зоне бот ищет цели и "
-                        + "держится, запретную обходит. Зоны свои для каждой карты.")
+                .note("ЛКМ — закрасить, ПКМ — стереть. Зоны свои для каждой карты.")
                 .row("Карта", map)
                 .row("Слой", Form.inline(preferred, avoided, clear))
                 .wide(canvas, true)

@@ -37,7 +37,7 @@ public final class ConfigStore {
 
     public static void checkName(String name) {
         if (name == null || !NAME.matcher(name).matches() || name.startsWith(".") || name.isBlank()) {
-            throw new IllegalArgumentException("Недопустимое имя конфига: «" + name + "» (буквы, цифры, пробел, _ - .)");
+            throw new IllegalArgumentException("Имя конфига: буквы, цифры, пробел, _ - .");
         }
     }
 
@@ -76,7 +76,7 @@ public final class ConfigStore {
         checkName(name);
         Path f = file(name);
         if (!Files.exists(f)) {
-            throw new IOException("Конфиг «" + name + "» не найден (" + f + ")");
+            throw new IOException("Конфиг «" + name + "» не найден");
         }
         return Migrations.read((ObjectNode) Json.MAPPER.readTree(f.toFile()));
     }

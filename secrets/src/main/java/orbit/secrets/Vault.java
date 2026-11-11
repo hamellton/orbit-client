@@ -67,7 +67,7 @@ public final class Vault {
 
     static Vault open(Path file, char[] masterPassword, int iterationsForNew) throws VaultException {
         if (masterPassword == null || masterPassword.length == 0) {
-            throw new VaultException("Мастер-пароль не может быть пустым.");
+            throw new VaultException("Мастер-пароль пустой");
         }
         if (!Files.exists(file)) {
             byte[] salt = new byte[SALT_LEN];
@@ -78,19 +78,19 @@ public final class Vault {
         try {
             data = Files.readAllBytes(file);
         } catch (IOException e) {
-            throw new VaultException("Не удалось прочитать хранилище " + file + ": " + e.getMessage(), e);
+            throw new VaultException("Хранилище не читается: " + e.getMessage(), e);
         }
         if (data.length < HEADER_LEN + 16 || !Arrays.equals(Arrays.copyOf(data, MAGIC.length), MAGIC)) {
-            throw new VaultException("Файл " + file + " не является хранилищем бота.");
+            throw new VaultException("Это не хранилище бота: " + file.getFileName());
         }
         ByteBuffer header = ByteBuffer.wrap(data, MAGIC.length, HEADER_LEN - MAGIC.length);
         byte version = header.get();
         if (version != VERSION) {
-            throw new VaultException("Хранилище создано другой версией бота (формат " + version + ").");
+            throw new VaultException("Хранилище другой версии бота (формат " + version + ")");
         }
         int iterations = header.getInt();
         if (iterations < 10_000 || iterations > 10_000_000) {
-            throw new VaultException("Хранилище повреждено (число итераций " + iterations + ").");
+            throw new VaultException("Хранилище повреждено");
         }
         byte[] salt = new byte[SALT_LEN];
         byte[] nonce = new byte[NONCE_LEN];
@@ -103,7 +103,7 @@ public final class Vault {
             c.updateAAD(data, 0, HEADER_LEN);
             plain = c.doFinal(data, HEADER_LEN, data.length - HEADER_LEN);
         } catch (AEADBadTagException e) {
-            throw new VaultException("Неверный мастер-пароль или хранилище повреждено.", e);
+            throw new VaultException("Неверный мастер-пароль или файл повреждён", e);
         } catch (GeneralSecurityException e) {
             throw new VaultException("Ошибка расшифровки хранилища: " + e.getMessage(), e);
         }
@@ -111,7 +111,7 @@ public final class Vault {
             Map<String, Account> accounts = JSON.readValue(plain, new TypeReference<TreeMap<String, Account>>() { });
             return new Vault(file, iterations, salt, key, accounts);
         } catch (IOException e) {
-            throw new VaultException("Хранилище повреждено (содержимое не читается).", e);
+            throw new VaultException("Хранилище повреждено", e);
         } finally {
             Arrays.fill(plain, (byte) 0);
         }
@@ -172,7 +172,7 @@ public final class Vault {
                 Files.deleteIfExists(tmp);
             }
         } catch (IOException | GeneralSecurityException e) {
-            throw new VaultException("Не удалось сохранить хранилище " + file + ": " + e.getMessage(), e);
+            throw new VaultException("Хранилище не сохранено: " + e.getMessage(), e);
         } finally {
             if (plain != null) {
                 Arrays.fill(plain, (byte) 0);
@@ -196,7 +196,7 @@ public final class Vault {
             Arrays.fill(raw, (byte) 0);
             return key;
         } catch (GeneralSecurityException e) {
-            throw new VaultException("Не удалось получить ключ хранилища: " + e.getMessage(), e);
+            throw new VaultException("Нет ключа хранилища: " + e.getMessage(), e);
         } finally {
             spec.clearPassword();
         }

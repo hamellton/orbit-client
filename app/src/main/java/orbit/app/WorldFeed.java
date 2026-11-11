@@ -271,12 +271,12 @@ public final class WorldFeed {
             return a;
         }
         if (!mode.startsWith("бот")) {
-            return "— (корабль ведёт игрок)";
+            return "Ведёт игрок";
         }
         if (loggedOut) {
             return "Не в игре";
         }
-        return stats != null ? "Ожидание" : "нет (бот пока только держит связь)";
+        return stats != null ? "Ожидание" : "Только держит связь";
     }
 
     public String mode() {

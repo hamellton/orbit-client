@@ -418,7 +418,7 @@ final class MinimapPanel extends JPanel {
         String kind = switch (best.kind()) {
             case NPC -> "NPC";
             case PET -> "питомец";
-            case PLAYER -> best.factionId() == hero.factionId() ? "игрок своей фракции" : "игрок другой фракции";
+            case PLAYER -> best.factionId() == hero.factionId() ? "свой игрок" : "чужой игрок";
         };
         StringBuilder t = new StringBuilder("<html><b>").append(escape(label(best))).append("</b><br>").append(kind);
         if (!best.typeId().isBlank()) {
@@ -432,7 +432,7 @@ final class MinimapPanel extends JPanel {
         }
         t.append(String.format("<br>расстояние %,.0f", best.distanceTo(hero.x(), hero.y())));
         if (best.lockedByOther()) {
-            t.append("<br>атакует другой игрок");
+            t.append("<br>бьёт другой игрок");
         }
         return t.append("</html>").toString();
     }

@@ -82,31 +82,30 @@ final class AccountDialog {
             }
         } else {
             server.setSelectedItem("int1");
-            name.putClientProperty("JTextField.placeholderText", "например main");
+            name.putClientProperty("JTextField.placeholderText", "напр. main");
         }
-        proxy.putClientProperty("JTextField.placeholderText", "пусто — без прокси");
+        proxy.putClientProperty("JTextField.placeholderText", "пусто — напрямую");
 
-        JButton check = new JButton("Проверить прокси");
+        JButton check = new JButton("Проверить");
         check.addActionListener(e -> checkProxy(check));
 
         JPanel form = new JPanel(new GridBagLayout());
         int row = 0;
-        row = row(form, row, "Имя в боте", name, "Как аккаунт называется в боте: вкладка, журнал, расписание");
-        row = row(form, row, "Логин на сайте", login, null);
+        row = row(form, row, "Имя", name, "Имя в боте: вкладка, журнал");
+        row = row(form, row, "Логин", login, null);
         row = row(form, row, "Пароль", password, null);
-        row = row(form, row, "Сервер", server, "Сервер пилота, например int1 (GE1) или ru1");
+        row = row(form, row, "Сервер", server, "Напр. int1 (GE1) или ru1");
         JPanel proxyRow = new JPanel(new BorderLayout(6, 0));
         proxyRow.add(proxy, BorderLayout.CENTER);
         proxyRow.add(showProxy, BorderLayout.EAST);
-        row = row(form, row, "Прокси", proxyRow, "socks5://логин:пароль@адрес:порт, http://…, адрес:порт:логин:пароль — "
-                + "как дал продавец. Сайт и игра этого аккаунта пойдут только через него");
+        row = row(form, row, "Прокси", proxyRow, "socks5://логин:пароль@адрес:порт или адрес:порт:логин:пароль");
         JPanel checkRow = new JPanel(new BorderLayout(8, 0));
         checkRow.add(check, BorderLayout.WEST);
         checkRow.add(proxyResult, BorderLayout.CENTER);
         row = row(form, row, "", checkRow, null);
-        row = row(form, row, "Конфиг", config, "Что бот делает в игре; расписание — в «Конфиги и расписание…»");
+        row = row(form, row, "Конфиг", config, "Что бот делает в игре");
         if (running) {
-            JLabel note = new JLabel("Аккаунт запущен: логин, пароль и прокси применятся при следующем запуске.");
+            JLabel note = new JLabel("Логин, пароль и прокси — со следующего запуска");
             note.setForeground(Hud.DIM);
             row = row(form, row, "", note, null);
         }
@@ -176,16 +175,16 @@ final class AccountDialog {
         try {
             spec = ProxySpec.parse(proxyText());
         } catch (IllegalArgumentException e) {
-            showResult(false, "не разбирается: " + e.getMessage());
+            showResult(false, "Ошибка: " + e.getMessage());
             return;
         }
         if (spec.direct()) {
-            showResult(true, "прокси не задан — аккаунт пойдёт напрямую");
+            showResult(true, "Без прокси — напрямую");
             return;
         }
         button.setEnabled(false);
         proxyResult.setForeground(Hud.DIM);
-        proxyResult.setText("проверяю " + spec.describe() + "…");
+        proxyResult.setText("Проверяю…");
         new SwingWorker<String, Void>() {
             private boolean good;
 
@@ -231,7 +230,7 @@ final class AccountDialog {
         char[] pw = password.getPassword();
         try {
             if (!n.matches("[\\p{L}\\p{N}_.-]{1,64}")) {
-                showError("Имя: буквы, цифры, «_», «.», «-», до 64 символов");
+                showError("Имя: буквы, цифры, _ . - (до 64)");
                 return;
             }
             if (editing == null && vault.get(n) != null) {
@@ -239,11 +238,11 @@ final class AccountDialog {
                 return;
             }
             if (user.isEmpty()) {
-                showError("Укажите логин на сайте");
+                showError("Укажите логин");
                 return;
             }
             if (!srv.matches("[a-z]{2,3}\\d{1,3}")) {
-                showError("Сервер: например int1 или ru1");
+                showError("Сервер: напр. int1 или ru1");
                 return;
             }
             if (editing == null && pw.length == 0) {
@@ -292,7 +291,7 @@ final class AccountDialog {
                 all.with(n, new AccountSettings.Entry(cfg, entry.schedule())).save(file);
             }
         } catch (java.io.IOException e) {
-            showError("Аккаунт сохранён, но конфиг — нет: " + e.getMessage());
+            showError("Конфиг не сохранён: " + e.getMessage());
         }
     }
 }

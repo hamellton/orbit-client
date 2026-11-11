@@ -22,7 +22,7 @@ public final class ViewSettings {
         STATUS("Состояние"),
         SHIP("Корабль"),
         TARGET("Цель"),
-        ATTACKERS("Кто атакует"),
+        ATTACKERS("Атакующие"),
         BOOSTERS("Бустеры"),
         PET("Питомец"),
         GROUP("Группа"),
@@ -43,7 +43,7 @@ public final class ViewSettings {
     public enum Place {
         SIDE("Сбоку"),
         MAP("На карте"),
-        BOTH("Везде (сбоку и на карте)"),
+        BOTH("Сбоку и на карте"),
         HIDDEN("Скрыть");
 
         public final String label;
@@ -63,8 +63,8 @@ public final class ViewSettings {
 
     /** The parts of the account view around the map, each to show or hide. */
     public enum Section {
-        HEADER("Шапка (аккаунт, конфиг, кнопки)"),
-        SIDE("Боковая панель с карточками"),
+        HEADER("Шапка"),
+        SIDE("Боковая панель"),
         LOG("Журнал");
 
         public final String label;

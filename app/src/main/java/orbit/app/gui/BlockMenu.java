@@ -69,7 +69,7 @@ final class BlockMenu {
     private static JMenuItem[] windowItems() {
         ViewSettings v = ViewSettings.shared();
         java.util.List<JMenuItem> out = new java.util.ArrayList<>();
-        JMenuItem only = new JMenuItem("Только карта (скрыть всё остальное)");
+        JMenuItem only = new JMenuItem("Только карта");
         only.addActionListener(e -> v.mapOnly());
         JMenuItem all = new JMenuItem("Показать всё");
         all.addActionListener(e -> v.showAll());
@@ -91,7 +91,7 @@ final class BlockMenu {
             menu.add(i);
         }
         menu.addSeparator();
-        JMenuItem hint = new JMenuItem("Блоки (правый клик по карточке — её меню):");
+        JMenuItem hint = new JMenuItem("Блоки:");
         hint.setEnabled(false);
         menu.add(hint);
         for (ViewSettings.Block b : ViewSettings.Block.values()) {
@@ -122,13 +122,13 @@ final class BlockMenu {
 
     private static JMenuItem[] allItems() {
         ViewSettings v = ViewSettings.shared();
-        JMenuItem side = new JMenuItem("Все блоки сбоку");
+        JMenuItem side = new JMenuItem("Все сбоку");
         side.addActionListener(e -> v.setAll(ViewSettings.Place.SIDE));
-        JMenuItem map = new JMenuItem("Все блоки на карте");
+        JMenuItem map = new JMenuItem("Все на карте");
         map.addActionListener(e -> v.setAll(ViewSettings.Place.MAP));
-        JMenuItem both = new JMenuItem("Все блоки везде");
+        JMenuItem both = new JMenuItem("Все везде");
         both.addActionListener(e -> v.setAll(ViewSettings.Place.BOTH));
-        JMenuItem none = new JMenuItem("Скрыть все блоки");
+        JMenuItem none = new JMenuItem("Скрыть все");
         none.addActionListener(e -> v.setAll(ViewSettings.Place.HIDDEN));
         return new JMenuItem[] {side, map, both, none};
     }

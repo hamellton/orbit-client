@@ -194,7 +194,7 @@ final class AccountView extends JPanel {
         who.add(clock);
         JLabel proxy = new JLabel();
         proxy.setForeground(Hud.DIM);
-        proxy.setToolTipText("Сайт и игра этого аккаунта идут только через этот прокси; IP — по последней проверке");
+        proxy.setToolTipText("Прокси аккаунта; IP — по последней проверке");
         who.add(proxy);
         bar.add(who);
 
@@ -203,7 +203,7 @@ final class AccountView extends JPanel {
             cfgLabel.setForeground(Hud.DIM);
             JComboBox<String> configs = new JComboBox<>();
             configs.setPrototypeDisplayValue("CUBIKON_TEST_LONG");
-            configs.setToolTipText("Конфиг этого аккаунта; выбор применяется сразу и запоминается");
+            configs.setToolTipText("Применяется сразу");
             fill(configs);
             final boolean[] filling = {false};
             configs.addPopupMenuListener(new PopupMenuListener() {
@@ -241,7 +241,7 @@ final class AccountView extends JPanel {
             cfg.add(configs);
             bar.add(cfg);
             JButton edit = new JButton("Изменить…");
-            edit.setToolTipText("Открыть этот конфиг; сохранение применяется сразу");
+            edit.setToolTipText("Открыть конфиг");
             edit.addActionListener(e -> orbit.app.gui.config.ConfigWindow.open(orbit.config.ConfigStore.openDefault(),
                     orbit.config.AccountSettings.DEFAULT_FILE, null, tab.config().get(), tab.feed().title()));
             cfg.add(edit);
@@ -249,10 +249,10 @@ final class AccountView extends JPanel {
         JPanel actions = group();
         bar.add(actions);
         JButton view = new JButton("Блоки ▾");
-        view.setToolTipText("Каждый блок — сбоку, на карте или скрыть; правый клик по карточке — её меню");
+        view.setToolTipText("Где показывать блоки");
         view.addActionListener(e -> BlockMenu.all().show(view, 0, view.getHeight()));
         actions.add(view);
-        JButton all = new JButton("Все конфиги…");
+        JButton all = new JButton("Конфиги…");
         all.addActionListener(e -> orbit.app.gui.config.ConfigWindow.open(orbit.config.ConfigStore.openDefault(),
                 orbit.config.AccountSettings.DEFAULT_FILE, null));
         actions.add(all);
@@ -280,10 +280,10 @@ final class AccountView extends JPanel {
                     case STOPPING -> "Закрыть сразу";
                 });
                 toggle.setToolTipText(switch (p) {
-                    case STOPPED -> "Войти в игру и работать по конфигу аккаунта";
-                    case RUNNING -> a.inGame() ? "Выйти у портала или закрыть сразу; остальные аккаунты продолжат"
-                            : "Ещё не в игре — остановится сразу";
-                    case STOPPING -> "Идёт выход у портала; закрыть соединение сразу, не дожидаясь";
+                    case STOPPED -> "Войти и работать по конфигу";
+                    case RUNNING -> a.inGame() ? "Выйти у портала или закрыть сразу"
+                            : "Не в игре — остановится сразу";
+                    case STOPPING -> "Не ждать выхода у портала";
                 });
             };
             show.run();
@@ -291,10 +291,10 @@ final class AccountView extends JPanel {
             actions.add(toggle);
         } else if (tab.stop() != null) {
             JButton stop = new JButton("Остановить");
-            stop.setToolTipText("Долетит до портала и выйдет из игры; остальные аккаунты продолжат");
+            stop.setToolTipText("Выйти у портала");
             stop.addActionListener(e -> {
                 stop.setEnabled(false);
-                stop.setText("Останавливается…");
+                stop.setText("Остановка…");
                 Thread.ofPlatform().name("stop-" + tab.feed().account()).start(tab.stop());
             });
             actions.add(stop);

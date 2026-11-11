@@ -118,7 +118,7 @@ public record Account(String username, String password, String server, String do
         try {
             return proxySpec().describe();
         } catch (IllegalArgumentException e) {
-            return "*** (не разбирается: " + e.getMessage() + ")";
+            return "*** (ошибка: " + e.getMessage() + ")";
         }
     }
 }

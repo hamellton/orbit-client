@@ -16,8 +16,7 @@ final class Migrations {
     static BotConfig read(ObjectNode tree) throws IOException {
         int schema = tree.path("schema").asInt(1);
         if (schema > BotConfig.SCHEMA) {
-            throw new IOException("Конфиг новее этой версии бота (схема " + schema + ", поддерживается до "
-                    + BotConfig.SCHEMA + ") — обновите бота");
+            throw new IOException("Конфиг новой версии (схема " + schema + ") — обновите бота");
         }
         // no migrations yet: schema 1 is the first
         tree.put("schema", BotConfig.SCHEMA);

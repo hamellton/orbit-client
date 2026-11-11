@@ -24,8 +24,8 @@ class AccountRunnerTest {
 
         // the test's working directory has no local/accounts.json: no config, no timetable
         AccountRunner noPlan = new AccountRunner("gamma", v, ClientProfile.minimal());
-        assertTrue(noPlan.start(0).contains("не выбран конфиг"));
+        assertTrue(noPlan.start(0).contains("Не выбран конфиг"));
         assertEquals(ManagedAccount.Phase.STOPPED, noPlan.phase());
-        assertEquals("остановлен", noPlan.feed().state());
+        assertEquals("Остановлен", noPlan.feed().state());
     }
 }

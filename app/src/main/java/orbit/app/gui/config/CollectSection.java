@@ -19,7 +19,7 @@ final class CollectSection implements Section {
 
     private final JSpinner radius = Form.number(0, 10_000, 50);
     private final JCheckBox stayAway = new JCheckBox("Не собирать рядом с врагами");
-    private final JCheckBox ignoreContested = new JCheckBox("Пропускать ящики, к которым летят другие");
+    private final JCheckBox ignoreContested = new JCheckBox("Пропускать ящики, занятые другими");
     private final Boxes boxes = new Boxes();
     private final JTable table = new JTable(boxes);
     private final JComponent view;
@@ -29,7 +29,7 @@ final class CollectSection implements Section {
         table.setFillsViewportHeight(true);
         JButton add = new JButton("Добавить");
         add.addActionListener(e -> {
-            String type = JOptionPane.showInputDialog(table, "Тип ящика, как в игре (например BONUS_BOX):");
+            String type = JOptionPane.showInputDialog(table, "Тип ящика, напр. BONUS_BOX:");
             if (type != null && !type.isBlank()) {
                 boxes.add(type.strip());
             }
@@ -49,7 +49,7 @@ final class CollectSection implements Section {
                 .row("", stayAway)
                 .row("", ignoreContested)
                 .section("Ящики")
-                .note("Ожидание — сколько миллисекунд стоять на ящике перед сбором (некоторым ящикам нужно).")
+                .note("Ожидание — сколько стоять на ящике перед сбором.")
                 .wide(Form.inline(add, remove), false)
                 .wide(scroll, true)
                 .build(false);

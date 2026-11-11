@@ -17,7 +17,7 @@ import orbit.config.ItemCatalog;
 /** «Закупка»: which ammunition and rockets to buy when they run low, and what money to keep. */
 final class BuySection implements Section {
 
-    private final JCheckBox enabled = new JCheckBox("Закупка включена (боеприпасы и бустеры ниже)");
+    private final JCheckBox enabled = new JCheckBox("Включить закупку");
     private final JSpinner keepCredits = Form.number(0, 2_000_000_000, 100_000);
     private final JSpinner keepUridium = Form.number(0, 2_000_000_000, 1_000);
     private final DefaultTableModel rules = new DefaultTableModel(new Object[] {"Что", "Если меньше", "Купить"}, 0) {
@@ -60,20 +60,18 @@ final class BuySection implements Section {
             boosterBoxes.add(box);
         }
         view = new Form()
-                .section("Закупка боеприпасов")
+                .section("Боеприпасы")
                 .row("", enabled)
                 .row("Не тратить кредиты ниже", keepCredits)
-                .row("Не тратить уридиум ниже", keepUridium)
-                .note("Когда патронов или ракет становится меньше порога, бот докупает указанное количество, если "
-                        + "хватает денег сверх неприкосновенного запаса. Сама покупка подключается после записи одной "
-                        + "ручной покупки в магазине; до этого бот только пишет в журнал, что пора докупить.")
+                .row("Не тратить уридий ниже", keepUridium)
+                .note("Ниже «Если меньше» докупает «Купить», не трогая запас.")
+                .note("До записи одной ручной покупки — только пишет в журнал.")
                 .wide(Form.inline(add, remove), false)
                 .wide(scroll, true)
                 .section("Бустеры")
-                .note("Отмеченные бустеры бот покупает в магазине сайта за уридий (10 000 за штуку), когда их время "
-                        + "подходит к концу. Работает при включённой закупке выше и не тратит уридий ниже запаса.")
-                .row("Покупать, когда осталось меньше, мин", boosterMinutes)
-                .note("0 — когда бустер закончился.")
+                .note("Отмеченные — за уридий (10 000 за шт.), при включённой закупке.")
+                .row("Докупать, когда меньше, мин", boosterMinutes)
+                .note("0 — когда закончился.")
                 .wide(boosterBoxes, false)
                 .build(true);
     }

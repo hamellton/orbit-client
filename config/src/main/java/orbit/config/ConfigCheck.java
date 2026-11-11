@@ -35,17 +35,17 @@ public final class ConfigCheck {
             out.add(error("рабочая карта " + c.general().workingMap() + " неизвестна"));
         }
         switch (c.module()) {
-            case UNSUPPORTED -> out.add(error("модуль конфига пока не поддерживается ("
-                    + c.extra().getOrDefault("darkbot.module", Json.MAPPER.getNodeFactory().textNode("?")).asText() + ")"));
+            case UNSUPPORTED -> out.add(error("модуль "
+                    + c.extra().getOrDefault("darkbot.module", Json.MAPPER.getNodeFactory().textNode("?")).asText() + " не поддерживается"));
             case KILL, KILL_COLLECT -> {
                 long targets = c.npcs().values().stream().filter(n -> n.kill() && n.appliesOn(map.id())).count();
                 if (targets == 0) {
-                    out.add(error("на карте " + map.name() + " не выбрано ни одного NPC для атаки"));
+                    out.add(error("на " + map.name() + " не выбрано ни одного NPC"));
                 }
             }
             case CUBIKON -> {
                 if (!CUBIKON_MAPS.contains(map.id())) {
-                    out.add(warning("кубы появляются на 1-6, 2-6 и 3-6, а рабочая карта — " + map.name()));
+                    out.add(warning("кубы появляются на 1-6, 2-6, 3-6, а карта — " + map.name()));
                 }
                 BotConfig.NpcRule cube = c.npcs().get("-=[ Cubikon ]=-");
                 if (cube != null && !cube.kill()) {
@@ -54,25 +54,25 @@ public final class ConfigCheck {
             }
             case GALAXY_GATE -> {
                 if (!c.modules().containsKey(BotConfig.Module.GALAXY_GATE.key())) {
-                    out.add(error("не указаны врата (настройки модуля врат пустые)"));
+                    out.add(error("не указаны врата"));
                 }
             }
             default -> {
             }
         }
         if (c.module() != BotConfig.Module.COLLECT && c.loot().ammo() == null) {
-            out.add(warning("патроны не указаны — бот стреляет теми, что выбраны в игре"));
+            out.add(warning("патроны не указаны — будут те, что в игре"));
         }
         BotConfig.Safety s = c.safety();
         if (s.repairHpMin() > s.repairHpMax()) {
-            out.add(error("порог ухода на ремонт (" + pct(s.repairHpMin()) + ") выше порога «отремонтирован» ("
-                    + pct(s.repairHpMax()) + ")"));
+            out.add(error("порог ухода на ремонт " + pct(s.repairHpMin()) + " выше «отремонтирован» "
+                    + pct(s.repairHpMax())));
         }
         if (s.repairHpMin() <= 0.05) {
-            out.add(warning("ремонт только при HP ниже " + pct(s.repairHpMin()) + " — корабль часто будет гибнуть"));
+            out.add(warning("ремонт при HP ниже " + pct(s.repairHpMin()) + " — корабль будет гибнуть"));
         }
         if (s.maxDeaths() <= 0) {
-            out.add(warning("число смертей не ограничено — бот не остановится, сколько бы раз корабль ни погиб"));
+            out.add(warning("смерти не ограничены — бот не остановится"));
         }
         if (c.pet().enabled() && c.pet().gear() == null) {
             out.add(warning("питомец включён, но режим не выбран — будет «Охрана»"));

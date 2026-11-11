@@ -22,9 +22,9 @@ final class GateSection implements Section {
         text.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
         view = new Form()
                 .section("Врата (GG)")
-                .note("Пока модуль врат не готов, настройки показаны как есть (из импорта DarkBot): gateId — какие "
-                        + "врата (71 Зета, 74 Каппа, −4 ЕБГ…), kamikaze — когда питомцу взрываться, builder — постройка "
-                        + "врат и лимиты спинов. Когда модуль появится, здесь будет обычная форма.")
+                .note("Модуль не готов: настройки из импорта DarkBot как есть.")
+                .note("gateId — врата (71 Зета, 74 Каппа, −4 ЕБГ…), kamikaze — взрыв питомца, "
+                        + "builder — постройка и лимиты спинов.")
                 .wide(new JScrollPane(text), true)
                 .build(false);
     }

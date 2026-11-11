@@ -77,7 +77,7 @@ public final class CubikonModule implements BotModule {
     private long preemptCheckAt;
     /** Leave for a due cube this long before its flight time says (acceleration, a turn, a late click). */
     static final long LEAD_MS = 12_000;
-    private String status = "кубы";
+    private String status = "Cubikon";
 
     public CubikonModule(BotContext ctx, SpawnMemory memory) {
         this.ctx = ctx;
@@ -89,7 +89,7 @@ public final class CubikonModule implements BotModule {
 
     @Override
     public String status() {
-        return status + " (убито " + attacker.kills() + ", ящиков " + boxes.boxes() + ")";
+        return status;
     }
 
     @Override
@@ -138,7 +138,7 @@ public final class CubikonModule implements BotModule {
             double reach = Targets.radius(c, cube, h.mapId()) + 50;
             boolean onBox = boxesOk && boxes.tick(cube.x(), cube.y(), reach);
             attacker.tick(!onBox);
-            status = onBox ? "Cubikon: подбираю ящик" : "Cubikon: бой";
+            status = onBox ? "Ящик у куба" : "Бой: Cubikon";
             return;
         }
         if (onCube) {
@@ -149,7 +149,7 @@ public final class CubikonModule implements BotModule {
             // the cube is dead: on to the next spawn whoever shoots at us; its boxes are still picked up
             attacker.clear();
             if (setting(s, "collectBoxes", true) && boxes.tick(deadAt[0], deadAt[1])) {
-                status = "подбираю ящик с куба";
+                status = "Ящик с куба";
                 return;
             }
             camp(s, h);
@@ -173,7 +173,7 @@ public final class CubikonModule implements BotModule {
             attacker.clear(); // killed: camp() flies back to the spot
         }
         if (attacker.targetId() != 0) {
-            status = "бью, пока жду куб";
+            status = "Бой у спауна";
             return;
         }
         String waitKill = waitKill(s);
@@ -182,12 +182,12 @@ public final class CubikonModule implements BotModule {
             if (t != null) {
                 attacker.target(t);
                 attacker.tick(chase);
-                status = "бью, пока жду куб";
+                status = "Бой у спауна";
                 return;
             }
         }
         if (setting(s, "collectBoxes", true) && spot != null && boxes.tick(spot[0], spot[1])) {
-            status = "подбираю ящик";
+            status = "Ящик";
             return;
         }
         camp(s, h);
@@ -326,7 +326,7 @@ public final class CubikonModule implements BotModule {
                 ctx.nav().moveTo(spot[0], spot[1], dist < 2_500);
             }
             ctx.nav().tick();
-            status = "лечу на спаун " + spot[0] / 100 + "/" + spot[1] / 100;
+            status = "Лечу на " + spot[0] / 100 + "/" + spot[1] / 100;
             return;
         }
         if (arrivedAt == 0) {
@@ -343,7 +343,7 @@ public final class CubikonModule implements BotModule {
             arrivedAt = 0;
             return;
         }
-        status = "жду куб на спауне " + spot[0] / 100 + "/" + spot[1] / 100;
+        status = "Жду куб на " + spot[0] / 100 + "/" + spot[1] / 100;
     }
 
     private void choose(JsonNode s, WorldSnapshot.Hero h, boolean learned, int waitSec) {

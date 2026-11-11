@@ -86,10 +86,10 @@ public final class ProxyConnector {
             }
         } catch (SocketTimeoutException e) {
             throw new ProxyException(ProxyException.Kind.TARGET,
-                    "прокси " + p.address() + " не ответил за " + timeoutMs / 1000 + " с", e);
+                    "прокси не ответил за " + timeoutMs / 1000 + " с", e);
         } catch (EOFException e) {
             throw new ProxyException(ProxyException.Kind.PROTOCOL,
-                    "прокси " + p.address() + " закрыл соединение посреди рукопожатия", e);
+                    "прокси оборвал соединение", e);
         } finally {
             if (!s.isClosed()) {
                 s.setSoTimeout(before);
@@ -102,7 +102,7 @@ public final class ProxyConnector {
             s.connect(new InetSocketAddress(p.host(), p.port()), timeoutMs);
         } catch (IOException e) {
             throw new ProxyException(ProxyException.Kind.UNREACHABLE,
-                    "прокси " + p.address() + " недоступен: " + reason(e), e);
+                    "прокси недоступен: " + reason(e), e);
         }
     }
 
@@ -142,21 +142,19 @@ public final class ProxyConnector {
             version = readByte(in);
             method = readByte(in);
         } catch (SocketTimeoutException | EOFException e) {
-            throw new ProxyException(ProxyException.Kind.PROTOCOL, "прокси " + p.address()
-                    + " не отвечает как SOCKS5 — возможно, это HTTP-прокси (укажите http://)", e);
+            throw new ProxyException(ProxyException.Kind.PROTOCOL, "прокси не SOCKS5 — укажите http://", e);
         }
         if (version != 5) {
-            throw new ProxyException(ProxyException.Kind.PROTOCOL, "по адресу " + p.address()
-                    + " не SOCKS5-прокси" + (version == 'H' ? " (похоже на HTTP — укажите http://)" : ""));
+            throw new ProxyException(ProxyException.Kind.PROTOCOL, "это не SOCKS5-прокси" + (version == 'H' ? " — укажите http://" : ""));
         }
         if (method == 0xFF) {
             throw new ProxyException(ProxyException.Kind.AUTH, p.hasCredentials()
-                    ? "прокси " + p.address() + " не принимает вход по логину и паролю"
-                    : "прокси " + p.address() + " требует логин и пароль");
+                    ? "прокси не принимает логин и пароль"
+                    : "прокси требует логин и пароль");
         }
         if (method == 2) {
             if (!p.hasCredentials()) {
-                throw new ProxyException(ProxyException.Kind.AUTH, "прокси " + p.address() + " требует логин и пароль");
+                throw new ProxyException(ProxyException.Kind.AUTH, "прокси требует логин и пароль");
             }
             byte[] user = p.user().getBytes(StandardCharsets.UTF_8);
             byte[] pass = (p.password() == null ? "" : p.password()).getBytes(StandardCharsets.UTF_8);
@@ -173,11 +171,11 @@ public final class ProxyConnector {
             out.flush();
             readByte(in);
             if (readByte(in) != 0) {
-                throw new ProxyException(ProxyException.Kind.AUTH, "прокси " + p.address() + " отклонил логин или пароль");
+                throw new ProxyException(ProxyException.Kind.AUTH, "прокси отклонил логин или пароль");
             }
         } else if (method != 0) {
             throw new ProxyException(ProxyException.Kind.PROTOCOL,
-                    "прокси " + p.address() + " выбрал неизвестный способ входа " + method);
+                    "прокси: неизвестный способ входа " + method);
         }
 
         ByteArrayOutputStream req = new ByteArrayOutputStream();
@@ -209,12 +207,12 @@ public final class ProxyConnector {
             case 4 -> 16;
             case 3 -> readByte(in);
             default -> throw new ProxyException(ProxyException.Kind.PROTOCOL,
-                    "прокси " + p.address() + " ответил неизвестным типом адреса " + atyp);
+                    "прокси: неизвестный тип адреса " + atyp);
         };
         in.readNBytes(skip + 2);
         if (rep != 0) {
             throw new ProxyException(ProxyException.Kind.TARGET,
-                    "прокси " + p.address() + " не подключился к " + host + ":" + port + ": " + socksReply(rep));
+                    "прокси не подключился к " + host + ":" + port + ": " + socksReply(rep));
         }
     }
 
@@ -265,20 +263,19 @@ public final class ProxyConnector {
         try {
             head = readHead(s.getInputStream());
         } catch (EOFException e) {
-            throw new ProxyException(ProxyException.Kind.PROTOCOL, "прокси " + p.address()
-                    + " закрыл соединение на HTTP-запрос — возможно, это SOCKS5-прокси (укажите socks5://)", e);
+            throw new ProxyException(ProxyException.Kind.PROTOCOL, "прокси не HTTP — укажите socks5://", e);
         }
         String status = head.lines().findFirst().orElse("");
         String[] parts = status.split(" ", 3);
         if (parts.length < 2 || !parts[0].startsWith("HTTP/")) {
-            throw new ProxyException(ProxyException.Kind.PROTOCOL, "по адресу " + p.address() + " не HTTP-прокси"
-                    + (status.isEmpty() || status.charAt(0) == 5 ? " (похоже на SOCKS5 — укажите socks5://)" : ""));
+            throw new ProxyException(ProxyException.Kind.PROTOCOL, "это не HTTP-прокси"
+                    + (status.isEmpty() || status.charAt(0) == 5 ? " — укажите socks5://" : ""));
         }
         int code;
         try {
             code = Integer.parseInt(parts[1]);
         } catch (NumberFormatException e) {
-            throw new ProxyException(ProxyException.Kind.PROTOCOL, "прокси " + p.address() + " ответил непонятно: " + status);
+            throw new ProxyException(ProxyException.Kind.PROTOCOL, "прокси ответил непонятно: " + status);
         }
         if (code / 100 == 2) {
             return;
@@ -286,12 +283,12 @@ public final class ProxyConnector {
         String phrase = parts.length > 2 ? " (" + code + " " + parts[2] + ")" : " (" + code + ")";
         throw switch (code) {
             case 407 -> new ProxyException(ProxyException.Kind.AUTH, p.hasCredentials()
-                    ? "прокси " + p.address() + " отклонил логин или пароль"
-                    : "прокси " + p.address() + " требует логин и пароль");
+                    ? "прокси отклонил логин или пароль"
+                    : "прокси требует логин и пароль");
             case 403, 405 -> new ProxyException(ProxyException.Kind.TARGET,
-                    "прокси " + p.address() + " запретил соединение с " + target + phrase);
+                    "прокси запретил соединение с " + target + phrase);
             default -> new ProxyException(ProxyException.Kind.TARGET,
-                    "прокси " + p.address() + " не подключился к " + target + phrase);
+                    "прокси не подключился к " + target + phrase);
         };
     }
 
@@ -309,7 +306,7 @@ public final class ProxyConnector {
             }
             head.write(b);
             if (head.size() > MAX_HEAD) {
-                throw new IOException("слишком длинный заголовок ответа прокси");
+                throw new IOException("слишком длинный ответ прокси");
             }
             matched = (b == '\r' && (matched == 0 || matched == 2)) || (b == '\n' && (matched == 1 || matched == 3))
                     ? matched + 1 : b == '\r' ? 1 : 0;

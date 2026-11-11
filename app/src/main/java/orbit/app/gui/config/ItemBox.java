@@ -8,7 +8,7 @@ import orbit.config.ItemCatalog;
 /** Picks an item by name; gives its id. An id missing from the catalog is kept as its own entry. */
 final class ItemBox extends JComboBox<Object> {
 
-    private static final String NONE = "— как выбрано в игре";
+    private static final String NONE = "— как в игре";
     private final List<ItemCatalog.Item> items;
     private final boolean allowNone;
 

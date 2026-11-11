@@ -40,7 +40,7 @@ public final class BotRunner {
     private BotModule module;
     private BotConfig.Module moduleKind;
     private State state = State.STARTING;
-    private String status = "вход в игру";
+    private String status = "Вход в игру";
     private String stopReason;
     private int travelTarget;
     private long logoutAt;
@@ -137,7 +137,7 @@ public final class BotRunner {
         WorldSnapshot w = ctx.world().get();
         WorldSnapshot.Hero h = w.hero();
         if (h.id() == 0) {
-            show("вход в игру");
+            show("Вход в игру");
             return;
         }
         if (linkLost.getAsBoolean()) {
@@ -149,7 +149,7 @@ public final class BotRunner {
                 }
                 ctx.nav().stop();
             }
-            show("нет связи — переподключаюсь");
+            show("Нет связи, переподключаюсь");
             return;
         }
         if (offline) {
@@ -161,13 +161,13 @@ public final class BotRunner {
                 module.pause();
             }
             if (revive.limitReached()) {
-                fail("смертей " + revive.deaths() + " — достигнут лимит из конфига");
+                fail("лимит смертей (" + revive.deaths() + ")");
                 return;
             }
             if (state != State.STOPPING) {
                 state = State.DEAD;
             }
-            show(w.death() != null ? "уничтожен, жду ремонта" : "возрождение");
+            show(w.death() != null ? "Уничтожен" : "Возрождение");
             return;
         }
         if (module != null) {
@@ -184,7 +184,7 @@ public final class BotRunner {
                 module.pause();
             }
             state = State.FLEEING;
-            show("убегаю от " + flee.threat());
+            show("Бегу от " + flee.threat());
             return;
         }
         if (safety.tick(module != null && module.busy())) {
@@ -192,11 +192,11 @@ public final class BotRunner {
                 module.pause();
             }
             state = State.REPAIRING;
-            show("ремонт (HP " + Safety.pct(h.health().hpPercent()) + "%)");
+            show("Ремонт, HP " + Safety.pct(h.health().hpPercent()) + "%");
             return;
         }
         if (module == null) {
-            fail("модуль " + moduleKind + " пока не поддерживается");
+            fail("модуль " + moduleKind + " не поддерживается");
             return;
         }
         int map = module.workingMap();
@@ -214,7 +214,7 @@ public final class BotRunner {
         Traveler t = ctx.traveler();
         if (travelTarget != map || t.state() != Traveler.State.TRAVELLING) {
             if (travelTarget == map && t.state() == Traveler.State.FAILED) {
-                fail("не могу долететь до " + ctx.maps().info(map).name() + ": " + t.failure());
+                fail("нет пути на " + ctx.maps().info(map).name());
                 return;
             }
             module.pause();
@@ -225,7 +225,7 @@ public final class BotRunner {
         state = State.TRAVELLING;
         ctx.ship().want(ctx.config().get().general().travel());
         t.tick();
-        show("перелёт на " + ctx.maps().info(map).name());
+        show("Лечу на " + ctx.maps().info(map).name());
     }
 
     /** To the nearest portal (out of the crowd), wait a moment, press logout, keep still until the server ends it. */
@@ -234,12 +234,12 @@ public final class BotRunner {
         long now = ctx.now();
         if (loggedOut.getAsBoolean()) {
             state = State.STOPPED;
-            show("вышел из игры: " + stopReason);
+            show("Вышел: " + stopReason);
             log.info("Вышел из игры");
             return;
         }
         if (safety.tick(false)) {
-            show("ремонт перед выходом");
+            show("Ремонт перед выходом");
             logoutAt = 0;
             return;
         }
@@ -252,7 +252,7 @@ public final class BotRunner {
             }
             ctx.nav().tick();
             logoutAt = 0;
-            show("лечу к порталу, чтобы выйти");
+            show("К порталу для выхода");
             return;
         }
         ctx.nav().stop();
@@ -264,7 +264,7 @@ public final class BotRunner {
             ctx.actions().logout();
             logoutPressedAt = now;
         }
-        show("выход из игры");
+        show("Выход из игры");
     }
 
     private void fail(String why) {
@@ -272,7 +272,7 @@ public final class BotRunner {
         state = State.FAILED;
         stopReason = why;
         ctx.nav().stop();
-        show("остановлен: " + why);
+        show("Остановлен: " + why);
     }
 
     private void show(String s) {

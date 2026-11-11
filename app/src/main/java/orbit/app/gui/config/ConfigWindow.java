@@ -77,7 +77,7 @@ public final class ConfigWindow {
         buttons.add(button("Копия", this::copy));
         buttons.add(button("Переименовать", this::rename));
         buttons.add(button("Удалить", this::delete));
-        buttons.add(button("Импорт из DarkBot…", this::importDarkBot));
+        buttons.add(button("Импорт DarkBot…", this::importDarkBot));
         JPanel left = new JPanel(new BorderLayout(0, 8));
         left.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 0));
         left.add(new JLabel("Конфиги"), BorderLayout.NORTH);
@@ -92,7 +92,7 @@ public final class ConfigWindow {
         // the main action in the accent colour
         saveButton.setBackground(new java.awt.Color(0x0e4a66));
         saveButton.setForeground(orbit.app.gui.Theme.TEXT);
-        bottom.add(Form.inline(button("Проверить", this::runCheck), button("Отменить изменения", this::revert),
+        bottom.add(Form.inline(button("Проверить", this::runCheck), button("Отменить", this::revert),
                 saveButton), BorderLayout.EAST);
         JPanel right = new JPanel(new BorderLayout(0, 6));
         right.setBorder(BorderFactory.createEmptyBorder(8, 0, 0, 0));
@@ -106,7 +106,7 @@ public final class ConfigWindow {
         pages.setBackground(orbit.app.gui.Theme.SURFACE);
         pages.setOpaque(true);
         pages.addTab("Конфиги", split);
-        pages.addTab("Аккаунты и расписание", accounts.view());
+        pages.addTab("Аккаунты", accounts.view());
         pages.addChangeListener(e -> accounts.refreshConfigs());
 
         frame.setContentPane(pages);
@@ -215,7 +215,7 @@ public final class ConfigWindow {
         if (target == null) {
             current = null;
             loaded = null;
-            title.setText("Конфигов нет — создайте новый или импортируйте из DarkBot");
+            title.setText("Конфигов нет — создайте или импортируйте");
             tabs.setEnabled(false);
             return;
         }
@@ -271,7 +271,7 @@ public final class ConfigWindow {
         if (!dirty()) {
             return true;
         }
-        int a = JOptionPane.showConfirmDialog(frame, "Сохранить изменения в «" + current + "»?", "Конфиг",
+        int a = JOptionPane.showConfirmDialog(frame, "Сохранить «" + current + "»?", "Конфиг",
                 JOptionPane.YES_NO_CANCEL_OPTION);
         if (a == JOptionPane.YES_OPTION) {
             return save();
@@ -283,7 +283,7 @@ public final class ConfigWindow {
         if (!accounts.dirty()) {
             return true;
         }
-        int a = JOptionPane.showConfirmDialog(frame, "Сохранить изменения аккаунтов и расписания?", "Аккаунты",
+        int a = JOptionPane.showConfirmDialog(frame, "Сохранить аккаунты?", "Аккаунты",
                 JOptionPane.YES_NO_CANCEL_OPTION);
         if (a == JOptionPane.YES_OPTION) {
             return accounts.save();
@@ -455,7 +455,7 @@ public final class ConfigWindow {
         try {
             List<Path> files = java.nio.file.Files.isDirectory(source) ? DarkBotImport.profiles(source) : List.of(source);
             if (files.isEmpty()) {
-                JOptionPane.showMessageDialog(frame, "Профилей DarkBot не найдено (нужна папка DarkBot или её configs)");
+                JOptionPane.showMessageDialog(frame, "Профилей нет: выберите папку DarkBot или configs");
                 return;
             }
             Boolean overwrite = null;
@@ -463,8 +463,8 @@ public final class ConfigWindow {
                 String name = DarkBotImport.nameOf(f);
                 if (store.exists(name)) {
                     if (overwrite == null) {
-                        overwrite = JOptionPane.showConfirmDialog(frame, "Некоторые конфиги уже есть (например «" + name
-                                + "»). Заменить их?", "Импорт", JOptionPane.YES_NO_OPTION) == JOptionPane.YES_OPTION;
+                        overwrite = JOptionPane.showConfirmDialog(frame, "Конфиги уже есть (например «" + name
+                                + "»). Заменить?", "Импорт", JOptionPane.YES_NO_OPTION) == JOptionPane.YES_OPTION;
                     }
                     if (!overwrite) {
                         report.append(name).append(": уже есть, пропущен\n");

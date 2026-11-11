@@ -176,22 +176,22 @@ public final class ManagerWindow {
         JPanel bar = new JPanel(new WrapLayout(FlowLayout.LEFT, 8, 6));
         bar.setBackground(Theme.SURFACE);
         bar.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, Theme.BORDER));
-        bar.add(button("Добавить…", this::add, "Новый аккаунт: логин, пароль, сервер, прокси, конфиг"));
-        bar.add(button("Изменить…", this::edit, "Логин, пароль, сервер, прокси и конфиг выбранного аккаунта"));
-        bar.add(button("Удалить", this::remove, "Убрать аккаунт из бота (логин и пароль удаляются из хранилища)"));
+        bar.add(button("Добавить…", this::add, "Новый аккаунт"));
+        bar.add(button("Изменить…", this::edit, "Настройки выбранного аккаунта"));
+        bar.add(button("Удалить", this::remove, "Удалить аккаунт с логином и паролем"));
         bar.add(gap());
-        bar.add(button("Проверить прокси", this::checkProxy, "Связь через прокси аккаунта с сайтом игры и внешний IP; без входа"));
+        bar.add(button("Проверить прокси", this::checkProxy, "Связь с сайтом и внешний IP, без входа"));
         bar.add(gap());
-        JButton start = button("Запустить", this::start, "Войти в игру и работать по конфигу или расписанию");
+        JButton start = button("Запустить", this::start, "Войти и работать по конфигу");
         start.setBackground(new Color(0x0e4a66));
         bar.add(start);
-        bar.add(button("Остановить", this::stop, "В игре — выйти у портала или закрыть сразу; не в игре — сразу"));
-        bar.add(button("Запустить все", this::startAll, "Все остановленные аккаунты с конфигом; входы — с паузами 15–45 с"));
-        bar.add(button("Остановить все", this::stopAll, "Те, что в игре, — выйти у портала или закрыть сразу; остальные — сразу"));
+        bar.add(button("Остановить", this::stop, "Выйти у портала или закрыть сразу"));
+        bar.add(button("Запустить все", this::startAll, "Входы с паузой 15–45 с"));
+        bar.add(button("Остановить все", this::stopAll, "Выйти у портала или закрыть сразу"));
         bar.add(gap());
-        bar.add(button("Конфиги и расписание…", () -> orbit.app.gui.config.ConfigWindow.open(
+        bar.add(button("Конфиги…", () -> orbit.app.gui.config.ConfigWindow.open(
                 orbit.config.ConfigStore.openDefault(), AccountSettings.DEFAULT_FILE, null),
-                "Настройки модулей и расписание аккаунтов"));
+                "Конфиги и расписание"));
 
         hint.setForeground(Hud.DIM);
         hint.setBorder(BorderFactory.createEmptyBorder(6, 10, 8, 10));
@@ -231,7 +231,7 @@ public final class ManagerWindow {
     private String needSelected() {
         String n = selected();
         if (n == null) {
-            JOptionPane.showMessageDialog(frame, "Выберите аккаунт в списке", "Аккаунты", JOptionPane.INFORMATION_MESSAGE);
+            JOptionPane.showMessageDialog(frame, "Выберите аккаунт", "Аккаунты", JOptionPane.INFORMATION_MESSAGE);
         }
         return n;
     }
@@ -257,11 +257,10 @@ public final class ManagerWindow {
             return;
         }
         if (account(n).phase() != ManagedAccount.Phase.STOPPED) {
-            JOptionPane.showMessageDialog(frame, "Сначала остановите аккаунт «" + n + "»", "Аккаунты", JOptionPane.WARNING_MESSAGE);
+            JOptionPane.showMessageDialog(frame, "Сначала остановите «" + n + "»", "Аккаунты", JOptionPane.WARNING_MESSAGE);
             return;
         }
-        if (JOptionPane.showConfirmDialog(frame, "Удалить аккаунт «" + n + "»? Логин, пароль и прокси будут удалены из "
-                + "хранилища, конфиг и расписание аккаунта — тоже.", "Удалить аккаунт", JOptionPane.OK_CANCEL_OPTION,
+        if (JOptionPane.showConfirmDialog(frame, "<html>Удалить «" + n + "»?<br>Логин, пароль, прокси и расписание удалятся.</html>", "Удалить", JOptionPane.OK_CANCEL_OPTION,
                 JOptionPane.WARNING_MESSAGE) != JOptionPane.OK_OPTION) {
             return;
         }
@@ -291,15 +290,15 @@ public final class ManagerWindow {
         try {
             spec = a.proxySpec();
         } catch (IllegalArgumentException e) {
-            JOptionPane.showMessageDialog(frame, "Прокси не разбирается: " + e.getMessage(), n, JOptionPane.WARNING_MESSAGE);
+            JOptionPane.showMessageDialog(frame, "Неверный прокси: " + e.getMessage(), n, JOptionPane.WARNING_MESSAGE);
             return;
         }
         if (spec.direct()) {
-            JOptionPane.showMessageDialog(frame, "У аккаунта «" + n + "» нет прокси — он ходит напрямую.", n,
+            JOptionPane.showMessageDialog(frame, "Без прокси — напрямую", n,
                     JOptionPane.INFORMATION_MESSAGE);
             return;
         }
-        hint.setText("Проверяю " + spec.describe() + "…");
+        hint.setText("Проверяю прокси…");
         new SwingWorker<String, Void>() {
             private boolean good;
 
@@ -340,12 +339,12 @@ public final class ManagerWindow {
     String startOne(String n, long delayMs, boolean tell) {
         ManagedAccount a = account(n);
         if (a.phase() != ManagedAccount.Phase.STOPPED) {
-            return "уже запущен";
+            return "Уже запущен";
         }
         String why = a.start(delayMs);
         if (why != null) {
             if (tell) {
-                JOptionPane.showMessageDialog(frame, Theme.wrapped(why, 420), "Аккаунт «" + n + "» не запущен",
+                JOptionPane.showMessageDialog(frame, Theme.wrapped(why, 420), "«" + n + "» не запущен",
                         JOptionPane.WARNING_MESSAGE);
             }
             return why;
@@ -362,7 +361,7 @@ public final class ManagerWindow {
         }
         ManagedAccount a = account(n);
         if (a.phase() == ManagedAccount.Phase.STOPPING) {
-            if (JOptionPane.showConfirmDialog(frame, "«" + n + "» уже выходит из игры. Закрыть сразу, не дожидаясь выхода?",
+            if (JOptionPane.showConfirmDialog(frame, "«" + n + "» выходит у портала. Закрыть сразу?",
                     "Остановить", JOptionPane.OK_CANCEL_OPTION, JOptionPane.QUESTION_MESSAGE) == JOptionPane.OK_OPTION) {
                 a.stopNow();
             }
@@ -431,7 +430,7 @@ public final class ManagerWindow {
         }
         AccountView view = new AccountView(tab);
         view.putClientProperty("JTabbedPane.tabClosable", true);
-        view.putClientProperty("JTabbedPane.tabCloseToolTipText", "Закрыть вкладку (запущенный аккаунт будет остановлен)");
+        view.putClientProperty("JTabbedPane.tabCloseToolTipText", "Закрыть (аккаунт остановится)");
         pane.addTab(a.feed().title(), AccountStatus.dot(() -> status(a)), view);
         rebuildOverview();
     }
@@ -520,9 +519,8 @@ public final class ManagerWindow {
     }
 
     private void updateHint() {
-        hint.setText(model.names.isEmpty() ? "Аккаунтов нет — нажмите «Добавить…»"
-                : "Двойной щелчок — вкладка запущенного аккаунта или его настройки. Секреты хранятся только в "
-                        + "зашифрованном хранилище.");
+        hint.setText(model.names.isEmpty() ? "Нет аккаунтов — «Добавить…»"
+                : "Двойной щелчок — вкладка или настройки аккаунта");
     }
 
     private Object[] row(String n, AccountSettings settings) {
@@ -541,7 +539,7 @@ public final class ManagerWindow {
         if (entry.schedule().enabled() && !entry.schedule().entries().isEmpty()) {
             var d = entry.decide(java.time.LocalDateTime.now(), n.hashCode());
             String until = d.until() == null ? "" : " до " + d.until().toLocalTime().withNano(0);
-            schedule = d.online() ? "сейчас " + d.config() + until : "сейчас перерыв" + until;
+            schedule = d.online() ? d.config() + until : "Перерыв" + until;
         }
         WorldFeed feed = a.feed();
         String session = "";
@@ -552,7 +550,7 @@ public final class ManagerWindow {
             double hours = feed.sessionHours();
             results = money(r.credits(), hours) + " кр · " + money(r.uridium(), hours) + " ур";
         }
-        return new Object[] {n, acc.username(), acc.home(), proxy, config == null ? "— не выбран" : config, schedule,
+        return new Object[] {n, acc.username(), acc.home(), proxy, config == null ? "—" : config, schedule,
             new State(stateText(a), stateColor(a)), session, results};
     }
 
@@ -597,7 +595,7 @@ public final class ManagerWindow {
             return;
         }
         JDialog wait = new JDialog(frame, "Закрытие", false);
-        JLabel text = new JLabel("Аккаунты останавливаются…");
+        JLabel text = new JLabel("Остановка…");
         text.setBorder(BorderFactory.createEmptyBorder(16, 20, 16, 20));
         wait.setContentPane(text);
         wait.pack();
@@ -606,7 +604,7 @@ public final class ManagerWindow {
         long giveUp = System.currentTimeMillis() + 150_000; // a logout waits two minutes at most
         new Timer(500, e -> {
             long left = running.stream().filter(a -> a.phase() != ManagedAccount.Phase.STOPPED).count();
-            text.setText("Аккаунты останавливаются… осталось " + left);
+            text.setText("Остановка… осталось " + left);
             wait.pack();
             if (left == 0 || System.currentTimeMillis() > giveUp) {
                 ((Timer) e.getSource()).stop();
@@ -629,7 +627,7 @@ public final class ManagerWindow {
 
     static final class Model extends AbstractTableModel {
         private static final String[] COLUMNS = {"Аккаунт", "Логин", "Сервер", "Прокси", "Конфиг", "Расписание",
-            "Состояние", "Сессия", "Итоги сессии"};
+            "Состояние", "Сессия", "Итоги"};
         List<String> names = List.of();
         List<Object[]> rows = List.of();
 

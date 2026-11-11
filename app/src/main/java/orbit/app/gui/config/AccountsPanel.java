@@ -61,7 +61,7 @@ final class AccountsPanel {
 
         JButton add = new JButton("Добавить");
         add.addActionListener(e -> {
-            String n = JOptionPane.showInputDialog(list, "Имя аккаунта, как в хранилище (vault list):");
+            String n = JOptionPane.showInputDialog(list, "Имя аккаунта (как в vault list):");
             if (n != null && !n.isBlank() && !names.contains(n.strip())) {
                 keep();
                 settings = settings.with(n.strip(), new AccountSettings.Entry(null, null));
@@ -72,8 +72,8 @@ final class AccountsPanel {
         JButton remove = new JButton("Убрать");
         remove.addActionListener(e -> {
             String n = list.getSelectedValue();
-            if (n != null && JOptionPane.showConfirmDialog(list, "Убрать настройки аккаунта «" + n + "»? Логин и пароль "
-                    + "в хранилище останутся.", "Аккаунты", JOptionPane.OK_CANCEL_OPTION) == JOptionPane.OK_OPTION) {
+            if (n != null && JOptionPane.showConfirmDialog(list, "Убрать настройки «" + n + "»?\n"
+                    + "Логин и пароль останутся.", "Аккаунты", JOptionPane.OK_CANCEL_OPTION) == JOptionPane.OK_OPTION) {
                 settings = settings.with(n, null);
                 current = null;
                 names.removeElement(n);
@@ -101,10 +101,9 @@ final class AccountsPanel {
                 .row("Конфиг", config)
                 .section("Расписание")
                 .row("", scheduleOn)
-                .row("Случайный сдвиг начала и конца, мин", jitter)
-                .note("Окна проверяются сверху вниз, первое подходящее выигрывает. «перерыв» — бот не в игре. "
-                        + "Окно может переходить через полночь (22:00–02:00). Дни: «все», «Пн-Пт», «Сб, Вс». "
-                        + "Вне окон бот не в игре.")
+                .row("Разброс ±, мин", jitter)
+                .note("Действует первое подходящее окно; «перерыв» и вне окон — не в игре.")
+                .note("Дни: «все», «Пн-Пт», «Сб, Вс». Через полночь можно: 22:00–02:00.")
                 .wide(Form.inline(addRow, removeRow), false)
                 .wide(scroll, true)
                 .row("", now)
@@ -221,7 +220,7 @@ final class AccountsPanel {
         }
         Schedule.Decision d = settings.account(current).decide(LocalDateTime.now(), current.hashCode());
         String until = d.until() == null ? "" : " до " + d.until().toLocalDate() + " " + d.until().toLocalTime().withNano(0);
-        now.setText(d.online() ? "Сейчас: " + d.config() + until : "Сейчас: бот не в игре" + until);
+        now.setText(d.online() ? "Сейчас: " + d.config() + until : "Сейчас: не в игре" + until);
     }
 
     boolean save() {

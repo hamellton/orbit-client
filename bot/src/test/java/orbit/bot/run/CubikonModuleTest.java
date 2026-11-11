@@ -42,7 +42,7 @@ class CubikonModuleTest {
         sim.run(m::tick, 8_000);
         var h = sim.hero();
         assertTrue(Math.hypot(h.x() - 13_400, h.y() - 3_900) <= 450, "at spot 2 (nearest): " + h);
-        assertTrue(m.status().contains("жду куб на спауне 134/39"), m.status());
+        assertTrue(m.status().contains("Жду куб на 134/39"), m.status());
         sim.run(m::tick, 37_000); // waits 20-25 s, flies 4000 units
         h = sim.hero();
         assertTrue(Math.hypot(h.x() - 13_400, h.y() - 7_900) <= 450, "went on to spot 3: " + h);

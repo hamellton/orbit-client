@@ -97,7 +97,7 @@ public final class DarkBotImport {
         String moduleClass = general.path("CURRENT_MODULE").asText("");
         BotConfig.Module module = module(moduleClass);
         if (module == BotConfig.Module.UNSUPPORTED) {
-            report.add("Модуль " + moduleClass + " пока не поддерживается — конфиг сохранён, модуль не запустится");
+            report.add("Модуль " + moduleClass + " не поддерживается — не запустится");
             extra.put("darkbot.module", Json.MAPPER.getNodeFactory().textNode(moduleClass));
         }
         BotConfig.General g = general(general);
@@ -112,12 +112,10 @@ public final class DarkBotImport {
         Map<Integer, List<BotConfig.SafetySpot>> spots = safetySpots(root.path("SAFETY"));
         moduleSettings(module, moduleClass, root.path("CUSTOM_CONFIGS"));
         keepRest(root, enabled, moduleClass);
-        report.add("Патроны и формации в DarkBot заданы клавишами панели, а боту клавиши не нужны — выберите "
-                + "их по названию (вкладки «Общее», «Атака», «Безопасность»); пока не выбраны, бот берёт то, что "
-                + "выбрано в игре");
+        report.add("Патроны и формации заданы клавишами — выберите их по названию");
         report.add(0, "Модуль " + module + ", рабочая карта " + g.workingMap() + ", NPC " + npcs.size()
                 + ", ящиков " + collect.boxes().size() + ", карт с зонами " + zones.size()
-                + ", карт с точками безопасности " + spots.size());
+                + ", точек безопасности " + spots.size());
         BotConfig c = new BotConfig(BotConfig.SCHEMA, description, module, g, npcs, loot, collect, pet, safety, zones,
                 spots, modules, extra);
         JsonNode running = general.path("RUNNING");
@@ -352,7 +350,7 @@ public final class DarkBotImport {
                     report.add("Врата: gateId " + gate.path("gateId").asInt() + ", камикадзе "
                             + (gate.path("kamikaze").path("enabled").asBoolean() ? "вкл" : "выкл") + ", постройка "
                             + (gate.path("builder").path("enabled").asBoolean() ? "вкл" : "выкл")
-                            + " (настройки сохранены как есть)");
+                            + "");
                 }
             }
             default -> {
@@ -384,7 +382,7 @@ public final class DarkBotImport {
         if (!kept.isEmpty()) {
             report.add("Сохранены без поддержки (функции DarkBot): " + String.join(", ", kept));
         }
-        report.add("Не переносятся: настройки окна и браузера DarkBot (BOT_SETTINGS), выключенные функции плагинов");
+        report.add("Не переносятся: настройки окна DarkBot и выключенные плагины");
     }
 
     private static String textOrNull(JsonNode n) {

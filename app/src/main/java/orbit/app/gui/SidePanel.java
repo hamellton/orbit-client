@@ -34,7 +34,7 @@ final class SidePanel extends JPanel implements Scrollable {
         this.feed = feed;
         this.config = config;
         BlockMenu.attach(this, p -> blockAt(cardsAt, p));
-        setToolTipText("Правый клик по карточке — перенести на карту или скрыть");
+        setToolTipText("Правый клик — меню");
         Font f = javax.swing.UIManager.getFont("Label.font");
         this.hud = new Hud(f != null ? f : getFont());
         setOpaque(true);

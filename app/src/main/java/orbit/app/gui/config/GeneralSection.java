@@ -24,10 +24,10 @@ final class GeneralSection implements Section {
     private final JCheckBox runFromEnemies = new JCheckBox("Убегать от врагов, которые атакуют или приближаются");
     private final JCheckBox runInSight = new JCheckBox("Убегать, как только враг виден");
     private final JSpinner remember = Form.number(0, 3600, 30);
-    private final JCheckBox sequential = new JCheckBox("Облетать карту по порядку, а не случайно");
+    private final JCheckBox sequential = new JCheckBox("По порядку, а не случайно");
     private final JCheckBox onlyPreferred = new JCheckBox("Бить только в предпочтительной зоне");
-    private final JCheckBox runTravel = new JCheckBox("Перелёты (между картами и спаунами) — в конфигурации бегства");
-    private final JCheckBox runChase = new JCheckBox("Догонять цель в конфигурации бегства");
+    private final JCheckBox runTravel = new JCheckBox("Перелёты — в конфиге бегства");
+    private final JCheckBox runChase = new JCheckBox("Догонять цель в конфиге бегства");
     private final JCheckBox avoidMines = new JCheckBox("Обходить мины");
     private final JTextArea description = new JTextArea(5, 50);
     private final JSpinner work = Form.number(0, 24 * 60, 10);
@@ -41,29 +41,25 @@ final class GeneralSection implements Section {
         description.setWrapStyleWord(true);
         view = new Form()
                 .section("Модуль")
-                .row("Что делает бот", module)
+                .row("Режим", module)
                 .row("Рабочая карта", map)
-                .section("Конфигурация корабля и формация дронов")
+                .section("Конфиг корабля и формация")
                 .row("Атака", offensive.view())
                 .row("Полёт и сбор", roam.view())
                 .row("Бегство", run.view())
                 .row("", runTravel)
                 .row("", runChase)
                 .row("", avoidMines)
-                .note("Бот облетает мины на карте и не берёт ящики рядом с ними; чьи они — игра не сообщает, "
-                        + "поэтому обходятся все.")
-                .note("Догонять — когда цель дальше своего радиуса больше чем на 300; у NPC с флагом AGGRESSIVE_FOLLOW "
-                        + "(«Атака» → флаги) — всегда, и бот летит туда, куда NPC движется.")
+                .note("Обходит все мины, ящики у мин не берёт.")
+                .note("Догоняет, если цель дальше радиуса на 300+; AGGRESSIVE_FOLLOW — всегда.")
                 .section("Облёт карты")
                 .row("", sequential)
                 .row("", onlyPreferred)
                 .section("Сессии")
                 .row("Работать, мин", work)
-                .row("Потом перерыв, мин", rest)
+                .row("Перерыв, мин", rest)
                 .row("Разброс ±, мин", jitter)
-                .note("0 — работать без ограничения. После перерыва бот сам входит снова. Если у аккаунта включено "
-                        + "расписание, сессия не выходит за его окно. Разброс делает каждую сессию и перерыв чуть "
-                        + "другой длины, как у живого игрока.")
+                .note("0 — без ограничения. Сессии не выходят за окна расписания.")
                 .section("Описание")
                 .wide(new JScrollPane(description), false)
                 .build(true);

@@ -149,7 +149,7 @@ public final class HttpSession {
             }
             return new Response(status, uri, headers, readBody(conn));
         }
-        throw new IOException("слишком много переадресаций, последняя: " + uri.getHost());
+        throw new IOException("слишком много переадресаций");
     }
 
     /**

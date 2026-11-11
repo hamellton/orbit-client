@@ -22,13 +22,13 @@ import orbit.world.maps.MapCatalog;
 final class KillSection implements Section {
 
     private final ItemBox ammo = new ItemBox(ItemCatalog.LASERS, true);
-    private final JCheckBox useSab = new JCheckBox("Щитовые патроны (SAB), когда свой щит ниже");
+    private final JCheckBox useSab = new JCheckBox("SAB при своём щите ниже");
     private final ItemBox sab = new ItemBox(ItemCatalog.LASERS, false);
     private final JSpinner sabBelow = Form.percent();
     private final JSpinner sabNpcShield = Form.number(0, 10_000_000, 1000);
-    private final JCheckBox useRsb = new JCheckBox("Быстрый залп (RSB), когда готов");
+    private final JCheckBox useRsb = new JCheckBox("RSB, когда готов");
     private final ItemBox rsb = new ItemBox(ItemCatalog.LASERS, false);
-    private final JCheckBox groupNpcs = new JCheckBox("Бить стоящих рядом NPC подряд");
+    private final JCheckBox groupNpcs = new JCheckBox("Бить соседних NPC подряд");
     static final java.util.List<ItemCatalog.Item> ROCKET_CHOICES;
 
     static {
@@ -41,8 +41,8 @@ final class KillSection implements Section {
     private final ItemBox rocket = new ItemBox(ROCKET_CHOICES, true);
     private final ItemBox fallback1 = new ItemBox(ItemCatalog.LASERS, true);
     private final ItemBox fallback2 = new ItemBox(ItemCatalog.LASERS, true);
-    private final JCheckBox circle = new JCheckBox("Кружить вокруг цели на её радиусе");
-    private final JCheckBox fireRockets = new JCheckBox("Пускать ракеты самому (если на корабле нет ракетного CPU)");
+    private final JCheckBox circle = new JCheckBox("Кружить вокруг цели");
+    private final JCheckBox fireRockets = new JCheckBox("Пускать ракеты сам (без ракетного CPU)");
     private final JSpinner ignoreFarther = Form.number(0, 50_000, 500);
     private final NpcTable npcs;
     private final JTable table;
@@ -72,7 +72,7 @@ final class KillSection implements Section {
         }));
         JButton add = new JButton("Добавить");
         add.addActionListener(e -> {
-            String name = JOptionPane.showInputDialog(table, "Имя NPC, как в игре (например -=[ Streuner ]=-):");
+            String name = JOptionPane.showInputDialog(table, "Имя NPC, напр. -=[ Streuner ]=-:");
             if (name != null && !name.isBlank()) {
                 int row = table.convertRowIndexToView(npcs.add(name.strip(), 0));
                 table.setRowSelectionInterval(row, row);
@@ -97,8 +97,8 @@ final class KillSection implements Section {
         useRsb.addActionListener(e -> sync());
         view = new Form()
                 .section("Патроны")
-                .row("Лазерные патроны", ammo)
-                .row("Запасные, если кончились", Form.inline(fallback1, fallback2))
+                .row("Основные", ammo)
+                .row("Запасные", Form.inline(fallback1, fallback2))
                 .row("", Form.inline(useSab, sabBelow, new javax.swing.JLabel("%")))
                 .row("Патроны SAB", sab)
                 .row("Щит NPC не меньше", sabNpcShield)
@@ -107,19 +107,16 @@ final class KillSection implements Section {
                 .section("Ракеты")
                 .row("Ракеты", rocket)
                 .row("", fireRockets)
-                .note("С ракетным CPU сервер сам пускает выбранные ракеты, пока идёт атака: бот только держит нужный "
-                        + "тип. Свой тип для отдельного NPC — колонка «Ракеты» в списке.")
+                .note("С ракетным CPU бот лишь держит тип. Тип для NPC — в списке.")
                 .section("Цели")
                 .row("", circle)
-                .note("Как в DarkBot: корабль летает по кругу вокруг цели, часть выстрелов проходит мимо. У NPC с "
-                        + "флагом NO_CIRCLE бот не кружит; пока ждёт куб на споте — тоже стоит.")
+                .note("Часть выстрелов мимо. Не кружит с NO_CIRCLE и на споте куба.")
                 .row("", groupNpcs)
                 .row("Не замечать NPC дальше", ignoreFarther)
                 .section("Список NPC")
-                .note("Бить — атаковать ли; приоритет — меньше значит раньше (−100 первым); радиус — на какой "
-                        + "дистанции держаться; SAB — включать щитовые патроны на этого NPC (по порогам выше); "
-                        + "патроны — свои патроны для этого NPC («общие» — как выше); карты — где действует строка («все» — везде); флаги: IGNORE_OWNERSHIP "
-                        + "(бить, даже если чужой), IGNORE_ATTACKED, PASSIVE (не убегать от него), AGGRESSIVE_FOLLOW (преследовать), NO_CIRCLE, PET_LOCATOR, KAMIKAZE.")
+                .note("Приоритет: меньше — раньше (−100 первым). «общие» — патроны выше. Карты: «все» — везде.")
+                .note("Флаги: IGNORE_OWNERSHIP (бить чужих), IGNORE_ATTACKED, PASSIVE (не убегать), "
+                        + "AGGRESSIVE_FOLLOW (догонять), NO_CIRCLE, PET_LOCATOR, KAMIKAZE.")
                 .wide(list, true)
                 .build(false);
     }

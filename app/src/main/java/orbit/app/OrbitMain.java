@@ -323,7 +323,7 @@ public final class OrbitMain {
             spec = a == null ? orbit.secrets.ProxySpec.DIRECT : a.proxySpec();
         } catch (IllegalArgumentException e) {
             throw new AuthException(AuthException.Reason.PROXY_REJECTED,
-                    "Прокси аккаунта «" + loginOf(account) + "» не разбирается: " + e.getMessage() + ". Исправьте его в окне аккаунтов (или vault set-proxy).");
+                    "Неверный прокси: " + e.getMessage());
         }
         if (spec.direct()) {
             return ProxyRoute.none();
@@ -334,7 +334,7 @@ public final class OrbitMain {
             MinimapBackgrounds.useProxy(route.selector());
             return route;
         } catch (java.io.IOException e) {
-            throw new AuthException(AuthException.Reason.UNAVAILABLE, "Локальный посредник прокси не запустился: " + e.getMessage(), e);
+            throw new AuthException(AuthException.Reason.UNAVAILABLE, "Прокси не запустился: " + e.getMessage(), e);
         }
     }
 
@@ -514,7 +514,7 @@ public final class OrbitMain {
             try {
                 if (startDelayMs > 0) {
                     restUntil(feed, closed, stopFile, java.time.LocalDateTime.now().plusNanos(startDelayMs * 1_000_000),
-                            "очередь входа");
+                            "Очередь входа");
                 }
                 boolean rested = false;
                 int failures = 0; // sessions in a row whose game connection ended by itself
@@ -531,7 +531,7 @@ public final class OrbitMain {
                             : java.time.LocalDateTime.ofInstant(java.time.Instant.ofEpochMilli(testEnd),
                                     java.time.ZoneId.systemDefault());
                     if (!plan.online()) {
-                        restUntil(feed, closed, stopFile, earlier(plan.until(), limit), "не в игре: " + plan.reason());
+                        restUntil(feed, closed, stopFile, earlier(plan.until(), limit), capitalized(plan.reason()));
                         rested = true;
                         continue;
                     }
@@ -539,14 +539,14 @@ public final class OrbitMain {
                         // after a break the accounts would all log in the same second: keep their queue
                         rested = false;
                         long queue = startDelayMs + java.util.concurrent.ThreadLocalRandom.current().nextLong(3_000, 20_000);
-                        restUntil(feed, closed, stopFile, earlier(now.plusNanos(queue * 1_000_000), limit), "очередь входа");
+                        restUntil(feed, closed, stopFile, earlier(now.plusNanos(queue * 1_000_000), limit), "Очередь входа");
                         continue;
                     }
                     String cfgName = chosen.get() != null ? chosen.get() : plan.config();
                     playing.set(cfgName);
                     orbit.config.BotConfig cfg = loadConfig(cfgName, false);
                     if (cfg == null) {
-                        restUntil(feed, closed, stopFile, now.plusMinutes(1), "конфиг «" + cfgName + "» не запускается");
+                        restUntil(feed, closed, stopFile, now.plusMinutes(1), "Ошибка в конфиге «" + cfgName + "»");
                         continue;
                     }
                     long end = plan.until() == null ? Long.MAX_VALUE
@@ -588,7 +588,7 @@ public final class OrbitMain {
                         log.warn("Связь с игрой закончилась ({}) — повтор через {} мин (попытка {} из {})", reason,
                                 RETRY_AFTER_FAILURE.toMinutes(), failures, MAX_FAILED_SESSIONS);
                         restUntil(feed, closed, stopFile, earlier(java.time.LocalDateTime.now().plus(RETRY_AFTER_FAILURE),
-                                limit), "вход не удался, повтор");
+                                limit), "Повтор входа");
                         continue;
                     }
                     failures = 0;
@@ -598,7 +598,7 @@ public final class OrbitMain {
                     }
                     if (!plan.breakAfter().isZero() && System.currentTimeMillis() >= end - 1_000) {
                         restUntil(feed, closed, stopFile, earlier(java.time.LocalDateTime.now().plus(plan.breakAfter()), limit),
-                                "перерыв");
+                                "Перерыв");
                     }
                 }
             } catch (InterruptedException e) {
@@ -662,6 +662,10 @@ public final class OrbitMain {
 
     private static java.time.LocalDateTime earlier(java.time.LocalDateTime a, java.time.LocalDateTime b) {
         return a == null ? b : b == null ? a : a.isBefore(b) ? a : b;
+    }
+
+    private static String capitalized(String s) {
+        return s == null || s.isEmpty() ? "Не в игре" : Character.toUpperCase(s.charAt(0)) + s.substring(1);
     }
 
     /** Offline until a moment (or a stop): the window shows why and until when. */
@@ -796,12 +800,12 @@ public final class OrbitMain {
                             log.warn("Не удалить {}: {}", stopFile, e.getMessage());
                         }
                         commanded.set(true);
-                        runner.stop("остановлен по команде (" + stopFile.getFileName() + ")");
+                        runner.stop("по команде");
                     }
                     if (stopRequested.get()) {
-                        runner.stop("остановлен пользователем");
+                        runner.stop("по кнопке");
                     } else if (System.currentTimeMillis() > until) {
-                        runner.stop("время вышло: " + untilReason);
+                        runner.stop("время вышло");
                     }
                     if (connectionOver.getAsBoolean() && !feed.loggedOut()) {
                         if (!stopRequested.get()) {
@@ -1128,7 +1132,7 @@ public final class OrbitMain {
             }
         });
         Thread socks = SnifferMain.start(o.port, o.direct, o.out);
-        feed.setState("Жду клиент на 127.0.0.1:" + o.port + (o.direct != null ? " и " + o.direct : ""));
+        feed.setState("Жду клиент: 127.0.0.1:" + o.port + (o.direct != null ? " и " + o.direct : ""));
         log.info("Сниффер запущен: socks5://127.0.0.1:{}; запустите клиент через scripts/sniff-session.sh --observe", o.port);
         runUntilClosed(feed, o.headless, () -> System.exit(0), socks);
     }

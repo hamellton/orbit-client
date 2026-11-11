@@ -19,8 +19,8 @@ final class CubikonSection implements Section {
     static final int[][] DEFAULT_SPOTS = {{75, 39}, {134, 39}, {134, 79}, {75, 79}};
     static final String[] MODES = {"ROUND", "LEARNED"};
     static final String[] WAIT_KILL = {"OFF", "ATTACKERS", "ALL"};
-    static final String[] WAIT_KILL_NAMES = {"Никого — стоять на споте", "Только тех, кто атакует меня", "Всех из списка NPC"};
-    static final String[] MODE_NAMES = {"По кругу (споты из таблицы)", "По запомненным спаунам"};
+    static final String[] WAIT_KILL_NAMES = {"Никого", "Только атакующих", "Всех из списка NPC"};
+    static final String[] MODE_NAMES = {"По кругу", "По запомненным"};
 
     private final DefaultTableModel spots = new DefaultTableModel(new Object[] {"Спаун", "X", "Y"}, 0) {
         @Override
@@ -36,25 +36,25 @@ final class CubikonSection implements Section {
     private final JSpinner arrive = Form.number(150, 1_200, 10);
     private final JSpinner wait = Form.number(0, 300, 5);
     private final JCheckBox collect = new JCheckBox("Собирать ящики");
-    private final JCheckBox duringFight = new JCheckBox("Подбирать ящики во время боя с кубом (только не выходя из досягаемости)");
+    private final JCheckBox duringFight = new JCheckBox("Собирать в бою, не уходя от куба");
     private final JSpinner boxesAbove = Form.percent();
     private final javax.swing.JComboBox<String> waitKill = new javax.swing.JComboBox<>(WAIT_KILL_NAMES);
     private final JSpinner waitKillRange = Form.number(200, 10_000, 100);
     private final javax.swing.JComboBox<String> chase = new javax.swing.JComboBox<>(
-            new String[] {"Стоять на споте — бить только тех, кто в досягаемости", "Преследовать, но не дальше от спота"});
+            new String[] {"Стоять на споте", "Преследовать"});
     private final javax.swing.JComboBox<String> mode = new javax.swing.JComboBox<>(MODE_NAMES);
-    private final JCheckBox learn = new JCheckBox("Запоминать, где появляются и когда умирают кубы");
+    private final JCheckBox learn = new JCheckBox("Запоминать спауны и смерти кубов");
     private final javax.swing.JLabel learned = new javax.swing.JLabel(" ");
     private final JTable table = new JTable(spots);
     private final JComponent view;
 
     CubikonSection() {
         table.setPreferredScrollableViewportSize(new java.awt.Dimension(260, 4 * table.getRowHeight()));
-        javax.swing.JButton reset = new javax.swing.JButton("Споты по умолчанию (x-6)");
+        javax.swing.JButton reset = new javax.swing.JButton("По умолчанию (x-6)");
         reset.addActionListener(e -> setSpots(null));
-        javax.swing.JButton forget = new javax.swing.JButton("Забыть запомненное");
+        javax.swing.JButton forget = new javax.swing.JButton("Забыть");
         forget.addActionListener(e -> {
-            if (javax.swing.JOptionPane.showConfirmDialog(table, "Забыть все запомненные спауны и время возврата кубов?",
+            if (javax.swing.JOptionPane.showConfirmDialog(table, "Забыть спауны и время возврата кубов?",
                     "Кубы", javax.swing.JOptionPane.OK_CANCEL_OPTION) == javax.swing.JOptionPane.OK_OPTION) {
                 orbit.bot.mod.SpawnMemory m = orbit.bot.mod.SpawnMemory.open(orbit.bot.mod.SpawnMemory.DEFAULT_FILE);
                 for (int map : new int[] {18, 22, 26}) {
@@ -69,29 +69,23 @@ final class CubikonSection implements Section {
         });
         view = new Form()
                 .section("Кубиконы")
-                .note("Если на карте живой Cubikon (даже если его уже бьют другие) — бот сразу летит к нему. "
-                        + "Иначе дежурит на спаунах по кругу, начиная с ближайшего. Protegit не бьёт (список NPC во "
-                        + "вкладке «Атака»).")
+                .note("Живой куб — летит сразу, даже если его бьют; иначе ждёт на спотах.")
                 .row("Выбор спота", mode)
-                .note("«По кругу» — споты из таблицы по очереди, начиная с ближайшего. «По запомненным» — бот летит "
-                        + "туда, где куб должен вот-вот вернуться (по времени, которое он сам замерил), иначе туда, где "
-                        + "кубы появлялись последними; споты из таблицы тоже обходит.")
+                .note("«По запомненным» — где куб скоро вернётся или был последним.")
                 .row("Споты", new javax.swing.JScrollPane(table))
                 .row("", reset)
                 .row("", learn)
                 .row("Запомнено", Form.inline(learned, forget))
                 .row("Подлёт к споту на", arrive)
                 .row("Ждать на пустом споте, с", wait)
-                .note("0 — ждать на споте, пока не появится куб.")
+                .note("0 — пока не появится куб.")
                 .row("", collect)
                 .row("", duringFight)
-                .row("Собирать, пока у куба HP больше, %", boxesAbove)
+                .row("Собирать при HP куба выше, %", boxesAbove)
                 .row("Пока ждём куб, бить", waitKill)
                 .row("Как бить", chase)
                 .row("…не дальше от спота", waitKillRange)
-                .note("Кого именно можно бить, задаёт список NPC (вкладка «Атака», «Бить»). Радиус считается от точки "
-                        + "спауна: если цель или бой уводят дальше, бот бросает цель и возвращается на спаун; после "
-                        + "убийства тоже сразу возвращается.")
+                .note("Кого бить — список NPC («Атака»). Дальше радиуса — назад на спот.")
                 .build(true);
     }
 
@@ -151,10 +145,10 @@ final class CubikonSection implements Section {
             if (!list.isEmpty()) {
                 long timed = list.stream().filter(x -> x.respawnEstimate() > 0).count();
                 b.append(b.isEmpty() ? "" : "; ").append(names[k]).append(": спаунов ").append(list.size())
-                        .append(", с временем возврата ").append(timed);
+                        .append(", со временем ").append(timed);
             }
         }
-        learned.setText(b.isEmpty() ? "пока ничего" : b.toString());
+        learned.setText(b.isEmpty() ? "ничего" : b.toString());
     }
 
     @Override

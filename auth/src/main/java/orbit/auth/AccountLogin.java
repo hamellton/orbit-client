@@ -33,12 +33,12 @@ public final class AccountLogin {
         Account a = vault.get(name);
         if (a == null) {
             throw new AuthException(AuthException.Reason.INVALID_CREDENTIALS,
-                    "Аккаунт «" + name + "» не найден в хранилище " + vault.file() + ".");
+                    "Аккаунта «" + name + "» нет в хранилище");
         }
         this.server = server == null || server.isBlank() ? a.home() : server;
         if (a.password() == null && a.serversWithDosid().isEmpty()) {
             throw new AuthException(AuthException.Reason.INVALID_CREDENTIALS,
-                    "У аккаунта «" + name + "» нет ни пароля, ни dosid.");
+                    "У «" + name + "» нет ни пароля, ни dosid");
         }
     }
 
@@ -84,8 +84,7 @@ public final class AccountLogin {
             return remember(server, client.switchTo(there, server));
         }
         if (a.password() == null) {
-            throw new AuthException(AuthException.Reason.SESSION_EXPIRED, "Сессия сайта устарела, а пароля в "
-                    + "хранилище нет. Обновите dosid: vault set-dosid " + name + " --server " + server);
+            throw new AuthException(AuthException.Reason.SESSION_EXPIRED, "Сессия устарела, пароля нет: обновите dosid");
         }
         // a password login lands on the server played last
         GameSession s;

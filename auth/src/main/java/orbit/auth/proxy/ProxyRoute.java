@@ -83,8 +83,7 @@ public final class ProxyRoute implements AutoCloseable {
     /** What a proxy check found. */
     public record Check(ProxySpec spec, long millis, String ip) {
         public String describe() {
-            return spec.describe() + " работает: " + (ip != null ? "внешний IP " + ip : "внешний IP не узнать")
-                    + ", " + millis + " мс до сайта игры";
+            return spec.describe() + " работает" + (ip != null ? " · IP " + ip : "") + " · " + millis + " мс";
         }
     }
 
@@ -105,8 +104,12 @@ public final class ProxyRoute implements AutoCloseable {
         } catch (ProxyException e) {
             boolean hopeless = e.kind() == ProxyException.Kind.AUTH || e.kind() == ProxyException.Kind.PROTOCOL;
             throw new AuthException(hopeless ? AuthException.Reason.PROXY_REJECTED : AuthException.Reason.UNAVAILABLE,
-                    "Прокси: " + e.getMessage() + (hopeless ? ". Исправьте: vault set-proxy." : "."), e);
+                    capitalized(e.getMessage()), e);
         }
+    }
+
+    private static String capitalized(String s) {
+        return s == null || s.isEmpty() ? "Прокси не работает" : Character.toUpperCase(s.charAt(0)) + s.substring(1);
     }
 
     /** What proves a tunnel reaches the real target (tests use a plain exchange). */
@@ -134,15 +137,14 @@ public final class ProxyRoute implements AutoCloseable {
             try {
                 probe.run(s);
             } catch (IOException e) {
-                throw new ProxyException(ProxyException.Kind.TARGET, "прокси " + connector.spec().address()
-                        + " открыл соединение, но сайт игры через него не отвечает (" + ProxyConnector.reason(e)
-                        + ") — поддельный или перегруженный прокси", e);
+                throw new ProxyException(ProxyException.Kind.TARGET,
+                        "прокси поддельный или перегружен: сайт не отвечает", e);
             }
         } catch (ProxyException e) {
             throw e;
         } catch (IOException e) {
             throw new ProxyException(ProxyException.Kind.TARGET,
-                    "через прокси не открыть " + CHECK_HOST + ": " + ProxyConnector.reason(e), e);
+                    "через прокси сайт недоступен: " + ProxyConnector.reason(e), e);
         }
         long millis = (System.nanoTime() - start) / 1_000_000;
         String ip = lookupIp();

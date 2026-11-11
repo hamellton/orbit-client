@@ -32,7 +32,7 @@ final class AccountRunner implements ManagedAccount {
         this.vault = vault;
         this.profile = profile;
         this.feed = new WorldFeed("бот, " + name, name);
-        feed.setState("остановлен");
+        feed.setState("Остановлен");
     }
 
     @Override
@@ -61,21 +61,21 @@ final class AccountRunner implements ManagedAccount {
             return null;
         }
         if (vault.get(OrbitMain.loginOf(name)) == null) {
-            return "аккаунта «" + name + "» нет в хранилище";
+            return "«" + name + "» нет в хранилище";
         }
         AccountSettings.Entry settings;
         try {
             settings = AccountSettings.load(AccountSettings.DEFAULT_FILE).account(name);
         } catch (IOException e) {
-            return "не прочитать настройки аккаунтов: " + e.getMessage();
+            return "Не прочитать настройки: " + e.getMessage();
         }
         if (settings.config() == null && !(settings.schedule().enabled() && !settings.schedule().entries().isEmpty())) {
-            return "не выбран конфиг — выберите его в «Изменить…» или задайте расписание";
+            return "Не выбран конфиг";
         }
         problem = null;
         feed.newSession(); // the last session's clock and results no longer count…
         feed.stopped(); // …and it is not in game until the new login
-        feed.setState(delayMs > 0 ? "очередь входа" : "запуск");
+        feed.setState(delayMs > 0 ? "Очередь входа" : "Запуск");
         OrbitMain.Rig rig;
         MDC.put("account", name);
         try {
@@ -106,10 +106,10 @@ final class AccountRunner implements ManagedAccount {
                 sessions = null;
             }
             if (byItself) {
-                problem = "остановился сам: " + feed.state();
+                problem = feed.state();
             }
             feed.stopped();
-            feed.setState("остановлен");
+            feed.setState("Остановлен");
             feed.setAction(null);
             log.info("Аккаунт «{}» остановлен", name);
         });
@@ -126,7 +126,7 @@ final class AccountRunner implements ManagedAccount {
             phase = Phase.STOPPING;
             close = sessions.close();
         }
-        feed.setState("выход из игры…");
+        feed.setState("Выход у портала…");
         Thread.ofPlatform().name("stop-" + name).start(() -> {
             MDC.put("account", name);
             close.run();
@@ -143,7 +143,7 @@ final class AccountRunner implements ManagedAccount {
             phase = Phase.STOPPING;
             kill = sessions.kill();
         }
-        feed.setState("закрывается без выхода…");
+        feed.setState("Закрываю сразу…");
         Thread.ofPlatform().name("kill-" + name).start(() -> {
             MDC.put("account", name);
             kill.run();

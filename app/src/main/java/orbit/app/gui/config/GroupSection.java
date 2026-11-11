@@ -12,12 +12,12 @@ final class GroupSection implements Section {
 
     private static final BotConfig.Accept[] ACCEPT = BotConfig.Accept.values();
     private final JComboBox<String> accept = new JComboBox<>(new String[] {"Не принимать",
-            "Только от игроков из списка", "От всех"});
-    private final JCheckBox reject = new JCheckBox("Отклонять остальные приглашения (иначе просто не отвечать)");
-    private final JCheckBox invite = new JCheckBox("Приглашать игроков из списка, если их нет в группе");
+            "Только из списка", "От всех"});
+    private final JCheckBox reject = new JCheckBox("Отклонять остальные (иначе молчать)");
+    private final JCheckBox invite = new JCheckBox("Приглашать игроков из списка");
     private final JTextArea players = new JTextArea(5, 40);
-    private final JCheckBox leave = new JCheckBox("Выходить из группы, если в ней никого из списка");
-    private final JCheckBox kick = new JCheckBox("Будучи лидером, исключать тех, кого нет в списке");
+    private final JCheckBox leave = new JCheckBox("Выходить, если в группе никого из списка");
+    private final JCheckBox kick = new JCheckBox("Исключать не из списка (если лидер)");
     private final JTextField leader = new JTextField(20);
     private final JComboBox<String> mode = new JComboBox<>(new String[] {"Не менять", "Только лидер", "Все участники"});
     private final JComponent view;
@@ -25,21 +25,19 @@ final class GroupSection implements Section {
     GroupSection() {
         view = new Form()
                 .section("Приглашения")
-                .row("Принимать приглашения", accept)
+                .row("Принимать", accept)
                 .row("", reject)
-                .note("«Не принимать» вместе с «Отклонять остальные» — то же, что блокировать приглашения.")
+                .note("«Не принимать» + «Отклонять» = блок приглашений.")
                 .section("Список игроков")
                 .row("Игроки", PlayerPicker.withButton(players))
-                .note("По одному в строке или через запятую: ник или клан в скобках, например [TAG] (клан узнаётся, "
-                        + "когда игрок виден на карте). Список общий для приёма, приглашений и исключения.")
+                .note("Ник или [TAG], по строке или через запятую. Общий для вкладки.")
                 .row("", invite)
                 .section("Своя группа")
                 .row("", leave)
                 .row("", kick)
                 .row("Передать лидерство", leader)
-                .note("Ник игрока; бот передаст ему лидерство, как только тот окажется в группе. Пусто — не передавать.")
+                .note("Ник; пусто — не передавать.")
                 .row("Кто может приглашать", mode)
-                .note("Все действия — с паузой в несколько секунд, как у игрока.")
                 .build(true);
     }
 

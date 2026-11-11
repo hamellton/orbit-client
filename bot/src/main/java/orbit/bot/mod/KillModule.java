@@ -31,7 +31,7 @@ public final class KillModule implements BotModule {
 
     @Override
     public String status() {
-        return status + " (убито " + attacker.kills() + ", ящиков " + boxes.boxes() + ")";
+        return status;
     }
 
     @Override
@@ -56,11 +56,11 @@ public final class KillModule implements BotModule {
         BotConfig c = ctx.config().get();
         WorldSnapshot w = ctx.world().get();
         if (attacker.targetId() != 0 && attacker.tick(true)) {
-            status = "бой";
+            status = "Бой";
             return;
         }
         if (collect && boxes.tick()) {
-            status = "подбираю ящик";
+            status = "Ящик";
             return;
         }
         if (kill) {
@@ -70,7 +70,7 @@ public final class KillModule implements BotModule {
                 roamTo = null;
                 attacker.target(t);
                 attacker.tick(true);
-                status = "бой";
+                status = "Бой";
                 return;
             }
         }
@@ -89,6 +89,6 @@ public final class KillModule implements BotModule {
             ctx.nav().moveTo(roamTo[0], roamTo[1], false);
         }
         ctx.nav().tick();
-        status = "ищу цели";
+        status = "Ищу цели";
     }
 }

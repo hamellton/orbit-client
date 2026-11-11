@@ -53,7 +53,7 @@ public final class SessionPlanner {
             Schedule.Decision d = account.decide(now, seed);
             if (!d.online()) {
                 return new Plan(null, d.until(), Duration.ZERO,
-                        account.schedule().enabled() ? "по расписанию перерыв" : "конфиг аккаунту не назначен");
+                        account.schedule().enabled() ? "перерыв" : "нет конфига");
             }
             name = d.config();
             until = d.until();

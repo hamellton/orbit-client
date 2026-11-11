@@ -88,12 +88,12 @@ public final class GameConnection implements AutoCloseable {
             case LoginResponse.STATUS_Error -> "ошибка сервера (Error)";
             case LoginResponse.STATUS_ShuttingDown -> "сервер выключается (ShuttingDown)";
             case LoginResponse.STATUS_InvalidData -> "неверные данные входа (InvalidData)";
-            case LoginResponse.STATUS_WrongInstanceId -> "неверный инстанс сервера (WrongInstanceId)";
+            case LoginResponse.STATUS_WrongInstanceId -> "не тот инстанс (WrongInstanceId)";
             case LoginResponse.STATUS_WrongServer -> "не тот игровой сервер (WrongServer)";
             case LoginResponse.STATUS_InvalidSessionId -> "недействительная сессия (InvalidSessionId)";
             case LoginResponse.STATUS_ShipIsDestroyed -> "корабль уничтожен (ShipIsDestroyed)";
-            case LoginResponse.STATUS_PlayerIsLoggedOut -> "игрок вышел из игры (PlayerIsLoggedOut)";
-            case LoginResponse.STATUS_IPRestricted -> "достигнут лимит входов с этого IP (IP limit reached)";
+            case LoginResponse.STATUS_PlayerIsLoggedOut -> "игрок вышел (PlayerIsLoggedOut)";
+            case LoginResponse.STATUS_IPRestricted -> "лимит входов с IP (IPRestricted)";
             default -> "код " + status;
         };
     }
@@ -248,7 +248,7 @@ public final class GameConnection implements AutoCloseable {
                     Duration wait = settings.backoff(failures);
                     failures++;
                     boolean refresh = e instanceof LoginRejected || failures >= settings.refreshAfter();
-                    String why = e instanceof LoginRejected ? e.getMessage() : "Соединение потеряно: " + e.getMessage();
+                    String why = e instanceof LoginRejected ? e.getMessage() : "Обрыв связи: " + e.getMessage();
                     log.warn("{}. Повтор через {} с{}", why, wait.toSeconds(), refresh ? " с новым входом на сайт" : "");
                     listener.onState(GameListener.State.RECONNECTING, why);
                     if (refresh) {
@@ -259,7 +259,7 @@ public final class GameConnection implements AutoCloseable {
                 }
             }
         } catch (ProtocolOutdatedException e) {
-            log.error(e.getMessage());
+            log.error("{}: {}", e.getMessage(), e.details());
             listener.onState(GameListener.State.STOPPED, e.getMessage());
             return;
         } catch (AuthException e) {
@@ -318,14 +318,13 @@ public final class GameConnection implements AutoCloseable {
                     payload = Frames.read(in);
                 } catch (java.net.SocketTimeoutException e) {
                     if (shipReady) {
-                        throw new java.io.IOException("сервер молчит " + settings.silence().toSeconds()
-                                + " с — связь пропала");
+                        throw new java.io.IOException("сервер молчит " + settings.silence().toSeconds() + " с");
                     }
                     throw new LoginRejected("Сервер не принял вход за " + settings.loginTimeout().toSeconds() + " с");
                 }
                 if (payload == null) {
                     if (!shipReady) {
-                        throw new LoginRejected("Игровой сервер закрыл соединение во время входа");
+                        throw new LoginRejected("Сервер закрыл соединение при входе");
                     }
                     throw new EOFException("сервер закрыл соединение");
                 }
@@ -358,7 +357,7 @@ public final class GameConnection implements AutoCloseable {
                         // repaired on this connection: the ship is back, the client re-reports its UI
                         dead = false;
                         s.setSoTimeout((int) settings.silence().toMillis());
-                        listener.onState(GameListener.State.ONLINE, "В игре, корабль восстановлен, сервер " + server);
+                        listener.onState(GameListener.State.ONLINE, "В игре, корабль восстановлен");
                         if (startupThread != null) {
                             startupThread.interrupt();
                         }
@@ -374,11 +373,11 @@ public final class GameConnection implements AutoCloseable {
                     } else if (p instanceof ShipInitializationCommand) {
                         shipReady = true;
                         s.setSoTimeout((int) settings.silence().toMillis());
-                        listener.onState(GameListener.State.ONLINE, "В игре, сервер " + server);
+                        listener.onState(GameListener.State.ONLINE, "В игре");
                     } else if (p instanceof UserSettingsCommand us) {
                         userSettings = us;
                     } else if (p instanceof LoginResponse lr && lr.status != LoginResponse.STATUS_Success) {
-                        throw new LoginRejected("Игровой сервер отказал во входе: " + loginStatus(lr.status));
+                        throw new LoginRejected("Сервер отказал во входе: " + loginStatus(lr.status));
                     } else if (p instanceof LoginResponse && startupThread == null) {
                         StartupSequence.Context ctx = new StartupSequence.Context(!connectedBefore, userSettings);
                         connectedBefore = true;

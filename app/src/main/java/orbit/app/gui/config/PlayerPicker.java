@@ -38,8 +38,8 @@ final class PlayerPicker {
 
     /** The list with the button under it. */
     static JComponent withButton(JTextArea list) {
-        JButton add = new JButton("Добавить из игры…");
-        add.setToolTipText("Игроки рядом и встреченные за сеанс, друзья, соклановцы, группа и свои аккаунты");
+        JButton add = new JButton("Из игры…");
+        add.setToolTipText("Игроки рядом и встреченные, друзья, клан, группа");
         add.addActionListener(e -> pick(list));
         JPanel buttons = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 2));
         buttons.add(add);
@@ -140,13 +140,13 @@ final class PlayerPicker {
         table.getColumnModel().getColumn(0).setMaxWidth(30);
         table.getColumnModel().getColumn(1).setPreferredWidth(180);
         table.getColumnModel().getColumn(3).setPreferredWidth(300);
-        JDialog d = new JDialog(SwingUtilities.getWindowAncestor(list), "Добавить игроков из игры",
+        JDialog d = new JDialog(SwingUtilities.getWindowAncestor(list), "Игроки из игры",
                 java.awt.Dialog.ModalityType.APPLICATION_MODAL);
         JPanel p = new JPanel(new BorderLayout(0, 8));
         p.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
         p.add(new JLabel(rows.isEmpty()
-                ? "Никого нет: игроки появятся, когда запущенный в этой программе аккаунт их увидит."
-                : "Отметьте игроков или кланы — они добавятся в список."), BorderLayout.NORTH);
+                ? "Пока никого: игроки появятся, когда аккаунт их увидит."
+                : "Отметьте игроков или кланы."), BorderLayout.NORTH);
         p.add(new JScrollPane(table), BorderLayout.CENTER);
         JButton ok = new JButton("Добавить");
         JButton cancel = new JButton("Отмена");

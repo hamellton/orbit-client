@@ -27,7 +27,7 @@ import orbit.secrets.VaultException;
 public final class VaultDialog {
 
     private final Path file;
-    private final JDialog dialog = new JDialog((java.awt.Frame) null, "Orbit — хранилище аккаунтов", true);
+    private final JDialog dialog = new JDialog((java.awt.Frame) null, "Orbit — хранилище", true);
     private final JLabel intro = new JLabel();
     private final JPasswordField password = new JPasswordField(22);
     private final JPasswordField repeat = new JPasswordField(22);
@@ -66,7 +66,7 @@ public final class VaultDialog {
         JButton cancel = new JButton("Выход");
         cancel.addActionListener(e -> dialog.dispose());
         ok.addActionListener(e -> submit());
-        fresh.setToolTipText("Если мастер-пароль забыт: старое хранилище останется в файле рядом, аккаунты нужно будет добавить заново");
+        fresh.setToolTipText("Если пароль забыт; старое сохранится рядом");
         fresh.addActionListener(e -> startOver());
         JPanel buttons = new JPanel(new BorderLayout());
         buttons.add(fresh, BorderLayout.WEST);
@@ -119,9 +119,8 @@ public final class VaultDialog {
     private void mode() {
         boolean create = creating();
         intro.setText(create
-                ? "<html>Хранилище аккаунтов ещё не создано.<br>Придумайте мастер-пароль: им шифруются логины, "
-                        + "пароли и прокси.<br>Восстановить забытый мастер-пароль нельзя.</html>"
-                : "<html>Введите мастер-пароль хранилища аккаунтов<br><span style='color:#7c8799'>" + file + "</span></html>");
+                ? "<html>Придумайте мастер-пароль для логинов и прокси.<br>Забытый пароль не восстановить.</html>"
+                : "<html>Введите мастер-пароль<br><span style='color:#7c8799'>" + file + "</span></html>");
         repeat.setVisible(create);
         repeatLabel.setVisible(create);
         fresh.setVisible(!create);
@@ -168,8 +167,7 @@ public final class VaultDialog {
         Path aside = file.resolveSibling(file.getFileName().toString().replaceFirst("\\.bin$", "")
                 + ".old-" + java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss"))
                 + ".bin");
-        int answer = JOptionPane.showConfirmDialog(dialog, "<html>Начать с новым хранилищем?<br>Старое останется в файле<br>"
-                + aside + "<br>(откроется, если вспомните пароль). Аккаунты нужно будет добавить заново.</html>",
+        int answer = JOptionPane.showConfirmDialog(dialog, "<html>Создать новое хранилище?<br>Старое сохранится в " + aside.getFileName() + ", аккаунты — добавить заново.</html>",
                 "Новое хранилище", JOptionPane.OK_CANCEL_OPTION, JOptionPane.WARNING_MESSAGE);
         if (answer != JOptionPane.OK_OPTION) {
             return;

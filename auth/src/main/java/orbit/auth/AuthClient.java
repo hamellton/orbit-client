@@ -51,7 +51,7 @@ public final class AuthClient {
         /** Origin of an account server, e.g. {@code int1} → {@code https://int1.darkorbit.com}. */
         String accountOrigin(String server) {
             if (!server.matches("[a-z]+\\d+")) {
-                throw new IllegalArgumentException("код сервера должен быть вида int1, de2: " + server);
+                throw new IllegalArgumentException("код сервера вида int1, de2: " + server);
             }
             return String.format(accountOriginFormat, server);
         }
@@ -95,7 +95,7 @@ public final class AuthClient {
                 throw maintenanceError();
             }
             throw new AuthException(AuthException.Reason.UNEXPECTED_PAGE,
-                    "На главной странице не найдена форма входа — сайт изменился или недоступен.");
+                    "На сайте нет формы входа");
         }
         String action = landing.url().resolve(htmlUnescape(form.group(1))).toString();
         Map<String, String> fields = new LinkedHashMap<>();
@@ -169,16 +169,18 @@ public final class AuthClient {
             String code = loginError == null ? "" : " (loginError=" + loginError + ")";
             if (rejected && afterPasswordLogin) {
                 throw new AuthException(AuthException.Reason.UNEXPECTED_PAGE,
-                        "Пароль принят, но сайт не открыл страницу игры" + code
-                                + " — вероятно, изменился порядок входа на сайте.");
+                        "Пароль принят, но игра не открылась" + code);
             }
             if (rejected) {
                 throw new AuthException(AuthException.Reason.SESSION_EXPIRED,
-                        "Сессия сайта недействительна или истекла (dosid)" + code + ". Войдите заново.");
+                        "Сессия сайта истекла" + code);
             }
             Path kept = keepForDiagnosis(page);
+            if (kept != null) {
+                log.warn("Незнакомая страница сайта сохранена в {}", kept);
+            }
             throw new AuthException(AuthException.Reason.UNEXPECTED_PAGE,
-                    "Сайт не открыл игру: незнакомая страница" + (kept == null ? "" : " (сохранена в " + kept + ")"));
+                    "Сайт не открыл игру");
         }
         SecretMask.register(vars.get("sessionID"));
         int userId = parseInt(vars, "userID");
@@ -187,7 +189,7 @@ public final class AuthClient {
         String cdn = vars.getOrDefault("cdn", "");
         String basePath = vars.getOrDefault("basePath", "spacemap");
         if (cdn.isEmpty()) {
-            throw new AuthException(AuthException.Reason.UNEXPECTED_PAGE, "В параметрах игры нет адреса cdn.");
+            throw new AuthException(AuthException.Reason.UNEXPECTED_PAGE, "Сайт не дал адрес cdn");
         }
         // the client loads maps.php from its dynamicHost, set from the flashvar "host" (the account server,
         // e.g. https://ru1.darkorbit.com); the CDN copy lists the game hosts of another server
@@ -199,7 +201,7 @@ public final class AuthClient {
         MapServers.Address addr = servers.forMap(mapId);
         if (addr == null) {
             throw new AuthException(AuthException.Reason.UNEXPECTED_PAGE,
-                    "Не найден игровой сервер для карты " + mapId + " (в maps.php " + servers.size() + " карт).");
+                    "Нет сервера для карты " + mapId);
         }
         // the site may rotate the cookie; keep the one the browser would have now
         String currentDosid = http.cookie(origin + "/", "dosid");
@@ -218,7 +220,7 @@ public final class AuthClient {
         MapServers servers = MapServers.parse(request(() -> http.get(session.mapsUrl())).body());
         MapServers.Address addr = servers.forMap(mapId);
         if (addr == null) {
-            throw new AuthException(AuthException.Reason.UNEXPECTED_PAGE, "Не найден игровой сервер для карты " + mapId + ".");
+            throw new AuthException(AuthException.Reason.UNEXPECTED_PAGE, "Нет сервера для карты " + mapId);
         }
         return addr;
     }
@@ -241,27 +243,27 @@ public final class AuthClient {
             return maintenanceError();
         }
         String where = result.url().getHost() + result.url().getPath();
+        log.info("Ответ сайта на вход: {} (HTTP {})", where, result.status());
         Matcher form = LOGIN_FORM.matcher(result.body());
         if (form.find()) {
             String formBody = form.group(2);
             if (formBody.contains("data-sitekey") || formBody.contains("h-captcha")) {
                 return new AuthException(AuthException.Reason.CAPTCHA_REQUIRED,
-                        "Сайт требует решить капчу. Войдите в браузере или в клиенте, скопируйте cookie "
-                                + "dosid и укажите его в профиле — бот войдёт по нему.");
+                        "Капча на сайте: укажите dosid из браузера");
             }
             return new AuthException(AuthException.Reason.INVALID_CREDENTIALS,
-                    "Не удалось войти: неверный логин или пароль (сайт вернул форму входа, " + where + ").");
+                    "Неверный логин или пароль");
         }
         if (result.status() >= 500) {
             return new AuthException(AuthException.Reason.UNAVAILABLE,
-                    "Сайт игры недоступен (HTTP " + result.status() + ")");
+                    "Сайт недоступен (HTTP " + result.status() + ")");
         }
         String lower = result.body().toLowerCase();
         if (lower.contains("banned") || lower.contains("gesperrt") || lower.contains("заблокирован")) {
-            return new AuthException(AuthException.Reason.ACCOUNT_BLOCKED, "Аккаунт заблокирован (" + where + ").");
+            return new AuthException(AuthException.Reason.ACCOUNT_BLOCKED, "Аккаунт заблокирован");
         }
         return new AuthException(AuthException.Reason.UNEXPECTED_PAGE,
-                "Вход не удался: неожиданная страница " + where + " (HTTP " + result.status() + ").");
+                "Вход не удался: странный ответ сайта (HTTP " + result.status() + ")");
     }
 
     /** The site serves the Flash game page only to the official client's user agent. */
@@ -309,11 +311,11 @@ public final class AuthClient {
         try {
             com.fasterxml.jackson.databind.JsonNode n = INSTANCES_JSON.readTree(r.body());
             if (!"OK".equals(n.path("result").asText())) {
-                throw new AuthException(AuthException.Reason.UNEXPECTED_PAGE, "Сайт не отдал список серверов.");
+                throw new AuthException(AuthException.Reason.UNEXPECTED_PAGE, "Сайт не дал список серверов");
             }
             html = n.path("code").asText();
         } catch (IOException e) {
-            throw new AuthException(AuthException.Reason.UNEXPECTED_PAGE, "Список серверов не прочитать: " + e.getMessage(), e);
+            throw new AuthException(AuthException.Reason.UNEXPECTED_PAGE, "Список серверов не прочитан: " + e.getMessage(), e);
         }
         return parseInstances(html);
     }
@@ -358,16 +360,15 @@ public final class AuthClient {
     public GameSession switchTo(GameSession from, String server) throws AuthException {
         Instance target = instances(from.host()).stream().filter(i -> i.server().equals(server)).findFirst()
                 .orElseThrow(() -> new AuthException(AuthException.Reason.UNEXPECTED_PAGE,
-                        "Сервера " + server + " нет в списке серверов аккаунта."));
+                        "У аккаунта нет сервера " + server));
         if (!target.hasPilot()) {
-            throw new AuthException(AuthException.Reason.INVALID_CREDENTIALS, "На сервере " + server
-                    + " у аккаунта нет пилота — бот не создаёт новых. Зайдите туда один раз в браузере.");
+            throw new AuthException(AuthException.Reason.INVALID_CREDENTIALS, "Нет пилота на " + server + ": создайте его в браузере");
         }
         String origin = endpoints.accountOrigin(server);
         request(() -> http.get(target.url(), from.host() + "/indexInternal.es?action=internalStart"));
         String dosid = http.cookie(origin + "/", "dosid");
         if (dosid == null) {
-            throw new AuthException(AuthException.Reason.UNEXPECTED_PAGE, "Сайт не открыл сервер " + server + ".");
+            throw new AuthException(AuthException.Reason.UNEXPECTED_PAGE, "Сайт не открыл сервер " + server);
         }
         SecretMask.register(dosid);
         log.info("Перешёл на сервер {}", server);
@@ -383,7 +384,7 @@ public final class AuthClient {
             return call.run();
         } catch (IOException e) {
             throw new AuthException(AuthException.Reason.UNAVAILABLE,
-                    "Нет связи с сайтом игры: " + e.getMessage(), e);
+                    "Нет связи с сайтом: " + e.getMessage(), e);
         }
     }
 
@@ -391,7 +392,7 @@ public final class AuthClient {
         try {
             return Integer.parseInt(vars.getOrDefault(key, "").trim());
         } catch (NumberFormatException e) {
-            throw new AuthException(AuthException.Reason.UNEXPECTED_PAGE, "Параметр " + key + " не число.");
+            throw new AuthException(AuthException.Reason.UNEXPECTED_PAGE, "Параметр " + key + " не число");
         }
     }
 

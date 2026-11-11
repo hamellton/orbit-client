@@ -19,7 +19,7 @@ class WorldFeedTest {
         ship.userName = "pilot";
         ship.mapId = 1;
         feed.onPacket(ship, clock.get());
-        assertEquals("нет (бот пока только держит связь)", feed.action());
+        assertEquals("Только держит связь", feed.action());
 
         clock.addAndGet(90 * SECOND);
         assertEquals(90 * SECOND, feed.sessionNanos());

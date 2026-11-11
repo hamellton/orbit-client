@@ -73,7 +73,7 @@ public record ProxySpec(Type type, String host, int port, String user, String pa
                 case "http" -> Type.HTTP;
                 case "socks4", "socks4a" -> throw new IllegalArgumentException("SOCKS4 не поддерживается — нужен SOCKS5 или HTTP");
                 case "https" -> throw new IllegalArgumentException(
-                        "прокси с TLS (https://) не поддерживается — укажите http:// или socks5://");
+                        "https:// не поддерживается — нужен http:// или socks5://");
                 default -> throw new IllegalArgumentException("неизвестный тип прокси «" + scheme + "» — нужен socks5:// или http://");
             };
             s = s.substring(sep + 3);
@@ -124,13 +124,13 @@ public record ProxySpec(Type type, String host, int port, String user, String pa
             host = hostPort.substring(1, close);
             rest = hostPort.substring(close + 1);
             if (!rest.startsWith(":")) {
-                throw new IllegalArgumentException("у прокси не указан порт: " + hostPort);
+                throw new IllegalArgumentException("не указан порт прокси: " + hostPort);
             }
             rest = rest.substring(1);
         } else {
             int colon = hostPort.indexOf(':');
             if (colon < 0) {
-                throw new IllegalArgumentException("у прокси не указан порт: нужно адрес:порт");
+                throw new IllegalArgumentException("не указан порт: нужно адрес:порт");
             }
             host = hostPort.substring(0, colon);
             rest = hostPort.substring(colon + 1);

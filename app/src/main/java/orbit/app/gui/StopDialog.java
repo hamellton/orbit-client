@@ -23,11 +23,9 @@ final class StopDialog {
      */
     static Choice ask(Component parent, String title, List<String> inGame, String action) {
         String who = inGame.size() == 1 ? "«" + inGame.getFirst() + "» в игре"
-                : "В игре аккаунтов: " + inGame.size() + " (" + String.join(", ", inGame) + ")";
-        String text = "<html>" + who + ". Как остановить" + (action.isEmpty() ? "" : " " + action) + "?<br><br>"
-                + "<b>Выйти у портала</b> — долетит до портала и выйдет из игры, как игрок (до 2 минут).<br>"
-                + "<b>Закрыть сразу</b> — без полёта и выхода: соединение закрывается немедленно,<br>"
-                + "корабль может ещё некоторое время оставаться в космосе.</html>";
+                : "В игре: " + String.join(", ", inGame);
+        String text = "<html>" + who + ". Как остановить" + (action.isEmpty() ? "" : " " + action) + "?<br>"
+                + "<b>Закрыть сразу</b> — без выхода, корабль может побыть в космосе.</html>";
         Object[] options = {"Выйти у портала", "Закрыть сразу", "Отмена"};
         int r = JOptionPane.showOptionDialog(parent, text, title, JOptionPane.DEFAULT_OPTION,
                 JOptionPane.QUESTION_MESSAGE, null, options, options[0]);

@@ -54,6 +54,6 @@ final class Days {
                 return i;
             }
         }
-        throw new IllegalArgumentException("день «" + s + "» не понят: Пн Вт Ср Чт Пт Сб Вс, «Пн-Пт» или «все»");
+        throw new IllegalArgumentException("день «" + s + "»: нужно Пн…Вс, «Пн-Пт» или «все»");
     }
 }
