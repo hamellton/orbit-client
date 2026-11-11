@@ -289,6 +289,14 @@ public final class Actions {
         sender.accept(r);
     }
 
+    /**
+     * Exchanges palladium at 5-2's station: the trade window's palladium button sends the legacy command
+     * {@code XCP|<count>} (client {@code OreTradeModule.handleTradeButtonClick}), not {@code TradeSellOreRequest}.
+     */
+    public void exchangePalladium(long count) {
+        legacy("XCP|" + count);
+    }
+
     /** Closes the trade window ({@code TWC}), as the client does after selling. */
     public void tradeClose() {
         legacy("TWC");

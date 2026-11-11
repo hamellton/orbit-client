@@ -96,11 +96,40 @@ class PalladiumModuleTest {
         info.prometiumPrice = 20;
         sim.world.apply(info, sim.now);
         sim.run(r::tick, 5_000);
-        List<TradeSellOreRequest> sold = sim.sent.stream().filter(p -> p instanceof TradeSellOreRequest)
-                .map(p -> (TradeSellOreRequest) p).toList();
-        assertEquals(1, sold.size(), "palladium only: " + sold);
-        assertEquals(8, sold.getFirst().toSell.oreType.typeValue);
-        assertEquals(950, (long) sold.getFirst().toSell.count);
+        // the client's palladium button: the legacy XCP|count, whole parts of the rate (950 → 945 at 15)
+        assertEquals(List.of("XCP|945"), exchanges(sim));
+        assertTrue(sim.sent.stream().noneMatch(p -> p instanceof TradeSellOreRequest), "not sold as ore (the game ignores that)");
+    }
+
+    private static List<String> exchanges(Sim sim) {
+        return sim.sent.stream().filter(p -> p instanceof orbit.protocol.gen.LegacyModule l && l.message.startsWith("XCP"))
+                .map(p -> ((orbit.protocol.gen.LegacyModule) p).message).toList();
+    }
+
+    @Test
+    void aSaleTheGameDidNotTakeIsNotRepeatedInALoop() {
+        // live 2026-11-11: palladium «sold» every 12 s for 6 minutes, the hold never changed
+        Sim sim = new Sim(config(), 92, 10_200, 6_200);
+        orbit.protocol.gen.AssetCreateCommand ref = new orbit.protocol.gen.AssetCreateCommand();
+        ref.assetId = 700;
+        ref.type = new orbit.protocol.gen.AssetTypeModule();
+        ref.type.typeValue = 51;
+        ref.posX = 10_500;
+        ref.posY = 6_500;
+        sim.world.apply(ref, sim.now);
+        orbit.protocol.gen.MapAssetActionAvailableCommand a = new orbit.protocol.gen.MapAssetActionAvailableCommand();
+        a.mapAssetId = 700;
+        a.activatable = true;
+        sim.world.apply(a, sim.now);
+        hold(sim, 1_000);
+        orbit.protocol.gen.OreTradeInfoCommand info = new orbit.protocol.gen.OreTradeInfoCommand();
+        info.palladiumExchangeRate = 15;
+        BotRunner r = new BotRunner(sim.ctx, () -> false, s -> { });
+        for (int t = 0; t < 60; t++) { // a minute; the server answers every window and never takes the palladium
+            sim.run(r::tick, 1_000);
+            sim.world.apply(info, sim.now);
+        }
+        assertTrue(exchanges(sim).size() <= 2, "at most once more, then the pause: " + exchanges(sim));
     }
 
     private static orbit.protocol.gen.OreCountModule ore(int type, double n) {
@@ -168,11 +197,11 @@ class PalladiumModuleTest {
         info.palladiumExchangeRate = 15;
         sim.world.apply(info, sim.now);
         sim.run(r::tick, 3_000);
-        assertTrue(sim.sent.stream().anyMatch(p -> p instanceof TradeSellOreRequest s && s.toSell.oreType.typeValue == 8));
-        hold(sim, 0); // the server took it
+        assertEquals(List.of("XCP|390"), exchanges(sim), "400 at 15: 390, ten stay aboard");
+        hold(sim, 10); // the server took it; less than one rate's worth stays
         sim.run(r::tick, 2_000);
         assertEquals(500101, r.hangarRequest(), "back to the collect ship: " + r.status() + " selling=" + sim.ctx.stats().selling
-                + " sold=" + sim.sent.stream().filter(p -> p instanceof TradeSellOreRequest).count());
+                + " exchanged=" + exchanges(sim));
     }
 
     @Test

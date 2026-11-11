@@ -49,6 +49,11 @@ final class CargoCare {
     private final List<int[]> toSell = new ArrayList<>();
     /** After a sale the hold is recounted by the game a moment later: no new sale before that. */
     static final long SOLD_SETTLE_MS = 10_000;
+    /** A sale the game took shows in the hold within this; the same ore still there after it — not taken. */
+    static final long RECOUNT_MS = 60_000;
+    static final int PALLADIUM = 8;
+    private String lastList = "";
+    private String soldList = "";
     private long soldAt = Long.MIN_VALUE / 2;
     private long soldUnits;
     /** When the ship came within {@link #AT_REFINERY} of the refinery (0 not yet). */
@@ -83,6 +88,11 @@ final class CargoCare {
         Map<Integer, Integer> prices = w.inventory().tradePrices();
         for (int ore : plan.ores()) {
             long n = Math.round(w.inventory().ores().getOrDefault(ore, 0.0));
+            if (ore == PALLADIUM && prices.getOrDefault(PALLADIUM, 0) > 0) {
+                // exchanged by the rate's whole parts (the client: gain = ⌊count / rate⌋); the rest stays aboard
+                int rate = prices.get(PALLADIUM);
+                n -= n % rate;
+            }
             // a trade window seen: only what it buys
             if (n > 0 && (prices.isEmpty() || prices.getOrDefault(ore, 0) > 0)) {
                 out.add(new int[] {ore, (int) Math.min(Integer.MAX_VALUE, n)});
@@ -124,6 +134,13 @@ final class CargoCare {
                 return false;
             }
             List<int[]> sell = sellable(plan, w);
+            lastList = list(sell);
+            if (!sell.isEmpty() && lastList.equals(soldList) && ms(now - soldAt) < RECOUNT_MS) {
+                // the very same ore aboard after a sale: the game did not take it (live 2026-11-11: palladium
+                // sold as ore every 12 s for 6 minutes) — no loop, the usual pause after a failure
+                soldList = "";
+                return fail("игра не забрала руду после продажи (" + lastList + ")");
+            }
             if (sell.isEmpty()) {
                 tell("Трюм полон, а продавать нечего (" + held(w) + ") — больше не беру груз");
                 return false;
@@ -253,8 +270,13 @@ final class CargoCare {
         }
         int[] o = toSell.removeFirst();
         soldUnits += o[1];
-        log.info("Продаю {} × {}", oreName(o[0]), o[1]);
-        ctx.actions().tradeSell(o[0], o[1]);
+        if (o[0] == PALLADIUM) {
+            log.info("Меняю палладий × {}", o[1]);
+            ctx.actions().exchangePalladium(o[1]);
+        } else {
+            log.info("Продаю {} × {}", oreName(o[0]), o[1]);
+            ctx.actions().tradeSell(o[0], o[1]);
+        }
         nextSellAt = now + ctx.pause(700, 1_500);
         return base;
     }
@@ -265,6 +287,7 @@ final class CargoCare {
             failedAt = ctx.now();
         } else {
             soldAt = ctx.now();
+            soldList = lastList;
         }
         pet.setTrade(false);
         step = null;

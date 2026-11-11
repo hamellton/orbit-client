@@ -408,9 +408,10 @@ public final class World {
                     tradePrices.put(8, p.palladiumExchangeRate);
                 }
                 tradeNanos = nanos;
-                log.info("Торговля открыта ({}): прометий {}, сепром {}, зарядов осталось {}",
-                        p.type == 3 ? "торговый модуль питомца" : "переработчик, тип " + p.type, p.prometiumPrice,
-                        p.sepromPrice, p.remainingCharges);
+                log.info("Торговля открыта ({}): прометий {}, сепром {}{}",
+                        p.type == 3 ? "торговый модуль питомца" : p.type == 5 ? "пиратская станция" : "переработчик, тип " + p.type,
+                        p.prometiumPrice, p.sepromPrice,
+                        p.palladiumExchangeRate > 0 ? ", палладий: обмен по " + p.palladiumExchangeRate : "");
             }
             case orbit.protocol.gen.PetTradeWindowShowCommand p -> petTradeNanos = nanos;
             case AttributeOreCountUpdateCommand p -> {

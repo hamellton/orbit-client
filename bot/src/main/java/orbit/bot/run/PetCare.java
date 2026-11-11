@@ -52,6 +52,8 @@ public final class PetCare {
     private long hurtAt = Long.MIN_VALUE / 2;
     private double lastHp = -1;
     private String told = "";
+    /** The mode last told missing (told once). */
+    private int missingGear = -1;
     private boolean kamikazeOn;
     private long kamikazeSince;
     private long boomAt = Long.MIN_VALUE / 2;
@@ -267,7 +269,11 @@ public final class PetCare {
             return;
         }
         if (!pet.gears().isEmpty() && !pet.gears().contains(want)) {
-            tell("У питомца нет режима " + label + " — оставляю тот, что включён в игре");
+            // once per missing mode (live 2026-11-11: the sell ship's pet, 1 939 lines in 6 minutes)
+            if (missingGear != want) {
+                missingGear = want;
+                log.warn("У питомца нет режима {} — оставляю тот, что включён в игре", label);
+            }
             return;
         }
         // the server's word after our request: another mode means it was turned down or changed (Guard)

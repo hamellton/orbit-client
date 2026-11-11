@@ -62,8 +62,13 @@ public final class PalladiumModule implements BotModule {
         return twoShips() && active == sellHangar();
     }
 
+    /**
+     * Palladium to exchange aboard: at least one rate's worth once 5-2's rate is known (less stays aboard — the
+     * exchange takes whole parts), else any.
+     */
     private static boolean hasPalladium(orbit.world.WorldSnapshot w) {
-        return w.inventory().ores().getOrDefault(PALLADIUM, 0.0) >= 1;
+        int rate = w.inventory().tradePrices().getOrDefault(PALLADIUM, 0);
+        return w.inventory().ores().getOrDefault(PALLADIUM, 0.0) >= Math.max(1, rate);
     }
 
     private int active;
