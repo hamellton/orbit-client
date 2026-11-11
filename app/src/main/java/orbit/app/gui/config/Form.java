@@ -236,12 +236,16 @@ final class Form {
             if (!place) {
                 return total;
             }
-            int spare = Math.max(0, height - total);
+            // spare height goes to the growing rows; short of height, they give it back down to their minimum
+            int spare = height - total;
             int y = y0;
             for (int i = 0; i < part.size(); i++) {
                 Row r = part.get(i);
                 y += i == 0 ? 0 : r.kind() == Kind.SECTION ? SECTION_GAP : ROW_GAP;
-                int rh = h[i] + (r.kind() == Kind.WIDE && r.grow() && growing > 0 ? spare / growing : 0);
+                int rh = h[i];
+                if (r.kind() == Kind.WIDE && r.grow() && growing > 0) {
+                    rh = Math.max(Math.min(h[i], r.field().getMinimumSize().height), h[i] + spare / growing);
+                }
                 switch (r.kind()) {
                     case SECTION -> r.label().setBounds(x0, y, w, rh);
                     case NOTE, WIDE -> r.field().setBounds(x0, y, w, rh);
