@@ -105,8 +105,73 @@ class PalladiumModuleTest {
         }
         assertEquals(0, sim.world.snapshot(sim.now).boxCheck().left());
         sim.world.apply(new orbit.protocol.gen.CaptchaResolvedCommand(), sim.now);
-        sim.run(r::tick, 3_000);
+        sim.run(r::tick, 8_000); // the last box may lie across the circle from the ore
         assertTrue(sim.sent.stream().anyMatch(p -> p instanceof orbit.protocol.gen.HarvestRequest), "back to work once solved");
+    }
+
+    private static orbit.protocol.gen.CaptchaTriggerCommand allRed(int x, int y) {
+        orbit.protocol.gen.CaptchaTriggerCommand c = new orbit.protocol.gen.CaptchaTriggerCommand();
+        c.type = (short) orbit.protocol.gen.CaptchaTriggerCommand.ECAPTCHATYPE_ALL_RED;
+        c.captchaTimer = 3;
+        c.posX = x;
+        c.posY = y;
+        c.Radius = 500;
+        c.blackBox = 2;
+        c.redBox = 6;
+        return c;
+    }
+
+    private static java.util.List<Integer> picks(java.util.List<orbit.protocol.Packet> sent) {
+        return sent.stream().filter(p -> p instanceof orbit.protocol.gen.CaptchaCollectRequest)
+                .map(p -> ((orbit.protocol.gen.CaptchaCollectRequest) p).index).toList();
+    }
+
+    @Test
+    void aShipFlyingAwayWhenTheCheckComesIsStoppedInsideTheCircle() {
+        // live 2026-11-12 on ge3: on its way to a portal the ship flew out of the circle and picked nothing
+        Sim sim = new Sim(config(), 93, 20_000, 20_000);
+        orbit.protocol.gen.MoveRequest away = new orbit.protocol.gen.MoveRequest();
+        away.positionX = 20_000;
+        away.positionY = 20_000;
+        away.targetX = 5_000;
+        away.targetY = 20_000;
+        sim.receive(away);
+        sim.world.apply(allRed(20_000, 20_000), sim.now);
+        BotRunner r = new BotRunner(sim.ctx, () -> false, s -> { });
+        r.tick();
+        sim.run(r::tick, 300);
+        var h = sim.world.snapshot(sim.now).hero();
+        assertTrue(!h.moving() && Math.hypot(h.x() - 20_000, h.y() - 20_000) < 500, "stopped in the circle: " + h.x());
+        sim.run(r::tick, 20_000);
+        assertEquals(java.util.Set.of(2, 3, 4, 5, 6, 7), new java.util.HashSet<>(picks(sim.sent)));
+    }
+
+    @Test
+    void aShipTheServerHoldsStillPicksTheBoxesWhereItStands() {
+        Sim sim = new Sim(config(), 93, 20_000, 20_000);
+        sim.holdShip = true;
+        sim.world.apply(allRed(20_000, 20_000), sim.now);
+        BotRunner r = new BotRunner(sim.ctx, () -> false, s -> { });
+        sim.run(r::tick, 60_000);
+        assertEquals(6, picks(sim.sent).size(), "every red box, clicked a few times each first: " + picks(sim.sent));
+        assertEquals(java.util.Set.of(2, 3, 4, 5, 6, 7), new java.util.HashSet<>(picks(sim.sent)));
+    }
+
+    @Test
+    void aShipDestroyedDuringTheCheckIsRevived() {
+        // live 2026-11-12 on ge3: killed by an NPC during the check, the bot stayed on the kill screen
+        Sim sim = new Sim(config(), 93, 20_000, 20_000);
+        sim.holdShip = true;
+        sim.world.apply(allRed(20_000, 20_000), sim.now);
+        BotRunner r = new BotRunner(sim.ctx, () -> false, s -> { });
+        sim.run(r::tick, 1_000);
+        orbit.protocol.gen.KillScreenPostCommand k = new orbit.protocol.gen.KillScreenPostCommand();
+        k.killerName = "-=[ Barracuda ]=-";
+        k.options = java.util.List.of();
+        sim.world.apply(k, sim.now);
+        assertEquals(null, sim.world.snapshot(sim.now).boxCheck(), "the check goes with the ship");
+        sim.run(r::tick, 1_000);
+        assertEquals(BotRunner.State.DEAD, r.state());
     }
 
     @Test

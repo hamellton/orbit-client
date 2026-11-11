@@ -358,6 +358,12 @@ public final class World {
             }
             case JumpInitiatedCommand p -> jumpingTo = p.mapId;
             case KillScreenPostCommand p -> {
+                if (boxCheck != null) {
+                    // the client's map is gone with the ship, the check's boxes with it (live 2026-11-12 on ge3: a box
+                    // check left up kept the bot off the kill screen)
+                    log.warn("Корабль уничтожен во время проверки с ящиками — проверки больше нет");
+                    boxCheck = null;
+                }
                 hero.alive = false;
                 hero.selectedId = 0;
                 hero.attackTargetId = 0;
@@ -1172,6 +1178,7 @@ public final class World {
 
     /** Everything that belongs to the current map; the hero and the group survive a map change. */
     private void clearMap() {
+        boxCheck = null; // the check's boxes belong to the map the client leaves
         activatable.clear();
         mines.clear();
         jumpingTo = 0;

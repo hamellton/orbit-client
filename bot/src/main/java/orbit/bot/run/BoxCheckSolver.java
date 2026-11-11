@@ -11,6 +11,11 @@ import org.slf4j.LoggerFactory;
  * client's {@code EventManager.handleMoveComplete}) and goes on to the next one after a short pause, until as many
  * as asked are picked; then it stands and waits for the server's verdict. Only boxes of the asked colour are ever
  * touched. Call {@link #tick} every bot tick while {@link WorldSnapshot#boxCheck} is up.
+ *
+ * <p>The ship is stopped where it is as soon as the check comes: a click of the last flight keeps it going, and the
+ * server holds it at the circle's edge (live 2026-11-12 on ge3: the ship flew out on its way to a portal and no box
+ * was picked). A ship that does not get onto a box (held by the server, or our position is off) is clicked at the box
+ * again; after {@link #TRIES} clicks the box is picked where the ship stands — the server knows only the index.
  */
 final class BoxCheckSolver {
 
@@ -26,12 +31,15 @@ final class BoxCheckSolver {
     static final long RETRY_MS = 1_500;
     /** On the box: the ship stands within this of it. */
     static final double ON_BOX = 3;
+    /** Clicks at one box before it is picked wherever the ship got to. */
+    static final int TRIES = 4;
 
     private final BotContext ctx;
     private long checkSince = Long.MIN_VALUE;
     private long nextAt;
     private WorldSnapshot.BoxCheck.CheckBox flyingTo;
     private long clickedAt;
+    private int tries;
     private boolean doneLogged;
 
     BoxCheckSolver(BotContext ctx) {
@@ -53,7 +61,11 @@ final class BoxCheckSolver {
                 read = Math.min(read, c.seconds() * 1_000_000_000L / 8);
             }
             nextAt = now + read;
-            log.info("Выполняю проверку: {}", c.task());
+            WorldSnapshot.Hero h = w.hero();
+            double off = Math.hypot(h.x() - c.x(), h.y() - c.y());
+            log.info("Выполняю проверку: {}; корабль {}/{}, {} от центра круга (радиус {}){}", c.task(), h.x() / 100,
+                    h.y() / 100, (int) off, c.radius(), h.moving() ? ", летит — останавливаю" : "");
+            ctx.actions().halt();
         }
         WorldSnapshot.Hero h = w.hero();
         if (!h.alive()) {
@@ -71,20 +83,38 @@ final class BoxCheckSolver {
             boolean still = c.targets().stream().anyMatch(b -> b.index() == target.index());
             if (!still) {
                 flyingTo = null;
-            } else if (!h.moving() && Math.hypot(h.x() - target.x(), h.y() - target.y()) <= ON_BOX) {
+                return;
+            }
+            if (!h.moving() && Math.hypot(h.x() - target.x(), h.y() - target.y()) <= ON_BOX) {
                 ctx.actions().pickCheckBox(target.index());
                 log.info("Ящик проверки собран ({} {}), осталось {}", target.red() ? "красный" : "чёрный", target.index(),
                         c.left() - 1);
                 flyingTo = null;
                 nextAt = now + ctx.pause(NEXT_MIN_MS, NEXT_MAX_MS);
                 return;
-            } else if (!h.moving() && now - clickedAt > RETRY_MS * 1_000_000) {
-                ctx.actions().flyToCheckBox(target.x(), target.y()); // the ship did not go: click the box again
-                clickedAt = now;
-                return;
-            } else {
+            }
+            boolean onCourse = h.moving() && h.targetX() == target.x() && h.targetY() == target.y();
+            long flight = (long) (Math.hypot(h.x() - target.x(), h.y() - target.y()) / Math.max(100, h.speed()) * 1000);
+            if (now - clickedAt < (onCourse ? Math.max(RETRY_MS, flight + RETRY_MS) : RETRY_MS) * 1_000_000) {
                 return;
             }
+            double dist = Math.hypot(h.x() - target.x(), h.y() - target.y());
+            if (tries >= TRIES) {
+                log.warn("Не долетаю до ящика проверки ({} {}): корабль {}/{}, до ящика {}, до центра {} — собираю отсюда",
+                        target.red() ? "красный" : "чёрный", target.index(), h.x() / 100, h.y() / 100, (int) dist,
+                        (int) Math.hypot(h.x() - c.x(), h.y() - c.y()));
+                ctx.actions().pickCheckBox(target.index());
+                flyingTo = null;
+                nextAt = now + ctx.pause(NEXT_MIN_MS, NEXT_MAX_MS);
+                return;
+            }
+            log.info("Корабль не на ящике проверки ({} {}): {}/{}, до ящика {}{} — кликаю снова",
+                    target.red() ? "красный" : "чёрный", target.index(), h.x() / 100, h.y() / 100, (int) dist,
+                    h.moving() ? ", летит не туда" : "");
+            ctx.actions().flyToCheckBox(target.x(), target.y());
+            clickedAt = now;
+            tries++;
+            return;
         }
         if (now < nextAt) {
             return;
@@ -97,6 +127,7 @@ final class BoxCheckSolver {
         }
         flyingTo = next;
         clickedAt = now;
+        tries = 1;
         ctx.actions().flyToCheckBox(next.x(), next.y());
     }
 }

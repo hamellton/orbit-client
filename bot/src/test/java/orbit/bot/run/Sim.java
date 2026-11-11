@@ -105,6 +105,9 @@ final class Sim {
         world.apply(menu, now);
     }
 
+    /** The server keeps the ship where it is: moves are sent but not taken (held at the box check's edge). */
+    boolean holdShip;
+
     /** The server never starts an attack (no ammunition on board). */
     boolean blockAttacks;
 
@@ -121,7 +124,9 @@ final class Sim {
     void receive(Packet p) {
         sent.add(p);
         if (p instanceof MoveRequest m) {
-            world.applyOutgoing(m, now);
+            if (!holdShip) {
+                world.applyOutgoing(m, now);
+            }
         } else if (p instanceof orbit.protocol.gen.CaptchaCollectRequest) {
             world.applyOutgoing(p, now);
         } else if (p instanceof ShipSelectRequest s) {

@@ -171,6 +171,18 @@ public final class Actions {
         sender.accept(m);
     }
 
+    /**
+     * Stops the ship where it is: a click on its own position, as a player stops (the server has no stop request).
+     * Nothing is sent when the ship stands still.
+     */
+    public void halt() {
+        WorldSnapshot.Hero h = world.get().hero();
+        if (h.id() == 0 || !h.alive() || !h.moving()) {
+            return;
+        }
+        flyToCheckBox(h.x(), h.y());
+    }
+
     /** Picks a box of the game's box check (the ship is on it, as after the client's move). */
     public void pickCheckBox(int index) {
         orbit.protocol.gen.CaptchaCollectRequest r = new orbit.protocol.gen.CaptchaCollectRequest();
