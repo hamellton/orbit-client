@@ -54,8 +54,14 @@ final class KillSection implements Section {
         table = new JTable(npcs);
         table.setAutoCreateRowSorter(true);
         table.setFillsViewportHeight(true);
-        table.getColumnModel().getColumn(0).setPreferredWidth(220);
-        table.getColumnModel().getColumn(8).setPreferredWidth(200);
+        // narrow columns for ticks and numbers; the names and the flags take the rest
+        int[] widths = {200, 44, 78, 62, 44, 80, 80, 90, 190};
+        for (int i = 0; i < widths.length; i++) {
+            table.getColumnModel().getColumn(i).setPreferredWidth(widths[i]);
+        }
+        for (int i : new int[] {1, 4}) {
+            table.getColumnModel().getColumn(i).setMaxWidth(56);
+        }
         table.getColumnModel().getColumn(6).setCellEditor(new javax.swing.DefaultCellEditor(
                 new javax.swing.JComboBox<>(NpcTable.rocketChoices())));
         table.getColumnModel().getColumn(5).setCellEditor(new javax.swing.DefaultCellEditor(
@@ -87,38 +93,99 @@ final class KillSection implements Section {
             }
             npcs.remove(sel);
         });
+        // the list takes all the height the settings leave; it scrolls by itself, the tab does not
+        javax.swing.JLabel title = new javax.swing.JLabel("Список NPC");
+        title.setFont(title.getFont().deriveFont(java.awt.Font.BOLD));
+        javax.swing.JLabel help = new javax.swing.JLabel("ⓘ");
+        help.setForeground(java.awt.Color.GRAY);
+        help.setToolTipText("<html>Приоритет: меньше — раньше (−100 первым). Карты: «все» — везде.<br>"
+                + "Патроны «общие» — как выбрано выше.<br>Флаги: IGNORE_OWNERSHIP — бить чужих, IGNORE_ATTACKED, "
+                + "PASSIVE — не убегать,<br>AGGRESSIVE_FOLLOW — догонять, NO_CIRCLE, PET_LOCATOR, KAMIKAZE.</html>");
+        JPanel bar = new JPanel(new BorderLayout(8, 0));
+        bar.add(Form.inline(title, help), BorderLayout.WEST);
+        bar.add(Form.inline(search, add, remove), BorderLayout.EAST);
         JPanel list = new JPanel(new BorderLayout(0, 6));
-        list.add(Form.inline(search, add, remove), BorderLayout.NORTH);
+        list.setBorder(javax.swing.BorderFactory.createEmptyBorder(4, 12, 10, 12));
+        list.add(bar, BorderLayout.NORTH);
         JScrollPane scroll = new JScrollPane(table);
-        scroll.setPreferredSize(new java.awt.Dimension(700, 320));
+        scroll.setColumnHeaderView(table.getTableHeader()); // also without a screen (snapshots)
+        scroll.setPreferredSize(new java.awt.Dimension(600, 160));
+        scroll.setMinimumSize(new java.awt.Dimension(200, 120));
         list.add(scroll, BorderLayout.CENTER);
 
         useSab.addActionListener(e -> sync());
         useRsb.addActionListener(e -> sync());
-        view = new Form()
+        fireRockets.setToolTipText("С ракетным CPU бот только держит тип; тип для NPC — в списке");
+        circle.setToolTipText("Часть выстрелов мимо; не кружит с NO_CIRCLE и на споте куба");
+        groupNpcs.setToolTipText("Сначала добивать NPC рядом, а не лететь к дальним");
+        // the settings in two top-aligned columns: ammunition | rockets and targets; one under the other when narrow
+        JComponent ammoColumn = new Form()
                 .section("Патроны")
                 .row("Основные", ammo)
                 .row("Запасные", Form.inline(fallback1, fallback2))
                 .row("", Form.inline(useSab, sabBelow, new javax.swing.JLabel("%")))
                 .row("Патроны SAB", sab)
-                .row("Щит NPC не меньше", sabNpcShield)
+                .row("Щит NPC от", sabNpcShield)
                 .row("", useRsb)
                 .row("Патроны RSB", rsb)
+                .build(false);
+        JComponent otherColumn = new Form()
                 .section("Ракеты")
-                .row("Ракеты", rocket)
+                .row("Тип", rocket)
                 .row("", fireRockets)
-                .note("С ракетным CPU бот лишь держит тип. Тип для NPC — в списке.")
                 .section("Цели")
                 .row("", circle)
-                .note("Часть выстрелов мимо. Не кружит с NO_CIRCLE и на споте куба.")
                 .row("", groupNpcs)
-                .row("Не замечать NPC дальше", ignoreFarther)
-                .section("Список NPC")
-                .note("Приоритет: меньше — раньше (−100 первым). «общие» — патроны выше. Карты: «все» — везде.")
-                .note("Флаги: IGNORE_OWNERSHIP (бить чужих), IGNORE_ATTACKED, PASSIVE (не убегать), "
-                        + "AGGRESSIVE_FOLLOW (догонять), NO_CIRCLE, PET_LOCATOR, KAMIKAZE.")
-                .wide(list, true)
+                .row("Не видеть дальше", ignoreFarther)
                 .build(false);
+        JPanel settings = new JPanel(new Columns());
+        settings.add(ammoColumn);
+        settings.add(otherColumn);
+        JPanel page = new JPanel(new BorderLayout());
+        page.add(settings, BorderLayout.NORTH);
+        page.add(list, BorderLayout.CENTER);
+        view = page;
+    }
+
+    /** Two components side by side, top-aligned, when they fit the width; otherwise one under the other. */
+    static final class Columns implements java.awt.LayoutManager {
+        @Override
+        public void layoutContainer(java.awt.Container parent) {
+            java.awt.Component a = parent.getComponent(0);
+            java.awt.Component b = parent.getComponent(1);
+            java.awt.Dimension pa = a.getPreferredSize();
+            java.awt.Dimension pb = b.getPreferredSize();
+            if (pa.width + pb.width <= parent.getWidth()) {
+                a.setBounds(0, 0, pa.width, pa.height);
+                b.setBounds(pa.width, 0, parent.getWidth() - pa.width, pb.height);
+            } else {
+                a.setBounds(0, 0, parent.getWidth(), pa.height);
+                b.setBounds(0, pa.height, parent.getWidth(), pb.height);
+            }
+        }
+
+        @Override
+        public java.awt.Dimension preferredLayoutSize(java.awt.Container parent) {
+            java.awt.Dimension pa = parent.getComponent(0).getPreferredSize();
+            java.awt.Dimension pb = parent.getComponent(1).getPreferredSize();
+            int width = parent.getWidth();
+            boolean side = width == 0 || pa.width + pb.width <= width;
+            return side ? new java.awt.Dimension(pa.width + pb.width, Math.max(pa.height, pb.height))
+                    : new java.awt.Dimension(Math.max(pa.width, pb.width), pa.height + pb.height);
+        }
+
+        @Override
+        public java.awt.Dimension minimumLayoutSize(java.awt.Container parent) {
+            return preferredLayoutSize(parent);
+        }
+
+        @Override
+        public void addLayoutComponent(String name, java.awt.Component comp) {
+        }
+
+        @Override
+        public void removeLayoutComponent(java.awt.Component comp) {
+        }
     }
 
     private java.util.List<String> fallbacks() {
