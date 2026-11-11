@@ -502,6 +502,8 @@ public final class OrbitMain {
         // chosen in the window: wins over the plan until the program ends
         java.util.concurrent.atomic.AtomicReference<String> chosen = new java.util.concurrent.atomic.AtomicReference<>();
         java.util.concurrent.atomic.AtomicReference<GameConnection> currentConn = new java.util.concurrent.atomic.AtomicReference<>();
+        // the account's site of the last game session (the hangars are switched there between sessions)
+        java.util.concurrent.atomic.AtomicReference<String> lastHost = new java.util.concurrent.atomic.AtomicReference<>();
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             GameConnection c = currentConn.get();
             if (c != null) {
@@ -571,6 +573,9 @@ public final class OrbitMain {
                     ModuleRun run = startModule(feed, conn, cfgName, cfg, end, why, profile, stopFile,
                             shopFor(auth, conn), () -> !game.isAlive());
                     current.set(run);
+                    if (cfg.module() == orbit.config.BotConfig.Module.PALLADIUM) {
+                        watchHangar(auth, conn, run.runner(), lastHost); // which ship is in use (two-ship palladium)
+                    }
                     if (closed.get()) {
                         // stopped while logging in: the stop found no module to finish, so finish this one
                         Thread.ofPlatform().name("stop-" + accountName).start(() -> run.finish(conn));
@@ -579,6 +584,13 @@ public final class OrbitMain {
                     conn.close();
                     game.join(10_000);
                     current.set(null);
+                    int wantHangar = run.runner().hangarRequest();
+                    if (wantHangar != 0 && !closed.get() && lastHost.get() != null) {
+                        // the module asked for another ship (two-ship palladium): switch it on the site, log in again
+                        switchHangar(auth, lastHost.get(), wantHangar, cfg, feed);
+                        failures = 0;
+                        continue;
+                    }
                     if (run.connectionEnded().get() && !closed.get()) {
                         // the login failed or the server ended the session: try again later, a few times
                         String reason = feed.state();
@@ -655,6 +667,68 @@ public final class OrbitMain {
             }
         };
         return new Sessions(sessions, close, playing::get, switchConfig, kill);
+    }
+
+    /**
+     * Reads the account's hangars once the game session is known and tells the runner which one is in use; logs
+     * them (id, ship) — the two-ship palladium needs it to know whether the collect or the sell ship is out.
+     */
+    private static void watchHangar(AuthClient auth, GameConnection conn, orbit.bot.run.BotRunner runner,
+                                    java.util.concurrent.atomic.AtomicReference<String> lastHost) {
+        java.util.Map<String, String> ctx = org.slf4j.MDC.getCopyOfContextMap();
+        Thread.ofVirtual().name("hangars").start(() -> {
+            if (ctx != null) {
+                org.slf4j.MDC.setContextMap(ctx);
+            }
+            try {
+                for (int i = 0; i < 120 && (conn.session() == null || conn.session().host() == null); i++) {
+                    Thread.sleep(500);
+                }
+                if (conn.session() == null) {
+                    return;
+                }
+                String host = conn.session().host();
+                lastHost.set(host);
+                var list = new orbit.auth.Hangars(auth.http(), host).list();
+                var active = list.stream().filter(orbit.auth.Hangars.Hangar::active).findFirst().orElse(null);
+                log.info("Ангары: {}; сейчас {}", list.stream().map(h -> h.id() + " " + shipName(h.ship())).toList(),
+                        active == null ? "не понять" : active.id() + " " + shipName(active.ship()));
+                if (active != null) {
+                    runner.setActiveHangar(active.id());
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            } catch (java.io.IOException | RuntimeException e) {
+                log.warn("Ангары с сайта не прочитать: {}", e.getMessage());
+            }
+        });
+    }
+
+    private static String shipName(String lootId) {
+        return lootId == null || lootId.isBlank() ? "?" : lootId.replaceFirst("^ship_", "");
+    }
+
+    /** Makes {@code want} the active ship on the site, then waits the module's extra pause (DmPlugin's 5 s). */
+    private static void switchHangar(AuthClient auth, String host, int want, orbit.config.BotConfig cfg, WorldFeed feed)
+            throws InterruptedException {
+        var hangars = new orbit.auth.Hangars(auth.http(), host);
+        feed.setState("Смена корабля");
+        try {
+            var list = hangars.list();
+            int active = list.stream().filter(orbit.auth.Hangars.Hangar::active).mapToInt(orbit.auth.Hangars.Hangar::id)
+                    .findFirst().orElse(0);
+            if (active != want) {
+                hangars.activate(active, want);
+                log.info("Корабль сменён на сайте: ангар {} → {}", active, want);
+            }
+        } catch (java.io.IOException e) {
+            log.warn("Корабль не сменить: {} — вхожу на прежнем, через минуту", e.getMessage());
+            Thread.sleep(60_000);
+            return;
+        }
+        var s = cfg.modules().get(orbit.config.BotConfig.Module.PALLADIUM.key());
+        long extra = s == null ? 5 : Math.max(0, s.path("aditionalWaitingTime").asInt(5));
+        Thread.sleep(2_000 + extra * 1_000);
     }
 
     /** After this many sessions in a row without a game connection the account stops. */

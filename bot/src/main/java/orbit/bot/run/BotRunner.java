@@ -53,6 +53,10 @@ public final class BotRunner {
     private volatile boolean paused;
     private boolean pauseShown;
     private Order current;
+    /** The website hangar in use ({@code 0} not known), and the one the module asked to switch to. */
+    private volatile int activeHangar;
+    private volatile int hangarRequest;
+    private boolean logoutHere;
     private long orderAt;
     private long holdUntil;
 
@@ -74,7 +78,7 @@ public final class BotRunner {
     private String stopReason;
     private int travelTarget;
     private long logoutAt;
-    private long logoutPressedAt;
+    private long logoutPressedAt = Long.MIN_VALUE / 2;
     private String lastStatus = "";
 
     /**
@@ -154,6 +158,16 @@ public final class BotRunner {
         pending.set(o);
     }
 
+    /** The website hangar in use, as the app read it; any thread. */
+    public void setActiveHangar(int id) {
+        activeHangar = id;
+    }
+
+    /** The hangar the module asked for: the app switches to it after this session ({@code 0} none). */
+    public int hangarRequest() {
+        return hangarRequest;
+    }
+
     /** Paused: the module rests, the ship does only what the user orders; any thread. */
     public void setPaused(boolean on) {
         paused = on;
@@ -209,6 +223,18 @@ public final class BotRunner {
             offline = false;
             log.info("Связь восстановлена — продолжаю");
         }
+        if (w.death() != null && module != null && hangarRequest == 0 && state != State.STOPPING) {
+            int want = module.hangarOnDeath(activeHangar, w);
+            if (want != 0 && want != activeHangar) {
+                // destroyed with the cargo aboard: the other ship instead of a revive (DmPlugin «sellOnDie»)
+                log.info("Корабль уничтожен — меняю корабль (ангар {}) вместо возрождения", want);
+                hangarRequest = want;
+                stopReason = "смена корабля";
+                state = State.STOPPED;
+                show("Смена корабля");
+                return;
+            }
+        }
         boolean reviving = revive.tick();
         if (reviving && state == State.STOPPING && w.death() == null && h.alive()) {
             reviving = false; // back in game while logging out: no pause after the revive, out at once
@@ -261,6 +287,14 @@ public final class BotRunner {
         }
         if (module == null) {
             fail("модуль " + moduleKind + " не поддерживается");
+            return;
+        }
+        int wantHangar = hangarRequest == 0 && !module.busy() ? module.hangarWanted(activeHangar, w) : 0;
+        if (wantHangar != 0 && wantHangar != activeHangar) {
+            log.info("Меняю корабль: ангар {} → {} (выход из игры, смена на сайте, вход)", activeHangar, wantHangar);
+            hangarRequest = wantHangar;
+            logoutHere = !module.hangarAtPortal();
+            stop("смена корабля");
             return;
         }
         if (cargo.tick(module.busy(), module.cargoPlan(ctx.config().get()))) {
@@ -432,7 +466,7 @@ public final class BotRunner {
         }
         // straight to the portal and out: the hull is not repaired first, no escape jump on the way
         safety.healOnly();
-        MapCatalog.Portal p = ctx.maps().portals(h.mapId()).stream()
+        MapCatalog.Portal p = logoutHere ? null : ctx.maps().portals(h.mapId()).stream()
                 .filter(x -> x.faction() == 0 || x.faction() == h.factionId())
                 .min(Comparator.comparingDouble(x -> Math.hypot(x.x() - h.x(), x.y() - h.y()))).orElse(null);
         if (p != null && Math.hypot(p.x() - h.x(), p.y() - h.y()) > Safety.AT_PORTAL) {

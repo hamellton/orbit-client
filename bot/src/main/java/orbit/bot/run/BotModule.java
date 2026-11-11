@@ -39,6 +39,24 @@ public interface BotModule {
         return null;
     }
 
+    /**
+     * Another ship wanted now: the website hangar to switch to ({@code 0} = none) — the bot logs out, the app
+     * switches the hangar and logs in again. {@code active} is the hangar in use ({@code 0} not known yet).
+     */
+    default int hangarWanted(int active, orbit.world.WorldSnapshot w) {
+        return 0;
+    }
+
+    /** The same right after the ship was destroyed (the kill screen): switch instead of reviving. */
+    default int hangarOnDeath(int active, orbit.world.WorldSnapshot w) {
+        return 0;
+    }
+
+    /** Log out at a portal for a hangar switch (true), or where the ship is (false). */
+    default boolean hangarAtPortal() {
+        return true;
+    }
+
     /** True when it is a bad moment to leave (e.g. a boss almost dead). */
     default boolean busy() {
         return false;

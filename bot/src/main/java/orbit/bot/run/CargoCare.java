@@ -47,6 +47,9 @@ final class CargoCare {
     private long failedAt = Long.MIN_VALUE / 2;
     private long nextSellAt;
     private final List<int[]> toSell = new ArrayList<>();
+    /** After a sale the hold is recounted by the game a moment later: no new sale before that. */
+    static final long SOLD_SETTLE_MS = 10_000;
+    private long soldAt = Long.MIN_VALUE / 2;
     private long soldUnits;
     /** When the ship came within {@link #AT_REFINERY} of the refinery (0 not yet). */
     private long nearSince;
@@ -125,8 +128,9 @@ final class CargoCare {
             }
         }
         if (step == null) {
-            if (!wantSale || !full(c, w, mode) || ms(now - failedAt) < RETRY_MS) {
-                if (!full(c, w, mode)) {
+            if (!wantSale || !(full(c, w, mode) || plan.always() && !sellable(plan, w).isEmpty()) || ms(now - failedAt) < RETRY_MS
+                    || ms(now - soldAt) < SOLD_SETTLE_MS) {
+                if (!(full(c, w, mode) || plan.always() && !sellable(plan, w).isEmpty())) {
                     told = "";
                 }
                 return false;
@@ -271,6 +275,8 @@ final class CargoCare {
         ctx.stats().selling = false;
         if (!sold) {
             failedAt = ctx.now();
+        } else {
+            soldAt = ctx.now();
         }
         pet.setTrade(false);
         step = null;
