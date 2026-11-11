@@ -1,0 +1,205 @@
+package orbit.bot.run;
+
+import orbit.config.BotConfig;
+import orbit.protocol.gen.PetGearTypeModule;
+import orbit.protocol.gen.PetRequest;
+import orbit.world.WorldSnapshot;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+/**
+ * The P.E.T., as the client does it (recorded on ru1 2026-11-11):
+ * <ul>
+ *   <li>launch ({@code PetRequest 0}) a moment after the login, a revive or a map change; the server then lists
+ *       the pet's modes ({@code PetGearAddCommand}) and puts it in Passive;</li>
+ *   <li>the config's mode ({@code PetGearActivationRequest}; the enemy locator with the NPC number as
+ *       {@code optParam}). The mode works at once, but the server names it ({@code PetGearSelectCommand}) only
+ *       12–32 s later, so a request is not repeated for want of an answer — only when the server names another
+ *       mode after it (it puts Guard itself after the combo repair);</li>
+ *   <li>the combo ship repair (mode 11) when the hero is low and nothing has hit it for a while: hit 0.2–8 s
+ *       before, the server refused (Guard at once); 13.5 s after, it repaired for ~3.5 s, then set Guard;</li>
+ *   <li>a destroyed pet is repaired ({@code PetRequest 4}) unless the config says not to.</li>
+ * </ul>
+ */
+public final class PetCare {
+
+    private static final Logger log = LoggerFactory.getLogger(PetCare.class);
+
+    /** Not hit this long before the combo repair (refused at 8.3 s, worked at 13.5 s). */
+    static final long COMBO_QUIET_MS = 11_000;
+    /** The combo repair again at most this often. */
+    static final long COMBO_EVERY_MS = 20_000;
+    static final long LAUNCH_RETRY_MS = 15_000;
+    static final long REPAIR_RETRY_MS = 60_000;
+    /** A mode asked again only this long after the last request. */
+    static final long GEAR_RETRY_MS = 3_000;
+    /** After this many requests the server keeps turning down within {@link #GEAR_BACKOFF_MS}: wait. */
+    static final int GEAR_TRIES = 3;
+    static final long GEAR_BACKOFF_MS = 60_000;
+
+    private final BotContext ctx;
+    private long launchAt;
+    private long launchedAt = Long.MIN_VALUE / 2;
+    private long repairedAt = Long.MIN_VALUE / 2;
+    private int askedGear = -1;
+    private long askedAt = Long.MIN_VALUE / 2;
+    private long gearAt;
+    private int tries;
+    private long firstTryAt;
+    private long comboAt = Long.MIN_VALUE / 2;
+    private long hurtAt = Long.MIN_VALUE / 2;
+    private double lastHp = -1;
+    private String told = "";
+
+    public PetCare(BotContext ctx) {
+        this.ctx = ctx;
+    }
+
+    /** The {@code PetGearTypeModule} number of a config name ({@code ENEMY_LOCATOR}…), -1 for none. */
+    static int gearId(String name) {
+        if (name == null) {
+            return -1;
+        }
+        try {
+            return PetGearTypeModule.class.getField("PETGEARTYPE_" + name).getInt(null);
+        } catch (ReflectiveOperationException e) {
+            return -1;
+        }
+    }
+
+    /** Call every tick while the ship is alive. */
+    public void tick() {
+        BotConfig.Pet cfg = ctx.config().get().pet();
+        WorldSnapshot w = ctx.world().get();
+        WorldSnapshot.Hero h = w.hero();
+        WorldSnapshot.Pet pet = w.pet();
+        long now = ctx.now();
+        double hull = h.health().hp();
+        if (lastHp >= 0 && hull < lastHp - 1) {
+            hurtAt = now;
+        }
+        lastHp = hull;
+        if (!cfg.enabled() || h.id() == 0 || !h.alive()) {
+            return;
+        }
+        if (!pet.owned()) {
+            tell("Питомца на аккаунте нет");
+            return;
+        }
+        if (!pet.alive()) {
+            if (cfg.noRepair()) {
+                tell("Питомец уничтожен — починка выключена в конфиге");
+            } else if (ms(now - repairedAt) > REPAIR_RETRY_MS) {
+                log.info("Питомец уничтожен — чиню{}", pet.repairCost() >= 0 ? " (цена " + pet.repairCost() + ")" : "");
+                ctx.actions().pet(PetRequest.PETREQUESTTYPE_REPAIR_DESTROYED_PET);
+                repairedAt = now;
+            }
+            return;
+        }
+        if (!pet.hasFuel()) {
+            tell("У питомца нет топлива");
+            return;
+        }
+        if (!pet.active()) {
+            // a moment after the login, a revive or a jump, like a player pressing the key
+            if (launchAt == 0) {
+                launchAt = now + ctx.pause(2_000, 5_000);
+            }
+            if (now >= launchAt && ms(now - launchedAt) > LAUNCH_RETRY_MS) {
+                log.info("Выпускаю питомца");
+                ctx.actions().pet(PetRequest.PETREQUESTTYPE_LAUNCH);
+                launchedAt = now;
+                launchAt = 0;
+                askedGear = -1; // a launch puts it in Passive: the mode is asked for again
+                gearAt = 0;
+            }
+            return;
+        }
+        launchAt = 0;
+        told = "";
+        if (combo(cfg, h, pet, now)) {
+            return;
+        }
+        gear(cfg, pet, now);
+    }
+
+    private boolean combo(BotConfig.Pet cfg, WorldSnapshot.Hero h, WorldSnapshot.Pet pet, long now) {
+        int combo = PetGearTypeModule.PETGEARTYPE_COMBO_SHIP_REPAIR;
+        if (cfg.comboRepairBelow() <= 0 || !pet.gears().contains(combo)) {
+            return false;
+        }
+        if (askedGear == combo && ms(now - askedAt) < 5_000) {
+            return true; // repairing: the server ends it with Guard after ~3.5 s
+        }
+        double hp = h.health().hpPercent();
+        if (hp < 0 || hp >= cfg.comboRepairBelow() || !h.attackers().isEmpty() || ms(now - hurtAt) < COMBO_QUIET_MS
+                || ms(now - comboAt) < COMBO_EVERY_MS) {
+            return false;
+        }
+        log.info("Питомец: комбо-ремонт (HP {}%)", Math.round(hp * 100));
+        ctx.actions().petGear(combo, 0);
+        comboAt = now;
+        askedGear = combo;
+        askedAt = now;
+        return true;
+    }
+
+    private void gear(BotConfig.Pet cfg, WorldSnapshot.Pet pet, long now) {
+        int want = gearId(cfg.gear());
+        if (want < 0) {
+            return;
+        }
+        if (!pet.gears().isEmpty() && !pet.gears().contains(want)) {
+            tell("У питомца нет режима " + orbit.config.ItemCatalog.label(cfg.gear()));
+            return;
+        }
+        // the server's word after our request: another mode means it was turned down or changed (Guard)
+        boolean overruled = pet.gearNanos() > askedAt && pet.gear() >= 0 && pet.gear() != want;
+        if (askedGear == want && !overruled) {
+            return;
+        }
+        if (ms(now - askedAt) < GEAR_RETRY_MS) {
+            return;
+        }
+        if (askedGear == want && tries >= GEAR_TRIES && ms(now - firstTryAt) < GEAR_BACKOFF_MS) {
+            return;
+        }
+        if (gearAt == 0) {
+            gearAt = now + ctx.pause(800, 2_000);
+            return;
+        }
+        if (now < gearAt) {
+            return;
+        }
+        gearAt = 0;
+        if (askedGear == want) {
+            if (tries == 0 || ms(now - firstTryAt) >= GEAR_BACKOFF_MS) {
+                tries = 0;
+                firstTryAt = now;
+            }
+            tries++;
+            if (tries == GEAR_TRIES) {
+                log.warn("Питомец: сервер не держит режим {} — повторю через минуту", orbit.config.ItemCatalog.label(cfg.gear()));
+            }
+        } else {
+            tries = 0;
+            firstTryAt = now;
+        }
+        int param = want == PetGearTypeModule.PETGEARTYPE_ENEMY_LOCATOR ? cfg.locatorTarget() : 0;
+        log.info("Питомец: режим {}{}", orbit.config.ItemCatalog.label(cfg.gear()), param != 0 ? " (цель №" + param + ")" : "");
+        ctx.actions().petGear(want, param);
+        askedGear = want;
+        askedAt = now;
+    }
+
+    private void tell(String s) {
+        if (!s.equals(told)) {
+            told = s;
+            log.warn(s);
+        }
+    }
+
+    private static long ms(long nanos) {
+        return nanos / 1_000_000;
+    }
+}

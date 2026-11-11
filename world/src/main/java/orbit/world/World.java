@@ -2,9 +2,11 @@ package orbit.world;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import orbit.protocol.Packet;
 import orbit.protocol.gen.AddBoxCommand;
 import orbit.protocol.gen.AddOreCommand;
@@ -212,9 +214,37 @@ public final class World {
             case PetHeatUpdateCommand p -> pet = pet(pet.owned(), pet.alive(), pet.hasFuel(), pet.active(), pet.id(),
                     pet.name(), pet.level(), pet.health(), pet.fuel(), pet.fuelMax(), p.petHeatAmount, p.petHeatAmountMax,
                     pet.gear());
-            case PetGearSelectCommand p -> pet = pet(pet.owned(), pet.alive(), pet.hasFuel(), pet.active(), pet.id(),
-                    pet.name(), pet.level(), pet.health(), pet.fuel(), pet.fuelMax(), pet.heat(), pet.heatMax(),
-                    p.gearType != null ? p.gearType.typeValue : -1);
+            case PetGearSelectCommand p -> {
+                pet = pet(pet.owned(), pet.alive(), pet.hasFuel(), pet.active(), pet.id(),
+                        pet.name(), pet.level(), pet.health(), pet.fuel(), pet.fuelMax(), pet.heat(), pet.heatMax(),
+                        p.gearType != null ? p.gearType.typeValue : -1);
+                pet = petWith(nanos, pet.gears(), pet.repairCost(), pet.comboRepair());
+            }
+            case orbit.protocol.gen.PetGearResetCommand p -> pet = petWith(pet.gearNanos(), Set.of(), pet.repairCost(),
+                    pet.comboRepair());
+            case orbit.protocol.gen.PetGearAddCommand p when p.gearType != null && p.enabled -> {
+                Set<Integer> g = new HashSet<>(pet.gears());
+                g.add((int) p.gearType.typeValue);
+                pet = petWith(pet.gearNanos(), g, pet.repairCost(), pet.comboRepair());
+            }
+            case orbit.protocol.gen.PetGearRemoveCommand p when p.gearType != null -> {
+                Set<Integer> g = new HashSet<>(pet.gears());
+                g.remove((int) p.gearType.typeValue);
+                pet = petWith(pet.gearNanos(), g, pet.repairCost(), pet.comboRepair());
+            }
+            case orbit.protocol.gen.PetIsDestroyedCommand p -> pet = pet(pet.owned(), false, pet.hasFuel(), false, pet.id(),
+                    pet.name(), pet.level(), pet.health(), pet.fuel(), pet.fuelMax(), pet.heat(), pet.heatMax(), pet.gear());
+            case orbit.protocol.gen.PetRepairCompleteCommand p -> {
+                pet = pet(pet.owned(), true, pet.hasFuel(), pet.active(), pet.id(),
+                        pet.name(), pet.level(), pet.health(), pet.fuel(), pet.fuelMax(), pet.heat(), pet.heatMax(), pet.gear());
+                pet = petWith(pet.gearNanos(), pet.gears(), -1, pet.comboRepair());
+            }
+            case orbit.protocol.gen.PetUIRepairButtonCommand p -> pet = petWith(pet.gearNanos(), pet.gears(),
+                    p.enabled ? p.repairCosts : -1, pet.comboRepair());
+            case orbit.protocol.gen.PetOutOfFuelCommand p -> pet = pet(pet.owned(), pet.alive(), false, pet.active(), pet.id(),
+                    pet.name(), pet.level(), pet.health(), pet.fuel(), pet.fuelMax(), pet.heat(), pet.heatMax(), pet.gear());
+            case orbit.protocol.gen.PetBuffCommand p when p.effectId == 6 -> pet = petWith(pet.gearNanos(), pet.gears(),
+                    pet.repairCost(), p.effectAction == 0);
             case PetLevelUpdateCommand p -> pet = pet(pet.owned(), pet.alive(), pet.hasFuel(), pet.active(), pet.id(),
                     pet.name(), p.petLevel, pet.health(), pet.fuel(), pet.fuelMax(), pet.heat(), pet.heatMax(), pet.gear());
             case PetStatusCommand p -> petStatus(p);
@@ -872,11 +902,17 @@ public final class World {
 
     // ---- own pet ----
 
-    private static WorldSnapshot.Pet pet(boolean owned, boolean alive, boolean hasFuel, boolean active, int id, String name,
-                                         int level, Health health, int fuel, int fuelMax, double heat, double heatMax,
-                                         int gear) {
+    private WorldSnapshot.Pet pet(boolean owned, boolean alive, boolean hasFuel, boolean active, int id, String name,
+                                  int level, Health health, int fuel, int fuelMax, double heat, double heatMax,
+                                  int gear) {
         return new WorldSnapshot.Pet(owned, alive, hasFuel, active, id, name, level, health, fuel, fuelMax, heat, heatMax,
-                gear);
+                gear, pet.gearNanos(), pet.gears(), pet.repairCost(), pet.comboRepair());
+    }
+
+    private WorldSnapshot.Pet petWith(long gearNanos, java.util.Set<Integer> gears, int repairCost, boolean comboRepair) {
+        WorldSnapshot.Pet p = pet;
+        return new WorldSnapshot.Pet(p.owned(), p.alive(), p.hasFuel(), p.active(), p.id(), p.name(), p.level(),
+                p.health(), p.fuel(), p.fuelMax(), p.heat(), p.heatMax(), p.gear(), gearNanos, gears, repairCost, comboRepair);
     }
 
     private WorldSnapshot.Pet withPetHealth(Health h) {

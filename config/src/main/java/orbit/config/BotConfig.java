@@ -531,9 +531,25 @@ public record BotConfig(
      *             {@code ENEMY_LOCATOR}, {@code KAMIKAZE})
      */
     @JsonInclude(JsonInclude.Include.NON_NULL)
-    public record Pet(boolean enabled, String gear) {
+    public record Pet(boolean enabled, String gear, int locatorTarget, boolean noRepair, double comboRepairBelow) {
 
+        /** The locator's NPC number when none is set: Cubikon (matched by the locator's points, 2026-11-11). */
+        public static final int CUBIKON_LOCATOR = 13;
         public static final Pet DEFAULT = new Pet(false, null);
+
+        /**
+         * @param locatorTarget the NPC the enemy locator looks for (the game's NPC number, e.g. 13 = Cubikon;
+         *                      0 = {@link #CUBIKON_LOCATOR})
+         * @param noRepair      do not repair the pet when it is destroyed (repairing is the default)
+         * @param comboRepairBelow the combo ship repair below this hero HP fraction, 0 = off
+         */
+        public Pet {
+            locatorTarget = locatorTarget <= 0 ? CUBIKON_LOCATOR : locatorTarget;
+        }
+
+        public Pet(boolean enabled, String gear) {
+            this(enabled, gear, CUBIKON_LOCATOR, false, 0);
+        }
     }
 
     /**

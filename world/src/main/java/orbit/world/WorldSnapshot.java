@@ -154,11 +154,23 @@ public record WorldSnapshot(long nanos, Hero hero, Map<Integer, Ship> ships, Map
      * @param gear    selected mode ({@code PetGearTypeModule}, e.g. {@code PETGEARTYPE_GUARD}), -1 if unknown
      * @param fuel    current fuel, -1 if unknown
      * @param heat    overheating of the combo gears, -1 if unknown
+     * @param gearNanos when the server last named the mode ({@code PetGearSelectCommand}; it comes 12–32 s late
+     *                  after a change, at once when the server sets Guard itself), 0 never
+     * @param gears   the modes the pet has ({@code PetGearAddCommand} after a launch)
+     * @param repairCost what repairing the destroyed pet costs ({@code PetUIRepairButtonCommand}), -1 unknown or
+     *                   not offered
+     * @param comboRepair the combo ship repair is working now ({@code PetBuffCommand} effect 6)
      */
     public record Pet(boolean owned, boolean alive, boolean hasFuel, boolean active, int id, String name, int level,
-                      Health health, int fuel, int fuelMax, double heat, double heatMax, int gear) {
+                      Health health, int fuel, int fuelMax, double heat, double heatMax, int gear, long gearNanos,
+                      java.util.Set<Integer> gears, int repairCost, boolean comboRepair) {
 
-        static final Pet NONE = new Pet(false, false, false, false, 0, "", 0, Health.UNKNOWN, -1, -1, -1, -1, -1);
+        static final Pet NONE = new Pet(false, false, false, false, 0, "", 0, Health.UNKNOWN, -1, -1, -1, -1, -1, 0,
+                java.util.Set.of(), -1, false);
+
+        public Pet {
+            gears = gears == null ? java.util.Set.of() : java.util.Set.copyOf(gears);
+        }
     }
 
     /**

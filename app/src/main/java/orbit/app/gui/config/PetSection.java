@@ -1,25 +1,55 @@
 package orbit.app.gui.config;
 
 import javax.swing.JCheckBox;
+import javax.swing.JComboBox;
 import javax.swing.JComponent;
+import javax.swing.JSpinner;
 import orbit.config.BotConfig;
 import orbit.config.ItemCatalog;
 
 /** «Питомец» (PET). */
 final class PetSection implements Section {
 
+    /**
+     * The enemy locator's targets: the game's NPC numbers. 13 = Cubikon is known (the locator's points led to the
+     * cube, 2026-11-11); the others are the numbers the server offered on 3-6, named once they are known.
+     */
+    static final String[] LOCATOR_TARGETS = {"13 — Cubikon", "9", "10", "12", "22", "161"};
+
     private final JCheckBox enabled = new JCheckBox("Выпускать питомца");
     private final ItemBox gear = new ItemBox(ItemCatalog.PET_GEARS, true);
+    private final JComboBox<String> locator = new JComboBox<>(LOCATOR_TARGETS);
+    private final JCheckBox repair = new JCheckBox("Чинить уничтоженного");
+    private final JCheckBox combo = new JCheckBox("Комбо-ремонт при HP ниже");
+    private final JSpinner comboBelow = Form.percent();
     private final JComponent view;
 
     PetSection() {
-        enabled.addActionListener(e -> gear.setEnabled(enabled.isSelected()));
+        locator.setEditable(true);
+        locator.setPrototypeDisplayValue("13 — Cubikon (999)"); // the whole name shows
+        locator.setToolTipText("Номер NPC в игре; 13 — Cubikon. Другой номер — впишите");
+        enabled.addActionListener(e -> sync());
+        gear.addActionListener(e -> sync());
+        combo.addActionListener(e -> sync());
+        combo.setToolTipText("Сервер чинит, только если по кораблю ~11 с не стреляли; потом бот вернёт режим");
         view = new Form()
                 .section("Питомец")
                 .row("", enabled)
                 .row("Режим", gear)
-                .note("Камикадзе во вратах — во вкладке «Врата».")
+                .row("Цель локатора", locator)
+                .row("", repair)
+                .row("", Form.inline(combo, comboBelow, new javax.swing.JLabel("%")))
+                .note("Комбо-ремонт — когда по кораблю ~11 с не стреляли. Камикадзе во вратах — во вкладке «Врата».")
                 .build(true);
+    }
+
+    private void sync() {
+        boolean on = enabled.isSelected();
+        gear.setEnabled(on);
+        locator.setEnabled(on && "ENEMY_LOCATOR".equals(gear.get()));
+        repair.setEnabled(on);
+        combo.setEnabled(on);
+        comboBelow.setEnabled(on && combo.isSelected());
     }
 
     @Override
@@ -34,13 +64,31 @@ final class PetSection implements Section {
 
     @Override
     public void load(BotConfig c) {
-        enabled.setSelected(c.pet().enabled());
-        gear.set(c.pet().gear());
-        gear.setEnabled(c.pet().enabled());
+        BotConfig.Pet p = c.pet();
+        enabled.setSelected(p.enabled());
+        gear.set(p.gear());
+        String t = String.valueOf(p.locatorTarget());
+        String shown = t;
+        for (String s : LOCATOR_TARGETS) {
+            if (s.equals(t) || s.startsWith(t + " ")) {
+                shown = s;
+            }
+        }
+        locator.setSelectedItem(shown);
+        repair.setSelected(!p.noRepair());
+        combo.setSelected(p.comboRepairBelow() > 0);
+        Form.setFraction(comboBelow, p.comboRepairBelow() > 0 ? p.comboRepairBelow() : 0.5);
+        sync();
     }
 
     @Override
     public BotConfig apply(BotConfig c) {
-        return c.withPet(new BotConfig.Pet(enabled.isSelected(), gear.get()));
+        String text = String.valueOf(locator.getEditor().getItem()).strip();
+        java.util.regex.Matcher m = java.util.regex.Pattern.compile("^(\\d+)").matcher(text);
+        if (!m.find()) {
+            throw new IllegalArgumentException("Питомец: цель локатора — номер NPC (13 — Cubikon)");
+        }
+        return c.withPet(new BotConfig.Pet(enabled.isSelected(), gear.get(), Integer.parseInt(m.group(1)),
+                !repair.isSelected(), combo.isSelected() ? Form.fraction(comboBelow) : 0));
     }
 }

@@ -261,10 +261,15 @@ public final class Actions {
 
     /** Selects a pet mode ({@code PetGearTypeModule}, e.g. {@code PETGEARTYPE_GUARD}). */
     public void petGear(int gear) {
+        petGear(gear, 0);
+    }
+
+    /** …with its parameter: the enemy locator's NPC number (13 = Cubikon, as the client sent it). */
+    public void petGear(int gear, int optParam) {
         PetGearActivationRequest r = new PetGearActivationRequest();
         r.gearTypeToActivate = new PetGearTypeModule();
         r.gearTypeToActivate.typeValue = (short) gear;
-        r.optParam = 0;
+        r.optParam = (short) optParam;
         sender.accept(r);
     }
 }

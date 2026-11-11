@@ -64,6 +64,7 @@ public final class BotRunner {
     private final BuyWatch buy;
     private final Flee flee;
     private final GroupWatch groupWatch;
+    private final PetCare pet;
     private final orbit.bot.nav.CpuJumper jumper;
     private BotModule module;
     private BotConfig.Module moduleKind;
@@ -88,6 +89,7 @@ public final class BotRunner {
         this.buy = new BuyWatch(ctx);
         this.flee = new Flee(ctx);
         this.groupWatch = new GroupWatch(ctx);
+        this.pet = new PetCare(ctx);
         this.jumper = new orbit.bot.nav.CpuJumper(ctx.world(), ctx.actions(), ctx.maps(), ctx.clock(), ctx.random(),
                 ctx.dataDir() == null ? null : ctx.dataDir().resolve("jump-uridium.json"));
         loadModule();
@@ -224,6 +226,7 @@ public final class BotRunner {
         }
         buy.tick();
         groupWatch.tick();
+        pet.tick();
         if (state == State.STOPPING) {
             if (pending.getAndSet(null) != null) {
                 log.info("Выхожу из игры — приказ с карты не выполняю");
