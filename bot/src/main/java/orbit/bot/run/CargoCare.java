@@ -53,6 +53,7 @@ final class CargoCare {
     static final long RECOUNT_MS = 60_000;
     static final int PALLADIUM = 8;
     private String lastList = "";
+    private long exchanged;
     private String soldList = "";
     private long soldAt = Long.MIN_VALUE / 2;
     private long soldUnits;
@@ -264,12 +265,22 @@ final class CargoCare {
         }
         if (toSell.isEmpty()) {
             ctx.actions().tradeClose();
-            log.info("Продал руду: {} ед. (трюм освободится, как только игра пересчитает)", soldUnits);
+            if (soldUnits > 0) {
+                log.info("Продал руду: {} ед. (трюм освободится, как только игра пересчитает)", soldUnits);
+            }
+            if (exchanged > 0) {
+                log.info("Обменял палладий: {} ед.", exchanged);
+            }
             soldUnits = 0;
+            exchanged = 0;
             return done(true);
         }
         int[] o = toSell.removeFirst();
-        soldUnits += o[1];
+        if (o[0] == PALLADIUM) {
+            exchanged += o[1];
+        } else {
+            soldUnits += o[1];
+        }
         if (o[0] == PALLADIUM) {
             log.info("Меняю палладий × {}", o[1]);
             ctx.actions().exchangePalladium(o[1]);
