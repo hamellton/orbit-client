@@ -184,6 +184,7 @@ public final class World {
     public synchronized void apply(Packet packet, long nanos) {
         switch (packet) {
             case ShipInitializationCommand p -> initHero(p, nanos);
+            case orbit.protocol.gen.CPUInitializationCommand p -> jumpCpuEquipped = p.advancedJumpCPUEquipped;
             case orbit.protocol.gen.DroneFormationChangeCommand p when p.uid == hero.id && hero.id != 0 -> {
                 hero.formation = p.selectedFormationId;
                 hero.formationNanos = nanos;
@@ -382,7 +383,56 @@ public final class World {
                 new WorldSnapshot.Rewards(gainedCredits, gainedUridium, gainedHonor, gainedExperience, Map.copyOf(loot)),
                 List.copyOf(invitations), List.copyOf(contacts.values()), Map.copyOf(mines),
                 boostersKnown ? new WorldSnapshot.Boosters(true, Map.copyOf(boosters), Map.copyOf(boosterTotals))
-                        : WorldSnapshot.Boosters.NONE);
+                        : WorldSnapshot.Boosters.NONE,
+                new WorldSnapshot.JumpCpu(jumpCpuEquipped, jumpVouchers, Map.copyOf(jumpPrices), jumpPricesNanos,
+                        jumpConfirmedMap, jumpConfirmedPrice, jumpConfirmedNanos, jumpCountdownMap, jumpCountdownSeconds,
+                        jumpCountdownNanos));
+    }
+
+    private boolean jumpCpuEquipped;
+    private int jumpVouchers = -1;
+    private final Map<Integer, Integer> jumpPrices = new HashMap<>();
+    private long jumpPricesNanos;
+    private int jumpConfirmedMap;
+    private int jumpConfirmedPrice;
+    private long jumpConfirmedNanos;
+    private int jumpCountdownMap;
+    private int jumpCountdownSeconds;
+    private long jumpCountdownNanos;
+
+    /** {@code 0|A|JCPU|…}: the price table, a confirmed map, the countdown. */
+    private void jumpCpu(String[] a, long nanos) {
+        switch (a[3]) {
+            case "I" -> {
+                jumpPrices.clear();
+                for (int i = 4; i + 1 < a.length; i += 2) {
+                    int price = parseInt(a[i], -1);
+                    for (String m : a[i + 1].split(";")) {
+                        if (!m.isBlank()) {
+                            jumpPrices.put(parseInt(m, 0), price);
+                        }
+                    }
+                }
+                jumpPricesNanos = nanos;
+            }
+            case "C" -> {
+                if (a.length >= 6) {
+                    jumpConfirmedMap = parseInt(a[4], 0);
+                    jumpConfirmedPrice = parseInt(a[5], -1);
+                    jumpConfirmedNanos = nanos;
+                }
+            }
+            case "S" -> {
+                if (a.length >= 6) {
+                    jumpCountdownSeconds = parseInt(a[4], 0);
+                    jumpCountdownMap = parseInt(a[5], 0);
+                    jumpCountdownNanos = nanos;
+                }
+            }
+            default -> {
+                // other jump CPU messages: not part of the model
+            }
+        }
     }
 
     private double gainedCredits;
@@ -728,6 +778,8 @@ public final class World {
                     case "c" -> hero.cargoMax = parseInt(a[3], hero.cargoMax);
                     case "CC" -> hero.config = parseInt(a[3], hero.config);
                     case "v" -> setHeroSpeed(parseInt(a[3], hero.speed), nanos);
+                    case "JV" -> jumpVouchers = parseInt(a[3], jumpVouchers);
+                    case "JCPU" -> jumpCpu(a, nanos);
                     default -> {
                         if (key.startsWith("BK")) {
                             bootyKeys.put(key, parseInt(a[3], 0));

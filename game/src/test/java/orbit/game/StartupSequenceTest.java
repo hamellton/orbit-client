@@ -52,7 +52,9 @@ class StartupSequenceTest {
 
     @Test
     void matchesRecordedOrderAndPauses() throws Exception {
-        List<Path> files = recordings();
+        // the bot shows itself as the 2D client: its startup is checked against 2D sessions only; the 3D
+        // client (ru1, 2026-11-11) starts otherwise (no space searches at a cold start, after a jump last)
+        List<Path> files = recordings().stream().filter(StartupSequenceTest::twoD).toList();
         Assumptions.assumeFalse(files.isEmpty(), "no recordings");
         List<PacketRecord> all = new ArrayList<>();
         for (Path f : files) {
@@ -136,6 +138,20 @@ class StartupSequenceTest {
     }
 
     private record Timed(String name, long gapMs, Packet packet) {
+    }
+
+    /** The client's view in the session's first {@code ReadyRequest}: 2D unless it says 3D. */
+    static boolean twoD(Path f) {
+        try {
+            for (PacketRecord r : Recording.readPackets(f)) {
+                if (r.up() && PacketCodec.decode(r.bytes()) instanceof orbit.protocol.gen.ReadyRequest rr && rr.readyTypeStr != null) {
+                    return !rr.readyTypeStr.startsWith("3D");
+                }
+            }
+        } catch (Exception e) {
+            return true;
+        }
+        return true;
     }
 
     /**

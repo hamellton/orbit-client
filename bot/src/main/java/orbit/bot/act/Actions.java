@@ -221,6 +221,27 @@ public final class Actions {
         sender.accept(m);
     }
 
+    /** Jump CPU: asks for the price table ({@code JCPU|GET}, as the client does after a login, a jump or opening the map). */
+    public void jumpCpuPrices() {
+        legacy("JCPU|GET");
+    }
+
+    /** Jump CPU: chooses the target map ({@code JCPU|S|<map>}); the server confirms with its price. */
+    public void jumpCpuSelect(int mapId) {
+        legacy("JCPU|S|" + mapId);
+    }
+
+    /** Jump CPU: jumps to the chosen map ({@code JCPU|J}); a voucher is taken while there are any, uridium after. */
+    public void jumpCpuJump() {
+        legacy("JCPU|J");
+    }
+
+    private void legacy(String message) {
+        LegacyModule m = new LegacyModule();
+        m.message = message;
+        sender.accept(m);
+    }
+
     /**
      * Presses the logout button of the features menu ({@code UIButtonTriggerRequest("logout")}); the
      * server counts down and ends the session with {@code 0|l}. Moving cancels it.

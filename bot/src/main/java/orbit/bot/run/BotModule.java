@@ -26,6 +26,14 @@ public interface BotModule {
     default void pause() {
     }
 
+    /**
+     * Uridium the jump CPU may spend today on the way to {@link #workingMap} when no voucher is left;
+     * {@code -1} = no CPU jumps, portals only.
+     */
+    default int jumpUridiumPerDay() {
+        return -1;
+    }
+
     /** True when it is a bad moment to leave (e.g. a boss almost dead). */
     default boolean busy() {
         return false;

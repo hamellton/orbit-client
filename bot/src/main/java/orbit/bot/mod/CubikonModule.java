@@ -82,7 +82,6 @@ public final class CubikonModule implements BotModule {
     private final CubeMaps maps;
     private int workMap;
     private long workMapAt;
-    private boolean jumpTold;
 
     public CubikonModule(BotContext ctx, SpawnMemory memory) {
         this.ctx = ctx;
@@ -109,10 +108,6 @@ public final class CubikonModule implements BotModule {
         long now = ctx.now();
         if (workMap == 0 || now - workMapAt > 1_000_000_000L) {
             JsonNode s = c.modules().get(BotConfig.Module.CUBIKON.key());
-            if (s != null && "JUMP_CPU".equals(s.path("travel").asText()) && !jumpTold) {
-                jumpTold = true;
-                log.warn("Прыжок через CPU пока не готов — между картами лечу порталами");
-            }
             boolean cubeHere = cubesMap == h.mapId() && !cubes.isEmpty();
             boolean fighting = cubeHere && cubes.containsKey(attacker.targetId());
             workMap = maps.choose(s, c.general().workingMap(), h.mapId(), h.x(), h.y(), h.factionId(), cubeHere, fighting,
@@ -120,6 +115,13 @@ public final class CubikonModule implements BotModule {
             workMapAt = now;
         }
         return workMap;
+    }
+
+    /** «Перелёт: CPU» in the cubes tab: jumps between the x-6 maps, uridium within the day's budget. */
+    @Override
+    public int jumpUridiumPerDay() {
+        JsonNode s = ctx.config().get().modules().get(BotConfig.Module.CUBIKON.key());
+        return s != null && "JUMP_CPU".equals(s.path("travel").asText()) ? Math.max(0, s.path("jumpUridiumPerDay").asInt(0)) : -1;
     }
 
     private java.time.LocalTime wallTime() {

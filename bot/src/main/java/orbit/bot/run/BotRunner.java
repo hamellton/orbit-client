@@ -37,6 +37,7 @@ public final class BotRunner {
     private final BuyWatch buy;
     private final Flee flee;
     private final GroupWatch groupWatch;
+    private final orbit.bot.nav.CpuJumper jumper;
     private BotModule module;
     private BotConfig.Module moduleKind;
     private State state = State.STARTING;
@@ -60,6 +61,8 @@ public final class BotRunner {
         this.buy = new BuyWatch(ctx);
         this.flee = new Flee(ctx);
         this.groupWatch = new GroupWatch(ctx);
+        this.jumper = new orbit.bot.nav.CpuJumper(ctx.world(), ctx.actions(), ctx.maps(), ctx.clock(), ctx.random(),
+                ctx.dataDir() == null ? null : ctx.dataDir().resolve("jump-uridium.json"));
         loadModule();
     }
 
@@ -211,6 +214,21 @@ public final class BotRunner {
     }
 
     private void travel(int map) {
+        int budget = module.jumpUridiumPerDay();
+        if (budget >= 0 && travelTarget != map && jumper.worthTrying(map)) {
+            // the jump CPU first (a voucher, or uridium within the day's budget); portals when it does not work
+            orbit.bot.nav.CpuJumper.Result r = jumper.tick(map, budget);
+            if (r == orbit.bot.nav.CpuJumper.Result.RUNNING) {
+                module.pause();
+                ctx.nav().stop();
+                state = State.TRAVELLING;
+                show("Прыжок CPU на " + ctx.maps().info(map).name());
+                return;
+            }
+            if (r == orbit.bot.nav.CpuJumper.Result.DONE) {
+                return;
+            }
+        }
         Traveler t = ctx.traveler();
         if (travelTarget != map || t.state() != Traveler.State.TRAVELLING) {
             if (travelTarget == map && t.state() == Traveler.State.FAILED) {

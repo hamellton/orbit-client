@@ -19,7 +19,25 @@ public record WorldSnapshot(long nanos, Hero hero, Map<Integer, Ship> ships, Map
                             Map<Integer, Long> activatable, int jumpingTo, Death death,
                             java.util.Set<String> slotItems, Map<Integer, Kill> destroyed, Rewards rewards,
                             List<Invitation> invitations, List<Contact> contacts, Map<String, Mine> mines,
-                            Boosters boosters) {
+                            Boosters boosters, JumpCpu jumpCpu) {
+
+    /**
+     * The jump CPU (live 2026-11-11, ru1): {@code CPUInitializationCommand.advancedJumpCPUEquipped}; vouchers
+     * {@code 0|A|JV|n}; the price table {@code 0|A|JCPU|I|<price>|<maps;>|…} (uridium, -1 = not there) after
+     * {@code JCPU|GET}; {@code 0|A|JCPU|C|<map>|<price>|…} confirms a chosen map; {@code 0|A|JCPU|S|<s>|<map>}
+     * starts the countdown. The server takes a voucher while there are any, uridium after.
+     *
+     * @param vouchers     jump vouchers, -1 before the server says
+     * @param prices       map → uridium price; -1 = not reachable by jump
+     * @param confirmedMap the map the server confirmed for the jump, 0 = none (with its price and time)
+     * @param countdownMap the map the countdown runs to, 0 = none (with its seconds and start)
+     */
+    public record JumpCpu(boolean equipped, int vouchers, Map<Integer, Integer> prices, long pricesNanos, int confirmedMap,
+                          int confirmedPrice, long confirmedNanos, int countdownMap, int countdownSeconds,
+                          long countdownNanos) {
+
+        public static final JumpCpu NONE = new JumpCpu(false, -1, Map.of(), 0, 0, 0, 0, 0, 0, 0);
+    }
 
     /**
      * Boosters ({@code AttributeBoosterUpdateCommand}): the active ones by loot id ({@code booster_dmg-b01})
