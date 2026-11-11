@@ -489,4 +489,24 @@ class WorldTest {
         w.apply(remove, 2);
         assertEquals(List.of("Mate"), w.snapshot(2).contacts().stream().map(WorldSnapshot.Contact::name).toList());
     }
+
+    @Test
+    void thePetShowsTheModeTheBotChoseUntilTheServerSetsAnother() {
+        // live 2026-11-12: the card said «пассивный» while the pet was collecting
+        World w = new World();
+        PetGearSelectCommand passive = new PetGearSelectCommand();
+        passive.gearType = new orbit.protocol.gen.PetGearTypeModule();
+        passive.gearType.typeValue = 1;
+        w.apply(passive, 1);
+        orbit.protocol.gen.PetGearActivationRequest collect = new orbit.protocol.gen.PetGearActivationRequest();
+        collect.gearTypeToActivate = new orbit.protocol.gen.PetGearTypeModule();
+        collect.gearTypeToActivate.typeValue = 5;
+        w.applyOutgoing(collect, 2);
+        assertEquals(5, w.snapshot(3).pet().gear(), "as the client shows it at the click");
+        PetGearSelectCommand guard = new PetGearSelectCommand();
+        guard.gearType = new orbit.protocol.gen.PetGearTypeModule();
+        guard.gearType.typeValue = 2;
+        w.apply(guard, 4);
+        assertEquals(2, w.snapshot(5).pet().gear(), "the server's own choice wins");
+    }
 }

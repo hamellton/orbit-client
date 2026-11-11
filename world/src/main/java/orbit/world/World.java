@@ -457,6 +457,12 @@ public final class World {
         if (packet instanceof MoveRequest m) {
             // the client starts from where it shows the ship, which is what it reports as position
             hero.motion = Motion.fromAtSpeed(m.positionX, m.positionY, m.targetX, m.targetY, hero.speed, nanos);
+        } else if (packet instanceof orbit.protocol.gen.PetGearActivationRequest r && r.gearTypeToActivate != null) {
+            // the client shows the chosen mode at the click (PetWindowAssembly.setSelectedItem); the server sends
+            // PetGearSelectCommand only when it sets one itself (at login: passive) — the card stayed «пассивный»
+            pet = pet(pet.owned(), pet.alive(), pet.hasFuel(), pet.active(), pet.id(), pet.name(), pet.level(),
+                    pet.health(), pet.fuel(), pet.fuelMax(), pet.heat(), pet.heatMax(), r.gearTypeToActivate.typeValue);
+            pet = petWith(nanos, pet.gears(), pet.repairCost(), pet.comboRepair());
         } else if (packet instanceof orbit.protocol.gen.CaptchaCollectRequest r && boxCheck != null) {
             // the client takes a picked box off the map at once (BoxCaptchaTrait.removeBox)
             List<WorldSnapshot.BoxCheck.CheckBox> boxes = new ArrayList<>(boxCheck.boxes());
