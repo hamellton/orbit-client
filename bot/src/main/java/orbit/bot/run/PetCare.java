@@ -296,7 +296,9 @@ public final class PetCare {
             firstTryAt = now;
         }
         int param = want == PetGearTypeModule.PETGEARTYPE_ENEMY_LOCATOR ? cfg.locatorTarget() : 0;
-        if (kamikazeOn || trade) {
+        if (trade) {
+            log.info("Питомец: прошу режим «Торговый модуль»");
+        } else if (kamikazeOn) {
             log.debug("Питомец: режим {}", label); // the reason is in the line before
         } else {
             log.info("Питомец: включаю режим {}{}", label, param != 0 ? " — ищет " + locatorTarget(param) : "");

@@ -404,6 +404,9 @@ public final class World {
                     }
                 }
                 tradeNanos = nanos;
+                log.info("Торговля открыта ({}): прометий {}, сепром {}, зарядов осталось {}",
+                        p.type == 3 ? "торговый модуль питомца" : "переработчик, тип " + p.type, p.prometiumPrice,
+                        p.sepromPrice, p.remainingCharges);
             }
             case orbit.protocol.gen.PetTradeWindowShowCommand p -> petTradeNanos = nanos;
             case AttributeOreCountUpdateCommand p -> {

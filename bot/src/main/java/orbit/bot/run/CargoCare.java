@@ -29,7 +29,8 @@ final class CargoCare {
     private static final Logger log = LoggerFactory.getLogger(CargoCare.class);
 
     static final long ANSWER_MS = 6_000;
-    static final long RETRY_MS = 10 * 60_000L;
+    /** A sale that did not open is tried again after the trade pod's longest cooldown (300 s at level 1). */
+    static final long RETRY_MS = 5 * 60_000L;
     /** Close enough to the refinery to trade (the client trades by clicking its icon at the base). */
     static final double AT_REFINERY = 400;
 
