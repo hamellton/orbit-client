@@ -41,21 +41,15 @@ public final class PalladiumModule implements BotModule {
     }
 
     /**
-     * The account's ships when chosen for it (account settings); otherwise the config's (imported from DarkBot,
-     * where they sit in the plugin's settings).
+     * The account's ships (account settings; hangar ids are an account's own — DarkBot's ids in the config are
+     * moved there at a login only when that account has both ships).
      */
-    private boolean accountShips() {
-        int c = ctx.ships().palladiumCollect();
-        int s = ctx.ships().palladiumSell();
-        return c > 0 && s > 0 && c != s;
-    }
-
     int collectHangar() {
-        return accountShips() ? ctx.ships().palladiumCollect() : settings().path("collectHangar").asInt(0);
+        return ctx.ships().palladiumCollect();
     }
 
     int sellHangar() {
-        return accountShips() ? ctx.ships().palladiumSell() : settings().path("sellHangar").asInt(0);
+        return ctx.ships().palladiumSell();
     }
 
     /** Two ships: both hangars set and not turned off. */

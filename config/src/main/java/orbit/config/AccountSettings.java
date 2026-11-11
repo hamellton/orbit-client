@@ -77,15 +77,35 @@ public record AccountSettings(Map<String, Entry> accounts) {
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public record Ship(int id, String ship, String design) {
 
-        /** «Goliath», «G-Champion»: the ship's name from its loot id. */
+        /** «Goliath», «G-Champion»: the ship's name; the site's {@code goliath_design_goliath-razer} → «Goliath». */
         public String shipName() {
-            return prettyName(ship);
+            String s = ship == null ? "" : ship;
+            int d = s.indexOf("_design_");
+            return prettyName(d < 0 ? s : s.substring(0, d));
         }
 
-        /** «Goliath (Venom)» or «Goliath». */
+        /** «Razer» for {@code goliath_design_goliath-razer} (the site names the design in the ship's id), or "". */
+        public String designName() {
+            if (design != null && !design.isBlank()) {
+                return prettyName(design.replaceFirst("^design_", ""));
+            }
+            String s = ship == null ? "" : ship;
+            int d = s.indexOf("_design_");
+            if (d < 0) {
+                return "";
+            }
+            String base = s.substring(0, d);
+            String des = s.substring(d + "_design_".length());
+            return prettyName(des.startsWith(base + "-") ? des.substring(base.length() + 1) : des);
+        }
+
+        /** «Goliath (Razer)» or «Goliath». */
         public String label() {
-            String d = design == null || design.isBlank() ? "" : " (" + prettyName(design) + ")";
-            return (ship == null || ship.isBlank() ? "корабль ?" : shipName()) + d;
+            if (ship == null || ship.isBlank()) {
+                return "корабль ?";
+            }
+            String d = designName();
+            return shipName() + (d.isEmpty() ? "" : " (" + d + ")");
         }
 
         static String prettyName(String lootId) {

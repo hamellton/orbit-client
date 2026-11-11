@@ -340,20 +340,16 @@ public final class OrbitMain {
     }
 
     /**
-     * The account's ships from the site by its saved dosid (through its proxy, never directly when it has one),
-     * for the account window; no game page, no password. Kept in the account's settings like a login's list.
+     * The account's ships from the site, for the account window, without the game: the website login the bot
+     * does (saved dosid, else another server's, the password last — new dosids are kept), through the account's
+     * proxy (none reachable = no login), then the hangar list. Kept in the account's settings.
      *
-     * @throws java.io.IOException with a message for the user (no dosid, proxy down, the site said no)
+     * @throws java.io.IOException with a message for the user
      */
     public static List<orbit.config.AccountSettings.Ship> siteShips(Vault vault, String account) throws java.io.IOException {
         orbit.secrets.Account a = vault.get(loginOf(account));
         if (a == null) {
             throw new java.io.IOException("аккаунта нет в хранилище");
-        }
-        String server = serverOf(account) != null ? serverOf(account) : a.home();
-        String dosid = a.dosidFor(server);
-        if (dosid == null || dosid.isBlank()) {
-            throw new java.io.IOException("нет сохранённого входа на сайт — запустите аккаунт один раз");
         }
         orbit.secrets.ProxySpec spec;
         try {
@@ -364,13 +360,8 @@ public final class OrbitMain {
         try (ProxyRoute route = spec.direct() ? ProxyRoute.none() : ProxyRoute.of(spec)) {
             route.verify();
             AuthClient auth = new AuthClient(new HttpSession("", route.httpProxy()), AuthClient.Endpoints.production());
-            String origin = auth.openSite(server, dosid);
-            List<orbit.auth.Hangars.Hangar> list;
-            try {
-                list = new orbit.auth.Hangars(auth.http(), origin).list();
-            } catch (java.io.IOException | RuntimeException e) {
-                throw new java.io.IOException(e.getMessage() + " — запустите аккаунт, список обновится сам");
-            }
+            GameSession session = new AccountLogin(auth, vault, loginOf(account), serverOf(account)).login();
+            List<orbit.auth.Hangars.Hangar> list = new orbit.auth.Hangars(auth.http(), session.host()).list();
             List<orbit.config.AccountSettings.Ship> ships = list.stream()
                     .map(h -> new orbit.config.AccountSettings.Ship(h.id(), h.ship(), h.design())).toList();
             synchronized (OrbitMain.class) {
@@ -615,11 +606,12 @@ public final class OrbitMain {
                         }
                         conn.run();
                     });
+                    orbit.bot.run.AccountShips ships = accountShips(accountName);
                     ModuleRun run = startModule(feed, conn, cfgName, cfg, end, why, profile, stopFile,
-                            shopFor(auth, conn), () -> !game.isAlive(), accountShips(accountName));
+                            shopFor(auth, conn), () -> !game.isAlive(), ships);
                     current.set(run);
                     if (cfg.module() == orbit.config.BotConfig.Module.PALLADIUM) {
-                        watchHangar(auth, conn, run.runner(), lastHost, accountName, cfg); // which ship is in use
+                        watchHangar(auth, conn, run.runner(), lastHost, accountName, cfg, ships); // which ship is in use
                     }
                     if (closed.get()) {
                         // stopped while logging in: the stop found no module to finish, so finish this one
@@ -632,7 +624,11 @@ public final class OrbitMain {
                     int wantHangar = run.runner().hangarRequest();
                     if (wantHangar != 0 && !closed.get() && lastHost.get() != null) {
                         // the module asked for another ship (two-ship palladium): switch it on the site, log in again
-                        switchHangar(auth, lastHost.get(), wantHangar, cfg, feed);
+                        if (!switchHangar(auth, lastHost.get(), wantHangar, cfg, feed)) {
+                            log.error("Корабль на сайте не сменился — аккаунт остановлен, чтобы не входить и выходить"
+                                    + " по кругу; проверьте корабли палладия в настройках аккаунта");
+                            break;
+                        }
                         failures = 0;
                         continue;
                     }
@@ -720,7 +716,7 @@ public final class OrbitMain {
      */
     private static void watchHangar(AuthClient auth, GameConnection conn, orbit.bot.run.BotRunner runner,
                                     java.util.concurrent.atomic.AtomicReference<String> lastHost, String accountName,
-                                    orbit.config.BotConfig cfg) {
+                                    orbit.config.BotConfig cfg, orbit.bot.run.AccountShips ships) {
         java.util.Map<String, String> ctx = org.slf4j.MDC.getCopyOfContextMap();
         Thread.ofVirtual().name("hangars").start(() -> {
             if (ctx != null) {
@@ -737,12 +733,14 @@ public final class OrbitMain {
                 lastHost.set(host);
                 var list = new orbit.auth.Hangars(auth.http(), host).list();
                 rememberHangars(accountName, list, cfg);
+                var pair = accountShips(accountName); // DarkBot's pair may have just been moved to the account
+                ships.setPalladium(pair.palladiumCollect(), pair.palladiumSell());
                 if (!HANGAR_SHAPE_LOGGED.getAndSet(true)) {
                     log.info("Ангары: поля ответа сайта (без значений) — {}", orbit.auth.Hangars.lastShape());
                 }
                 var active = list.stream().filter(orbit.auth.Hangars.Hangar::active).findFirst().orElse(null);
-                log.info("Ангары: {}; сейчас {}", list.stream().map(h -> h.id() + " " + shipName(h.ship())).toList(),
-                        active == null ? "не понять" : active.id() + " " + shipName(active.ship()));
+                log.info("Ангары: кораблей {}; сейчас {}", list.size(), active == null ? "не понять"
+                        : new orbit.config.AccountSettings.Ship(active.id(), active.ship(), active.design()).label());
                 if (active != null) {
                     runner.setActiveHangar(active.id());
                 }
@@ -811,27 +809,49 @@ public final class OrbitMain {
         return lootId == null || lootId.isBlank() ? "?" : lootId.replaceFirst("^ship_", "");
     }
 
-    /** Makes {@code want} the active ship on the site, then waits the module's extra pause (DmPlugin's 5 s). */
-    private static void switchHangar(AuthClient auth, String host, int want, orbit.config.BotConfig cfg, WorldFeed feed)
+    /** Attempts at a refused switch, and the pause between them (DarkBot keeps 12 s between hangar actions). */
+    static final int SWITCH_TRIES = 3;
+    static final long SWITCH_GAP_MS = 15_000;
+
+    /**
+     * Makes {@code want} the active ship on the site, then waits the module's extra pause (DmPlugin's 5 s); a ship
+     * the account does not have is never asked for. A refusal («too short a time between two actions») is tried
+     * again after a pause, a few times.
+     *
+     * @return false when the ship could not be made active (the account then stops: no log in/out loop)
+     */
+    private static boolean switchHangar(AuthClient auth, String host, int want, orbit.config.BotConfig cfg, WorldFeed feed)
             throws InterruptedException {
         var hangars = new orbit.auth.Hangars(auth.http(), host);
         feed.setState("Смена корабля");
-        try {
-            var list = hangars.list();
-            int active = list.stream().filter(orbit.auth.Hangars.Hangar::active).mapToInt(orbit.auth.Hangars.Hangar::id)
-                    .findFirst().orElse(0);
-            if (active != want) {
-                hangars.activate(active, want);
-                log.info("Корабль сменён на сайте: ангар {} → {}", active, want);
+        for (int attempt = 1; ; attempt++) {
+            Thread.sleep(attempt == 1 ? 3_000 : SWITCH_GAP_MS);
+            try {
+                var list = hangars.list();
+                if (list.stream().noneMatch(h -> h.id() == want)) {
+                    log.error("Ангара {} у аккаунта нет — корабль не меняю", want);
+                    return false;
+                }
+                int active = list.stream().filter(orbit.auth.Hangars.Hangar::active).mapToInt(orbit.auth.Hangars.Hangar::id)
+                        .findFirst().orElse(0);
+                if (active != want) {
+                    Thread.sleep(SWITCH_GAP_MS); // the list and the switch are two actions for the site
+                    hangars.activate(active, want);
+                    log.info("Корабль сменён на сайте: ангар {} → {}", active, want);
+                }
+                break;
+            } catch (java.io.IOException e) {
+                if (attempt >= SWITCH_TRIES) {
+                    log.warn("Корабль не сменить: {}", e.getMessage());
+                    return false;
+                }
+                log.warn("Корабль не сменить: {} — ещё раз через {} с", e.getMessage(), SWITCH_GAP_MS / 1000);
             }
-        } catch (java.io.IOException e) {
-            log.warn("Корабль не сменить: {} — вхожу на прежнем, через минуту", e.getMessage());
-            Thread.sleep(60_000);
-            return;
         }
         var s = cfg.modules().get(orbit.config.BotConfig.Module.PALLADIUM.key());
         long extra = s == null ? 5 : Math.max(0, s.path("aditionalWaitingTime").asInt(5));
         Thread.sleep(2_000 + extra * 1_000);
+        return true;
     }
 
     /** After this many sessions in a row without a game connection the account stops. */

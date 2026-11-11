@@ -100,5 +100,10 @@ class ConfigStoreTest {
         assertEquals("G-Champion (Venom)", back.ships().get(1).label());
         assertEquals(e, back.withConfig("PALLADIUM").withSchedule(back.schedule()), "the config switch keeps the ships");
         assertFalse(new AccountSettings.PalladiumShips(11, 11).usable());
+        // as the site lists them (ru1, 2026-11-11): the design is in the ship's id
+        assertEquals("Goliath (Razer)", new AccountSettings.Ship(1, "goliath_design_goliath-razer", null).label());
+        assertEquals("Goliath-X (Lava)", new AccountSettings.Ship(2, "goliath-x_design_goliath-x-lava", null).label());
+        assertEquals("C-Elite", new AccountSettings.Ship(3, "c-elite", null).label());
+        assertEquals("Bb-Solemn", new AccountSettings.Ship(4, "bb-solemn", null).label());
     }
 }

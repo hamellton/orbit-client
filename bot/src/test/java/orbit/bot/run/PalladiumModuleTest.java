@@ -92,6 +92,7 @@ class PalladiumModuleTest {
     @Test
     void theFullCollectShipLogsOutWhereItIsForTheSellShip() throws Exception {
         Sim sim = new Sim(twoShips(), 93, 10_000, 6_000);
+        sim.ctx.ships().setPalladium(801119, 801116); // the account's pair
         hold(sim, 1_000);
         BotRunner r = new BotRunner(sim.ctx, () -> false, s -> { });
         r.setActiveHangar(801119);
@@ -108,6 +109,7 @@ class PalladiumModuleTest {
     @Test
     void theSellShipSellsThePalladiumThenAsksForTheCollectShip() throws Exception {
         Sim sim = new Sim(twoShips(), 92, 10_200, 6_200); // parked by the trader
+        sim.ctx.ships().setPalladium(801119, 801116); // the account's pair
         orbit.protocol.gen.AssetCreateCommand ref = new orbit.protocol.gen.AssetCreateCommand();
         ref.assetId = 700;
         ref.type = new orbit.protocol.gen.AssetTypeModule();
@@ -136,19 +138,22 @@ class PalladiumModuleTest {
     }
 
     @Test
-    void theAccountsShipsWinOverTheConfigs() throws Exception {
+    void theConfigsDarkBotHangarsAloneSwitchNothing() throws Exception {
+        // live 2026-11-11: the profile's hangars were another account's; the bot logged out every minute for them
         Sim sim = new Sim(twoShips(), 93, 10_000, 6_000);
-        sim.ctx.ships().setPalladium(5, 6); // chosen for the account
         hold(sim, 1_000);
         BotRunner r = new BotRunner(sim.ctx, () -> false, s -> { });
-        r.setActiveHangar(5);
-        sim.run(r::tick, 2_000);
-        assertEquals(6, r.hangarRequest(), "the account's sell ship, not the config's");
+        r.setActiveHangar(332663);
+        sim.run(r::tick, 3_000);
+        assertEquals(0, r.hangarRequest(), "no ship of the account chosen: no switch");
+        assertTrue(r.state() != BotRunner.State.STOPPING && r.state() != BotRunner.State.STOPPED,
+                "no logout; sells with the one ship instead: " + r.state());
     }
 
     @Test
     void destroyedWithPalladiumTheSellShipInsteadOfARevive() throws Exception {
         Sim sim = new Sim(twoShips(), 93, 10_000, 6_000);
+        sim.ctx.ships().setPalladium(801119, 801116); // the account's pair
         hold(sim, 300);
         BotRunner r = new BotRunner(sim.ctx, () -> false, s -> { });
         r.setActiveHangar(801119);

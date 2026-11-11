@@ -121,20 +121,6 @@ public final class AuthClient {
     }
 
     /**
-     * The account's site with a saved {@code dosid}, without opening the game page: for site requests only (the
-     * hangar list). An expired dosid shows in the request's answer.
-     *
-     * @return the site's origin, e.g. {@code https://ru1.darkorbit.com}
-     */
-    public String openSite(String server, String dosid) {
-        SecretMask.register(dosid);
-        useClientUserAgent();
-        String origin = endpoints.accountOrigin(server);
-        http.setCookie(origin + "/", "dosid", dosid);
-        return origin;
-    }
-
-    /**
      * Uses a {@code dosid} taken from the browser (needed when the site asks for a captcha).
      *
      * @param server account server code, e.g. {@code int1} for GE1

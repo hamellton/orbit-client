@@ -117,12 +117,13 @@ final class AccountDialog {
         row = row(form, row, "Корабль сбора", collectShip, "Собирает палладий на 5-3");
         row = row(form, row, "Корабль продажи", sellShip, "Стоит на 5-2 у торговца и продаёт палладий");
         JButton refresh = new JButton("Обновить с сайта");
-        refresh.setEnabled(editing != null);
+        refresh.setEnabled(editing != null && !running); // a running account refreshes the list at each login
         refresh.addActionListener(e -> refreshShips(refresh));
         JPanel shipsRow = new JPanel(new BorderLayout(8, 0));
         shipsRow.add(refresh, BorderLayout.WEST);
         shipsRow.add(shipsResult, BorderLayout.CENTER);
-        row = row(form, row, "", shipsRow, "Список кораблей аккаунта; бот обновляет его и сам при каждом входе");
+        row = row(form, row, "", shipsRow, running ? "Аккаунт запущен: список обновляется при каждом входе бота"
+                : "Вход на сайт (без игры), как у бота: сохранённый вход, иначе пароль; через прокси аккаунта");
         if (running) {
             JLabel note = new JLabel("Логин, пароль и прокси — со следующего запуска");
             note.setForeground(Hud.DIM);
@@ -348,7 +349,7 @@ final class AccountDialog {
         select(sellShip, sell);
         if (ships.isEmpty()) {
             shipsResult.setForeground(Hud.DIM);
-            shipsResult.setText(editing == null ? "Список появится после первого запуска" : "Список ещё не загружен");
+            shipsResult.setText(editing == null ? "Сохраните аккаунт, потом откройте снова" : "Нажмите «Обновить с сайта»");
         }
     }
 
