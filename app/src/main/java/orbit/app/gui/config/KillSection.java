@@ -112,7 +112,7 @@ final class KillSection implements Section {
         JScrollPane scroll = new JScrollPane(table);
         scroll.setColumnHeaderView(table.getTableHeader()); // also without a screen (snapshots)
         scroll.setPreferredSize(new java.awt.Dimension(600, 160));
-        scroll.setMinimumSize(new java.awt.Dimension(200, 120));
+        scroll.setMinimumSize(new java.awt.Dimension(200, 200)); // about six rows at least
         list.add(scroll, BorderLayout.CENTER);
 
         useSab.addActionListener(e -> sync());
@@ -178,11 +178,11 @@ final class KillSection implements Section {
 
         @Override
         public java.awt.Dimension minimumLayoutSize(java.awt.Container parent) {
-            // one under the other, each at its narrowest
+            // as narrow as the wider column; as high as the columns stand now (side by side on a wide tab — counting
+            // them one under the other there kept the tab «too small», so the list never got the spare height)
             java.awt.Dimension ma = parent.getComponent(0).getMinimumSize();
             java.awt.Dimension mb = parent.getComponent(1).getMinimumSize();
-            java.awt.Dimension pref = preferredLayoutSize(parent);
-            return new java.awt.Dimension(Math.max(ma.width, mb.width), Math.max(pref.height, ma.height + mb.height));
+            return new java.awt.Dimension(Math.max(ma.width, mb.width), preferredLayoutSize(parent).height);
         }
 
         @Override
