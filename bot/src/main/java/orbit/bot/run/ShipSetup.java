@@ -20,8 +20,11 @@ public final class ShipSetup {
     /** The game refuses configuration switches more often than this (client: 5 s cooldown). */
     static final long CONFIG_GAP_MS = 6_000;
     static final long FORMATION_GAP_MS = 3_000;
-    /** After a configuration switch the server sets that configuration's formation itself: let it, then ask. */
-    static final long FORMATION_AFTER_CONFIG_MS = 2_500;
+    /**
+     * The server ignores a formation change for a while after a configuration switch (live 2026-11-11: asked
+     * 2.5 s after it, no answer, the ship kept its formation; the client's configuration cooldown is 5 s).
+     */
+    static final long FORMATION_AFTER_CONFIG_MS = 5_500;
     /** No word from the server after a formation request this long: ask once more. */
     static final long FORMATION_ANSWER_MS = 8_000;
 
