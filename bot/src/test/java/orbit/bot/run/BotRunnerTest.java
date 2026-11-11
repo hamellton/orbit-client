@@ -117,4 +117,41 @@ class BotRunnerTest {
     private static ShipInitializationCommand unused() {
         return null;
     }
+
+    @Test
+    void aClickOnTheMapTakesTheShipThereAndTheModuleWaitsAMomentAfter() throws Exception {
+        Sim sim = new Sim(CubikonModuleTest.config(90, false), 26, 10_000, 6_000);
+        BotRunner r = new BotRunner(sim.ctx, () -> false, s -> { });
+        sim.run(r::tick, 2_000);
+        r.order(BotRunner.Order.move(12_000, 9_000));
+        sim.run(r::tick, 500);
+        assertEquals(BotRunner.State.MANUAL, r.state());
+        for (int i = 0; i < 200 && !sim.ctx.nav().idle(); i++) {
+            sim.run(r::tick, 100);
+        }
+        var h = sim.hero();
+        assertTrue(Math.hypot(h.x() - 12_000, h.y() - 9_000) < 150, "there: " + h);
+        sim.run(r::tick, BotRunner.HOLD_MS - 1_000);
+        assertEquals(BotRunner.State.MANUAL, r.state(), "the module waits a moment");
+        sim.run(r::tick, (int) BotRunner.HOLD_MS + 1_000);
+        assertEquals(BotRunner.State.WORKING, r.state(), "the module goes on after the pause");
+    }
+
+    @Test
+    void pausedTheShipOnlyFollowsClicks() throws Exception {
+        Sim sim = new Sim(CubikonModuleTest.config(90, false), 25, 10_000, 6_000);
+        BotRunner r = new BotRunner(sim.ctx, () -> false, s -> { });
+        r.setPaused(true);
+        sim.run(r::tick, 5_000);
+        assertEquals(BotRunner.State.PAUSED, r.state(), "does not fly to the working map");
+        var h = sim.hero();
+        assertTrue(Math.hypot(h.x() - 10_000, h.y() - 6_000) < 1, "stays: " + h);
+        r.order(BotRunner.Order.move(11_000, 6_000));
+        sim.run(r::tick, 15_000);
+        assertTrue(Math.abs(sim.hero().x() - 11_000) < 150, "went where clicked: " + sim.hero());
+        assertEquals(BotRunner.State.PAUSED, r.state(), "and keeps still there");
+        r.setPaused(false);
+        sim.run(r::tick, 3_000);
+        assertEquals(BotRunner.State.TRAVELLING, r.state());
+    }
 }

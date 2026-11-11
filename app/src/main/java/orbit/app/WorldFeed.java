@@ -260,6 +260,17 @@ public final class WorldFeed {
         return sessionStart;
     }
 
+    private volatile orbit.bot.run.BotRunner runner;
+
+    /** The bot driving this ship now, for the map's orders ({@code null}: none). */
+    public void setRunner(orbit.bot.run.BotRunner r) {
+        runner = r;
+    }
+
+    public orbit.bot.run.BotRunner runner() {
+        return runner;
+    }
+
     public void setAction(String action) {
         this.action = action;
     }

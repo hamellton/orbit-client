@@ -16,6 +16,7 @@ import org.slf4j.LoggerFactory;
  *   <li>wait until in game;</li>
  *   <li>the kill screen and the pause after reviving ({@link Revive});</li>
  *   <li>stopping: to the nearest portal, log out ({@link #stop});</li>
+ *   <li>the user's orders from the map ({@link #order}) and the pause ({@link #setPaused});</li>
  *   <li>running from players ({@link Flee});</li>
  *   <li>safety: healing, repair at a portal, escape ({@link Safety});</li>
  *   <li>travel to the module's map;</li>
@@ -27,7 +28,33 @@ public final class BotRunner {
 
     private static final Logger log = LoggerFactory.getLogger(BotRunner.class);
 
-    public enum State { STARTING, DEAD, FLEEING, REPAIRING, TRAVELLING, WORKING, STOPPING, STOPPED, FAILED }
+    public enum State { STARTING, DEAD, MANUAL, PAUSED, FLEEING, REPAIRING, TRAVELLING, WORKING, STOPPING, STOPPED, FAILED }
+
+    /** An order from the user's map: fly to a point, or jump through the portal to {@code map}. */
+    public record Order(Kind kind, double x, double y, int map) {
+
+        public enum Kind { MOVE, JUMP }
+
+        public static Order move(double x, double y) {
+            return new Order(Kind.MOVE, x, y, 0);
+        }
+
+        public static Order jump(int map) {
+            return new Order(Kind.JUMP, 0, 0, map);
+        }
+    }
+
+    /** After an order is done the module waits this long before it takes the ship back (DarkBot does the same). */
+    static final long HOLD_MS = 5_000;
+    /** An order not done in this time is given up. */
+    static final long ORDER_LIMIT_MS = 3 * 60_000L;
+
+    private final java.util.concurrent.atomic.AtomicReference<Order> pending = new java.util.concurrent.atomic.AtomicReference<>();
+    private volatile boolean paused;
+    private boolean pauseShown;
+    private Order current;
+    private long orderAt;
+    private long holdUntil;
 
     private final BotContext ctx;
     private final BooleanSupplier loggedOut;
@@ -118,6 +145,25 @@ public final class BotRunner {
         buy.setShop(shop);
     }
 
+    /** An order from the map; any thread. The latest one replaces an earlier one not done yet. */
+    public void order(Order o) {
+        pending.set(o);
+    }
+
+    /** Paused: the module rests, the ship does only what the user orders; any thread. */
+    public void setPaused(boolean on) {
+        paused = on;
+    }
+
+    public boolean paused() {
+        return paused;
+    }
+
+    /** True when orders are taken now (in game, not logging out). */
+    public boolean takesOrders() {
+        return state != State.STOPPING && state != State.STOPPED && state != State.FAILED;
+    }
+
     /** Finish: leave the fight, fly to the nearest portal and log out. */
     public void stop(String reason) {
         if (state == State.STOPPING || state == State.STOPPED) {
@@ -179,7 +225,13 @@ public final class BotRunner {
         buy.tick();
         groupWatch.tick();
         if (state == State.STOPPING) {
+            if (pending.getAndSet(null) != null) {
+                log.info("Выхожу из игры — приказ с карты не выполняю");
+            }
             stopping(w);
+            return;
+        }
+        if (manual(h)) {
             return;
         }
         if (flee.tick()) {
@@ -211,6 +263,83 @@ public final class BotRunner {
         state = State.WORKING;
         module.tick();
         show(module.status());
+    }
+
+    /** The user's order and the pause; true while they hold the ship. */
+    private boolean manual(WorldSnapshot.Hero h) {
+        long now = ctx.now();
+        Order o = pending.getAndSet(null);
+        if (o != null) {
+            if (module != null) {
+                module.pause();
+            }
+            current = o;
+            orderAt = now;
+            holdUntil = 0;
+            travelTarget = 0;
+            if (o.kind() == Order.Kind.MOVE) {
+                log.info("По клику: лечу в {}/{}", (int) o.x() / 100, (int) o.y() / 100);
+                ctx.nav().moveTo(o.x(), o.y(), true);
+            } else {
+                log.info("По клику: прыгаю на {}", ctx.maps().info(o.map()).name());
+                ctx.traveler().travel(o.map(), Double.NaN, Double.NaN);
+            }
+        }
+        if (current != null) {
+            boolean done;
+            if (current.kind() == Order.Kind.MOVE) {
+                ctx.nav().tick();
+                done = ctx.nav().idle();
+            } else {
+                ctx.traveler().tick();
+                Traveler.State ts = ctx.traveler().state();
+                if (ts == Traveler.State.FAILED) {
+                    log.warn("По клику: прыжок не вышел — {}", ctx.traveler().failure());
+                }
+                done = ts != Traveler.State.TRAVELLING;
+            }
+            if (!done && now - orderAt > ORDER_LIMIT_MS * 1_000_000) {
+                log.warn("По клику: не выполнено за {} мин — бросаю", ORDER_LIMIT_MS / 60_000);
+                ctx.nav().stop();
+                done = true;
+            }
+            if (!done) {
+                ctx.ship().want(ctx.config().get().general().travel());
+                state = State.MANUAL;
+                show(current.kind() == Order.Kind.MOVE
+                        ? "По клику: лечу в " + (int) current.x() / 100 + "/" + (int) current.y() / 100
+                        : "По клику: прыжок на " + ctx.maps().info(current.map()).name());
+                return true;
+            }
+            if (holdUntil == 0) {
+                holdUntil = now + HOLD_MS * 1_000_000;
+            }
+            if (paused || now < holdUntil) {
+                state = paused ? State.PAUSED : State.MANUAL;
+                show(paused ? "Пауза" : "По клику: на месте");
+                return true;
+            }
+            current = null;
+            holdUntil = 0;
+        }
+        if (paused) {
+            if (!pauseShown) {
+                pauseShown = true;
+                log.info("Пауза: бот ждёт, корабль летает только по кликам на карте");
+                if (module != null) {
+                    module.pause();
+                }
+                ctx.nav().stop();
+            }
+            state = State.PAUSED;
+            show("Пауза");
+            return true;
+        }
+        if (pauseShown) {
+            pauseShown = false;
+            log.info("Пауза снята — продолжаю");
+        }
+        return false;
     }
 
     private void travel(int map) {

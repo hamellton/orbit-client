@@ -73,8 +73,81 @@ final class MinimapPanel extends JPanel {
         setPreferredSize(compact ? new Dimension(420, 262) : new Dimension(840, 524));
         setMinimumSize(new Dimension(240, 150));
         if (!compact) {
-            BlockMenu.attach(this, p -> SidePanel.blockAt(cardsAt, p));
+            BlockMenu.attach(this, p -> SidePanel.blockAt(cardsAt, p), this::orders);
+            addMouseListener(new java.awt.event.MouseAdapter() {
+                @Override
+                public void mousePressed(java.awt.event.MouseEvent e) {
+                    if (javax.swing.SwingUtilities.isLeftMouseButton(e) && !e.isPopupTrigger()
+                            && SidePanel.blockAt(cardsAt, e.getPoint()) == null) {
+                        double[] at = toMap(e.getX(), e.getY());
+                        orbit.bot.run.BotRunner r = feed.runner();
+                        if (at != null && r != null && r.takesOrders()) {
+                            r.order(orbit.bot.run.BotRunner.Order.move(at[0], at[1]));
+                            clickX = at[0];
+                            clickY = at[1];
+                            clickAt = System.nanoTime();
+                            repaint();
+                        }
+                    }
+                }
+            });
         }
+    }
+
+    /** Where the user clicked last, drawn for a moment. */
+    private volatile double clickX;
+    private volatile double clickY;
+    private volatile long clickAt;
+    private static final long CLICK_MARK_NS = 1_500_000_000L;
+
+    /** A panel point on the map in game units, or {@code null} off the map or before the ship is known. */
+    double[] toMap(int x, int y) {
+        WorldSnapshot.Hero hero = feed.snapshot().hero();
+        if (hero.id() == 0) {
+            return null;
+        }
+        MapCatalog.MapInfo map = catalog.info(hero.mapId());
+        Projection p = projection(map);
+        double mx = (x - p.ox()) / p.scale();
+        double my = (y - p.oy()) / p.scale();
+        if (mx < 0 || my < 0 || mx > map.width() || my > map.height()) {
+            return null;
+        }
+        return new double[] {mx, my};
+    }
+
+    /** Portals of the hero's map near a click this far (game units) or 25 px, whichever is more; like DarkBot. */
+    private static final double PORTAL_MENU_REACH = 1_000;
+
+    /** The bot's orders for a right click at {@code pt}: jump through a portal there, fly here, pause. */
+    private java.util.List<javax.swing.JComponent> orders(java.awt.Point pt) {
+        orbit.bot.run.BotRunner r = feed.runner();
+        if (r == null || !r.takesOrders()) {
+            return java.util.List.of();
+        }
+        java.util.List<javax.swing.JComponent> out = new java.util.ArrayList<>();
+        WorldSnapshot.Hero hero = feed.snapshot().hero();
+        double[] at = toMap(pt.x, pt.y);
+        if (at != null) {
+            double reach = Math.max(PORTAL_MENU_REACH, 25 / projection(catalog.info(hero.mapId())).scale());
+            catalog.portals(hero.mapId()).stream()
+                    .filter(p -> p.toId() > 0 && (p.faction() == 0 || p.faction() == hero.factionId()))
+                    .filter(p -> Math.hypot(p.x() - at[0], p.y() - at[1]) <= reach)
+                    .sorted(java.util.Comparator.comparingDouble(p -> Math.hypot(p.x() - at[0], p.y() - at[1])))
+                    .forEach(p -> {
+                        javax.swing.JMenuItem jump = new javax.swing.JMenuItem("Прыгнуть на " + p.toName());
+                        jump.addActionListener(e -> r.order(orbit.bot.run.BotRunner.Order.jump(p.toId())));
+                        out.add(jump);
+                    });
+            javax.swing.JMenuItem fly = new javax.swing.JMenuItem("Лететь сюда");
+            fly.addActionListener(e -> r.order(orbit.bot.run.BotRunner.Order.move(at[0], at[1])));
+            out.add(fly);
+        }
+        javax.swing.JCheckBoxMenuItem pause = new javax.swing.JCheckBoxMenuItem("Пауза бота", r.paused());
+        pause.setToolTipText("Модуль ждёт, корабль летает только по кликам");
+        pause.addActionListener(e -> r.setPaused(pause.isSelected()));
+        out.add(pause);
+        return out;
     }
 
     /** Where the map sits in the panel, keeping its proportions (21000:13100 for most maps). */
@@ -258,6 +331,17 @@ final class MinimapPanel extends JPanel {
             g.draw(diamond);
         }
 
+        long sinceClick = System.nanoTime() - clickAt;
+        if (clickAt != 0 && sinceClick < CLICK_MARK_NS) {
+            float a = 1f - (float) sinceClick / CLICK_MARK_NS;
+            double cx = p.x(clickX);
+            double cy = p.y(clickY);
+            double r = 5 + 10 * (1 - a);
+            g.setColor(new Color(HERO.getRed(), HERO.getGreen(), HERO.getBlue(), (int) (200 * a)));
+            g.setStroke(new BasicStroke(1.5f));
+            g.draw(new Ellipse2D.Double(cx - r, cy - r, 2 * r, 2 * r));
+            g.setStroke(new BasicStroke(1f));
+        }
         if (hero.id() != 0) {
             double hx = p.x(hero.x());
             double hy = p.y(hero.y());
@@ -410,7 +494,10 @@ final class MinimapPanel extends JPanel {
             for (WorldSnapshot.Portal portal : w.portals().values()) {
                 if (Math.hypot(portal.x() - mx, portal.y() - my) < reach) {
                     MapCatalog.Portal known = catalog.portalNear(hero.mapId(), portal.x(), portal.y(), 50);
-                    return "Портал" + (known != null ? " на " + known.toName() : "") + "  (" + portal.x() / 100 + "/" + portal.y() / 100 + ")";
+                    orbit.bot.run.BotRunner r = feed.runner();
+                    return "Портал" + (known != null ? " на " + known.toName() : "") + "  (" + portal.x() / 100 + "/"
+                            + portal.y() / 100 + ")" + (!compact && known != null && r != null && r.takesOrders()
+                            ? " — правый клик: прыгнуть" : "");
                 }
             }
             return null;

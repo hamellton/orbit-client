@@ -19,6 +19,12 @@ final class BlockMenu {
 
     /** A right click on a card of {@code c} opens the menu of its block ({@code at} finds it). */
     static void attach(JComponent c, Function<Point, ViewSettings.Block> at) {
+        attach(c, at, p -> java.util.List.of());
+    }
+
+    /** …and {@code extra} items for that point (the bot's orders) above the window's items off the cards. */
+    static void attach(JComponent c, Function<Point, ViewSettings.Block> at,
+                       Function<Point, java.util.List<JComponent>> extra) {
         c.addMouseListener(new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent e) {
@@ -35,7 +41,17 @@ final class BlockMenu {
                     return;
                 }
                 ViewSettings.Block b = at.apply(e.getPoint());
-                (b != null ? forBlock(b) : all()).show(c, e.getX(), e.getY());
+                JPopupMenu menu = b != null ? forBlock(b) : all();
+                if (b == null) {
+                    java.util.List<JComponent> items = extra.apply(e.getPoint());
+                    if (!items.isEmpty()) {
+                        menu.insert(new JPopupMenu.Separator(), 0);
+                        for (int i = items.size() - 1; i >= 0; i--) {
+                            menu.insert(items.get(i), 0);
+                        }
+                    }
+                }
+                menu.show(c, e.getX(), e.getY());
             }
         });
     }

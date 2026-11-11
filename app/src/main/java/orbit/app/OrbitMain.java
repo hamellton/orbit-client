@@ -744,6 +744,7 @@ public final class OrbitMain {
         orbit.bot.run.BotRunner runner = new orbit.bot.run.BotRunner(ctx, feed::loggedOut, feed::setAction);
         runner.setShop(shop);
         runner.setLinkLost(feed::linkLost);
+        feed.setRunner(runner);
         java.util.concurrent.atomic.AtomicBoolean stopRequested = new java.util.concurrent.atomic.AtomicBoolean();
         java.util.concurrent.atomic.AtomicBoolean commanded = new java.util.concurrent.atomic.AtomicBoolean();
         java.util.concurrent.atomic.AtomicBoolean connectionEnded = new java.util.concurrent.atomic.AtomicBoolean();
@@ -829,6 +830,7 @@ public final class OrbitMain {
             } catch (RuntimeException e) {
                 log.error("Ошибка в цикле бота", e);
             } finally {
+                feed.setRunner(null);
                 if (!stopRequested.get()) {
                     conn.close(); // finished by itself (time, deaths, error, command): the session is over
                 }
