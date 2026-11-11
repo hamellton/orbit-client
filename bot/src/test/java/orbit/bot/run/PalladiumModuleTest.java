@@ -90,10 +90,10 @@ class PalladiumModuleTest {
         return m;
     }
 
-    /** The user's profile: collect ship 801119 on 5-3, sell ship 801116 parked at 5-2; no portal before a switch. */
+    /** The user's profile: collect ship 500101 on 5-3, sell ship 500102 parked at 5-2; no portal before a switch. */
     private static BotConfig twoShips() throws Exception {
         return config().withModuleSettings("palladium", orbit.config.Json.MAPPER.readTree(
-                "{\"goPortalChange\": false, \"sellOnDie\": true, \"collectHangar\": 801119, \"sellHangar\": 801116,"
+                "{\"goPortalChange\": false, \"sellOnDie\": true, \"collectHangar\": 500101, \"sellHangar\": 500102,"
                         + " \"aditionalWaitingTime\": 5}"));
     }
 
@@ -109,12 +109,12 @@ class PalladiumModuleTest {
     @Test
     void theFullCollectShipLogsOutWhereItIsForTheSellShip() throws Exception {
         Sim sim = new Sim(twoShips(), 93, 10_000, 6_000);
-        sim.ctx.ships().setPalladium(801119, 801116); // the account's pair
+        sim.ctx.ships().setPalladium(500101, 500102); // the account's pair
         hold(sim, 1_000);
         BotRunner r = new BotRunner(sim.ctx, () -> false, s -> { });
-        r.setActiveHangar(801119);
+        r.setActiveHangar(500101);
         sim.run(r::tick, 6_000);
-        assertEquals(801116, r.hangarRequest(), "the sell ship");
+        assertEquals(500102, r.hangarRequest(), "the sell ship");
         assertEquals(BotRunner.State.STOPPING, r.state());
         var h = sim.hero();
         assertTrue(Math.hypot(h.x() - 10_000, h.y() - 6_000) < 50, "no flight to a portal (goPortalChange false): " + h);
@@ -126,7 +126,7 @@ class PalladiumModuleTest {
     @Test
     void theSellShipSellsThePalladiumThenAsksForTheCollectShip() throws Exception {
         Sim sim = new Sim(twoShips(), 92, 10_200, 6_200); // parked by the trader
-        sim.ctx.ships().setPalladium(801119, 801116); // the account's pair
+        sim.ctx.ships().setPalladium(500101, 500102); // the account's pair
         orbit.protocol.gen.AssetCreateCommand ref = new orbit.protocol.gen.AssetCreateCommand();
         ref.assetId = 700;
         ref.type = new orbit.protocol.gen.AssetTypeModule();
@@ -140,7 +140,7 @@ class PalladiumModuleTest {
         sim.world.apply(a, sim.now);
         hold(sim, 400); // not full: the sell ship sells whatever palladium there is
         BotRunner r = new BotRunner(sim.ctx, () -> false, s -> { });
-        r.setActiveHangar(801116);
+        r.setActiveHangar(500102);
         sim.run(r::tick, 2_000);
         assertTrue(sim.sent.stream().anyMatch(p -> p instanceof TradeRequest), "trades at once");
         orbit.protocol.gen.OreTradeInfoCommand info = new orbit.protocol.gen.OreTradeInfoCommand();
@@ -150,7 +150,7 @@ class PalladiumModuleTest {
         assertTrue(sim.sent.stream().anyMatch(p -> p instanceof TradeSellOreRequest s && s.toSell.oreType.typeValue == 8));
         hold(sim, 0); // the server took it
         sim.run(r::tick, 2_000);
-        assertEquals(801119, r.hangarRequest(), "back to the collect ship: " + r.status() + " selling=" + sim.ctx.stats().selling
+        assertEquals(500101, r.hangarRequest(), "back to the collect ship: " + r.status() + " selling=" + sim.ctx.stats().selling
                 + " sold=" + sim.sent.stream().filter(p -> p instanceof TradeSellOreRequest).count());
     }
 
@@ -160,7 +160,7 @@ class PalladiumModuleTest {
         Sim sim = new Sim(twoShips(), 93, 10_000, 6_000);
         hold(sim, 1_000);
         BotRunner r = new BotRunner(sim.ctx, () -> false, s -> { });
-        r.setActiveHangar(332663);
+        r.setActiveHangar(500103);
         sim.run(r::tick, 3_000);
         assertEquals(0, r.hangarRequest(), "no ship of the account chosen: no switch");
         assertTrue(r.state() != BotRunner.State.STOPPING && r.state() != BotRunner.State.STOPPED,
@@ -170,17 +170,17 @@ class PalladiumModuleTest {
     @Test
     void destroyedWithPalladiumTheSellShipInsteadOfARevive() throws Exception {
         Sim sim = new Sim(twoShips(), 93, 10_000, 6_000);
-        sim.ctx.ships().setPalladium(801119, 801116); // the account's pair
+        sim.ctx.ships().setPalladium(500101, 500102); // the account's pair
         hold(sim, 300);
         BotRunner r = new BotRunner(sim.ctx, () -> false, s -> { });
-        r.setActiveHangar(801119);
+        r.setActiveHangar(500101);
         sim.run(r::tick, 1_000);
         orbit.protocol.gen.KillScreenPostCommand k = new orbit.protocol.gen.KillScreenPostCommand();
         k.killerName = "x";
         k.options = List.of();
         sim.world.apply(k, sim.now);
         sim.run(r::tick, 1_000);
-        assertEquals(801116, r.hangarRequest());
+        assertEquals(500102, r.hangarRequest());
         assertEquals(BotRunner.State.STOPPED, r.state(), "no revive: the connection ends for the switch");
         assertTrue(sim.repairs.isEmpty());
     }
