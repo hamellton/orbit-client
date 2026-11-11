@@ -1,5 +1,6 @@
 package orbit.world;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.file.Files;
@@ -71,10 +72,10 @@ class LiveFactsReplayTest {
                     double actual = now - s[0];
                     String line = String.format("%s: %s announced %.0f, ready after %.0f ms", f.getFileName(), key, s[1], actual);
                     checked.add(line);
-                    // the formations (group 47) announce 2 s but the server says «ready» 5–60 s later and
-                    // ignores changes until then (live 2026-11-11): never earlier, though
-                    boolean formations = key.equals("cooldown group 47");
-                    if (formations ? actual < s[1] - 1500 : Math.abs(actual - s[1]) > Math.max(1500, s[1] * 0.15)) {
+                    // milliseconds: «ready» never comes much before the announced time (in seconds it would come a
+                    // thousand times sooner). Later is fine: the server holds formations (group 47), ISH, rockets and
+                    // the launcher well past their time (2026-11-11: 3 s announced, ready after 5–246 s)
+                    if (actual < s[1] - Math.max(1500, s[1] * 0.15)) {
                         wrong.add(line);
                     }
                 }
@@ -201,5 +202,32 @@ class LiveFactsReplayTest {
         try (Stream<Path> s = Files.list(dir)) {
             return s.filter(p -> p.toString().endsWith(".dorec")).sorted().toList();
         }
+    }
+
+    /**
+     * The trade window's prices (ru1 2026-11-11: at 2-8's refinery after {@code TradeRequest}, and with the pet's
+     * trade pod with no request) reach the model as ore → price.
+     */
+    @Test
+    void theTradeWindowsPricesAreKept() throws Exception {
+        int windows = 0;
+        for (Path f : recordings()) {
+            World w = new World();
+            for (PacketRecord r : Recording.readPackets(f)) {
+                if (r.up()) {
+                    continue;
+                }
+                Packet p = PacketCodec.decode(r.bytes());
+                w.apply(p, r.nanos());
+                if (p instanceof orbit.protocol.gen.OreTradeInfoCommand o) {
+                    windows++;
+                    var prices = w.snapshot(r.nanos()).inventory().tradePrices();
+                    assertEquals((Integer) o.prometiumPrice, prices.get(0), f.getFileName() + ": prometium");
+                    assertEquals((Integer) o.sepromPrice, prices.get(7), f.getFileName() + ": seprom");
+                    assertTrue(!prices.containsKey(8), "palladium is exchanged, not bought");
+                }
+            }
+        }
+        Assumptions.assumeTrue(windows > 0, "no recording with a trade window");
     }
 }

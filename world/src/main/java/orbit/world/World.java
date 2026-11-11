@@ -392,6 +392,19 @@ public final class World {
                 }
                 tradeNanos = nanos;
             }
+            // the trade window's prices, at the refinery (after TradeRequest) and with the pet's trade pod (after
+            // its mode, no request) alike — ru1 2026-11-11; the pod pays 30 % more
+            case orbit.protocol.gen.OreTradeInfoCommand p -> {
+                tradePrices.clear();
+                int[][] prices = {{0, p.prometiumPrice}, {1, p.enduriumPrice}, {2, p.terbiumPrice}, {4, p.prometidPrice},
+                        {5, p.duraniumPrice}, {6, p.promeriumPrice}, {7, p.sepromPrice}, {28, p.osmiumPrice}};
+                for (int[] o : prices) {
+                    if (o[1] > 0) {
+                        tradePrices.put(o[0], o[1]);
+                    }
+                }
+                tradeNanos = nanos;
+            }
             case orbit.protocol.gen.PetTradeWindowShowCommand p -> petTradeNanos = nanos;
             case AttributeOreCountUpdateCommand p -> {
                 ores.clear();

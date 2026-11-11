@@ -22,7 +22,13 @@ public record Health(double hp, double hpMax, int shield, int shieldMax, int nan
     }
 
     Health withHp(double newHp, double newHpMax) {
-        return new Health(newHp, newHpMax > 0 ? newHpMax : hpMax, shield, shieldMax, nanoHull, nanoHullMax);
+        double max = newHpMax > 0 ? newHpMax : hpMax;
+        // the hull is never above its maximum: a higher one (a booster, say) came without its own packet — the
+        // known maximum was stale (ru1 2026-11-11: 485 995 hit points with 406 000 known from the login)
+        if (newHpMax <= 0 && max > 0 && newHp > max) {
+            max = newHp;
+        }
+        return new Health(newHp, max, shield, shieldMax, nanoHull, nanoHullMax);
     }
 
     Health withShield(int newShield, int newShieldMax) {

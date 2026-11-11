@@ -28,8 +28,9 @@ final class CollectSection implements Section {
     static final String[] CARGO_NAMES = {"Ничего не делать", "Перестать собирать груз", "Продать на базе",
             "Продать через питомца (торговый модуль)"};
     /** The ores the trade window buys, in the game's numbers, with their names. */
-    static final int[] ORES = {0, 1, 2, 4, 5, 6, 7};
-    static final String[] ORE_NAMES = {"Прометий", "Эндуриум", "Тербий", "Прометид", "Дюраниум", "Промериум", "Сепром"};
+    static final int[] ORES = {0, 1, 2, 4, 5, 6, 7, 28};
+    static final String[] ORE_NAMES = {"Прометий", "Эндуриум", "Тербий", "Прометид", "Дюраниум", "Промериум", "Сепром",
+            "Осмий"};
     private final javax.swing.JComboBox<String> cargo = new javax.swing.JComboBox<>(CARGO_NAMES);
     private final JSpinner cargoFullAt = Form.number(0, 100_000, 50);
     private final JCheckBox[] sell = new JCheckBox[ORES.length];
@@ -68,7 +69,8 @@ final class CollectSection implements Section {
                 .row("Когда трюм полон", cargo)
                 .row("Полон при свободном месте ≤", cargoFullAt)
                 .row("Продавать", Form.inline(sell))
-                .note("Нечего продать — бот просто перестаёт брать груз. Промериум и сепром обычно берегут для улучшений.")
+                .note("Нечего продать — бот просто перестаёт брать груз. Промериум, сепром и осмий обычно берегут для улучшений. "
+                        + "Через питомца цены на 30% выше.")
                 .section("Ящики")
                 .note("Ожидание — сколько стоять на ящике перед сбором.")
                 .wide(Form.inline(add, remove), false)

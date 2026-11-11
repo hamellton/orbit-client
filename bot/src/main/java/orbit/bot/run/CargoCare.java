@@ -19,7 +19,9 @@ import org.slf4j.LoggerFactory;
  *   <li>{@code PET} — the pet's trade pod opens the trade window anywhere ({@code PetTradeWindowShowCommand}):
  *       sell the same way while the ship keeps working, then the pet's own mode again.</li>
  * </ul>
- * The sequence is the client's code (not recorded yet). Nothing to sell (only ores the config keeps) — no trip,
+ * As recorded on ru1 2026-11-11: at the refinery (2-8, ~500 away) {@code TradeRequest} → {@code OreTradeInfoCommand}
+ * with the prices; with the pet the trade pod alone brings the same prices and the window, no request; then one
+ * {@code TradeSellOreRequest} per ore, whole amounts, and {@code TWC} closes the window. Nothing to sell (only ores the config keeps) — no trip,
  * the hold simply stops filling. A sale that does not open is not tried again for {@link #RETRY_MS}.
  */
 final class CargoCare {
@@ -29,7 +31,7 @@ final class CargoCare {
     static final long ANSWER_MS = 6_000;
     static final long RETRY_MS = 10 * 60_000L;
     /** Close enough to the refinery to trade (the client trades by clicking its icon at the base). */
-    static final double AT_REFINERY = 250;
+    static final double AT_REFINERY = 400;
 
     private enum Step { TO_BASE, TO_REFINERY, ASKED, SELLING }
 
@@ -67,6 +69,7 @@ final class CargoCare {
             case 6 -> "промериум";
             case 7 -> "сепром";
             case 8 -> "палладий";
+            case 28 -> "осмий";
             default -> "руда №" + type;
         };
     }
@@ -115,10 +118,9 @@ final class CargoCare {
                     return false;
                 }
                 log.info("Трюм полон (свободно {}) — продаю через питомца: {}", w.cargoFree(), list(sell));
-                pet.setTrade(true);
+                pet.setTrade(true); // the trade pod opens the window and sends the prices by itself
                 step = Step.ASKED;
                 since = now;
-                ctx.actions().tradeOpen();
                 return false;
             }
             if (busy) {
@@ -196,11 +198,8 @@ final class CargoCare {
             nextSellAt = now + ctx.pause(600, 1_400);
             return base;
         }
-        // the pet's window: asked again once the server says the pod opened it
-        if (!base && w.inventory().petTradeNanos() > since && ms(now - since) > 1_500 && ms(now - since) < 2_000) {
-            ctx.actions().tradeOpen();
-        }
-        if (ms(now - since) > (base ? ANSWER_MS : ANSWER_MS + 6_000)) {
+        // the pet: the mode is asked for after a moment's pause, the answer comes at once
+        if (ms(now - since) > (base ? ANSWER_MS : ANSWER_MS + 9_000)) {
             return fail(base ? "торговля у переработчика не открылась" : "торговый модуль питомца не открыл торговлю");
         }
         return base;
@@ -212,6 +211,7 @@ final class CargoCare {
             return base;
         }
         if (toSell.isEmpty()) {
+            ctx.actions().tradeClose();
             log.info("Продал руду — свободно в трюме {}", w.cargoFree());
             return done(true);
         }

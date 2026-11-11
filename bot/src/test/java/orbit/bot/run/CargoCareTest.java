@@ -30,17 +30,19 @@ class CargoCareTest {
         return m;
     }
 
+    /** The prices as the server sent them at 2-8's refinery on 2026-11-11 (osmium too, palladium not bought). */
     private static void prices(Sim sim) {
-        orbit.protocol.gen.TradeReplyCommand r = new orbit.protocol.gen.TradeReplyCommand();
-        orbit.protocol.gen.OrePriceModule p0 = new orbit.protocol.gen.OrePriceModule();
-        p0.oreType = new orbit.protocol.gen.OreTypeModule();
-        p0.oreType.typeValue = 0;
-        p0.price = 10;
-        orbit.protocol.gen.OrePriceModule p1 = new orbit.protocol.gen.OrePriceModule();
-        p1.oreType = new orbit.protocol.gen.OreTypeModule();
-        p1.oreType.typeValue = 1;
-        p1.price = 15;
-        r.priceInfos = List.of(p0, p1);
+        orbit.protocol.gen.OreTradeInfoCommand r = new orbit.protocol.gen.OreTradeInfoCommand();
+        r.prometiumPrice = 20;
+        r.enduriumPrice = 30;
+        r.terbiumPrice = 50;
+        r.prometidPrice = 400;
+        r.duraniumPrice = 400;
+        r.promeriumPrice = 1_000;
+        r.sepromPrice = 1_500;
+        r.osmiumPrice = 6_000;
+        r.palladiumExchangeRate = -1;
+        r.type = 1;
         sim.world.apply(r, sim.now);
     }
 
@@ -90,6 +92,8 @@ class CargoCareTest {
         assertEquals(2, s.size(), "prometium and endurium, not seprom: " + s);
         assertEquals(900, (long) s.get(0).toSell.count);
         assertEquals(1, s.get(1).toSell.oreType.typeValue);
+        assertTrue(sim.sent.stream().anyMatch(p -> p instanceof orbit.protocol.gen.LegacyModule l && "TWC".equals(l.message)),
+                "the window closed after the sale, as the client does");
     }
 
     @Test
@@ -116,7 +120,7 @@ class CargoCareTest {
         sim.run(r::tick, 4_000);
         assertTrue(sim.sent.stream().anyMatch(p -> p instanceof orbit.protocol.gen.PetGearActivationRequest g
                 && g.gearTypeToActivate.typeValue == 8), "the trade pod");
-        assertTrue(sim.sent.stream().anyMatch(p -> p instanceof TradeRequest));
+        assertTrue(sim.sent.stream().noneMatch(p -> p instanceof TradeRequest), "the pod alone opens the window (recorded)");
         assertEquals(BotRunner.State.WORKING, r.state(), "the ship is not taken off its work");
         prices(sim);
         sim.run(r::tick, 5_000);

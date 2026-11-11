@@ -288,4 +288,9 @@ public final class Actions {
         r.toSell.count = count;
         sender.accept(r);
     }
+
+    /** Closes the trade window ({@code TWC}), as the client does after selling. */
+    public void tradeClose() {
+        legacy("TWC");
+    }
 }
