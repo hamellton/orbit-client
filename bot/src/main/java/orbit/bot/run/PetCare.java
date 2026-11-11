@@ -18,7 +18,9 @@ import org.slf4j.LoggerFactory;
  *       mode after it (it puts Guard itself after the combo repair);</li>
  *   <li>the combo ship repair (mode 11) when the hero is low and nothing has hit it for a while: hit 0.2–8 s
  *       before, the server refused (Guard at once); 13.5 s after, it repaired for ~3.5 s, then set Guard;</li>
- *   <li>a destroyed pet is repaired ({@code PetRequest 4}) unless the config says not to.</li>
+ *   <li>a destroyed pet is repaired ({@code PetRequest 4}) unless the config says not to;</li>
+ *   <li>kamikaze (mode 10) while NPCs crowd round the pet — so many of them, or one flagged {@code KAMIKAZE} —
+ *       the config's mode again when they are gone; after the pet blew up, not again for a while.</li>
  * </ul>
  */
 public final class PetCare {
@@ -50,6 +52,12 @@ public final class PetCare {
     private long hurtAt = Long.MIN_VALUE / 2;
     private double lastHp = -1;
     private String told = "";
+    private boolean kamikazeOn;
+    private long kamikazeSince;
+    private long boomAt = Long.MIN_VALUE / 2;
+    /** Kamikaze is kept this long after the crowd thinned, so a moving fight does not flip the mode. */
+    static final long KAMIKAZE_HOLD_MS = 5_000;
+    private long crowdSeenAt = Long.MIN_VALUE / 2;
 
     public PetCare(BotContext ctx) {
         this.ctx = ctx;
@@ -87,6 +95,11 @@ public final class PetCare {
             return;
         }
         if (!pet.alive()) {
+            if (kamikazeOn) {
+                kamikazeOn = false;
+                boomAt = now;
+                log.info("Питомец взорвался (камикадзе)");
+            }
             if (cfg.noRepair()) {
                 tell("Питомец уничтожен — починка выключена в конфиге");
             } else if (ms(now - repairedAt) > REPAIR_RETRY_MS) {
@@ -120,7 +133,50 @@ public final class PetCare {
         if (combo(cfg, h, pet, now)) {
             return;
         }
+        kamikaze(cfg, w, pet, now);
         gear(cfg, pet, now);
+    }
+
+    /** Whether the kamikaze mode is wanted now; logs the switches. */
+    private void kamikaze(BotConfig.Pet cfg, WorldSnapshot w, WorldSnapshot.Pet pet, long now) {
+        BotConfig.Kamikaze k = cfg.kamikaze();
+        boolean can = k.enabled() && pet.gears().contains(PetGearTypeModule.PETGEARTYPE_KAMIKAZE)
+                && ms(now - boomAt) >= k.everyMinutes() * 60_000L;
+        boolean crowd = can && crowd(k, w, pet);
+        if (crowd) {
+            crowdSeenAt = now;
+        }
+        boolean want = can && (crowd || kamikazeOn && ms(now - crowdSeenAt) < KAMIKAZE_HOLD_MS);
+        if (want && !kamikazeOn) {
+            log.info("Питомец: камикадзе — рядом враги");
+            kamikazeSince = now;
+        } else if (!want && kamikazeOn) {
+            log.info("Питомец: камикадзе отменён — врагов рядом нет");
+        }
+        kamikazeOn = want;
+    }
+
+    /** NPCs round the pet (round the ship while the pet is not seen): enough of them, or a flagged one. */
+    private boolean crowd(BotConfig.Kamikaze k, WorldSnapshot w, WorldSnapshot.Pet pet) {
+        WorldSnapshot.Ship own = w.ships().get(pet.id());
+        WorldSnapshot.Hero h = w.hero();
+        int cx = own != null ? own.x() : h.x();
+        int cy = own != null ? own.y() : h.y();
+        BotConfig c = ctx.config().get();
+        int n = 0;
+        for (WorldSnapshot.Ship s : w.ships().values()) {
+            if (s.kind() != WorldSnapshot.ShipKind.NPC || s.distanceTo(cx, cy) > k.radius()) {
+                continue;
+            }
+            n++;
+            if (k.flagged()) {
+                BotConfig.NpcRule r = orbit.bot.mod.Targets.rule(c, s, h.mapId());
+                if (r != null && r.has(BotConfig.NpcFlag.KAMIKAZE)) {
+                    return true;
+                }
+            }
+        }
+        return k.minNpcs() > 0 && n >= k.minNpcs();
     }
 
     private boolean combo(BotConfig.Pet cfg, WorldSnapshot.Hero h, WorldSnapshot.Pet pet, long now) {
@@ -145,12 +201,13 @@ public final class PetCare {
     }
 
     private void gear(BotConfig.Pet cfg, WorldSnapshot.Pet pet, long now) {
-        int want = gearId(cfg.gear());
+        int want = kamikazeOn ? PetGearTypeModule.PETGEARTYPE_KAMIKAZE : gearId(cfg.gear());
+        String label = kamikazeOn ? "Камикадзе" : orbit.config.ItemCatalog.label(cfg.gear());
         if (want < 0) {
             return;
         }
         if (!pet.gears().isEmpty() && !pet.gears().contains(want)) {
-            tell("У питомца нет режима " + orbit.config.ItemCatalog.label(cfg.gear()));
+            tell("У питомца нет режима " + label);
             return;
         }
         // the server's word after our request: another mode means it was turned down or changed (Guard)
@@ -179,14 +236,14 @@ public final class PetCare {
             }
             tries++;
             if (tries == GEAR_TRIES) {
-                log.warn("Питомец: сервер не держит режим {} — повторю через минуту", orbit.config.ItemCatalog.label(cfg.gear()));
+                log.warn("Питомец: сервер не держит режим {} — повторю через минуту", label);
             }
         } else {
             tries = 0;
             firstTryAt = now;
         }
         int param = want == PetGearTypeModule.PETGEARTYPE_ENEMY_LOCATOR ? cfg.locatorTarget() : 0;
-        log.info("Питомец: режим {}{}", orbit.config.ItemCatalog.label(cfg.gear()), param != 0 ? " (цель №" + param + ")" : "");
+        log.info("Питомец: режим {}{}", label, param != 0 ? ", цель №" + param : "");
         ctx.actions().petGear(want, param);
         askedGear = want;
         askedAt = now;

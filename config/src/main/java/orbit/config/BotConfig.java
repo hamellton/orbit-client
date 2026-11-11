@@ -531,7 +531,8 @@ public record BotConfig(
      *             {@code ENEMY_LOCATOR}, {@code KAMIKAZE})
      */
     @JsonInclude(JsonInclude.Include.NON_NULL)
-    public record Pet(boolean enabled, String gear, int locatorTarget, boolean noRepair, double comboRepairBelow) {
+    public record Pet(boolean enabled, String gear, int locatorTarget, boolean noRepair, double comboRepairBelow,
+                      Kamikaze kamikaze) {
 
         /** The locator's NPC number when none is set: Cubikon (matched by the locator's points, 2026-11-11). */
         public static final int CUBIKON_LOCATOR = 13;
@@ -545,10 +546,35 @@ public record BotConfig(
          */
         public Pet {
             locatorTarget = locatorTarget <= 0 ? CUBIKON_LOCATOR : locatorTarget;
+            kamikaze = kamikaze == null ? Kamikaze.OFF : kamikaze;
         }
 
         public Pet(boolean enabled, String gear) {
-            this(enabled, gear, CUBIKON_LOCATOR, false, 0);
+            this(enabled, gear, CUBIKON_LOCATOR, false, 0, null);
+        }
+
+        public Pet(boolean enabled, String gear, int locatorTarget, boolean noRepair, double comboRepairBelow) {
+            this(enabled, gear, locatorTarget, noRepair, comboRepairBelow, null);
+        }
+    }
+
+    /**
+     * The pet's kamikaze: its mode while NPCs crowd round it, the config's mode again after.
+     *
+     * @param enabled  use it at all
+     * @param minNpcs  this many NPCs within {@code radius} of the pet (0 = not a reason)
+     * @param flagged  an NPC flagged {@link NpcFlag#KAMIKAZE} in the NPC list within {@code radius}
+     * @param radius   around the pet
+     * @param everyMinutes not again sooner after the pet blew up (it is repaired each time)
+     */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public record Kamikaze(boolean enabled, int minNpcs, boolean flagged, int radius, int everyMinutes) {
+
+        public static final Kamikaze OFF = new Kamikaze(false, 0, true, 600, 5);
+
+        public Kamikaze {
+            radius = radius <= 0 ? 600 : radius;
+            everyMinutes = Math.max(0, everyMinutes);
         }
     }
 

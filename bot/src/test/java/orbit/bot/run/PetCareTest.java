@@ -125,4 +125,49 @@ class PetCareTest {
                 && r.petRequestType == PetRequest.PETREQUESTTYPE_REPAIR_DESTROYED_PET).count());
         assertEquals(0, launches(sim), "not launched while destroyed");
     }
+
+    @Test
+    void kamikazeWhileNpcsCrowdTheMainModeAfterAndNotAgainSoonAfterABlast() {
+        BotConfig c = BotConfig.empty().withPet(new BotConfig.Pet(true, "ENEMY_LOCATOR", 13, false, 0,
+                new BotConfig.Kamikaze(true, 3, false, 600, 5)));
+        Sim sim = new Sim(c, 26, 10_000, 6_000);
+        owned(sim);
+        PetCare pet = new PetCare(sim.ctx);
+        sim.run(pet::tick, 6_000);
+        launched(sim);
+        sim.run(pet::tick, 5_000);
+        int k = PetGearTypeModule.PETGEARTYPE_KAMIKAZE;
+        assertTrue(gears(sim).stream().noneMatch(r -> r.gearTypeToActivate.typeValue == k), "two NPCs are not a crowd");
+        for (int i = 0; i < 3; i++) {
+            sim.npc(70 + i, "-=[ Protegit ]=-", 10_100 + i * 50, 6_000);
+        }
+        sim.run(pet::tick, 5_000);
+        assertEquals(k, gears(sim).getLast().gearTypeToActivate.typeValue, "three round the pet: kamikaze");
+        orbit.protocol.gen.PetIsDestroyedCommand boom = new orbit.protocol.gen.PetIsDestroyedCommand();
+        sim.world.apply(boom, sim.now);
+        sim.run(pet::tick, 2_000);
+        orbit.protocol.gen.PetRepairCompleteCommand fixed = new orbit.protocol.gen.PetRepairCompleteCommand();
+        sim.world.apply(fixed, sim.now);
+        sim.run(pet::tick, 6_000);
+        launched(sim);
+        sim.run(pet::tick, 10_000);
+        assertEquals(PetGearTypeModule.PETGEARTYPE_ENEMY_LOCATOR, gears(sim).getLast().gearTypeToActivate.typeValue,
+                "repaired, launched, the locator again — no kamikaze within 5 minutes though the NPCs are still there");
+    }
+
+    @Test
+    void kamikazeOnAFlaggedNpc() {
+        BotConfig c = BotConfig.empty()
+                .withNpcs(java.util.Map.of("-=[ Protegit ]=-", new BotConfig.NpcRule(500, 0, true,
+                        java.util.Set.of("KAMIKAZE"), java.util.Set.of(), null)))
+                .withPet(new BotConfig.Pet(true, "GUARD", 13, false, 0, new BotConfig.Kamikaze(true, 0, true, 600, 5)));
+        Sim sim = new Sim(c, 26, 10_000, 6_000);
+        owned(sim);
+        PetCare pet = new PetCare(sim.ctx);
+        sim.run(pet::tick, 6_000);
+        launched(sim);
+        sim.npc(70, "-=[ Protegit ]=-", 10_200, 6_000);
+        sim.run(pet::tick, 5_000);
+        assertEquals(PetGearTypeModule.PETGEARTYPE_KAMIKAZE, gears(sim).getLast().gearTypeToActivate.typeValue);
+    }
 }
