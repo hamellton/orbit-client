@@ -288,6 +288,25 @@ final class MinimapPanel extends JPanel {
             g.draw(new java.awt.geom.Line2D.Double(mx - 2.5, my + 2.5, mx + 2.5, my - 2.5));
         }
         Font labelFont = hud.font(Font.PLAIN, (float) (10 * Math.min(1.2, u)));
+        // players who attacked the ship this session: the circle the bot keeps clear, and the name
+        orbit.bot.run.BotRunner runner = feed.runner();
+        if (runner != null) {
+            g.setFont(labelFont);
+            for (orbit.bot.run.Offenders.Circle c : runner.avoidedPlayers()) {
+                double cx = p.x(c.x());
+                double cy = p.y(c.y());
+                double cr = Math.abs(p.x(c.x() + c.radius()) - cx);
+                g.setColor(OFFENDER_FILL);
+                g.fill(new Ellipse2D.Double(cx - cr, cy - cr, 2 * cr, 2 * cr));
+                g.setColor(OFFENDER);
+                g.setStroke(new BasicStroke(1.5f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND, 1f, new float[] {5f, 4f}, 0f));
+                g.draw(new Ellipse2D.Double(cx - cr, cy - cr, 2 * cr, 2 * cr));
+                g.setStroke(new BasicStroke(1f));
+                String label = "обидчик: " + c.name();
+                int lw = g.getFontMetrics().stringWidth(label);
+                g.drawString(label, (float) (cx - lw / 2.0), (float) (cy - cr - 4));
+            }
+        }
         for (Ship s : w.ships().values()) {
             Color c = shipColor(s, hero, w.group());
             g.setColor(c);
@@ -417,6 +436,8 @@ final class MinimapPanel extends JPanel {
     }
 
     static final Color BOX_CHECK = new Color(0xff3b30);
+    static final Color OFFENDER = new Color(0xff6b3d);
+    static final Color OFFENDER_FILL = new Color(255, 107, 61, 26);
 
     /** The game's box check: its circle on the map and the task with the time left, big, over the map. */
     private void boxCheck(Graphics2D g, WorldSnapshot w, Projection p, double vx, double vy, double vw) {

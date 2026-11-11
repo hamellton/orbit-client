@@ -250,6 +250,15 @@ public final class WorldFeed {
         sessionEnd = 0;
     }
 
+    /**
+     * The same session goes on with a new login (a ship change: logout, the site, login): its clock runs on from
+     * the first login, only the logout is forgotten.
+     */
+    public void resumeSession() {
+        loggedOut = false;
+        sessionEnd = 0;
+    }
+
     /** The account was stopped: not in game any more, whatever the last packets said. */
     public void stopped() {
         loggedOut = true;

@@ -106,4 +106,21 @@ class OffendersTest {
         sim.run(r::tick, 500); // …the runner's does
         assertTrue(r.status().startsWith("Ухожу от -TЄЯЯØЯ-") || sim.ctx.nav().inDanger(21_000, 7_000), r.status());
     }
+
+    @Test
+    void aShipChangeKeepsWhoAttackedAndTheDeaths() {
+        Sim sim = new Sim(config(true), 93, 20_000, 7_000);
+        player(sim, 77, "Hunter", 26_000, 7_000);
+        BotRunner first = new BotRunner(sim.ctx, () -> false, s -> { });
+        shoots(sim, 77);
+        first.tick();
+        // the next login on the other ship: a new runner going on with the session
+        Sim next = new Sim(config(true), 93, 20_000, 7_000);
+        BotRunner second = new BotRunner(next.ctx, () -> false, s -> { });
+        second.carryOver(first);
+        player(next, 77, "Hunter", 21_000, 7_000);
+        second.tick();
+        assertTrue(second.status().startsWith("Ухожу от Hunter"), second.status());
+        assertEquals(first.deaths(), second.deaths());
+    }
 }

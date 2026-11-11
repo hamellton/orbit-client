@@ -49,6 +49,11 @@ public final class Revive {
         return streak;
     }
 
+    /** The same session goes on after a ship change: its deaths keep counting towards the limit. */
+    void takeFrom(Revive previous) {
+        deaths = previous.deaths;
+    }
+
     public int deaths() {
         return deaths;
     }

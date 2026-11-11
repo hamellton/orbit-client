@@ -22,7 +22,7 @@ import org.slf4j.LoggerFactory;
  * <p>Live 2026-11-12 on int1 (5-3): one player killed the palladium ship five times in nine minutes; the bot came
  * back to the same field each time.
  */
-final class Offenders {
+public final class Offenders {
 
     private static final Logger log = LoggerFactory.getLogger(Offenders.class);
 
@@ -35,6 +35,13 @@ final class Offenders {
 
     private record Seen(String name, double x, double y, int map, long nanos) {
     }
+
+    /** A circle to keep clear, for the window's map. */
+    public record Circle(String name, double x, double y, double radius) {
+    }
+
+    /** What {@link #circles} gave last, for another thread (the window). */
+    private volatile List<Circle> shown = List.of();
 
     private final BotContext ctx;
     private final Set<Integer> ids = new java.util.HashSet<>();
@@ -101,6 +108,20 @@ final class Offenders {
             }
         }
         seen.values().removeIf(s -> now - s.nanos() > LAST_SEEN_NS || s.map() != h.mapId());
+        double r = f.avoidRadius();
+        shown = !f.avoid() ? List.of() : seen.values().stream().map(s -> new Circle(s.name(), s.x(), s.y(), r)).toList();
+    }
+
+    /** The circles kept clear now, any thread. */
+    List<Circle> shown() {
+        return shown;
+    }
+
+    /** The same session goes on after a ship change (logout, the site, login): who attacked is still known. */
+    void takeFrom(Offenders previous) {
+        ids.addAll(previous.ids);
+        names.addAll(previous.names);
+        playerNames.putAll(previous.playerNames);
     }
 
     private final Map<String, Long> playerNames = new HashMap<>();

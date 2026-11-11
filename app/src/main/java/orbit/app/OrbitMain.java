@@ -557,6 +557,7 @@ public final class OrbitMain {
                 }
                 boolean rested = false;
                 int failures = 0; // sessions in a row whose game connection ended by itself
+                orbit.bot.run.BotRunner afterShipChange = null; // the session a ship change continues
                 while (!closed.get() && System.currentTimeMillis() < testEnd) {
                     java.time.LocalDateTime now = java.time.LocalDateTime.now();
                     var plan = planner.next(now, name -> {
@@ -570,6 +571,7 @@ public final class OrbitMain {
                             : java.time.LocalDateTime.ofInstant(java.time.Instant.ofEpochMilli(testEnd),
                                     java.time.ZoneId.systemDefault());
                     if (!plan.online()) {
+                        afterShipChange = null; // a break between: the next login is a new session
                         restUntil(feed, closed, stopFile, earlier(plan.until(), limit), capitalized(plan.reason()));
                         rested = true;
                         continue;
@@ -585,6 +587,7 @@ public final class OrbitMain {
                     playing.set(cfgName);
                     orbit.config.BotConfig cfg = loadConfig(cfgName, false);
                     if (cfg == null) {
+                        afterShipChange = null;
                         restUntil(feed, closed, stopFile, now.plusMinutes(1), "Ошибка в конфиге «" + cfgName + "»");
                         continue;
                     }
@@ -595,7 +598,13 @@ public final class OrbitMain {
                         end = testEnd;
                         why = "--minutes " + o.minutes;
                     }
-                    feed.newSession();
+                    orbit.bot.run.BotRunner previous = afterShipChange;
+                    afterShipChange = null;
+                    if (previous != null) {
+                        feed.resumeSession(); // a ship change is no new session: clock, counters, memory go on
+                    } else {
+                        feed.newSession();
+                    }
                     GameConnection conn = new GameConnection(source, listener, ConnectionSettings.defaults(rig.route().connector()),
                             StartupSequence.clientLike(profile));
                     currentConn.set(conn);
@@ -608,7 +617,7 @@ public final class OrbitMain {
                     });
                     orbit.bot.run.AccountShips ships = accountShips(accountName);
                     ModuleRun run = startModule(feed, conn, cfgName, cfg, end, why, profile, stopFile,
-                            shopFor(auth, conn), () -> !game.isAlive(), ships);
+                            shopFor(auth, conn), () -> !game.isAlive(), ships, previous);
                     current.set(run);
                     if (cfg.module() == orbit.config.BotConfig.Module.PALLADIUM) {
                         watchHangar(auth, conn, run.runner(), lastHost, accountName, cfg, ships); // which ship is in use
@@ -630,6 +639,7 @@ public final class OrbitMain {
                             break;
                         }
                         failures = 0;
+                        afterShipChange = run.runner();
                         continue;
                     }
                     if (run.connectionEnded().get() && !closed.get()) {
@@ -920,7 +930,8 @@ public final class OrbitMain {
     private static ModuleRun startModule(WorldFeed feed, GameConnection conn, String configName,
                                          orbit.config.BotConfig config, long untilMillis, String untilReason,
                                          ClientProfile profile, Path stopFile, orbit.bot.run.ShopAccess shop,
-                                         java.util.function.BooleanSupplier connectionOver, orbit.bot.run.AccountShips ships) {
+                                         java.util.function.BooleanSupplier connectionOver, orbit.bot.run.AccountShips ships,
+                                         orbit.bot.run.BotRunner previous) {
         orbit.world.maps.MapCatalog catalog = orbit.world.maps.MapCatalog.bundled();
         java.util.Random random = new java.util.Random();
         orbit.bot.nav.Navigator nav = new orbit.bot.nav.Navigator(feed::snapshot, conn::send, catalog, random, System::nanoTime);
@@ -931,7 +942,8 @@ public final class OrbitMain {
             return new orbit.bot.act.Actions.Login(session.userId(), session.sessionId());
         }, orbit.bot.act.Actions.Screen.fromReadyString(profile.readyTypeStr()), random);
         orbit.bot.run.ShipSetup ship = new orbit.bot.run.ShipSetup(feed::snapshot, actions, System::nanoTime, random);
-        orbit.bot.run.Stats stats = new orbit.bot.run.Stats();
+        // after a ship change the session's counters go on (live 2026-11-12: «за сессию» started from 1 again)
+        orbit.bot.run.Stats stats = previous != null && feed.stats() != null ? feed.stats() : new orbit.bot.run.Stats();
         feed.setStats(stats);
         orbit.bot.run.ConfigWatch watch = new orbit.bot.run.ConfigWatch(orbit.config.ConfigStore.openDefault(), configName,
                 config, catalog);
@@ -948,6 +960,9 @@ public final class OrbitMain {
         orbit.bot.run.BotContext ctx = new orbit.bot.run.BotContext(feed::snapshot, watch::current, actions, nav, traveler,
                 catalog, random, System::nanoTime, conn::repair, ship, dataDir(feed), stats, ships);
         orbit.bot.run.BotRunner runner = new orbit.bot.run.BotRunner(ctx, feed::loggedOut, feed::setAction);
+        if (previous != null) {
+            runner.carryOver(previous);
+        }
         runner.setShop(shop);
         runner.setLinkLost(feed::linkLost);
         feed.setRunner(runner);

@@ -123,6 +123,20 @@ public final class BotRunner {
     }
 
     /**
+     * This runner goes on with {@code previous}'s session after a ship change (logout, the site's hangar switch,
+     * login): the deaths towards the limit and the players who attacked the ship are kept.
+     */
+    public void carryOver(BotRunner previous) {
+        revive.takeFrom(previous.revive);
+        offenders.takeFrom(previous.offenders);
+    }
+
+    /** Circles round the players who attacked the ship, kept clear now (the window's map); any thread. */
+    public java.util.List<Offenders.Circle> avoidedPlayers() {
+        return offenders.shown();
+    }
+
+    /**
      * The config changed (switched or edited): a different main module replaces the running one; the
      * same module drops its plans so the new settings apply at once.
      */
