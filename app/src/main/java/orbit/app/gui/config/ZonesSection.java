@@ -55,13 +55,26 @@ final class ZonesSection implements Section {
             }
             canvas.repaint();
         });
-        view = new Form()
-                .section("Зоны")
-                .note("ЛКМ — закрасить, ПКМ — стереть. Зоны свои для каждой карты.")
-                .row("Карта", map)
-                .row("Слой", Form.inline(preferred, avoided, clear))
-                .wide(canvas, true)
-                .build(true);
+        // never scrolls: the controls in one line (wrapping when narrow), the whole map in the rest of the tab
+        javax.swing.JLabel help = new javax.swing.JLabel("ⓘ");
+        help.setForeground(Color.GRAY);
+        help.setToolTipText("ЛКМ — закрасить, ПКМ — стереть. Зоны свои для каждой карты.");
+        canvas.setToolTipText(null);
+        preferred.setText("Предпочтительная");
+        avoided.setText("Запретная");
+        JPanel controls = new JPanel(new orbit.app.gui.WrapLayout(java.awt.FlowLayout.LEFT, 8, 4));
+        controls.add(new javax.swing.JLabel("Карта"));
+        controls.add(map);
+        controls.add(new javax.swing.JLabel("   Зона"));
+        controls.add(preferred);
+        controls.add(avoided);
+        controls.add(clear);
+        controls.add(help);
+        JPanel page = new JPanel(new java.awt.BorderLayout(0, 4));
+        page.setBorder(javax.swing.BorderFactory.createEmptyBorder(6, 6, 8, 8));
+        page.add(controls, java.awt.BorderLayout.NORTH);
+        page.add(canvas, java.awt.BorderLayout.CENTER);
+        view = page;
     }
 
     @Override
@@ -134,6 +147,9 @@ final class ZonesSection implements Section {
         return grids.computeIfAbsent(mapId, k -> new boolean[2][RESOLUTION][RESOLUTION])[preferred.isSelected() ? 0 : 1];
     }
 
+    /** Below this width the map is drawn without names. */
+    private static final int SMALL = 240;
+
     /** The map with its grid. */
     private final class Canvas extends JPanel {
 
@@ -141,7 +157,7 @@ final class ZonesSection implements Section {
 
         Canvas() {
             setPreferredSize(new Dimension(640, 420));
-            setMinimumSize(new Dimension(260, 170)); // still drawable in a small window
+            setMinimumSize(new Dimension(60, 40)); // the map scales down to fit whatever room is left
             setBackground(new Color(18, 22, 30));
             MouseAdapter m = new MouseAdapter() {
                 @Override
@@ -167,8 +183,8 @@ final class ZonesSection implements Section {
         private java.awt.Rectangle area() {
             MapCatalog.MapInfo info = catalog.info(map.mapId());
             double aspect = (double) info.width() / info.height();
-            int w = getWidth() - 20;
-            int h = getHeight() - 20;
+            int w = getWidth() - 4;
+            int h = getHeight() - 4;
             if (w / aspect > h) {
                 w = (int) (h * aspect);
             } else {
@@ -229,7 +245,9 @@ final class ZonesSection implements Section {
                 int py = a.y + (int) ((double) p.y() / info.height() * a.height);
                 g.setColor(new Color(240, 240, 240));
                 g.drawOval(px - 6, py - 6, 12, 12);
-                g.drawString(p.toName(), px + 8, py + 4);
+                if (a.width >= SMALL) {
+                    g.drawString(p.toName(), px + 8, py + 4);
+                }
             }
             for (BotConfig.SafetySpot s : spots.getOrDefault(info.id(), List.of())) {
                 int px = a.x + (int) ((double) s.x() / info.width() * a.width);
@@ -237,8 +255,10 @@ final class ZonesSection implements Section {
                 g.setColor(new Color(90, 170, 255));
                 g.fillOval(px - 3, py - 3, 6, 6);
             }
-            g.setColor(Color.LIGHT_GRAY);
-            g.drawString(info.name() + "   " + info.width() / 100 + "×" + info.height() / 100, a.x + 6, a.y + 16);
+            if (a.width >= SMALL) { // a tiny map keeps only its marks: the names would cover it
+                g.setColor(Color.LIGHT_GRAY);
+                g.drawString(info.name() + "   " + info.width() / 100 + "×" + info.height() / 100, a.x + 6, a.y + 16);
+            }
         }
     }
 }
