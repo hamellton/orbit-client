@@ -25,7 +25,7 @@ class SectionsTest {
         MapCatalog maps = MapCatalog.bundled();
         return List.of(new GeneralSection(maps), new KillSection(maps), new CollectSection(), new PetSection(),
                 new SafetySection(), new ZonesSection(maps), new CubikonSection(), new GateSection(), new BuySection(),
-                new GroupSection());
+                new GroupSection(), new PalladiumSection());
     }
 
     static BotConfig roundTrip(BotConfig c) {
@@ -84,6 +84,16 @@ class SectionsTest {
     void tabsKeepTheConfig() throws Exception {
         BotConfig c = sample();
         assertEquals(c, roundTrip(c));
+    }
+
+    @Test
+    void palladiumKeepsTheDarkBotSettings() throws Exception {
+        // the user's DmPlugin «Palladium Hangar» settings, as imported (invented hangar numbers)
+        com.fasterxml.jackson.databind.node.ObjectNode m = Json.MAPPER.createObjectNode();
+        m.put("goPortalChange", false).put("sellOnDie", true).put("ignoreSID", false)
+                .put("collectHangar", 123_456).put("sellHangar", 123_457).put("aditionalWaitingTime", 5);
+        BotConfig c = BotConfig.empty().withModule(BotConfig.Module.PALLADIUM).withModuleSettings("palladium", m);
+        assertEquals(Json.MAPPER.valueToTree(c), Json.MAPPER.valueToTree(roundTrip(c)));
     }
 
     @Test

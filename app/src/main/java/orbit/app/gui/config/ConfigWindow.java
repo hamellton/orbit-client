@@ -66,6 +66,7 @@ public final class ConfigWindow {
         sections.add(new SafetySection());
         sections.add(new ZonesSection(maps));
         sections.add(new CubikonSection());
+        sections.add(new PalladiumSection());
         sections.add(new GateSection());
         sections.add(new BuySection());
         sections.add(new GroupSection());
