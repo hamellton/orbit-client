@@ -165,7 +165,9 @@ public final class PathFinder {
         }
         for (WorldSnapshot.Zone z : w.zones().values()) {
             boolean blocking = z.type() == POITypeModule.POITYPE_NO_ACCESS || z.type() == POITypeModule.POITYPE_FACTION_NO_ACCESS;
-            boolean danger = z.type() == POITypeModule.POITYPE_RADIATION || z.type() == POITypeModule.POITYPE_DAMAGE;
+            // DarkBot (EntityFactory): only «NOA» zones are barriers; «DMG» ones (5-3's palladium field) are a mist
+            // where the cloak does not hold, flown through like open space
+            boolean danger = z.type() == POITypeModule.POITYPE_RADIATION;
             if (z.active() && (blocking || (danger && !throughDanger))) {
                 Obstacle o = polygon(z);
                 if (o != null && !(danger && overlaps(o, preferred, map.width(), map.height()))) {

@@ -296,7 +296,7 @@ class PathFinderTest {
     }
 
     @Test
-    void aDangerZoneUnderThePreferredZoneIsFlownInto() {
+    void theDamageZoneOfThePalladiumFieldIsFlownInto() {
         // live 2026-11-11: 5-3's palladium field is a damage zone; the bot stopped at its edge
         orbit.world.World world = withMine(10_000, 2_000, 1, 1); // map 1 (21 000 × 13 100), a mine out of the way
         orbit.protocol.gen.MapAddPOICommand poi = new orbit.protocol.gen.MapAddPOICommand();
@@ -316,7 +316,7 @@ class PathFinderTest {
         var preferred = new orbit.config.BotConfig.ZoneGrid(10, rows);
         double[] end = PathFinder.of(s, maps, false, false, 0, null, preferred).path(10_000, 2_000, 10_000, 8_200).getLast();
         assertEquals(8_200, end[1], 1, "right into the field");
-        double[] edge = PathFinder.of(s, maps, false, false, 0, null, null).path(10_000, 2_000, 10_000, 8_200).getLast();
-        assertTrue(edge[1] < 7_000, "without the preferred zone: only to its edge");
+        double[] plain = PathFinder.of(s, maps, false, false, 0, null, null).path(10_000, 2_000, 10_000, 8_200).getLast();
+        assertEquals(8_200, plain[1], 1, "a damage zone is open space anyway, as in DarkBot");
     }
 }

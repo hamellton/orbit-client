@@ -46,6 +46,8 @@ final class MinimapPanel extends JPanel {
     static final Color ZONE_DANGER = new Color(255, 60, 60, 60);
     static final Color ZONE_BLOCKED = new Color(160, 160, 160, 70);
     static final Color ZONE_OTHER = new Color(120, 160, 255, 28);
+    /** A «DMG» zone (DarkBot: mist, the cloak does not hold; 5-3's palladium field): open to fly. */
+    static final Color ZONE_MIST = new Color(170, 120, 255, 40);
     /** Faction colours of stations: MMO, EIC, VRU. */
     static final Color[] FACTION = {new Color(0x9e9e9e), new Color(0xe53935), new Color(0x1e88e5), new Color(0x43a047)};
 
@@ -232,7 +234,8 @@ final class MinimapPanel extends JPanel {
             if (s == null) {
                 continue;
             }
-            g.setColor(z.type() == POITypeModule.POITYPE_RADIATION || z.type() == POITypeModule.POITYPE_DAMAGE ? ZONE_DANGER
+            g.setColor(z.type() == POITypeModule.POITYPE_RADIATION ? ZONE_DANGER
+                    : z.type() == POITypeModule.POITYPE_DAMAGE ? ZONE_MIST
                     : z.type() == POITypeModule.POITYPE_NO_ACCESS || z.type() == POITypeModule.POITYPE_FACTION_NO_ACCESS
                     ? ZONE_BLOCKED : ZONE_OTHER);
             if (z.inverted()) {
