@@ -200,7 +200,9 @@ public final class Attacker {
             ammo = beforeSab; // SAB is no longer wanted: back to what was in use
         }
         WorldSnapshot.Item wanted = ammo == null ? null : w.items().get(ammo);
-        if (ammo != null && (wanted == null || wanted.counter() < MIN_AMMO) && !ammo.equals(missingAmmo)) {
+        // (the item bar comes a few seconds after the login: nothing is missing before it)
+        if (ammo != null && !w.items().isEmpty() && (wanted == null || wanted.counter() < MIN_AMMO)
+                && !ammo.equals(missingAmmo)) {
             missingAmmo = ammo;
             log.warn("Нет патронов {} ({}) — стреляю тем, что выбрано в игре ({})", orbit.config.ItemCatalog.label(ammo),
                     wanted == null ? "нет в инвентаре" : (long) wanted.counter() + " шт.",
