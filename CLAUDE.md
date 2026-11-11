@@ -44,7 +44,9 @@ Status: Stage 2 done; stage 3 in progress (login, game connection, vault, client
 - `game` — game connection (`GameConnection`), client-like `StartupSequence` (cold start vs map change,
   checked against recordings by `StartupSequenceTest`), `ClientProfile` (UI state replayed from a
   recording: `client-profile` → `local/client-profile.json`), `game-check` live tool.
-- `app` — the bot application `orbit` (FlatLaf window that fits any size: per account a header with a
+- `app` — the bot application `orbit`; without arguments the account manager (`ManagerWindow`: master
+  password in `VaultDialog`, accounts add/edit/remove with proxy check, start/stop each or all through
+  `AccountRunner`, a tab per started account). Otherwise modes (FlatLaf window that fits any size: per account a header with a
   live config switch, the minimap on the game's own pictures, cards beside or under it, the log; «Все»
   grid; `MainWindow.snapshot` renders it offscreen; modes bot / observe / replay / render; `--headless`). Logging config `orbit/app/logback-app.xml` (masking, `logs/orbit.log`).
 - `sniffer` — SOCKS5 + direct-port relay, session recording, `session-report` tool; uses generated classes.
