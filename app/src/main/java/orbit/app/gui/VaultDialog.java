@@ -153,7 +153,8 @@ public final class VaultDialog {
             vault = v;
             dialog.dispose();
         } catch (VaultException e) {
-            error.setText(e.getMessage());
+            error.setText(Theme.wrapped(e.getMessage(), 360));
+            dialog.pack();
             password.selectAll();
             password.requestFocusInWindow();
         } finally {
@@ -176,7 +177,8 @@ public final class VaultDialog {
         try {
             Files.move(file, aside);
         } catch (java.io.IOException e) {
-            error.setText("Не переименовать " + file + ": " + e.getMessage());
+            error.setText(Theme.wrapped("Не переименовать " + file + ": " + e.getMessage(), 360));
+            dialog.pack();
             return;
         }
         mode();

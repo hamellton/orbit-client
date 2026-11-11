@@ -214,8 +214,11 @@ public final class GameConnection implements AutoCloseable {
                         Duration wait = e.reason() == AuthException.Reason.MAINTENANCE
                                 ? ConnectionSettings.maintenanceWait(maintenance++, java.util.concurrent.ThreadLocalRandom.current())
                                 : settings.backoff(failures++);
-                        log.warn("Вход на сайт не удался: {} Повтор через {}", e.getMessage(), spoken(wait));
-                        listener.onState(GameListener.State.RECONNECTING, e.getMessage());
+                        String why = e.getMessage().replaceFirst("\\.$", "");
+                        log.warn("Вход на сайт не удался: {}. Повтор через {}", why, spoken(wait));
+                        // short, for the window: what and when the next try is
+                        listener.onState(GameListener.State.RECONNECTING, why + " — повтор в "
+                                + java.time.LocalTime.now().plus(wait).withNano(0));
                         sleep(wait);
                         continue;
                     }

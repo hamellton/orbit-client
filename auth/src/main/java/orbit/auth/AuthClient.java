@@ -60,6 +60,19 @@ public final class AuthClient {
     private final HttpSession http;
     private final Endpoints endpoints;
     private String clientVersion;
+    private volatile Accepted accepted;
+
+    /** A session the site gave for an accepted password: {@code origin} = the account server it landed on. */
+    public record Accepted(String origin, String dosid) {
+    }
+
+    /**
+     * The session of the last accepted password, even when the game page then failed (a maintenance):
+     * kept, the next login needs no password.
+     */
+    public Accepted passwordAccepted() {
+        return accepted;
+    }
 
     public AuthClient(HttpSession http, Endpoints endpoints) {
         this.http = http;
@@ -88,6 +101,7 @@ public final class AuthClient {
         Map<String, String> fields = new LinkedHashMap<>();
         fields.put("username", username);
         fields.put("password", password);
+        accepted = null;
         log.info("Вход на сайт по логину…");
         HttpSession.Response result = request(() -> http.postForm(action, fields, landing.url().toString()));
 
@@ -99,6 +113,7 @@ public final class AuthClient {
                 SecretMask.register(dosid);
                 // the site hands out a dosid to anonymous visitors too; only the game page proves the login
                 log.info("Пароль принят, сервер аккаунта: {}", host);
+                accepted = new Accepted(origin, dosid);
                 return loadGameSession(origin, dosid, true);
             }
         }
@@ -163,8 +178,7 @@ public final class AuthClient {
             }
             Path kept = keepForDiagnosis(page);
             throw new AuthException(AuthException.Reason.UNEXPECTED_PAGE,
-                    "Страница игры не содержит параметров запуска — сайт изменился, либо аккаунт ещё "
-                            + "не прошёл начальную настройку в браузере" + (kept == null ? "." : " (страница: " + kept + ")."));
+                    "Сайт не открыл игру: незнакомая страница" + (kept == null ? "" : " (сохранена в " + kept + ")"));
         }
         SecretMask.register(vars.get("sessionID"));
         int userId = parseInt(vars, "userID");
@@ -219,7 +233,7 @@ public final class AuthClient {
 
     private static AuthException maintenanceError() {
         return new AuthException(AuthException.Reason.MAINTENANCE,
-                "Сервера игры на техобслуживании (сайт показывает страницу работ) — вход повторится позже.");
+                "Техработы на серверах игры");
     }
 
     private AuthException classifyLoginFailure(HttpSession.Response result) {
@@ -240,7 +254,7 @@ public final class AuthClient {
         }
         if (result.status() >= 500) {
             return new AuthException(AuthException.Reason.UNAVAILABLE,
-                    "Сайт игры недоступен (HTTP " + result.status() + "), попробую позже.");
+                    "Сайт игры недоступен (HTTP " + result.status() + ")");
         }
         String lower = result.body().toLowerCase();
         if (lower.contains("banned") || lower.contains("gesperrt") || lower.contains("заблокирован")) {

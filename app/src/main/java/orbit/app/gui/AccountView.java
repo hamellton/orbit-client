@@ -263,7 +263,8 @@ final class AccountView extends JPanel {
                 if (a.phase() == ManagedAccount.Phase.STOPPED) {
                     String why = a.start(0);
                     if (why != null) {
-                        javax.swing.JOptionPane.showMessageDialog(this, why, a.name(), javax.swing.JOptionPane.WARNING_MESSAGE);
+                        javax.swing.JOptionPane.showMessageDialog(this, Theme.wrapped(why, 420), a.name(),
+                                javax.swing.JOptionPane.WARNING_MESSAGE);
                     }
                 } else if (a.phase() == ManagedAccount.Phase.STOPPING) {
                     a.stopNow(); // the portal exit takes too long: close at once

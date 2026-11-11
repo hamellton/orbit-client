@@ -214,12 +214,13 @@ final class AccountDialog {
 
     private void showResult(boolean good, String text) {
         proxyResult.setForeground(good ? new java.awt.Color(0x34d399) : new java.awt.Color(0xff6b5b));
-        proxyResult.setText("<html>" + escape(text) + "</html>");
+        proxyResult.setText(Theme.wrapped(text, 340));
         dialog.pack();
     }
 
-    private static String escape(String s) {
-        return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
+    private void showError(String text) {
+        error.setText(text.isBlank() ? " " : Theme.wrapped(text, 380));
+        dialog.pack();
     }
 
     private void save() {
@@ -230,30 +231,30 @@ final class AccountDialog {
         char[] pw = password.getPassword();
         try {
             if (!n.matches("[\\p{L}\\p{N}_.-]{1,64}")) {
-                error.setText("Имя: буквы, цифры, «_», «.», «-», до 64 символов");
+                showError("Имя: буквы, цифры, «_», «.», «-», до 64 символов");
                 return;
             }
             if (editing == null && vault.get(n) != null) {
-                error.setText("Аккаунт «" + n + "» уже есть");
+                showError("Аккаунт «" + n + "» уже есть");
                 return;
             }
             if (user.isEmpty()) {
-                error.setText("Укажите логин на сайте");
+                showError("Укажите логин на сайте");
                 return;
             }
             if (!srv.matches("[a-z]{2,3}\\d{1,3}")) {
-                error.setText("Сервер: например int1 или ru1");
+                showError("Сервер: например int1 или ru1");
                 return;
             }
             if (editing == null && pw.length == 0) {
-                error.setText("Укажите пароль");
+                showError("Укажите пароль");
                 return;
             }
             ProxySpec spec;
             try {
                 spec = ProxySpec.parse(proxyValue);
             } catch (IllegalArgumentException e) {
-                error.setText("Прокси: " + e.getMessage());
+                showError("Прокси: " + e.getMessage());
                 return;
             }
             String proxyStored = spec.direct() ? null : proxyValue;
@@ -274,7 +275,7 @@ final class AccountDialog {
             saved = true;
             dialog.dispose();
         } catch (VaultException | IllegalArgumentException e) {
-            error.setText(e.getMessage());
+            showError(e.getMessage());
         } finally {
             Arrays.fill(pw, '\0');
         }
@@ -291,7 +292,7 @@ final class AccountDialog {
                 all.with(n, new AccountSettings.Entry(cfg, entry.schedule())).save(file);
             }
         } catch (java.io.IOException e) {
-            error.setText("Аккаунт сохранён, но конфиг — нет: " + e.getMessage());
+            showError("Аккаунт сохранён, но конфиг — нет: " + e.getMessage());
         }
     }
 }

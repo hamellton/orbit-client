@@ -114,9 +114,27 @@ class AuthClientTest {
         AuthException e = assertThrows(AuthException.class, () -> client().loginWithDosid("int1", DOSID));
         assertEquals(AuthException.Reason.MAINTENANCE, e.reason());
         org.junit.jupiter.api.Assertions.assertTrue(e.retryable(), "a maintenance is retried later");
-        org.junit.jupiter.api.Assertions.assertTrue(e.getMessage().contains("техобслуживании"), e.getMessage());
+        org.junit.jupiter.api.Assertions.assertTrue(e.getMessage().contains("Техработы"), e.getMessage());
         AuthException p = assertThrows(AuthException.class, () -> client().loginWithPassword("pilot", "right"));
         assertEquals(AuthException.Reason.MAINTENANCE, p.reason(), "after a password login too");
+    }
+
+    @Test
+    void aPasswordAcceptedDuringMaintenanceIsNotAskedAgain(@org.junit.jupiter.api.io.TempDir java.nio.file.Path dir)
+            throws Exception {
+        orbit.secrets.Vault vault = orbit.secrets.Vault.open(dir.resolve("vault.bin"), "master".toCharArray());
+        vault.put("alt", new orbit.secrets.Account("pilot", "right", "int1", null, null));
+        maintenance = true;
+        AccountLogin login = new AccountLogin(client(), vault, "alt");
+        int before = sasPosts;
+        assertEquals(AuthException.Reason.MAINTENANCE, assertThrows(AuthException.class, login::login).reason());
+        assertEquals(before + 1, sasPosts);
+        assertEquals(DOSID, vault.get("alt").dosid(), "the session the site gave is kept");
+        assertEquals(AuthException.Reason.MAINTENANCE, assertThrows(AuthException.class, login::login).reason());
+        assertEquals(before + 1, sasPosts, "the retry goes with the kept session, not the password");
+        maintenance = false;
+        assertEquals(SESSION, login.login().sessionId());
+        assertEquals(before + 1, sasPosts, "after the maintenance: in, still without the password");
     }
 
     @Test

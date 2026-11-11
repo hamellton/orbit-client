@@ -525,7 +525,7 @@ final class Hud {
                     String why = !pet.alive() ? "Питомец уничтожен" : !pet.hasFuel() ? "Питомец: нет топлива" : "Питомец не выпущен";
                     g.setFont(font(Font.PLAIN, 12f));
                     g.setColor(DIM);
-                    g.drawString(why, x + pad, y + pad + 12);
+                    g.drawString(clip(g, why, width - 2 * pad), x + pad, y + pad + 12);
                     return;
                 }
                 int rows = titleRow(g, x, y, width, pet.name(), right, TEXT);
@@ -660,8 +660,8 @@ final class Hud {
                 frame(g, x, y, width, height(width), MinimapPanel.ALLY);
                 g.setFont(font(Font.PLAIN, 11f));
                 g.setColor(DIM);
-                g.drawString("Группа (" + group.members().size() + ")" + (group.leaderId() == h.id() ? "  ·  вы лидер" : ""),
-                        x + pad, y + pad + 10);
+                g.drawString(clip(g, "Группа (" + group.members().size() + ")" + (group.leaderId() == h.id() ? "  ·  вы лидер" : ""),
+                        width - 2 * pad), x + pad, y + pad + 10);
                 int ry = y + pad + line;
                 for (WorldSnapshot.Member m : others) {
                     String where = m.loggedOut() ? "не в игре"
@@ -904,6 +904,9 @@ final class Hud {
         g.setFont(font(Font.PLAIN, barHeight >= 13 ? 10f : 8f));
         String text = percent || w < 150 ? String.format("%.0f%%", 100 * share) : String.format("%,.0f / %,.0f", now, max);
         FontMetrics fm = g.getFontMetrics();
+        if (fm.stringWidth(text) > w - 6) {
+            text = String.format("%.0f%%", 100 * share); // big numbers in a narrow bar: the share fits
+        }
         g.drawString(text, x + (w - fm.stringWidth(text)) / 2, y + (barHeight + fm.getAscent() - fm.getDescent()) / 2);
     }
 

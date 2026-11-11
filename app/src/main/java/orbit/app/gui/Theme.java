@@ -33,6 +33,12 @@ public final class Theme {
     }
 
     /** Once per program, before the first window. */
+    /** Text for a label or a dialog that wraps at about {@code widthPx} instead of stretching the window. */
+    public static String wrapped(String text, int widthPx) {
+        String safe = String.valueOf(text).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
+        return "<html><div style='width:" + widthPx + "px'>" + safe + "</div></html>";
+    }
+
     public static synchronized void setup() {
         if (done) {
             return;

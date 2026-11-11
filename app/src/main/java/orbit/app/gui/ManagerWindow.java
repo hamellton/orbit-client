@@ -323,7 +323,7 @@ public final class ManagerWindow {
                 } catch (Exception e) {
                     text = String.valueOf(e.getMessage());
                 }
-                JOptionPane.showMessageDialog(frame, text, "Прокси «" + n + "»",
+                JOptionPane.showMessageDialog(frame, Theme.wrapped(text, 420), "Прокси «" + n + "»",
                         good ? JOptionPane.INFORMATION_MESSAGE : JOptionPane.WARNING_MESSAGE);
             }
         }.execute();
@@ -345,7 +345,8 @@ public final class ManagerWindow {
         String why = a.start(delayMs);
         if (why != null) {
             if (tell) {
-                JOptionPane.showMessageDialog(frame, why, "Аккаунт «" + n + "» не запущен", JOptionPane.WARNING_MESSAGE);
+                JOptionPane.showMessageDialog(frame, Theme.wrapped(why, 420), "Аккаунт «" + n + "» не запущен",
+                        JOptionPane.WARNING_MESSAGE);
             }
             return why;
         }

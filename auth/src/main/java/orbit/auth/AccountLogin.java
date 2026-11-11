@@ -88,7 +88,22 @@ public final class AccountLogin {
                     + "хранилище нет. Обновите dosid: vault set-dosid " + name + " --server " + server);
         }
         // a password login lands on the server played last
-        GameSession s = client.loginWithPassword(a.username(), a.password());
+        GameSession s;
+        try {
+            s = client.loginWithPassword(a.username(), a.password());
+        } catch (AuthException e) {
+            // the password was accepted but the game did not open (a maintenance): keep the session the site
+            // gave, so the retries go without the password (frequent password logins bring a captcha)
+            AuthClient.Accepted acc = client.passwordAccepted();
+            if (acc != null) {
+                String landed = acc.origin().equals(client.originOf(server)) ? server : serverOf(acc.origin());
+                if (landed != null && !java.util.Objects.equals(acc.dosid(), account().dosidFor(landed))) {
+                    vault.put(name, account().withDosidFor(landed, acc.dosid()));
+                    save();
+                }
+            }
+            throw e;
+        }
         if (s.host().equals(client.originOf(server))) {
             return remember(server, s);
         }
@@ -97,6 +112,12 @@ public final class AccountLogin {
         remember(landed, s);
         log.info("Сайт открыл {}, нужен {} — перехожу", landed, server);
         return remember(server, client.switchTo(s, server));
+    }
+
+    /** {@code https://ru1.darkorbit.com} → {@code ru1}. */
+    private static String serverOf(String origin) {
+        String host = java.net.URI.create(origin).getHost();
+        return host == null || !host.contains(".") ? null : host.substring(0, host.indexOf('.'));
     }
 
     /** Stores the session of a server ({@code null} = forget it). */

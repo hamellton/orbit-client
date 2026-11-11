@@ -147,6 +147,7 @@ final class MinimapPanel extends JPanel {
         g.setColor(BORDER);
         g.setStroke(new BasicStroke(1f));
         g.draw(frame);
+        g.clip(frame); // marks and their names stay inside the map, also at its edges
 
         for (WorldSnapshot.Zone z : w.zones().values()) {
             if (!z.active()) {
@@ -291,6 +292,7 @@ final class MinimapPanel extends JPanel {
             g.setColor(hero.alive() ? HERO : Color.GRAY);
             g.fill(new Ellipse2D.Double(hx - 4.5 * u, hy - 4.5 * u, 9 * u, 9 * u));
         }
+        g.setClip(oldClip);
         // the overlays keep to the part of the map in view (the map may run past the edges in map-only mode)
         double vx = Math.max(ox, 0);
         double vy = Math.max(oy, 0);
@@ -302,7 +304,7 @@ final class MinimapPanel extends JPanel {
             hud.targetChip(g, (int) Math.round(vx) + 8, (int) Math.round(vy) + 8, (int) Math.round(vw * 0.3), w);
             hud.strip(g, (int) Math.round(vx), (int) Math.round(vy + vh), (int) Math.round(vw), feed, config.get());
         } else {
-            mapChip(g, vx, vy, hero, map);
+            mapChip(g, vx, vy, vw, hero, map);
             // the blocks the user put on the map: full cards on a big map, compact ones on a small one
             boolean big = vw >= BIG_MAP;
             java.util.Map<java.awt.Rectangle, ViewSettings.Block> placed = new java.util.LinkedHashMap<>();
@@ -323,10 +325,12 @@ final class MinimapPanel extends JPanel {
     }
 
     /** The map's name and the hero's place in the top-left corner of the map. */
-    private void mapChip(Graphics2D g, double ox, double oy, WorldSnapshot.Hero hero, MapCatalog.MapInfo map) {
-        String text = hero.id() == 0 ? feed.state() : map.name() + "   " + hero.x() / 100 + "/" + hero.y() / 100;
+    private void mapChip(Graphics2D g, double ox, double oy, double width, WorldSnapshot.Hero hero, MapCatalog.MapInfo map) {
+        String text = hero.id() == 0 || feed.loggedOut() ? feed.state()
+                : map.name() + "   " + hero.x() / 100 + "/" + hero.y() / 100;
         g.setFont(hud.font(Font.BOLD, 13f));
         java.awt.FontMetrics fm = g.getFontMetrics();
+        text = Hud.clip(g, text, (int) width - 40); // never past the map's edge
         int w = fm.stringWidth(text) + 20;
         g.setColor(new Color(10, 12, 18, 200));
         g.fill(new java.awt.geom.RoundRectangle2D.Double(ox + 10, oy + 10, w, 26, 13, 13));
@@ -339,6 +343,9 @@ final class MinimapPanel extends JPanel {
             java.awt.FontMetrics hm = g.getFontMetrics();
             int hw = hm.stringWidth(hint) + 16;
             double hx = ox + 10 + w + 6;
+            if (hx + hw > ox + width - 10) {
+                return; // no room left beside the text
+            }
             g.setColor(new Color(10, 12, 18, 200));
             g.fill(new java.awt.geom.RoundRectangle2D.Double(hx, oy + 10, hw, 26, 13, 13));
             g.setColor(Hud.DIM);
