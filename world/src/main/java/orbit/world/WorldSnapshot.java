@@ -83,12 +83,15 @@ public record WorldSnapshot(long nanos, Hero hero, Map<Integer, Ship> ships, Map
      * @param attackers      ships shooting at the hero now or that hit it in the last 5 seconds
      * @param minimapScale   the client's minimap zoom; a minimap click lands on a grid of
      *                       {@code 10 × minimapScale × map scale} units ({@code MiniMap.handleMouseDown})
+     * @param formation      drone formation id ({@code DroneFormationChangeCommand}), -1 before the server says;
+     *                       {@code f-11-he} is 11 (seen in recordings)
+     * @param formationNanos when the server last reported it
      */
     public record Hero(int id, String name, String shipType, int mapId, int x, int y, boolean moving, int targetX,
                        int targetY, int speed, Health health, int factionId, int clanId, int level, double credits,
                        double uridium, double experience, double honor, int cargoFree, int cargoMax, boolean premium, boolean cloaked, boolean alive,
                        int selectedId, int attackTargetId, List<Integer> attackers, int petId, int config,
-                       int enemyWarning, int minimapScale, Beacon beacon) {
+                       int enemyWarning, int minimapScale, Beacon beacon, int formation, long formationNanos) {
     }
 
     /**

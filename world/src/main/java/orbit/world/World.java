@@ -145,6 +145,10 @@ public final class World {
         int attackTargetId;
         int petId;
         Beacon beacon = Beacon.NONE;
+        /** {@code DroneFormationChangeCommand.selectedFormationId} of the hero, -1 before the server says. */
+        int formation = -1;
+        /** When the server last reported the hero's formation. */
+        long formationNanos;
     }
 
     /** Distance between the predicted and the reported hero position that counts as a jump. */
@@ -180,6 +184,10 @@ public final class World {
     public synchronized void apply(Packet packet, long nanos) {
         switch (packet) {
             case ShipInitializationCommand p -> initHero(p, nanos);
+            case orbit.protocol.gen.DroneFormationChangeCommand p when p.uid == hero.id && hero.id != 0 -> {
+                hero.formation = p.selectedFormationId;
+                hero.formationNanos = nanos;
+            }
             case ReloginCommand p -> clearMap();
             case BeaconCommand p -> beacon(p, nanos);
             case ShipCreateCommand p -> createShip(p, nanos);
@@ -359,7 +367,7 @@ public final class World {
                 (int) Math.round(m.toX()), (int) Math.round(m.toY()), hero.speed, hero.health, hero.factionId,
                 hero.clanId, hero.level, hero.credits, hero.uridium, hero.experience, hero.honor, hero.cargoFree, hero.cargoMax, hero.premium,
                 hero.cloaked, hero.alive, hero.selectedId, hero.attackTargetId, attackers(nanos), hero.petId, hero.config,
-                hero.enemyWarning, hero.minimapScale, hero.beacon);
+                hero.enemyWarning, hero.minimapScale, hero.beacon, hero.formation, hero.formationNanos);
         Map<Integer, WorldSnapshot.Ship> shipViews = new LinkedHashMap<>();
         for (ShipState s : ships.values()) {
             shipViews.put(s.id, new WorldSnapshot.Ship(s.id, s.kind, s.name, s.typeId, s.factionId, s.clanId,
