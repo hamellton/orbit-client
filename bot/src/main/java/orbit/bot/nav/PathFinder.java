@@ -222,9 +222,22 @@ public final class PathFinder {
 
     /**
      * Waypoints from (but excluding) the start to the goal. A goal inside a zone is replaced by the
-     * nearest free point, as the client would stop there. Empty if no way exists.
+     * nearest free point, as the client would stop there; a start inside one leaves it first. Empty if no
+     * way exists.
      */
     public List<double[]> path(double sx, double sy, double gx, double gy) {
+        if (!free(sx, sy)) {
+            // already inside a zone (a mine dropped next to the ship, a zone that appeared): every line from
+            // here crosses it, so first the shortest way out, then the usual path
+            double[] exit = nearestFree(sx, sy);
+            if (exit == null) {
+                return List.of();
+            }
+            List<double[]> out = new ArrayList<>();
+            out.add(exit);
+            out.addAll(path(exit[0], exit[1], gx, gy));
+            return out;
+        }
         double[] goal = nearestFree(gx, gy);
         if (goal == null) {
             return List.of();

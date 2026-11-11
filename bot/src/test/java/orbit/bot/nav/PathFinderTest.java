@@ -161,4 +161,18 @@ class PathFinderTest {
                 .path(5000, 6000, 9000, 6000);
         assertFalse(path.isEmpty());
     }
+
+    @Test
+    void aShipInTheCornerOfAMinesZoneLeavesIt() {
+        // circling a cube next to a mine (live 2026-11-11, 2-6): 331 from the mine — outside its circle, so the
+        // mine still counts, but inside its many-sided outline; every line from there crossed the outline and
+        // the ship stood still for a minute
+        WorldSnapshot s = withMine(13170, 4625, 13500, 4600).snapshot(1);
+        PathFinder finder = PathFinder.of(s, orbit.world.maps.MapCatalog.bundled(), false, true);
+        List<double[]> path = finder.path(13170, 4625, 13850, 4700);
+        assertFalse(path.isEmpty(), "a way out and round the mine");
+        assertTrue(finder.free(path.getFirst()[0], path.getFirst()[1]), "out of the zone first");
+        double[] last = path.getLast();
+        assertTrue(Math.hypot(last[0] - 13850, last[1] - 4700) < 1, "and on to the goal");
+    }
 }
