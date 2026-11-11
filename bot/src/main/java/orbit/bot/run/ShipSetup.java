@@ -44,6 +44,20 @@ public final class ShipSetup {
     private long missingSince;
     static final long MISSING_WARN_MS = 20_000;
 
+    /** No «ready» from the server this long after a formation timer started: try anyway, not to get stuck. */
+    static final long FORMATION_READY_WAIT_MS = 90_000;
+
+    /**
+     * The formations' cooldown ends when the server says «ready» (timer state 0), not when its «2000 ms» run
+     * out: live 2026-11-11 «ready» came 5, 18 and 30 s after a change, and every request before it was ignored.
+     */
+    static boolean cooledDown(WorldSnapshot.Item item, long now) {
+        if (item.timerState() == orbit.protocol.gen.TimerStateModule.TIMERSTATE_READY) {
+            return true;
+        }
+        return now - item.timerNanos() > FORMATION_READY_WAIT_MS * 1_000_000;
+    }
+
     /**
      * The number the server gives a formation in {@code DroneFormationChangeCommand}: {@code f-11-he} is 11
      * (recordings), the numbered ones follow their names; Ring and Drill are 14 and 15, next in the game's
@@ -117,7 +131,7 @@ public final class ShipSetup {
             // asking for the formation the ship already has gets no answer: check the server's number first
             boolean on = item != null && item.selected() || known != null && known == h.formation();
             boolean waiting = asked != null && now - formationAt < FORMATION_ANSWER_MS * 1_000_000;
-            if (item != null && !on && !waiting && item.available() && item.remainingMs(now) == 0
+            if (item != null && !on && !waiting && item.available() && cooledDown(item, now)
                     && now - formationAt > FORMATION_GAP_MS * 1_000_000
                     && now - configAt > FORMATION_AFTER_CONFIG_MS * 1_000_000) {
                 if (f.equals(asked)) {

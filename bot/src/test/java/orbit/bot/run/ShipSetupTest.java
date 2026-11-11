@@ -47,6 +47,8 @@ class ShipSetupTest {
             it.status.menuItemId = id;
             it.status.selected = id.equals(RING);
             it.status.available = true;
+            it.cooldownGroup = new orbit.protocol.gen.CooldownTypeModule();
+            it.cooldownGroup.typeValue = 47; // the formations' group, as the server sends it
             items.add(it);
         }
         cat.menuItems = items;
@@ -122,5 +124,27 @@ class ShipSetupTest {
         run(ship, new BotConfig.ShipMode(1, RING), 5_000); // the situation changed: Ring now (the ship has it)
         run(ship, new BotConfig.ShipMode(1, DRILL), 2_000); // and Drill again, 6 s after the first request
         assertEquals(List.of(DRILL, DRILL), asked, "asked at once, not 8 s after the old unanswered request");
+    }
+
+    private void groupTimer(int state) {
+        orbit.protocol.gen.MenuItemCooldownGroupTimerCommand c = new orbit.protocol.gen.MenuItemCooldownGroupTimerCommand();
+        c.cooldownType = new orbit.protocol.gen.CooldownTypeModule();
+        c.cooldownType.typeValue = 47;
+        c.timerState = new orbit.protocol.gen.TimerStateModule();
+        c.timerState.timerStateValue = (short) state;
+        c.time = state == 0 ? 0 : 2000;
+        c.maxTime = 2000;
+        world.apply(c, now);
+    }
+
+    @Test
+    void waitsForTheServersReadyNotForItsTwoSeconds() {
+        ShipSetup ship = setup();
+        groupTimer(2); // a change just happened: «2000 ms», but the server says «ready» much later
+        run(ship, new BotConfig.ShipMode(1, DRILL), 20_000);
+        assertEquals(List.of(), asked, "still cooling down for the server");
+        groupTimer(0);
+        run(ship, new BotConfig.ShipMode(1, DRILL), 2_000);
+        assertEquals(List.of(DRILL), asked, "asked right after «ready»");
     }
 }
