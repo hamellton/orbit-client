@@ -559,7 +559,7 @@ class CubikonModuleTest {
         locator(sim, 5_000, 11_000);
         sim.run(m::tick, 500);
         assertTrue(m.status().startsWith("Пеленгатор"), m.status());
-        locator(sim, 0, 0);
+        locator(sim, 37, 64); // near the corner: «0/0» in the log's hundreds
         sim.run(m::tick, 3_000);
         assertTrue(!m.status().startsWith("Пеленгатор"), "the old point is dropped too: " + m.status());
         var d = sim.ctx.nav().destination();

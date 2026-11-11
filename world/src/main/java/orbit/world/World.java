@@ -243,9 +243,18 @@ public final class World {
                     p.enabled ? p.repairCosts : -1, pet.comboRepair());
             case orbit.protocol.gen.PetOutOfFuelCommand p -> pet = pet(pet.owned(), pet.alive(), false, pet.active(), pet.id(),
                     pet.name(), pet.level(), pet.health(), pet.fuel(), pet.fuelMax(), pet.heat(), pet.heatMax(), pet.gear());
-            // 0/0 is «nothing found» (live 2026-11-11: the bot flew to the map's corner after it), not a point
-            case orbit.protocol.gen.PetGearLocatorUpdate p -> pet = p.x == 0 && p.y == 0 ? petLocator(0, 0, 0)
-                    : petLocator(p.x, p.y, nanos);
+            // a point in the map's corner is «nothing found» (live 2026-11-11: the bot flew to the corner after it;
+            // the log showed 0/0 in hundreds, so not exactly zero), no NPC stands there
+            case orbit.protocol.gen.PetGearLocatorUpdate p -> {
+                if (p.x < LOCATOR_CORNER && p.y < LOCATOR_CORNER) {
+                    if (pet.locatorNanos() != 0) {
+                        log.info("Пеленгатор: цели нет (точка {}/{})", p.x, p.y);
+                    }
+                    pet = petLocator(0, 0, 0);
+                } else {
+                    pet = petLocator(p.x, p.y, nanos);
+                }
+            }
             case orbit.protocol.gen.PetBuffCommand p when p.effectId == 6 -> pet = petWith(pet.gearNanos(), pet.gears(),
                     pet.repairCost(), p.effectAction == 0);
             case PetLevelUpdateCommand p -> pet = pet(pet.owned(), pet.alive(), pet.hasFuel(), pet.active(), pet.id(),
@@ -913,6 +922,9 @@ public final class World {
                 gear, pet.gearNanos(), pet.gears(), pet.repairCost(), pet.comboRepair(), pet.locatorX(), pet.locatorY(),
                 pet.locatorNanos());
     }
+
+    /** Locator points within this of the map's corner mean «nothing found». */
+    static final int LOCATOR_CORNER = 500;
 
     private WorldSnapshot.Pet petLocator(int x, int y, long nanos) {
         WorldSnapshot.Pet p = pet;
