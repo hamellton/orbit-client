@@ -52,6 +52,13 @@ public final class Navigator {
     private java.util.function.IntSupplier baseRadius = () -> 0;
     private final java.util.Set<Integer> basesTold = new java.util.HashSet<>();
 
+    private java.util.function.IntFunction<orbit.config.BotConfig.ZoneGrid> avoided = map -> null;
+
+    /** The config's avoided zone of a map (DarkBot's «avoided zones»), flown round; {@code null} = none. */
+    public void setAvoidedZones(java.util.function.IntFunction<orbit.config.BotConfig.ZoneGrid> zones) {
+        avoided = zones;
+    }
+
     /** Keep this far from enemy stations (the config's «Облетать вражеские базы»; 0 = not). */
     public void setAvoidBases(java.util.function.IntSupplier radius) {
         baseRadius = radius;
@@ -229,7 +236,8 @@ public final class Navigator {
         if (now - lastSendNanos < MIN_INTERVAL_MS * 1_000_000 || (now < retryAtNanos && !turn && !mineAhead)) {
             return;
         }
-        PathFinder paths = PathFinder.of(w, catalog, false, avoidMines.getAsBoolean(), baseRadius.getAsInt());
+        PathFinder paths = PathFinder.of(w, catalog, false, avoidMines.getAsBoolean(), baseRadius.getAsInt(),
+                avoided.apply(h.mapId()));
         List<double[]> route = paths.path(h.x(), h.y(), d.x(), d.y());
         if (route.isEmpty()) {
             log.warn("Нет пути к {}/{}", (int) d.x() / 100, (int) d.y() / 100);

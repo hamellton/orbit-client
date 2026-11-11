@@ -82,8 +82,10 @@ public final class KillModule implements BotModule {
         ctx.ship().want(ctx.config().get().general().roam());
         if (roamTo == null || ctx.nav().idle() || now > roamUntil) {
             MapCatalog.MapInfo map = ctx.maps().info(w.hero().mapId());
+            double[] inZone = Zones.randomPreferred(ctx.config().get(), map, ctx.random());
             double margin = Math.min(map.width(), map.height()) * 0.1;
-            roamTo = new double[] {margin + ctx.random().nextDouble() * (map.width() - 2 * margin),
+            // DarkBot's preferred zone: roam inside it (the palladium field); none — the whole map
+            roamTo = inZone != null ? inZone : new double[] {margin + ctx.random().nextDouble() * (map.width() - 2 * margin),
                     margin + ctx.random().nextDouble() * (map.height() - 2 * margin)};
             roamUntil = now + 90_000_000_000L;
             ctx.nav().moveTo(roamTo[0], roamTo[1], false);

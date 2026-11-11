@@ -104,9 +104,24 @@ public final class PathFinder {
     /** The same, keeping {@code baseRadius} off enemy stations ({@code 0} = not). */
     public static PathFinder of(WorldSnapshot w, MapCatalog catalog, boolean throughDanger, boolean avoidMines,
                                 int baseRadius) {
+        return of(w, catalog, throughDanger, avoidMines, baseRadius, null);
+    }
+
+    /**
+     * The same, flying round the config's avoided zone of the map ({@code null} = none) — DarkBot's «avoided
+     * zones»: its cells merged into rectangles; one that holds the goal is given up, like a base by a portal.
+     */
+    public static PathFinder of(WorldSnapshot w, MapCatalog catalog, boolean throughDanger, boolean avoidMines,
+                                int baseRadius, orbit.config.BotConfig.ZoneGrid avoided) {
         MapCatalog.MapInfo map = catalog.info(w.hero().mapId());
         List<Obstacle> list = new ArrayList<>();
         List<Obstacle> bases = new ArrayList<>();
+        if (avoided != null && !avoided.isEmpty()) {
+            for (Obstacle o : rects(avoided, map.width(), map.height())) {
+                list.add(o);
+                bases.add(o); // soft: given up when the goal lies inside
+            }
+        }
         if (baseRadius > 0) {
             for (WorldSnapshot.Asset a : w.assets().values()) {
                 if (enemyBase(a, w.hero().factionId())) {
@@ -136,6 +151,61 @@ public final class PathFinder {
             }
         }
         return new PathFinder(List.copyOf(list), List.copyOf(bases), map.width(), map.height());
+    }
+
+    /**
+     * A zone grid's cells as few rectangles: runs of cells in a row, joined with the same run in the rows below.
+     */
+    static List<Obstacle> rects(orbit.config.BotConfig.ZoneGrid g, double width, double height) {
+        int n = g.resolution();
+        List<String> rows = g.rows();
+        boolean[][] used = new boolean[rows.size()][];
+        for (int y = 0; y < rows.size(); y++) {
+            used[y] = new boolean[rows.get(y).length()];
+        }
+        List<Obstacle> out = new ArrayList<>();
+        double cw = width / n;
+        double ch = height / n;
+        for (int y = 0; y < rows.size(); y++) {
+            String row = rows.get(y);
+            for (int x = 0; x < row.length(); x++) {
+                if (row.charAt(x) != '#' || used[y][x]) {
+                    continue;
+                }
+                int x2 = x;
+                while (x2 + 1 < row.length() && row.charAt(x2 + 1) == '#' && !used[y][x2 + 1]) {
+                    x2++;
+                }
+                int y2 = y;
+                while (y2 + 1 < rows.size() && runAt(rows.get(y2 + 1), used[y2 + 1], x, x2)) {
+                    y2++;
+                }
+                for (int yy = y; yy <= y2; yy++) {
+                    for (int xx = x; xx <= x2; xx++) {
+                        used[yy][xx] = true;
+                    }
+                }
+                double x0 = x * cw;
+                double y0 = y * ch;
+                double x1 = (x2 + 1) * cw;
+                double y1 = (y2 + 1) * ch;
+                out.add(new Obstacle(new double[] {x0, x1, x1, x0}, new double[] {y0, y0, y1, y1}, false));
+                x = x2;
+            }
+        }
+        return out;
+    }
+
+    private static boolean runAt(String row, boolean[] used, int x, int x2) {
+        if (x2 >= row.length()) {
+            return false;
+        }
+        for (int i = x; i <= x2; i++) {
+            if (row.charAt(i) != '#' || used[i]) {
+                return false;
+            }
+        }
+        return true;
     }
 
     static Obstacle circle(double cx, double cy, double radius) {

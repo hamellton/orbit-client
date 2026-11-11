@@ -232,4 +232,34 @@ class PathFinderTest {
         double[] last = path.getLast();
         assertTrue(Math.hypot(last[0] - 7200, last[1] - 6000) < 1, "right to the goal, not the zone's edge");
     }
+
+    /** A 10×10 grid on a 21 000 × 13 100 map: a wall of avoided cells across the middle, a gap at the bottom. */
+    private static orbit.config.BotConfig.ZoneGrid wall() {
+        java.util.List<String> rows = new java.util.ArrayList<>();
+        for (int y = 0; y < 10; y++) {
+            rows.add(y < 8 ? "....##...." : "..........");
+        }
+        return new orbit.config.BotConfig.ZoneGrid(10, rows);
+    }
+
+    @Test
+    void theConfigsAvoidedZoneIsFlownRound() {
+        var rects = PathFinder.rects(wall(), 21_000, 13_100);
+        assertEquals(1, rects.size(), "the 2×8 block of cells is one rectangle");
+        PathFinder p = new PathFinder(rects, rects, 21_000, 13_100);
+        var path = p.path(3_000, 3_000, 18_000, 3_000);
+        assertTrue(path.size() >= 2, "round the wall, not through it: " + path.size());
+        double lowest = path.stream().mapToDouble(q -> q[1]).max().orElse(0);
+        assertTrue(lowest > 8 * 1_310, "through the gap at the bottom: " + lowest);
+    }
+
+    @Test
+    void aGoalInsideTheAvoidedZoneIsStillReached() {
+        var rects = PathFinder.rects(wall(), 21_000, 13_100);
+        PathFinder p = new PathFinder(rects, rects, 21_000, 13_100);
+        var path = p.path(3_000, 3_000, 9_500, 3_000); // a portal inside the avoided cells
+        assertTrue(!path.isEmpty());
+        double[] end = path.getLast();
+        assertEquals(9_500, end[0], 1);
+    }
 }

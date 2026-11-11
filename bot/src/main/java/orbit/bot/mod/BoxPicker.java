@@ -119,6 +119,8 @@ public final class BoxPicker {
                     BotConfig.BoxRule r = c.collect().boxes().get(b.boxType());
                     return r != null && r.collect();
                 })
+                // not in the config's avoided zone (DarkBot's «avoided zones»)
+                .filter(b -> !Zones.avoided(c, w.hero().mapId(), b.x(), b.y(), ctx.maps()))
                 // a full hold (the config does something about it): no more boxes that fill it
                 .filter(b -> !BotConfig.Collect.fillsCargo(b.boxType()) || !cargoFull(c, w))
                 .filter(b -> Double.isNaN(anchorX)
