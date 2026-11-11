@@ -23,6 +23,11 @@ public final class Attacker {
 
     /** Farther than the radius by this much the target is being chased. */
     static final double CHASE_GAP = 300;
+    /**
+     * Farther than this beyond the attack radius the ship is still on its way: the travel mode, the attack one
+     * only on the approach (live 2026-11-11: after a repair the ship flew 9 000 to the cube in the attack config).
+     */
+    static final double APPROACH = 1_500;
 
     private final BotContext ctx;
     private int targetId;
@@ -141,7 +146,8 @@ public final class Attacker {
         BotConfig.NpcRule rule = Targets.rule(c, t, h.mapId());
         boolean follow = rule != null && rule.has(BotConfig.NpcFlag.AGGRESSIVE_FOLLOW);
         boolean chasing = move && dist > radius + CHASE_GAP && (follow || c.general().runModeChase());
-        ctx.ship().want(chasing ? c.general().run() : c.general().offensive());
+        boolean onTheWay = move && dist > radius + APPROACH && h.attackers().isEmpty();
+        ctx.ship().want(chasing ? c.general().run() : onTheWay ? c.general().travel() : c.general().offensive());
         if (move && dist > radius + 60 && now >= nextApproach) {
             // following: aim at where it flies, not where it is
             double tx = follow && t.moving() ? t.targetX() : t.x();

@@ -83,6 +83,11 @@ public final class ShipSetup {
         this.random = random;
     }
 
+    /** The mode last asked for ({@code null} before any). */
+    public BotConfig.ShipMode wanted() {
+        return wanted;
+    }
+
     /** The mode wanted now; call every tick. */
     public void want(BotConfig.ShipMode mode) {
         long now = clock.getAsLong();

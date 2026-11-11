@@ -127,4 +127,27 @@ class AttackerTest {
         assertTrue(!kept, "dropped after 30 s in range without damage");
         assertTrue(a.gaveUp(7));
     }
+
+    @Test
+    void farFromTheTargetTheShipFliesInTheTravelModeAndAttacksOnTheApproach() {
+        BotConfig.ShipMode attack = new BotConfig.ShipMode(1, null);
+        BotConfig.ShipMode travel = new BotConfig.ShipMode(2, null);
+        BotConfig c = config(false, null, Set.of());
+        BotConfig.General g = c.general();
+        c = c.withGeneral(new BotConfig.General(g.workingMap(), attack, travel, travel, g.runFromEnemies(),
+                g.runFromEnemiesInSight(), g.rememberEnemiesSec(), g.roamSequential(), g.onlyKillPreferred()));
+        Sim sim = new Sim(c, 1, 2_000, 6_000);
+        sim.lasers("ammunition_laser_lcb-10");
+        sim.npc(7, "-=[ Target ]=-", 10_000, 6_000);
+        Attacker a = new Attacker(sim.ctx);
+        a.target(sim.world.snapshot(sim.now).ships().get(7));
+        a.tick(true);
+        assertEquals(travel, sim.ctx.ship().wanted(), "8 000 away: still travelling");
+        for (int t = 0; t < 400 && sim.hero().x() < 8_500; t++) {
+            a.tick(true);
+            sim.now += 100 * Sim.MS;
+        }
+        a.tick(true);
+        assertEquals(attack, sim.ctx.ship().wanted(), "close: the attack mode");
+    }
 }
