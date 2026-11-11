@@ -65,6 +65,7 @@ public final class PetCare {
      */
     static final long KAMIKAZE_MIN_COOLDOWN_MS = 30_000;
     private long crowdSeenAt = Long.MIN_VALUE / 2;
+    private boolean cooldownTold;
 
     public PetCare(BotContext ctx) {
         this.ctx = ctx;
@@ -105,6 +106,7 @@ public final class PetCare {
             if (kamikazeOn) {
                 kamikazeOn = false;
                 boomAt = now;
+                cooldownTold = false;
                 log.info("Питомец взорвался (камикадзе)");
             }
             if (cfg.noRepair()) {
@@ -149,6 +151,10 @@ public final class PetCare {
         BotConfig.Kamikaze k = cfg.kamikaze();
         // the game's own cooldown: the gear's button on the item bar (its timer), and the config's limit on top
         WorldSnapshot.Item button = w.items().get(KAMIKAZE_ITEM);
+        if (button != null && button.timerMax() > 0 && button.timerNanos() > boomAt && !cooldownTold) {
+            cooldownTold = true; // the game's own number, once after a blast (the client's data: 120/60/30 s by level)
+            log.info("Камикадзе: кулдаун игры {} с", Math.round(button.timerMax() / 1000));
+        }
         boolean ready = button == null || button.activatable() && button.remainingMs(now) == 0;
         boolean can = k.enabled() && pet.gears().contains(PetGearTypeModule.PETGEARTYPE_KAMIKAZE) && ready
                 && ms(now - boomAt) >= Math.max(KAMIKAZE_MIN_COOLDOWN_MS, k.everyMinutes() * 60_000L);
