@@ -454,6 +454,21 @@ public final class BotRunner {
         return hops == 0 ? Integer.MAX_VALUE : hops;
     }
 
+    /**
+     * The nearest portal of any faction to log out by: only being near one counts, not where it leads (live
+     * 2026-11-11 on 5-3: the own faction's portals were far left, other portals near). The server's portals first
+     * (it sends all, the other factions' hidden on the minimap), else the map's known ones.
+     */
+    private int[] logoutPortal(WorldSnapshot w) {
+        WorldSnapshot.Hero h = w.hero();
+        java.util.List<int[]> all = new java.util.ArrayList<>();
+        w.portals().values().forEach(x -> all.add(new int[] {x.x(), x.y()}));
+        if (all.isEmpty()) {
+            ctx.maps().portals(h.mapId()).forEach(x -> all.add(new int[] {x.x(), x.y()}));
+        }
+        return all.stream().min(Comparator.comparingDouble(x -> Math.hypot(x[0] - h.x(), x[1] - h.y()))).orElse(null);
+    }
+
     /** To the nearest portal (out of the crowd), wait a moment, press logout, keep still until the server ends it. */
     private void stopping(WorldSnapshot w) {
         WorldSnapshot.Hero h = w.hero();
@@ -466,12 +481,10 @@ public final class BotRunner {
         }
         // straight to the portal and out: the hull is not repaired first, no escape jump on the way
         safety.healOnly();
-        MapCatalog.Portal p = logoutHere ? null : ctx.maps().portals(h.mapId()).stream()
-                .filter(x -> x.faction() == 0 || x.faction() == h.factionId())
-                .min(Comparator.comparingDouble(x -> Math.hypot(x.x() - h.x(), x.y() - h.y()))).orElse(null);
-        if (p != null && Math.hypot(p.x() - h.x(), p.y() - h.y()) > Safety.AT_PORTAL) {
-            if (ctx.nav().idle() || ctx.nav().destination().x() != p.x()) {
-                ctx.nav().moveTo(p.x(), p.y(), true);
+        int[] p = logoutHere ? null : logoutPortal(w);
+        if (p != null && Math.hypot(p[0] - h.x(), p[1] - h.y()) > Safety.AT_PORTAL) {
+            if (ctx.nav().idle() || ctx.nav().destination().x() != p[0]) {
+                ctx.nav().moveTo(p[0], p[1], true);
             }
             ctx.nav().tick();
             logoutAt = 0;

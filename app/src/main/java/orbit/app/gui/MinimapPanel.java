@@ -254,12 +254,11 @@ final class MinimapPanel extends JPanel {
         }
         g.setFont(hud.font(Font.PLAIN, (float) (10 * Math.min(1.2, u))));
         for (WorldSnapshot.Portal portal : w.portals().values()) {
-            if (!portal.visibleOnMinimap()) {
-                continue;
-            }
+            // the game shows only the own faction's on its minimap; the others are drawn dimmer (logging out by
+            // them is as good, they are just not for the jumps)
             double px = p.x(portal.x());
             double py = p.y(portal.y());
-            g.setColor(PORTAL);
+            g.setColor(portal.visibleOnMinimap() ? PORTAL : PORTAL.darker().darker());
             g.setStroke(new BasicStroke((float) (1.4 * u)));
             g.draw(new Ellipse2D.Double(px - 6 * u, py - 6 * u, 12 * u, 12 * u));
             g.setStroke(new BasicStroke(1f));
