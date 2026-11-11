@@ -36,7 +36,15 @@ final class KillSection implements Section {
         r.add(new ItemCatalog.Item(BotConfig.Loot.NO_ROCKETS, "Без ракет"));
         r.addAll(ItemCatalog.ROCKETS);
         ROCKET_CHOICES = java.util.List.copyOf(r);
+        java.util.List<ItemCatalog.Item> l = new java.util.ArrayList<>();
+        l.add(new ItemCatalog.Item(BotConfig.Loot.NO_ROCKETS, "Без ракет"));
+        l.addAll(ItemCatalog.LAUNCHER);
+        LAUNCHER_CHOICES = java.util.List.copyOf(l);
     }
+
+    static final java.util.List<ItemCatalog.Item> LAUNCHER_CHOICES;
+    private final ItemBox launcher = new ItemBox(LAUNCHER_CHOICES, true);
+    private final JCheckBox fireLauncher = new JCheckBox("Залп сам (без CPU ракетомёта)");
 
     private final ItemBox rocket = new ItemBox(ROCKET_CHOICES, true);
     private final ItemBox fallback1 = new ItemBox(ItemCatalog.LASERS, true);
@@ -55,17 +63,19 @@ final class KillSection implements Section {
         table.setAutoCreateRowSorter(true);
         table.setFillsViewportHeight(true);
         // narrow columns for ticks and numbers; the names and the flags take the rest
-        int[] widths = {200, 44, 78, 62, 44, 80, 80, 90, 190};
+        int[] widths = {200, 44, 78, 62, 44, 80, 80, 80, 90, 190};
         for (int i = 0; i < widths.length; i++) {
             table.getColumnModel().getColumn(i).setPreferredWidth(widths[i]);
         }
         // on a wide screen the short columns stop growing: the spare width goes to names, maps and flags
-        int[] max = {0, 56, 110, 100, 56, 150, 150};
+        int[] max = {0, 56, 110, 100, 56, 150, 150, 150};
         for (int i = 1; i < max.length; i++) {
             table.getColumnModel().getColumn(i).setMaxWidth(max[i]);
         }
         table.getColumnModel().getColumn(6).setCellEditor(new javax.swing.DefaultCellEditor(
                 new javax.swing.JComboBox<>(NpcTable.rocketChoices())));
+        table.getColumnModel().getColumn(7).setCellEditor(new javax.swing.DefaultCellEditor(
+                new javax.swing.JComboBox<>(NpcTable.launcherChoices())));
         table.getColumnModel().getColumn(5).setCellEditor(new javax.swing.DefaultCellEditor(
                 new javax.swing.JComboBox<>(NpcTable.ammoChoices())));
         table.getTableHeader().setToolTipText("Приоритет: меньше — раньше. Карты: «3-6, 2-6» или «все».");
@@ -118,6 +128,7 @@ final class KillSection implements Section {
         useSab.addActionListener(e -> sync());
         useRsb.addActionListener(e -> sync());
         fireRockets.setToolTipText("С ракетным CPU бот только держит тип; тип для NPC — в списке");
+        fireLauncher.setToolTipText("С CPU ракетомёта (RLLB-X) он стреляет сам; бот держит тип ракет");
         circle.setToolTipText("Часть выстрелов мимо; не кружит с NO_CIRCLE и на споте куба");
         groupNpcs.setToolTipText("Сначала добивать NPC рядом, а не лететь к дальним");
         // the settings in two top-aligned columns: ammunition | rockets and targets; one under the other when narrow
@@ -135,6 +146,8 @@ final class KillSection implements Section {
                 .section("Ракеты")
                 .row("Тип", rocket)
                 .row("", fireRockets)
+                .row("Ракетомёт", launcher)
+                .row("", fireLauncher)
                 .section("Цели")
                 .row("", circle)
                 .row("", groupNpcs)
@@ -238,6 +251,8 @@ final class KillSection implements Section {
         fallback2.set(l.fallback().size() > 1 ? l.fallback().get(1) : null);
         circle.setSelected(l.circle());
         fireRockets.setSelected(l.fireRockets());
+        launcher.set(l.launcher());
+        fireLauncher.setSelected(l.fireLauncher());
         Form.set(ignoreFarther, l.ignoreFartherThan());
         npcs.load(c.npcs());
         sync();
@@ -251,7 +266,7 @@ final class KillSection implements Section {
         BotConfig.Loot l = new BotConfig.Loot(ammo.get(), useSab.isSelected() ? sab.get() : null,
                 useSab.isSelected() ? Form.fraction(sabBelow) : loaded.sabBelow(), Form.intOf(sabNpcShield),
                 useRsb.isSelected() ? rsb.get() : null, groupNpcs.isSelected(), Form.intOf(ignoreFarther), rocket.get(),
-                fireRockets.isSelected(), circle.isSelected(), fallbacks());
+                fireRockets.isSelected(), circle.isSelected(), fallbacks(), launcher.get(), fireLauncher.isSelected());
         Map<String, BotConfig.NpcRule> list = new TreeMap<>(npcs.get());
         return c.withLoot(l).withNpcs(list);
     }

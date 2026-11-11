@@ -240,6 +240,7 @@ public final class Attacker {
         }
         if (h.attackTargetId() == targetId) {
             rockets(c, w, t, dist, radius, now);
+            launcher(c, w, t, dist, radius, now);
             return true;
         }
         if (pressAt == 0) {
@@ -321,6 +322,86 @@ public final class Attacker {
                 rocketFireAt = 0;
             }
         }
+    }
+
+    /** The launcher's own button; its counter is the load (0…5 on the HST, live 2026-11-11). */
+    static final String LAUNCHER_PREFIX = "equipment_weapon_rocketlauncher_";
+    /** The CPU that fires the launcher by itself when it is loaded (no request from the client). */
+    static final String LAUNCHER_CPU = "equipment_extra_cpu_rllb-x";
+    static final int LAUNCHER_LOAD = 5;
+    private String missingLauncher;
+    private long launcherSelectAt = Long.MIN_VALUE / 2;
+    private long launcherPressAt;
+    private long launcherFiredAt = Long.MIN_VALUE / 2;
+    private long launcherFireAt;
+    private boolean launcherCpuTold;
+
+    /**
+     * Keeps the configured launcher rockets selected (the launcher CPU fires them by itself when loaded, as
+     * recorded on 2026-11-11: a salvo with no request from the client); with {@code fireLauncher} and no such CPU
+     * on, also fires the launcher when it is fully loaded.
+     */
+    private void launcher(BotConfig c, WorldSnapshot w, WorldSnapshot.Ship t, double dist, double radius, long now) {
+        String wanted = launcherRocket(c, w, t);
+        if (wanted == null || BotConfig.Loot.NO_ROCKETS.equals(wanted)) {
+            return;
+        }
+        WorldSnapshot.Item launcher = w.items().values().stream().filter(i -> i.id().startsWith(LAUNCHER_PREFIX))
+                .findFirst().orElse(null);
+        if (launcher == null || !launcher.available()) {
+            return; // no launcher on this ship
+        }
+        WorldSnapshot.Item item = w.items().get(wanted);
+        if (item == null || item.counter() <= 0) {
+            if (!wanted.equals(missingLauncher)) {
+                missingLauncher = wanted;
+                log.warn("Нет ракет для ракетомёта {} ({})", orbit.config.ItemCatalog.label(wanted),
+                        item == null ? "нет в инвентаре" : "0 шт.");
+            }
+            return;
+        }
+        if (!item.selected()) {
+            if (now - launcherSelectAt > 2_000_000_000L) {
+                if (launcherPressAt == 0) {
+                    launcherPressAt = now + ctx.pause(300, 900);
+                } else if (now >= launcherPressAt) {
+                    log.info("Ракетомёт: {}", orbit.config.ItemCatalog.label(wanted));
+                    missingLauncher = null;
+                    ctx.actions().useItem(wanted);
+                    launcherSelectAt = now;
+                    launcherPressAt = 0;
+                }
+            }
+            return;
+        }
+        if (!c.loot().fireLauncher()) {
+            return;
+        }
+        WorldSnapshot.Item cpu = w.items().get(LAUNCHER_CPU);
+        if (cpu != null && cpu.selected()) {
+            if (!launcherCpuTold) {
+                launcherCpuTold = true;
+                log.info("Ракетомёт стреляет CPU сам — залп не жму");
+            }
+            return;
+        }
+        int full = launcher.maxCounter() > 0 ? (int) launcher.maxCounter() : LAUNCHER_LOAD;
+        if (launcher.counter() >= full && launcher.remainingMs(now) == 0 && dist <= radius + ROCKET_EXTRA
+                && now - launcherFiredAt > 2_000_000_000L) {
+            if (launcherFireAt == 0) {
+                launcherFireAt = now + ctx.pause(200, 800);
+            } else if (now >= launcherFireAt) {
+                ctx.actions().useItem(launcher.id());
+                launcherFiredAt = now;
+                launcherFireAt = 0;
+            }
+        }
+    }
+
+    /** The NPC's launcher rockets, else the config's ({@code null} = leave the game's choice). */
+    static String launcherRocket(BotConfig c, WorldSnapshot w, WorldSnapshot.Ship t) {
+        BotConfig.NpcRule r = Targets.rule(c, t, w.hero().mapId());
+        return r != null && r.launcher() != null ? r.launcher() : c.loot().launcher();
     }
 
     /** The NPC's rocket, else the config's ({@code null} = leave the game's choice). */

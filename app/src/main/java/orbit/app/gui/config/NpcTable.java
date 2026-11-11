@@ -15,7 +15,8 @@ import orbit.world.maps.MapCatalog;
 /** The NPC list of a config as an editable table (like AstraBot's NPC list). */
 final class NpcTable extends AbstractTableModel {
 
-    static final String[] COLUMNS = {"NPC", "Бить", "Приоритет", "Радиус", "SAB", "Патроны", "Ракеты", "Карты", "Флаги"};
+    static final String[] COLUMNS = {"NPC", "Бить", "Приоритет", "Радиус", "SAB", "Патроны", "Ракеты", "Ракетомёт", "Карты",
+            "Флаги"};
     static final String NO_ROCKETS = "без ракет";
     static final String DEFAULT_AMMO = "общие";
 
@@ -29,6 +30,7 @@ final class NpcTable extends AbstractTableModel {
         String ammo;
         boolean sab;
         String rocket;
+        String launcher;
     }
 
     private final MapCatalog catalog;
@@ -51,6 +53,7 @@ final class NpcTable extends AbstractTableModel {
             row.ammo = r.ammo();
             row.sab = r.sab();
             row.rocket = r.rocket();
+            row.launcher = r.launcher();
             rows.add(row);
         });
         fireTableDataChanged();
@@ -66,7 +69,8 @@ final class NpcTable extends AbstractTableModel {
             if (out.containsKey(name)) {
                 throw new IllegalArgumentException("NPC «" + name + "» в списке дважды");
             }
-            out.put(name, new BotConfig.NpcRule(r.radius, r.priority, r.kill, r.flags, r.maps, r.ammo, r.sab, r.rocket));
+            out.put(name, new BotConfig.NpcRule(r.radius, r.priority, r.kill, r.flags, r.maps, r.ammo, r.sab, r.rocket,
+                    r.launcher));
         }
         return out;
     }
@@ -135,7 +139,9 @@ final class NpcTable extends AbstractTableModel {
             case 5 -> row.ammo == null ? DEFAULT_AMMO : orbit.config.ItemCatalog.label(row.ammo);
             case 6 -> row.rocket == null ? DEFAULT_AMMO
                     : BotConfig.Loot.NO_ROCKETS.equals(row.rocket) ? NO_ROCKETS : orbit.config.ItemCatalog.label(row.rocket);
-            case 7 -> mapsText(row.maps);
+            case 7 -> row.launcher == null ? DEFAULT_AMMO
+                    : BotConfig.Loot.NO_ROCKETS.equals(row.launcher) ? NO_ROCKETS : orbit.config.ItemCatalog.label(row.launcher);
+            case 8 -> mapsText(row.maps);
             default -> String.join(", ", row.flags);
         };
     }
@@ -151,7 +157,8 @@ final class NpcTable extends AbstractTableModel {
             case 4 -> row.sab = (Boolean) v;
             case 5 -> row.ammo = ammoId(String.valueOf(v), row.ammo);
             case 6 -> row.rocket = rocketId(String.valueOf(v), row.rocket);
-            case 7 -> row.maps = parseMaps(String.valueOf(v));
+            case 7 -> row.launcher = launcherId(String.valueOf(v), row.launcher);
+            case 8 -> row.maps = parseMaps(String.valueOf(v));
             default -> row.flags = Arrays.stream(String.valueOf(v).split("[,; ]+")).map(String::strip)
                     .filter(s -> !s.isEmpty()).map(String::toUpperCase).collect(Collectors.toCollection(LinkedHashSet::new));
         }
@@ -184,6 +191,29 @@ final class NpcTable extends AbstractTableModel {
             }
         }
         return current;
+    }
+
+    static String launcherId(String label, String current) {
+        if (DEFAULT_AMMO.equals(label)) {
+            return null;
+        }
+        if (NO_ROCKETS.equals(label)) {
+            return BotConfig.Loot.NO_ROCKETS;
+        }
+        for (orbit.config.ItemCatalog.Item i : orbit.config.ItemCatalog.LAUNCHER) {
+            if (i.label().equals(label)) {
+                return i.id();
+            }
+        }
+        return current;
+    }
+
+    static String[] launcherChoices() {
+        java.util.List<String> c = new java.util.ArrayList<>();
+        c.add(DEFAULT_AMMO);
+        c.add(NO_ROCKETS);
+        orbit.config.ItemCatalog.LAUNCHER.forEach(i -> c.add(i.label()));
+        return c.toArray(String[]::new);
     }
 
     static String[] rocketChoices() {

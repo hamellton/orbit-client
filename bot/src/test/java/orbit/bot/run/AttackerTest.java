@@ -150,4 +150,61 @@ class AttackerTest {
         a.tick(true);
         assertEquals(attack, sim.ctx.ship().wanted(), "close: the attack mode");
     }
+
+    private static orbit.protocol.gen.MenuItemInitializationCommand menuItem(String id, double counter, boolean selected) {
+        orbit.protocol.gen.MenuItemInitializationCommand it = new orbit.protocol.gen.MenuItemInitializationCommand();
+        it.status = new orbit.protocol.gen.MenuItemStatusCommand();
+        it.status.menuItemId = id;
+        it.status.counterValue = counter;
+        it.status.selected = selected;
+        it.status.available = true;
+        it.status.activatable = true;
+        return it;
+    }
+
+    /** Lasers, the launcher (loaded 5 of 5, HSTRM-01 in it, ECO-10 on board) and the CPUs, as on 2026-11-11. */
+    private static void launcherMenu(Sim sim, boolean launcherCpu) {
+        orbit.protocol.gen.MenuInitializationCommand menu = new orbit.protocol.gen.MenuInitializationCommand();
+        orbit.protocol.gen.MenuCategoryInitializationCommand lasers = new orbit.protocol.gen.MenuCategoryInitializationCommand();
+        lasers.categoryId = "lasers";
+        lasers.menuItems = List.of(menuItem("ammunition_laser_lcb-10", 10_000, true));
+        orbit.protocol.gen.MenuCategoryInitializationCommand rl = new orbit.protocol.gen.MenuCategoryInitializationCommand();
+        rl.categoryId = "rocket_launchers";
+        rl.menuItems = List.of(menuItem("equipment_weapon_rocketlauncher_hst", 5, false),
+                menuItem("ammunition_rocketlauncher_hstrm-01", 2_409, true),
+                menuItem("ammunition_rocketlauncher_eco-10", 330, false));
+        orbit.protocol.gen.MenuCategoryInitializationCommand cpus = new orbit.protocol.gen.MenuCategoryInitializationCommand();
+        cpus.categoryId = "cpus";
+        cpus.menuItems = List.of(menuItem("equipment_extra_cpu_rllb-x", 0, launcherCpu));
+        menu.categories = List.of(lasers, rl, cpus);
+        sim.world.apply(menu, sim.now);
+    }
+
+    private static List<String> pressed(Sim sim) {
+        return sim.sent.stream().filter(p -> p instanceof orbit.protocol.gen.MenuActionRequest)
+                .map(p -> ((orbit.protocol.gen.MenuActionRequest) p).menuItemId).toList();
+    }
+
+    @Test
+    void keepsTheLauncherRocketsAndFiresTheLoadedLauncherWithoutItsCpu() {
+        BotConfig c = config(false, null, Set.of());
+        BotConfig.Loot l = c.loot();
+        c = c.withLoot(new BotConfig.Loot(l.ammo(), l.sab(), l.sabBelow(), l.sabNpcShieldMin(), l.rsb(), l.groupNpcs(),
+                l.ignoreFartherThan(), l.rocket(), l.fireRockets(), l.circle(), l.fallback(), "ammunition_rocketlauncher_eco-10", true));
+        for (boolean cpu : new boolean[] {false, true}) {
+            Sim sim = new Sim(c, 1, 10_400, 6_000);
+            launcherMenu(sim, cpu);
+            sim.npc(7, "-=[ Target ]=-", 10_000, 6_000);
+            Attacker a = new Attacker(sim.ctx);
+            a.target(sim.world.snapshot(sim.now).ships().get(7));
+            for (int t = 0; t < 100; t++) {
+                a.tick(true);
+                sim.now += 100 * Sim.MS;
+            }
+            List<String> p = pressed(sim);
+            assertTrue(p.contains("ammunition_rocketlauncher_eco-10"), "the configured launcher rockets: " + p);
+            assertEquals(!cpu, p.contains("equipment_weapon_rocketlauncher_hst"),
+                    (cpu ? "the CPU fires by itself" : "loaded, no CPU: a salvo") + ": " + p);
+        }
+    }
 }

@@ -400,10 +400,17 @@ public record BotConfig(
      * @param ammo     ammunition item id for this NPC; {@code null} = {@link Loot#ammo}
      * @param sab      use {@link Loot#sab} on this NPC while the own shield is low
      * @param rocket   rocket type for this NPC; {@code null} = {@link Loot#rocket}, {@link Loot#NO_ROCKETS} = none
+     * @param launcher rocket launcher rockets for this NPC; {@code null} = {@link Loot#launcher},
+     *                 {@link Loot#NO_ROCKETS} = none
      */
     @JsonInclude(JsonInclude.Include.NON_EMPTY)
     public record NpcRule(double radius, int priority, boolean kill, Set<String> flags, Set<Integer> maps, String ammo,
-                          boolean sab, String rocket) {
+                          boolean sab, String rocket, String launcher) {
+
+        public NpcRule(double radius, int priority, boolean kill, Set<String> flags, Set<Integer> maps, String ammo,
+                       boolean sab, String rocket) {
+            this(radius, priority, kill, flags, maps, ammo, sab, rocket, null);
+        }
 
         public NpcRule(double radius, int priority, boolean kill, Set<String> flags, Set<Integer> maps, String ammo) {
             this(radius, priority, kill, flags, maps, ammo, false, null);
@@ -466,11 +473,20 @@ public record BotConfig(
      * @param fireRockets the bot launches rockets itself (ships without the automatic rocket CPU)
      * @param circle      fly round the target at its radius (NPCs flagged {@code NO_CIRCLE} excepted)
      * @param fallback    ammunition to take, in order, when the wanted one has run out
+     * @param launcher    rocket launcher rockets to keep selected ({@code null} = as in the game, {@link #NO_ROCKETS} = none)
+     * @param fireLauncher the bot fires the launcher itself when it is loaded (ships without the launcher CPU)
      */
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public record Loot(String ammo, String sab, double sabBelow, int sabNpcShieldMin, String rsb,
                        boolean groupNpcs, int ignoreFartherThan, String rocket, boolean fireRockets, boolean circle,
-                       List<String> fallback) {
+                       List<String> fallback, String launcher, boolean fireLauncher) {
+
+        public Loot(String ammo, String sab, double sabBelow, int sabNpcShieldMin, String rsb,
+                    boolean groupNpcs, int ignoreFartherThan, String rocket, boolean fireRockets, boolean circle,
+                    List<String> fallback) {
+            this(ammo, sab, sabBelow, sabNpcShieldMin, rsb, groupNpcs, ignoreFartherThan, rocket, fireRockets, circle,
+                    fallback, null, false);
+        }
 
         public static final String NO_ROCKETS = "none";
         public static final Loot DEFAULT = new Loot(null, null, 0, 0, null, true, 0);
