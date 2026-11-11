@@ -29,6 +29,8 @@ final class CargoCare {
     private static final Logger log = LoggerFactory.getLogger(CargoCare.class);
 
     static final long ANSWER_MS = 6_000;
+    /** No prices this long after the pet was asked for its trade pod: ask once more. */
+    static final long PET_ASK_AGAIN_MS = 7_000;
     /** A sale that did not open is tried again after the trade pod's longest cooldown (300 s at level 1). */
     static final long RETRY_MS = 5 * 60_000L;
     /** Close enough to the refinery to trade (the client trades by clicking its icon at the base). */
@@ -44,6 +46,8 @@ final class CargoCare {
     private long nextSellAt;
     private final List<int[]> toSell = new ArrayList<>();
     private long soldUnits;
+    private String lastMode = "";
+    private boolean askedAgain;
     private int baseMap;
     private String told = "";
 
@@ -101,6 +105,17 @@ final class CargoCare {
         long now = ctx.now();
         String mode = c.collect().cargo();
         boolean wantSale = BotConfig.Collect.CARGO_BASE.equals(mode) || BotConfig.Collect.CARGO_PET.equals(mode);
+        if (!mode.equals(lastMode)) {
+            // another way of selling chosen: the pause after the old way's failure does not hold it back
+            // (live 2026-11-11: switched to the base after a failed pet sale, and nothing happened for 5 min)
+            lastMode = mode;
+            failedAt = Long.MIN_VALUE / 2;
+            told = "";
+            if (step != null && !BotConfig.Collect.CARGO_NONE.equals(mode)) {
+                pet.setTrade(false);
+                step = null;
+            }
+        }
         if (step == null) {
             if (!wantSale || !full(c, w) || ms(now - failedAt) < RETRY_MS) {
                 if (!full(c, w)) {
@@ -123,6 +138,7 @@ final class CargoCare {
                 pet.setTrade(true); // the trade pod opens the window and sends the prices by itself
                 step = Step.ASKED;
                 since = now;
+                askedAgain = false;
                 return false;
             }
             if (busy) {
@@ -200,8 +216,14 @@ final class CargoCare {
             nextSellAt = now + ctx.pause(600, 1_400);
             return base;
         }
-        // the pet: the mode is asked for after a moment's pause, the answer comes at once
-        if (ms(now - since) > (base ? ANSWER_MS : ANSWER_MS + 9_000)) {
+        // the pet: the mode is asked for after a moment's pause, the answer comes at once; no answer (seen twice
+        // live, cause unknown) — the trade pod is asked for once more before giving up
+        if (!base && !askedAgain && ms(now - since) > PET_ASK_AGAIN_MS) {
+            askedAgain = true;
+            log.info("Торговый модуль не ответил — прошу ещё раз");
+            pet.askTradeAgain();
+        }
+        if (ms(now - since) > (base ? ANSWER_MS : ANSWER_MS + 12_000)) {
             return fail(base ? "торговля у переработчика не открылась" : "торговый модуль питомца не открыл торговлю");
         }
         return base;

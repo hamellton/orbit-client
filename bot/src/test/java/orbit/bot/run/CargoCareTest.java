@@ -152,4 +152,45 @@ class CargoCareTest {
         assertTrue(!BotConfig.Collect.fillsCargo("PIRATE_BOOTY_GOLD"));
         assertEquals(Map.of(), Map.of());
     }
+
+    @Test
+    void anotherWayOfSellingIsTriedAtOnceAfterTheOldOneFailed() throws Exception {
+        // live 2026-11-11: the pet's sale got no answer, the user chose the base, nothing happened for 5 minutes
+        BotConfig petCfg = config(BotConfig.Collect.CARGO_PET).withPet(new BotConfig.Pet(true, "GUARD"));
+        Sim sim = new Sim(petCfg, 9, 17_000, 11_000);
+        orbit.protocol.gen.PetInitializationCommand init = new orbit.protocol.gen.PetInitializationCommand();
+        init.hasPet = true;
+        init.hasFuel = true;
+        init.petIsAlive = true;
+        sim.world.apply(init, sim.now);
+        orbit.protocol.gen.PetHeroActivationCommand a = new orbit.protocol.gen.PetHeroActivationCommand();
+        a.ownerId = 1;
+        a.petId = 500;
+        a.petName = "P";
+        sim.world.apply(a, sim.now);
+        orbit.protocol.gen.PetGearAddCommand pod = new orbit.protocol.gen.PetGearAddCommand();
+        pod.gearType = new orbit.protocol.gen.PetGearTypeModule();
+        pod.gearType.typeValue = 8;
+        pod.enabled = true;
+        sim.world.apply(pod, sim.now);
+        orbit.protocol.gen.AssetCreateCommand ref = new orbit.protocol.gen.AssetCreateCommand();
+        ref.assetId = 900;
+        ref.type = new orbit.protocol.gen.AssetTypeModule();
+        ref.type.typeValue = 50;
+        ref.factionId = 3;
+        ref.posX = 20_080;
+        ref.posY = 11_500;
+        sim.world.apply(ref, sim.now);
+        fullHold(sim);
+        BotRunner r = new BotRunner(sim.ctx, () -> false, s -> { });
+        sim.run(r::tick, 25_000); // the pod never answers
+        long pods = sim.sent.stream().filter(p -> p instanceof orbit.protocol.gen.PetGearActivationRequest g
+                && g.gearTypeToActivate.typeValue == 8).count();
+        assertTrue(pods >= 2, "asked for the trade pod once more before giving up: " + pods);
+        sim.config = config(BotConfig.Collect.CARGO_BASE); // the user switches to the base
+        for (int t = 0; t < 400 && sim.sent.stream().noneMatch(p -> p instanceof TradeRequest); t++) {
+            sim.run(r::tick, 100);
+        }
+        assertTrue(sim.sent.stream().anyMatch(p -> p instanceof TradeRequest), "off to the refinery at once, no 5-minute pause");
+    }
 }

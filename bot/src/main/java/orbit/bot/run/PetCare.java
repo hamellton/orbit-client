@@ -78,6 +78,13 @@ public final class PetCare {
         trade = on;
     }
 
+    /** Asks for the trade pod again at once (the server did not answer the first request). */
+    void askTradeAgain() {
+        askedGear = -1;
+        askedAt = Long.MIN_VALUE / 2;
+        gearAt = 0;
+    }
+
     /** The pet is out with a trade pod: selling through it can work. */
     boolean canTrade() {
         WorldSnapshot.Pet p = ctx.world().get().pet();
