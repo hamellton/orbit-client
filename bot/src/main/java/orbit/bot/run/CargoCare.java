@@ -43,6 +43,7 @@ final class CargoCare {
     private long failedAt = Long.MIN_VALUE / 2;
     private long nextSellAt;
     private final List<int[]> toSell = new ArrayList<>();
+    private long soldUnits;
     private int baseMap;
     private String told = "";
 
@@ -213,10 +214,12 @@ final class CargoCare {
         }
         if (toSell.isEmpty()) {
             ctx.actions().tradeClose();
-            log.info("Продал руду — свободно в трюме {}", w.cargoFree());
+            log.info("Продал руду: {} ед. (трюм освободится, как только игра пересчитает)", soldUnits);
+            soldUnits = 0;
             return done(true);
         }
         int[] o = toSell.removeFirst();
+        soldUnits += o[1];
         log.info("Продаю {} × {}", oreName(o[0]), o[1]);
         ctx.actions().tradeSell(o[0], o[1]);
         nextSellAt = now + ctx.pause(700, 1_500);

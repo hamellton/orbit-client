@@ -83,6 +83,11 @@ public final class CubikonModule implements BotModule {
      * or a spot): live 2026-11-11 the locator called the ship away a second after the kill and the box was lost.
      */
     static final long BOX_WAIT_MS = 4_000;
+    /**
+     * …and this long while a full hold is being sold: the cube's ore goes straight into the hold and what does not
+     * fit drops as the FROM_SHIP box; a sale through the pet frees the hold 5–9 s later (live 2026-11-11).
+     */
+    static final long BOX_WAIT_SELLING_MS = 20_000;
     private boolean moveOn;
     /** The chosen spawn's state is unknown: a short look after arriving, then choose again. */
     private boolean lookOnly;
@@ -198,7 +203,11 @@ public final class CubikonModule implements BotModule {
                 status = "Ящик с куба";
                 return;
             }
-            if (setting(s, "collectBoxes", true) && ctx.now() - deadAtNanos < BOX_WAIT_MS * 1_000_000) {
+            boolean selling = BoxPicker.cargoFull(c, w) && (BotConfig.Collect.CARGO_PET.equals(c.collect().cargo())
+                    || BotConfig.Collect.CARGO_BASE.equals(c.collect().cargo()))
+                    && c.collect().sellOres().stream().anyMatch(o -> w.inventory().ores().getOrDefault(o, 0.0) >= 1);
+            long wait = selling ? BOX_WAIT_SELLING_MS : BOX_WAIT_MS;
+            if (setting(s, "collectBoxes", true) && ctx.now() - deadAtNanos < wait * 1_000_000) {
                 ctx.nav().stop();
                 status = "Жду ящик с куба";
                 return; // the box drops a moment after the kill

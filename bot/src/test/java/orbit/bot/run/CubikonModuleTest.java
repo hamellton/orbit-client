@@ -598,4 +598,49 @@ class CubikonModuleTest {
         assertTrue(sim.sent.stream().anyMatch(p -> p instanceof orbit.protocol.gen.CollectBoxRequest r && "cargo".equals(r.itemHash)),
                 "the cube's cargo box picked up first");
     }
+
+    @Test
+    void aFullHoldBeingSoldKeepsTheShipByTheCubesBoxUntilThereIsRoom() throws Exception {
+        // live 2026-11-11: the cube's ore filled the hold at once, the rest dropped as FROM_SHIP; the pet sold 5–9 s
+        // later, but the ship had left after 4 s
+        BotConfig c = config(90, false);
+        BotConfig.Collect k = new BotConfig.Collect(java.util.Map.of("FROM_SHIP", new BotConfig.BoxRule(true, 0, 0)),
+                400, false, false, BotConfig.Collect.CARGO_PET, 0, null);
+        c = c.withCollect(k);
+        Sim sim = new Sim(c, 26, 10_000, 9_000);
+        sim.lasers("ammunition_laser_ucb-100");
+        orbit.protocol.gen.LegacyModule cap = new orbit.protocol.gen.LegacyModule();
+        cap.message = "0|A|c|1600";
+        sim.world.apply(cap, sim.now);
+        CubikonModule m = new CubikonModule(sim.ctx, SpawnMemory.inMemory());
+        sim.now += 1_000 * Sim.MS;
+        sim.npc(77, "-=[ Cubikon ]=-", 10_400, 9_200);
+        sim.run(m::tick, 3_000);
+        orbit.protocol.gen.ShipDestroyedCommand d = new orbit.protocol.gen.ShipDestroyedCommand();
+        d.destroyedUserId = 77;
+        sim.world.apply(d, sim.now);
+        sim.world.apply(ores(1_600), sim.now); // the cube's ore: full
+        orbit.protocol.gen.AddBoxCommand box = new orbit.protocol.gen.AddBoxCommand();
+        box.hash = "cargo";
+        box.boxType = "FROM_SHIP";
+        box.x = 10_400;
+        box.y = 9_200;
+        sim.world.apply(box, sim.now);
+        sim.run(m::tick, 8_000);
+        assertTrue(m.status().contains("Жду ящик"), "still by the box while the hold is sold: " + m.status());
+        sim.world.apply(ores(0), sim.now); // sold
+        sim.run(m::tick, 3_000);
+        assertTrue(sim.sent.stream().anyMatch(p -> p instanceof orbit.protocol.gen.CollectBoxRequest r && "cargo".equals(r.itemHash)),
+                "picked up once there is room");
+    }
+
+    private static orbit.protocol.gen.AttributeOreCountUpdateCommand ores(double duranium) {
+        orbit.protocol.gen.AttributeOreCountUpdateCommand o = new orbit.protocol.gen.AttributeOreCountUpdateCommand();
+        orbit.protocol.gen.OreCountModule m = new orbit.protocol.gen.OreCountModule();
+        m.oreType = new orbit.protocol.gen.OreTypeModule();
+        m.oreType.typeValue = 5;
+        m.count = duranium;
+        o.oreCountList = java.util.List.of(m);
+        return o;
+    }
 }
