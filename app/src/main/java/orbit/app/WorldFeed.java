@@ -160,6 +160,7 @@ public final class WorldFeed {
 
     public void onPacket(Packet p, long nanos) {
         packets.incrementAndGet();
+        formationDiagnosis(p, nanos);
         WorldSnapshot.Hero before = world.snapshot(nanos).hero();
         int heroBefore = before.id();
         world.apply(p, nanos);
@@ -215,7 +216,34 @@ public final class WorldFeed {
     }
 
     public void onSent(Packet p, long nanos) {
+        if (p instanceof orbit.protocol.gen.MenuActionRequest m && m.menuItemId != null
+                && m.menuItemId.startsWith("drone_formation")) {
+            // diagnosis (2026-11-11): the server ignores most formation changes; what is asked and what comes back
+            formationAskedAt = nanos;
+            WorldSnapshot w = world.snapshot(nanos);
+            WorldSnapshot.Item i = w.items().get(m.menuItemId);
+            log.info("Диагностика формации → {} source={} | пункт: {} | на корабле №{} | конфиг {}", m.menuItemId,
+                    m.sourceType, i, w.hero().formation(), w.hero().config());
+        }
         world.applyOutgoing(p, nanos);
+    }
+
+    /** When the bot last asked for a formation (diagnosis: the server's answers for 3 s are logged). */
+    private volatile long formationAskedAt = Long.MIN_VALUE / 2;
+
+    private void formationDiagnosis(Packet p, long nanos) {
+        if (nanos - formationAskedAt > 3_000_000_000L) {
+            return;
+        }
+        String name = p.getClass().getSimpleName();
+        String s = String.valueOf(p);
+        boolean relevant = name.contains("Formation") || name.equals("LegacyModule")
+                || (name.startsWith("MenuItem") && s.contains("drone_formation"))
+                || name.contains("Cooldown") || name.contains("Message") || name.contains("Notification");
+        if (relevant) {
+            log.info("Диагностика формации ← +{} мс {}", (nanos - formationAskedAt) / 1_000_000,
+                    s.length() > 260 ? s.substring(0, 260) : s);
+        }
     }
 
     public void setState(String state) {
