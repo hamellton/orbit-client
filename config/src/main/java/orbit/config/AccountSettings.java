@@ -94,7 +94,7 @@ public record AccountSettings(Map<String, Entry> accounts) {
             if (d < 0) {
                 return "";
             }
-            String base = s.substring(0, d);
+            String base = s.substring(0, d).replaceFirst("^ship_", "");
             String des = s.substring(d + "_design_".length());
             return prettyName(des.startsWith(base + "-") ? des.substring(base.length() + 1) : des);
         }
