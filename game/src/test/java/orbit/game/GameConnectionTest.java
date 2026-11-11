@@ -132,6 +132,42 @@ class GameConnectionTest {
     }
 
     @Test
+    void aWorldStandingStillAfterAFlightMeansAHungServer() throws Exception {
+        try (FakeGameServer gs = new FakeGameServer()) {
+            // like ru1 on 2026-11-11: messages keep coming, nothing in the world moves, our flight goes nowhere
+            gs.afterLogin = send -> Thread.ofVirtual().start(() -> {
+                try {
+                    for (int i = 0; i < 200; i++) {
+                        LegacyModule lm = new LegacyModule();
+                        lm.message = "0|A|BK|20";
+                        send.accept(lm);
+                        Thread.sleep(50);
+                    }
+                } catch (Exception e) {
+                    // the bot hung up
+                }
+            });
+            ConnectionSettings f = fast();
+            ConnectionSettings hung = new ConnectionSettings(f.proxy(), Duration.ofSeconds(10), Duration.ZERO, true,
+                    f.connectTimeout(), f.loginTimeout(), f.backoff(), f.refreshAfter(), Duration.ofSeconds(30),
+                    Duration.ofMillis(600));
+            Source src = new Source(gs.port(), 0);
+            Listener l = new Listener();
+            GameConnection c = new GameConnection(src, l, hung, StartupSequence.minimal(READY));
+            Thread t = Thread.ofVirtual().start(c::run);
+            await(() -> l.states.stream().anyMatch(s -> s.startsWith("ONLINE")), 5);
+            Thread.sleep(200);
+            assertEquals(1, gs.receivedOf(LoginRequest.class).size(), "standing still without a flight is no hang");
+            c.send(new orbit.protocol.gen.MoveRequest());
+            await(() -> gs.receivedOf(LoginRequest.class).size() >= 2, 6);
+            assertTrue(l.states.stream().anyMatch(s -> s.startsWith("RECONNECTING") && s.contains("мир не обновляется")),
+                    l.states.toString());
+            c.close();
+            t.join(3000);
+        }
+    }
+
+    @Test
     void followsReloginToAnotherServer() throws Exception {
         try (FakeGameServer a = new FakeGameServer(); FakeGameServer b = new FakeGameServer()) {
             a.afterLogin = send -> {

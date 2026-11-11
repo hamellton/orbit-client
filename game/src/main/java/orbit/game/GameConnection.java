@@ -119,10 +119,39 @@ public final class GameConnection implements AutoCloseable {
     }
 
     /** Sends one packet; ignored while not connected. */
+    /** When the server last showed the world alive: a ship moved, appeared, left, shot; a box appeared. */
+    private volatile long worldAliveNanos;
+    /** When the bot last asked to fly. */
+    private volatile long moveSentNanos;
+    /** The last reconnect for a world standing still: not more often than {@link #STALL_GAP_NANOS}. */
+    private long stallReconnectNanos = Long.MIN_VALUE / 2;
+    /** An empty corner of a map can be quiet for long: at most one such reconnect in this time. */
+    static final long STALL_GAP_NANOS = 10L * 60 * 1_000_000_000L;
+
+    static boolean worldEvent(Packet p) {
+        return p instanceof orbit.protocol.gen.MoveCommand || p instanceof orbit.protocol.gen.ShipCreateCommand
+                || p instanceof orbit.protocol.gen.ShipRemoveCommand || p instanceof orbit.protocol.gen.ShipDestroyedCommand
+                || p instanceof orbit.protocol.gen.AttackLaserRunCommand || p instanceof orbit.protocol.gen.AttackHitCommand
+                || p instanceof orbit.protocol.gen.AddBoxCommand || p instanceof ShipInitializationCommand;
+    }
+
+    /** Asked to fly, and since then nothing in the world for {@code stall}: the server hangs. */
+    private void checkStall() throws IOException {
+        long now = System.nanoTime();
+        long alive = worldAliveNanos;
+        if (moveSentNanos > alive && now - alive > settings.stall().toNanos() && now - stallReconnectNanos > STALL_GAP_NANOS) {
+            stallReconnectNanos = now;
+            throw new IOException("мир не обновляется " + settings.stall().toSeconds() + " с");
+        }
+    }
+
     public void send(Packet p) {
         OutputStream o = out;
         if (o == null) {
             return;
+        }
+        if (p instanceof orbit.protocol.gen.MoveRequest) {
+            moveSentNanos = System.nanoTime();
         }
         byte[] bytes = PacketCodec.encode(p);
         log.debug("→ {}", p.getClass().getSimpleName());
@@ -342,6 +371,11 @@ public final class GameConnection implements AutoCloseable {
                     }
                     if (!shipReady) {
                         log.debug("← {}", p.getClass().getSimpleName()); // the login exchange, for diagnosis
+                    }
+                    if (worldEvent(p)) {
+                        worldAliveNanos = System.nanoTime();
+                    } else if (shipReady && !dead) {
+                        checkStall(); // the server talks (keep-alives, messages) but the world stands still
                     }
                     if (p instanceof VersionCommand vc) {
                         ProtocolOutdatedException.check(vc);

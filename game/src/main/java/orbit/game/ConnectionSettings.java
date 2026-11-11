@@ -17,10 +17,24 @@ import java.util.List;
  * @param refreshAfter    reconnect failures after which a fresh website login is done
  * @param silence         in game, the server saying nothing this long means the link is gone (a Wi-Fi drop
  *                        or a network switch leaves the socket open); the server talks every few seconds
+ * @param stall           see {@link #STALL}
  */
 public record ConnectionSettings(ProxyConnector proxy, Duration keepAlive, Duration keepAliveJitter, boolean policyRequest,
                                  Duration connectTimeout, Duration loginTimeout, List<Duration> backoff,
-                                 int refreshAfter, Duration silence) {
+                                 int refreshAfter, Duration silence, Duration stall) {
+
+    /**
+     * The world stood still this long after the bot asked to fly — no ship moved, appeared, left or shot:
+     * the server hangs while still answering (live 2026-11-11: five minutes at a portal, then it closed).
+     */
+    public static final Duration STALL = Duration.ofSeconds(90);
+
+    public ConnectionSettings(ProxyConnector proxy, Duration keepAlive, Duration keepAliveJitter, boolean policyRequest,
+                              Duration connectTimeout, Duration loginTimeout, List<Duration> backoff, int refreshAfter,
+                              Duration silence) {
+        this(proxy, keepAlive, keepAliveJitter, policyRequest, connectTimeout, loginTimeout, backoff, refreshAfter, silence,
+                STALL);
+    }
 
     public static ConnectionSettings defaults(ProxyConnector proxy) {
         return new ConnectionSettings(proxy, Duration.ofSeconds(15), Duration.ofMillis(150), true,
