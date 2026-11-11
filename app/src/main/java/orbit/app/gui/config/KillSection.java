@@ -59,8 +59,10 @@ final class KillSection implements Section {
         for (int i = 0; i < widths.length; i++) {
             table.getColumnModel().getColumn(i).setPreferredWidth(widths[i]);
         }
-        for (int i : new int[] {1, 4}) {
-            table.getColumnModel().getColumn(i).setMaxWidth(56);
+        // on a wide screen the short columns stop growing: the spare width goes to names, maps and flags
+        int[] max = {0, 56, 110, 100, 56, 150, 150};
+        for (int i = 1; i < max.length; i++) {
+            table.getColumnModel().getColumn(i).setMaxWidth(max[i]);
         }
         table.getColumnModel().getColumn(6).setCellEditor(new javax.swing.DefaultCellEditor(
                 new javax.swing.JComboBox<>(NpcTable.rocketChoices())));
@@ -102,8 +104,8 @@ final class KillSection implements Section {
                 + "Патроны «общие» — как выбрано выше.<br>Флаги: IGNORE_OWNERSHIP — бить чужих, IGNORE_ATTACKED, "
                 + "PASSIVE — не убегать,<br>AGGRESSIVE_FOLLOW — догонять, NO_CIRCLE, PET_LOCATOR, KAMIKAZE.</html>");
         JPanel bar = new JPanel(new BorderLayout(8, 0));
-        bar.add(Form.inline(title, help), BorderLayout.WEST);
-        bar.add(Form.inline(search, add, remove), BorderLayout.EAST);
+        bar.add(Form.bar(title, help), BorderLayout.WEST);
+        bar.add(Form.bar(search, add, remove), BorderLayout.EAST);
         JPanel list = new JPanel(new BorderLayout(0, 6));
         list.setBorder(javax.swing.BorderFactory.createEmptyBorder(4, 12, 10, 12));
         list.add(bar, BorderLayout.NORTH);
@@ -144,7 +146,7 @@ final class KillSection implements Section {
         JPanel page = new JPanel(new BorderLayout());
         page.add(settings, BorderLayout.NORTH);
         page.add(list, BorderLayout.CENTER);
-        view = page;
+        view = Fit.of(page); // a small window scrolls the tab; the list never shrinks below a few rows
     }
 
     /** Two components side by side, top-aligned, when they fit the width; otherwise one under the other. */
@@ -176,7 +178,11 @@ final class KillSection implements Section {
 
         @Override
         public java.awt.Dimension minimumLayoutSize(java.awt.Container parent) {
-            return preferredLayoutSize(parent);
+            // one under the other, each at its narrowest
+            java.awt.Dimension ma = parent.getComponent(0).getMinimumSize();
+            java.awt.Dimension mb = parent.getComponent(1).getMinimumSize();
+            java.awt.Dimension pref = preferredLayoutSize(parent);
+            return new java.awt.Dimension(Math.max(ma.width, mb.width), Math.max(pref.height, ma.height + mb.height));
         }
 
         @Override

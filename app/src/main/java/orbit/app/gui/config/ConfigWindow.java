@@ -43,7 +43,13 @@ public final class ConfigWindow {
     private final List<Section> sections = new ArrayList<>();
     private final JTabbedPane tabs = new JTabbedPane();
     private final JLabel title = new JLabel(" ");
-    private final JLabel check = new JLabel(" ");
+    /** The check result; cut in a narrow window, whole in its tooltip. */
+    private final JLabel check = new JLabel(" ") {
+        @Override
+        public String getToolTipText() {
+            return getText().isBlank() ? null : getText();
+        }
+    };
     private final AccountsPanel accounts;
     private String current;
     private BotConfig loaded;
@@ -64,6 +70,8 @@ public final class ConfigWindow {
         sections.add(new BuySection());
         sections.add(new GroupSection());
         sections.forEach(s -> tabs.addTab(s.title(), s.view()));
+        tabs.setTabLayoutPolicy(JTabbedPane.SCROLL_TAB_LAYOUT); // one row of tabs: a small window keeps its height
+        tabs.putClientProperty("JTabbedPane.scrollButtonsPolicy", "asNeeded");
         accounts = new AccountsPanel(accountsFile, this::configNames);
 
         list.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
@@ -87,12 +95,14 @@ public final class ConfigWindow {
         title.setFont(title.getFont().deriveFont(java.awt.Font.BOLD, title.getFont().getSize() + 3f));
         JPanel bottom = new JPanel(new BorderLayout(8, 0));
         bottom.setBorder(BorderFactory.createEmptyBorder(6, 8, 8, 8));
+        check.setMinimumSize(new Dimension(0, 0)); // a narrow window cuts it with «…»; the tooltip has it all
+        javax.swing.ToolTipManager.sharedInstance().registerComponent(check);
         bottom.add(check, BorderLayout.CENTER);
         JButton saveButton = button("Сохранить", this::save);
         // the main action in the accent colour
         saveButton.setBackground(new java.awt.Color(0x0e4a66));
         saveButton.setForeground(orbit.app.gui.Theme.TEXT);
-        bottom.add(Form.inline(button("Проверить", this::runCheck), button("Отменить", this::revert),
+        bottom.add(Form.bar(button("Проверить", this::runCheck), button("Отменить", this::revert),
                 saveButton), BorderLayout.EAST);
         JPanel right = new JPanel(new BorderLayout(0, 6));
         right.setBorder(BorderFactory.createEmptyBorder(8, 0, 0, 0));
@@ -101,8 +111,34 @@ public final class ConfigWindow {
         right.add(bottom, BorderLayout.SOUTH);
 
         JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, left, right);
+        // the config list takes about a fifth of the width (140–240 px) until the user drags the divider
+        left.setMinimumSize(new Dimension(110, 0));
+        right.setMinimumSize(new Dimension(280, 0));
+        split.setOneTouchExpandable(true);
+        split.setContinuousLayout(true);
         split.setDividerLocation(220);
+        boolean[] auto = {true};
+        boolean[] adjusting = {false};
+        Runnable fitList = () -> {
+            if (auto[0] && split.getWidth() > 0) {
+                adjusting[0] = true;
+                split.setDividerLocation(Math.max(140, Math.min(240, split.getWidth() / 5)));
+                adjusting[0] = false;
+            }
+        };
+        split.addComponentListener(new java.awt.event.ComponentAdapter() {
+            @Override
+            public void componentResized(java.awt.event.ComponentEvent e) {
+                fitList.run();
+            }
+        });
+        split.addPropertyChangeListener(JSplitPane.DIVIDER_LOCATION_PROPERTY, e -> {
+            if (!adjusting[0] && split.getWidth() > 0 && split.isShowing()) {
+                auto[0] = false; // dragged by the user: keep it
+            }
+        });
         JTabbedPane pages = new JTabbedPane();
+        pages.setTabLayoutPolicy(JTabbedPane.SCROLL_TAB_LAYOUT);
         pages.setBackground(orbit.app.gui.Theme.SURFACE);
         pages.setOpaque(true);
         pages.addTab("Конфиги", split);
@@ -162,6 +198,17 @@ public final class ConfigWindow {
     /** The window's content drawn into an image without showing it (to check the look). */
     public static java.awt.image.BufferedImage snapshot(ConfigStore store, Path accountsFile, String select,
                                                         int width, int height) {
+        return snapshot(store, accountsFile, select, 0, 0, width, height);
+    }
+
+    /**
+     * The same on a chosen page and tab, to check every tab at every window size.
+     *
+     * @param page 0 = «Конфиги», 1 = «Аккаунты»
+     * @param tab  the section tab on «Конфиги» (0 = «Общее»)
+     */
+    public static java.awt.image.BufferedImage snapshot(ConfigStore store, Path accountsFile, String select, int page,
+                                                        int tab, int width, int height) {
         orbit.app.gui.Theme.setup();
         ConfigWindow w = new ConfigWindow(store, accountsFile, MapCatalog.bundled());
         if (select != null && w.names.contains(select)) {
@@ -169,6 +216,11 @@ public final class ConfigWindow {
             w.reloadList(select);
         }
         java.awt.Container c = w.frame.getContentPane();
+        if (c instanceof JTabbedPane pages) {
+            pages.setSelectedIndex(Math.min(page, pages.getTabCount() - 1));
+        }
+        w.tabs.setSelectedIndex(Math.min(tab, w.tabs.getTabCount() - 1));
+        w.frame.setSize(width, height); // a relayout inside sizes the content to the (never shown) frame
         c.setSize(width, height);
         for (int pass = 0; pass < 2; pass++) {
             layoutAll(c);

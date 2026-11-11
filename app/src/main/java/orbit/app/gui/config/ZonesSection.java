@@ -61,7 +61,7 @@ final class ZonesSection implements Section {
                 .row("Карта", map)
                 .row("Слой", Form.inline(preferred, avoided, clear))
                 .wide(canvas, true)
-                .build(false);
+                .build(true);
     }
 
     @Override
@@ -141,6 +141,7 @@ final class ZonesSection implements Section {
 
         Canvas() {
             setPreferredSize(new Dimension(640, 420));
+            setMinimumSize(new Dimension(260, 170)); // still drawable in a small window
             setBackground(new Color(18, 22, 30));
             MouseAdapter m = new MouseAdapter() {
                 @Override

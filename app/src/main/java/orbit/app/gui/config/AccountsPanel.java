@@ -81,7 +81,7 @@ final class AccountsPanel {
         });
         JPanel left = new JPanel(new BorderLayout(0, 6));
         left.add(new JScrollPane(list), BorderLayout.CENTER);
-        left.add(Form.inline(add, remove), BorderLayout.SOUTH);
+        left.add(Form.bar(add, remove), BorderLayout.SOUTH);
 
         JButton addRow = new JButton("Добавить окно");
         addRow.addActionListener(e -> entries.addRow(new Object[] {"все", "08:00", "12:00", firstConfig()}));
@@ -96,6 +96,7 @@ final class AccountsPanel {
         save.addActionListener(e -> save());
         JScrollPane scroll = new JScrollPane(table);
         scroll.setPreferredSize(new java.awt.Dimension(520, 220));
+        scroll.setMinimumSize(new java.awt.Dimension(240, 120));
         JComponent right = new Form()
                 .section("Конфиг аккаунта")
                 .row("Конфиг", config)
@@ -108,7 +109,7 @@ final class AccountsPanel {
                 .wide(scroll, true)
                 .row("", now)
                 .wide(Form.inline(save), false)
-                .build(false);
+                .build(true);
         JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, left, right);
         split.setDividerLocation(200);
         view = split;

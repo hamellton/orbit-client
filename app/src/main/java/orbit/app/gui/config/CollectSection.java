@@ -43,6 +43,7 @@ final class CollectSection implements Section {
         });
         JScrollPane scroll = new JScrollPane(table);
         scroll.setPreferredSize(new java.awt.Dimension(600, 300));
+        scroll.setMinimumSize(new java.awt.Dimension(240, 140));
         view = new Form()
                 .section("Сбор")
                 .row("Собирать в радиусе", radius)
@@ -52,7 +53,7 @@ final class CollectSection implements Section {
                 .note("Ожидание — сколько стоять на ящике перед сбором.")
                 .wide(Form.inline(add, remove), false)
                 .wide(scroll, true)
-                .build(false);
+                .build(true);
     }
 
     @Override

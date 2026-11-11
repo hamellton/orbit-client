@@ -12,9 +12,9 @@ import javax.swing.SwingUtilities;
  * A {@link FlowLayout} whose preferred height grows when its components wrap onto more rows, so a
  * toolbar stays whole in a narrow window instead of cutting buttons off.
  */
-final class WrapLayout extends FlowLayout {
+public final class WrapLayout extends FlowLayout {
 
-    WrapLayout(int align, int hgap, int vgap) {
+    public WrapLayout(int align, int hgap, int vgap) {
         super(align, hgap, vgap);
     }
 

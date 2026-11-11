@@ -25,8 +25,8 @@ final class GateSection implements Section {
                 .note("Модуль не готов: настройки из импорта DarkBot как есть.")
                 .note("gateId — врата (71 Зета, 74 Каппа, −4 ЕБГ…), kamikaze — взрыв питомца, "
                         + "builder — постройка и лимиты спинов.")
-                .wide(new JScrollPane(text), true)
-                .build(false);
+                .wide(minHeight(new JScrollPane(text), 140), true)
+                .build(true);
     }
 
     @Override
@@ -72,5 +72,10 @@ final class GateSection implements Section {
             throw new IllegalArgumentException("Врата: ошибка в JSON, строка " + e.getLocation().getLineNr() + ": "
                     + e.getOriginalMessage());
         }
+    }
+
+    private static JScrollPane minHeight(JScrollPane s, int h) {
+        s.setMinimumSize(new java.awt.Dimension(200, h));
+        return s;
     }
 }
