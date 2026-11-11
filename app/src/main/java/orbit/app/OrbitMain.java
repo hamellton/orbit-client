@@ -758,7 +758,9 @@ public final class OrbitMain {
             try {
                 // not in game yet (logging in, or the server keeps refusing): a stop still ends it. The ship
                 // must be this session's: the feed outlives a restart and still knows the last one's ship
-                while (feed.sessionStartNanos() == 0 || feed.snapshot().hero().id() == 0 || !feed.snapshot().hero().alive()) {
+                // logged in dead: the kill screen is this session's too, the runner takes the repair
+                while (feed.sessionStartNanos() == 0 || feed.snapshot().death() == null
+                        && (feed.snapshot().hero().id() == 0 || !feed.snapshot().hero().alive())) {
                     if (connectionOver.getAsBoolean()) {
                         connectionEnded.set(!stopRequested.get());
                         if (!stopRequested.get()) {

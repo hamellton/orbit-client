@@ -170,7 +170,7 @@ public final class WorldFeed {
         } else if (p instanceof orbit.protocol.gen.AttributeCreditsUpdateCommand) {
             loot.compare(before, world.snapshot(nanos).hero());
         }
-        if (sessionStart == 0 && p instanceof ShipInitializationCommand) {
+        if (sessionStart == 0 && (p instanceof ShipInitializationCommand || p instanceof orbit.protocol.gen.KillScreenPostCommand)) {
             sessionStart = nanos;
         }
         logEvent(p, heroBefore);

@@ -76,9 +76,8 @@ public final class Revive {
             return true;
         }
         if (faction == 0) {
-            log.warn("Фракция неизвестна — не могу выбрать ремонт");
-            repairedAt = now;
-            return true;
+            // logged in dead: no ship yet, so no faction — the client sends what it knows then, 0 as in its login
+            log.info("Фракция ещё неизвестна (вошёл с уничтоженным кораблём) — ремонт без неё");
         }
         log.info("Ремонт: {}", describe(pick));
         ctx.repair().take(pick.type(), faction);

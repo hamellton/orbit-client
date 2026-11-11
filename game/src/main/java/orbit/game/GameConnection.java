@@ -410,6 +410,14 @@ public final class GameConnection implements AutoCloseable {
                         listener.onState(GameListener.State.ONLINE, "В игре");
                     } else if (p instanceof UserSettingsCommand us) {
                         userSettings = us;
+                    } else if (p instanceof LoginResponse lr && lr.status == LoginResponse.STATUS_ShipIsDestroyed) {
+                        // logged in dead (live 2026-11-11: killed at a portal while logging out): the client keeps
+                        // the connection, shows the kill screen and sends the repair on it (only the repair,
+                        // keep-alives and closing are allowed then). A reconnect would meet the same answer.
+                        log.info("Корабль уничтожен — жду выбора ремонта на этом соединении");
+                        if (keepAlive == null) {
+                            keepAlive = Thread.ofVirtual().name("keepalive").start(withLogContext(this::keepAliveLoop));
+                        }
                     } else if (p instanceof LoginResponse lr && lr.status != LoginResponse.STATUS_Success) {
                         throw new LoginRejected("Сервер отказал во входе: " + loginStatus(lr.status));
                     } else if (p instanceof LoginResponse && startupThread == null) {

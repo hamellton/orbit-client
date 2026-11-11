@@ -185,7 +185,7 @@ public final class BotRunner {
         }
         WorldSnapshot w = ctx.world().get();
         WorldSnapshot.Hero h = w.hero();
-        if (h.id() == 0) {
+        if (h.id() == 0 && w.death() == null) {
             show("Вход в игру");
             return;
         }

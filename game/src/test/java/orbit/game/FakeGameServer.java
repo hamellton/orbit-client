@@ -114,7 +114,9 @@ final class FakeGameServer implements AutoCloseable {
                         free.affordableForPlayer = true;
                         ks.options = List.of(free);
                         send.accept(ks);
-                        send.accept(new LoginResponse());
+                        LoginResponse dead = new LoginResponse();
+                        dead.status = LoginResponse.STATUS_ShipIsDestroyed; // as ru1 answered on 2026-11-11
+                        send.accept(dead);
                         continue;
                     }
                     ShipInitializationCommand si = new ShipInitializationCommand();
