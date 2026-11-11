@@ -426,6 +426,17 @@ final class MinimapPanel extends JPanel {
         g.setStroke(new BasicStroke(2f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND, 1f, new float[] {6f, 5f}, 0f));
         g.draw(new Ellipse2D.Double(p.x(c.x()) - r, p.y(c.y()) - r, 2 * r, 2 * r));
         g.setStroke(new BasicStroke(1f));
+        double s = compact ? 3 : 4;
+        for (WorldSnapshot.BoxCheck.CheckBox b : c.boxes()) {
+            if (b.picked()) {
+                continue;
+            }
+            Rectangle2D.Double box = new Rectangle2D.Double(p.x(b.x()) - s, p.y(b.y()) - s, 2 * s, 2 * s);
+            g.setColor(b.red() ? BOX_CHECK : Color.BLACK);
+            g.fill(box);
+            g.setColor(b.red() == c.pickRed() ? Color.WHITE : Color.GRAY);
+            g.draw(box);
+        }
         String text = c.text(w.nanos());
         g.setFont(hud.font(Font.BOLD, compact ? 13f : 18f));
         java.awt.FontMetrics fm = g.getFontMetrics();

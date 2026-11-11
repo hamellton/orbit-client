@@ -416,7 +416,7 @@ public final class World {
             case orbit.protocol.gen.PetTradeWindowShowCommand p -> petTradeNanos = nanos;
             case orbit.protocol.gen.CaptchaTriggerCommand p -> {
                 boxCheck = new WorldSnapshot.BoxCheck(p.type, p.captchaParam, p.captchaTimer, p.posX, p.posY, p.Radius,
-                        p.blackBox, p.redBox, nanos);
+                        p.blackBox, p.redBox, nanos, layOutCheckBoxes(p.posX, p.posY, p.Radius, p.blackBox, p.redBox));
                 log.warn("{} (чёрных {}, красных {}, круг у {}/{} радиусом {})", boxCheck.text(nanos), p.blackBox, p.redBox,
                         p.posX / 100, p.posY / 100, p.Radius);
             }
@@ -451,7 +451,53 @@ public final class World {
         if (packet instanceof MoveRequest m) {
             // the client starts from where it shows the ship, which is what it reports as position
             hero.motion = Motion.fromAtSpeed(m.positionX, m.positionY, m.targetX, m.targetY, hero.speed, nanos);
+        } else if (packet instanceof orbit.protocol.gen.CaptchaCollectRequest r && boxCheck != null) {
+            // the client takes a picked box off the map at once (BoxCaptchaTrait.removeBox)
+            List<WorldSnapshot.BoxCheck.CheckBox> boxes = new ArrayList<>(boxCheck.boxes());
+            boxes.replaceAll(b -> b.index() == r.index ? new WorldSnapshot.BoxCheck.CheckBox(b.index(), b.red(), b.x(), b.y(), true) : b);
+            WorldSnapshot.BoxCheck c = boxCheck;
+            boxCheck = new WorldSnapshot.BoxCheck(c.type(), c.amount(), c.seconds(), c.x(), c.y(), c.radius(), c.black(), c.red(),
+                    c.sinceNanos(), List.copyOf(boxes));
         }
+    }
+
+    private final java.util.Random checkBoxRandom = new java.util.Random();
+
+    /**
+     * The check's boxes as the client lays them out ({@code BoxCaptchaTrait.addBoxes}, client 2026-11-04): on one
+     * ring of 0.6–0.93 of the radius round the centre, evenly spaced from a random angle, colours in random order;
+     * black boxes get indexes 0, 1, 2… in the order laid, red ones total−1, total−2…
+     */
+    static List<WorldSnapshot.BoxCheck.CheckBox> layOutCheckBoxes(int cx, int cy, int radius, int black, int red,
+                                                                  java.util.Random random) {
+        int total = Math.max(0, black) + Math.max(0, red);
+        List<WorldSnapshot.BoxCheck.CheckBox> boxes = new ArrayList<>(total);
+        double angle = random.nextDouble() * 2 * Math.PI;
+        double step = total == 0 ? 0 : 2 * Math.PI / total;
+        double ring = (random.nextDouble() / 3 + 0.6) * radius;
+        int blackLeft = Math.max(0, black);
+        int redLeft = Math.max(0, red);
+        int blackLaid = 0;
+        int redLaid = 0;
+        for (int i = 0; i < total; i++) {
+            int pick = (int) Math.floor(random.nextDouble() * (blackLeft + redLeft));
+            int x = (int) (cx + Math.sin(angle) * ring);
+            int y = (int) (cy + Math.cos(angle) * ring);
+            if (pick < blackLeft) {
+                blackLeft--;
+                boxes.add(new WorldSnapshot.BoxCheck.CheckBox(blackLaid++, false, x, y, false));
+            } else {
+                redLeft--;
+                redLaid++;
+                boxes.add(new WorldSnapshot.BoxCheck.CheckBox(total - redLaid, true, x, y, false));
+            }
+            angle += step;
+        }
+        return List.copyOf(boxes);
+    }
+
+    private List<WorldSnapshot.BoxCheck.CheckBox> layOutCheckBoxes(int cx, int cy, int radius, int black, int red) {
+        return layOutCheckBoxes(cx, cy, radius, black, red, checkBoxRandom);
     }
 
     public synchronized WorldSnapshot snapshot(long nanos) {

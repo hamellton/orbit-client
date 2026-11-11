@@ -73,6 +73,7 @@ public final class BotRunner {
     private final PetCare pet;
     private final CargoCare cargo;
     private final orbit.bot.nav.CpuJumper jumper;
+    private final BoxCheckSolver boxCheck;
     private BotModule module;
     private BotConfig.Module moduleKind;
     private State state = State.STARTING;
@@ -98,6 +99,7 @@ public final class BotRunner {
         this.groupWatch = new GroupWatch(ctx);
         this.pet = new PetCare(ctx);
         this.cargo = new CargoCare(ctx, pet);
+        this.boxCheck = new BoxCheckSolver(ctx);
         this.jumper = new orbit.bot.nav.CpuJumper(ctx.world(), ctx.actions(), ctx.maps(), ctx.clock(), ctx.random(),
                 ctx.dataDir() == null ? null : ctx.dataDir().resolve("jump-uridium.json"));
         loadModule();
@@ -225,17 +227,18 @@ public final class BotRunner {
             offline = false;
             log.info("Связь восстановлена — продолжаю");
         }
-        // the game's box check: drop everything, keep still, say what it asks until it is solved or ends
+        // the game's box check: drop everything and pick the boxes it asks for, as a player does with the client
         // (live 2026-11-12 on gb2: the bot kept flying at the circle's edge while the timer ran)
         if (w.boxCheck() != null) {
             if (!inBoxCheck) {
                 inBoxCheck = true;
-                log.warn("Бот остановлен на время проверки с ящиками: все действия брошены, корабль стоит");
+                log.warn("Проверка с ящиками: все действия брошены, собираю ящики");
                 if (module != null) {
                     module.pause();
                 }
                 ctx.nav().stop();
             }
+            boxCheck.tick(w);
             show(w.boxCheck().text(w.nanos()));
             return;
         }

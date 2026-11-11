@@ -157,6 +157,27 @@ public final class Actions {
         sender.accept(r);
     }
 
+    /**
+     * Clicks a box of the game's box check: the client flies straight to it ({@code MoveRequest} to the box itself,
+     * kept inside the check's circle) and sends {@code CaptchaCollectRequest} with its index once there.
+     */
+    public void flyToCheckBox(int x, int y) {
+        WorldSnapshot.Hero h = world.get().hero();
+        orbit.protocol.gen.MoveRequest m = new orbit.protocol.gen.MoveRequest();
+        m.positionX = h.x();
+        m.positionY = h.y();
+        m.targetX = x;
+        m.targetY = y;
+        sender.accept(m);
+    }
+
+    /** Picks a box of the game's box check (the ship is on it, as after the client's move). */
+    public void pickCheckBox(int index) {
+        orbit.protocol.gen.CaptchaCollectRequest r = new orbit.protocol.gen.CaptchaCollectRequest();
+        r.index = index;
+        sender.accept(r);
+    }
+
     /** Clicks the repair bubble of a station's repair asset. */
     public void instantRepair(WorldSnapshot.Asset repairStation) {
         InstantRepairRequest r = new InstantRepairRequest();

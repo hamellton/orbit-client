@@ -30,8 +30,36 @@ public record WorldSnapshot(long nanos, Hero hero, Map<Integer, Ship> ships, Map
      * @param amount  how many to pick (the «some» kinds)
      * @param seconds the time given
      * @param black   black boxes laid out (indexes 0…black−1), {@code red} red ones (the indexes after them)
+     * @param boxes   the boxes as the client lays them out ({@code BoxCaptchaTrait.addBoxes}); the server only
+     *                hears the index of each one picked ({@code CaptchaCollectRequest})
      */
-    public record BoxCheck(int type, int amount, int seconds, int x, int y, int radius, int black, int red, long sinceNanos) {
+    public record BoxCheck(int type, int amount, int seconds, int x, int y, int radius, int black, int red, long sinceNanos,
+                           List<CheckBox> boxes) {
+
+        public BoxCheck(int type, int amount, int seconds, int x, int y, int radius, int black, int red, long sinceNanos) {
+            this(type, amount, seconds, x, y, radius, black, red, sinceNanos, List.of());
+        }
+
+        /** One box of the check: its index for the server, its colour, where the client put it, picked or not. */
+        public record CheckBox(int index, boolean red, int x, int y, boolean picked) {
+        }
+
+        /** «All» kinds (types 1, 3). */
+        public boolean all() {
+            return type == 1 || type == 3;
+        }
+
+        /** How many boxes of the asked colour are still to pick (0 = done, waiting for the server). */
+        public int left() {
+            long picked = boxes.stream().filter(b -> b.picked() && b.red() == pickRed()).count();
+            int want = all() ? (pickRed() ? red : black) : amount;
+            return (int) Math.max(0, want - picked);
+        }
+
+        /** The boxes of the asked colour not picked yet. */
+        public List<CheckBox> targets() {
+            return boxes.stream().filter(b -> !b.picked() && b.red() == pickRed()).toList();
+        }
 
         /** Red boxes to pick (types 2, 3), else black ones. */
         public boolean pickRed() {
@@ -46,8 +74,7 @@ public record WorldSnapshot(long nanos, Hero hero, Map<Integer, Ship> ships, Map
         /** «соберите 3 чёрных ящика за 40 с» / «соберите все красные ящики». */
         public String task() {
             String colour = pickRed() ? "красн" : "чёрн";
-            boolean all = type == 1 || type == 3;
-            if (all) {
+            if (all()) {
                 return "соберите все " + colour + "ые ящики (" + (pickRed() ? red : black) + ")";
             }
             return "соберите " + amount + " " + colour + (amount % 10 == 1 && amount % 100 != 11 ? "ый ящик" : "ых ящика")

@@ -122,6 +122,8 @@ final class Sim {
         sent.add(p);
         if (p instanceof MoveRequest m) {
             world.applyOutgoing(m, now);
+        } else if (p instanceof orbit.protocol.gen.CaptchaCollectRequest) {
+            world.applyOutgoing(p, now);
         } else if (p instanceof ShipSelectRequest s) {
             ShipSelectionCommand c = new ShipSelectionCommand();
             c.userId = s.targetId;

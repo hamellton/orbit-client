@@ -57,7 +57,7 @@ class PalladiumModuleTest {
     }
 
     @Test
-    void theGamesBoxCheckStopsEverythingAndSaysWhatItAsks() {
+    void theGamesBoxCheckIsDoneByPickingTheAskedBoxesAndNothingElse() {
         // live 2026-11-12 on gb2: the game's box check came, the bot kept flying at the circle's edge
         Sim sim = new Sim(config(), 93, 20_000, 20_000);
         orbit.protocol.gen.AddOreCommand ore = new orbit.protocol.gen.AddOreCommand();
@@ -77,12 +77,33 @@ class PalladiumModuleTest {
         c.blackBox = 5;
         c.redBox = 3;
         sim.world.apply(c, sim.now);
+        var boxes = sim.world.snapshot(sim.now).boxCheck().boxes();
         BotRunner r = new BotRunner(sim.ctx, () -> false, s -> { });
         int sent = sim.sent.size();
-        sim.run(r::tick, 5_000);
-        assertTrue(sim.sent.subList(sent, sim.sent.size()).stream().noneMatch(p -> p instanceof orbit.protocol.gen.MoveRequest
-                || p instanceof orbit.protocol.gen.HarvestRequest), "no move, no pickup during the box check: " + sim.sent);
-        assertTrue(r.status().matches("ПРОВЕРКА: соберите 3 чёрных ящика из 5, осталось 3[56] с"), r.status());
+        sim.run(r::tick, 1_000);
+        assertTrue(sim.sent.size() == sent, "reads the task first: " + sim.sent.subList(sent, sim.sent.size()));
+        assertTrue(r.status().equals("ПРОВЕРКА: соберите 3 чёрных ящика из 5, осталось 40 с"), r.status());
+        sim.run(r::tick, 20_000);
+        var during = sim.sent.subList(sent, sim.sent.size());
+        assertTrue(during.stream().noneMatch(p -> p instanceof orbit.protocol.gen.HarvestRequest), "no ore during the check");
+        java.util.List<Integer> picked = during.stream().filter(p -> p instanceof orbit.protocol.gen.CaptchaCollectRequest)
+                .map(p -> ((orbit.protocol.gen.CaptchaCollectRequest) p).index).toList();
+        assertEquals(3, picked.size(), "three picks: " + picked);
+        assertEquals(3, new java.util.HashSet<>(picked).size(), "three different boxes: " + picked);
+        assertTrue(picked.stream().allMatch(i -> i < 5), "black ones only: " + picked);
+        for (int i = 0; i < during.size(); i++) {
+            if (during.get(i) instanceof orbit.protocol.gen.CaptchaCollectRequest p) {
+                var box = boxes.stream().filter(b -> b.index() == p.index).findFirst().orElseThrow();
+                orbit.protocol.gen.MoveRequest last = null;
+                for (int j = i - 1; j >= 0 && last == null; j--) {
+                    if (during.get(j) instanceof orbit.protocol.gen.MoveRequest m) {
+                        last = m;
+                    }
+                }
+                assertTrue(last != null && last.targetX == box.x() && last.targetY == box.y(), "flew onto the box first");
+            }
+        }
+        assertEquals(0, sim.world.snapshot(sim.now).boxCheck().left());
         sim.world.apply(new orbit.protocol.gen.CaptchaResolvedCommand(), sim.now);
         sim.run(r::tick, 3_000);
         assertTrue(sim.sent.stream().anyMatch(p -> p instanceof orbit.protocol.gen.HarvestRequest), "back to work once solved");
