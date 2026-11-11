@@ -48,6 +48,13 @@ public final class CubikonModule implements BotModule {
 
     /** The server shows ships about this far: a spawn this close with no cube in the list is empty. */
     static final double IN_VIEW = 1_800;
+    /** A locator point this old (ms) is not followed any more: the pet lost the target or is gone. */
+    static final long LOCATOR_FRESH_MS = 10_000;
+    /** Reached a locator point and no cube there: its points round there are ignored this long. */
+    static final long LOCATOR_EMPTY_MS = 30_000;
+    private int[] emptyLead;
+    private long emptyLeadAt;
+    private boolean leadTold;
     /** …and still worth waiting for this long after it was due. */
     static final long DUE_GRACE_MS = 3 * 60_000L;
 
@@ -184,8 +191,14 @@ public final class CubikonModule implements BotModule {
                 status = "Ящик с куба";
                 return;
             }
+            if (followLead(c, w, h)) {
+                return;
+            }
             camp(s, h);
             return;
+        }
+        if (followLead(c, w, h)) {
+            return; // a cube the locator found comes before waiting on a spot
         }
         if (spot == null) {
             // the spot first: fights while waiting are tied to it
@@ -223,6 +236,70 @@ public final class CubikonModule implements BotModule {
             return;
         }
         camp(s, h);
+    }
+
+    /**
+     * Where the pet's enemy locator, set to the Cubikon, says a cube is — a fresh point, not where the last cube
+     * died, not one found empty a moment ago — or {@code null}: then the spots as before.
+     */
+    private int[] lead(BotConfig c, WorldSnapshot w) {
+        BotConfig.Pet pc = c.pet();
+        WorldSnapshot.Pet pet = w.pet();
+        if (!pc.enabled() || !"ENEMY_LOCATOR".equals(pc.gear()) || pc.locatorTarget() != BotConfig.Pet.CUBIKON_LOCATOR
+                || !pet.active() || !pet.locatorWithin(w.nanos(), LOCATOR_FRESH_MS)) {
+            return null;
+        }
+        int[] p = {pet.locatorX(), pet.locatorY()};
+        long now = wallMs();
+        if (emptyLead != null && now - emptyLeadAt < LOCATOR_EMPTY_MS
+                && Math.hypot(p[0] - emptyLead[0], p[1] - emptyLead[1]) < SpawnMemory.SAME_SPAWN) {
+            return null;
+        }
+        if (moveOn && deadAt != null && Math.hypot(p[0] - deadAt[0], p[1] - deadAt[1]) < SpawnMemory.SAME_SPAWN) {
+            return null; // the cube that just died
+        }
+        return p;
+    }
+
+    /** Follows the locator when it has a cube; true while it does. */
+    private boolean followLead(BotConfig c, WorldSnapshot w, WorldSnapshot.Hero h) {
+        int[] lead = lead(c, w);
+        if (lead != null) {
+            follow(lead, h);
+            return true;
+        }
+        if (leadTold) {
+            leadTold = false;
+            spot = null; // the locator has nothing now: the spots again
+        }
+        return false;
+    }
+
+    /** Flies to the locator's point; there and no cube in sight: that point is empty. */
+    private void follow(int[] lead, WorldSnapshot.Hero h) {
+        double dist = Math.hypot(lead[0] - h.x(), lead[1] - h.y());
+        if (!leadTold) {
+            leadTold = true;
+            log.info("Пеленгатор: куб у {}/{} ({} от нас) — лечу к нему", lead[0] / 100, lead[1] / 100, (int) dist);
+        }
+        attacker.clear();
+        moveOn = false;
+        if (dist < IN_VIEW / 2) {
+            // close enough to see it: it would be in the world now
+            log.info("Пеленгатор: у {}/{} куба не видно — дальше по спотам", lead[0] / 100, lead[1] / 100);
+            emptyLead = lead;
+            emptyLeadAt = wallMs();
+            leadTold = false;
+            spot = null;
+            return;
+        }
+        ctx.ship().want(ctx.config().get().general().travel());
+        // the point moves with the cube: a new click only when it moved off noticeably
+        if (ctx.nav().idle() || Math.hypot(ctx.nav().destination().x() - lead[0], ctx.nav().destination().y() - lead[1]) > 300) {
+            ctx.nav().moveTo(lead[0], lead[1], false);
+        }
+        ctx.nav().tick();
+        status = "Пеленгатор: куб у " + lead[0] / 100 + "/" + lead[1] / 100;
     }
 
     @Override

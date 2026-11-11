@@ -243,6 +243,7 @@ public final class World {
                     p.enabled ? p.repairCosts : -1, pet.comboRepair());
             case orbit.protocol.gen.PetOutOfFuelCommand p -> pet = pet(pet.owned(), pet.alive(), false, pet.active(), pet.id(),
                     pet.name(), pet.level(), pet.health(), pet.fuel(), pet.fuelMax(), pet.heat(), pet.heatMax(), pet.gear());
+            case orbit.protocol.gen.PetGearLocatorUpdate p -> pet = petLocator(p.x, p.y, nanos);
             case orbit.protocol.gen.PetBuffCommand p when p.effectId == 6 -> pet = petWith(pet.gearNanos(), pet.gears(),
                     pet.repairCost(), p.effectAction == 0);
             case PetLevelUpdateCommand p -> pet = pet(pet.owned(), pet.alive(), pet.hasFuel(), pet.active(), pet.id(),
@@ -518,6 +519,7 @@ public final class World {
 
     private void initHero(ShipInitializationCommand p, long nanos) {
         death = null;
+        pet = petLocator(0, 0, 0); // the locator's point was on the old map
         // sent on every login (and on respawn); the server then lists the map contents again
         clearMap();
         hero.id = p.userId;
@@ -906,13 +908,22 @@ public final class World {
                                   int level, Health health, int fuel, int fuelMax, double heat, double heatMax,
                                   int gear) {
         return new WorldSnapshot.Pet(owned, alive, hasFuel, active, id, name, level, health, fuel, fuelMax, heat, heatMax,
-                gear, pet.gearNanos(), pet.gears(), pet.repairCost(), pet.comboRepair());
+                gear, pet.gearNanos(), pet.gears(), pet.repairCost(), pet.comboRepair(), pet.locatorX(), pet.locatorY(),
+                pet.locatorNanos());
+    }
+
+    private WorldSnapshot.Pet petLocator(int x, int y, long nanos) {
+        WorldSnapshot.Pet p = pet;
+        return new WorldSnapshot.Pet(p.owned(), p.alive(), p.hasFuel(), p.active(), p.id(), p.name(), p.level(),
+                p.health(), p.fuel(), p.fuelMax(), p.heat(), p.heatMax(), p.gear(), p.gearNanos(), p.gears(),
+                p.repairCost(), p.comboRepair(), x, y, nanos);
     }
 
     private WorldSnapshot.Pet petWith(long gearNanos, java.util.Set<Integer> gears, int repairCost, boolean comboRepair) {
         WorldSnapshot.Pet p = pet;
         return new WorldSnapshot.Pet(p.owned(), p.alive(), p.hasFuel(), p.active(), p.id(), p.name(), p.level(),
-                p.health(), p.fuel(), p.fuelMax(), p.heat(), p.heatMax(), p.gear(), gearNanos, gears, repairCost, comboRepair);
+                p.health(), p.fuel(), p.fuelMax(), p.heat(), p.heatMax(), p.gear(), gearNanos, gears, repairCost, comboRepair,
+                p.locatorX(), p.locatorY(), p.locatorNanos());
     }
 
     private WorldSnapshot.Pet withPetHealth(Health h) {

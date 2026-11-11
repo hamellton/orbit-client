@@ -85,7 +85,7 @@ final class Hud {
         put(out, ViewSettings.Block.ATTACKERS, attackers(w));
         put(out, ViewSettings.Block.BOOSTERS, boosters(w.boosters(), feed.now()));
         if (w.pet().owned()) {
-            out.put(ViewSettings.Block.PET, pet(w.pet()));
+            out.put(ViewSettings.Block.PET, pet(w.pet(), w.nanos()));
         }
         if (w.group().exists()) {
             out.put(ViewSettings.Block.GROUP, group(w));
@@ -515,13 +515,25 @@ final class Hud {
         return out;
     }
 
-    private Card pet(WorldSnapshot.Pet pet) {
+    /** The locator's point counts as current this long (as for the bot, {@code CubikonModule.LOCATOR_FRESH_MS}). */
+    static final long LOCATOR_SHOWN_MS = 10_000;
+
+    private Card pet(WorldSnapshot.Pet pet, long now) {
         boolean out = pet.active() && pet.id() != 0;
         String right = gearName(pet.gear()) + (pet.level() > 0 ? "  ·  ур. " + pet.level() : "");
+        // what the enemy locator found: where and how long ago, or that it finds nothing
+        // by the point's age: the server names the mode 12–32 s after the points start
+        String locator = !out ? null
+                : pet.locatorWithin(now, LOCATOR_SHOWN_MS)
+                ? "Пеленгатор: цель у " + pet.locatorX() / 100 + "/" + pet.locatorY() / 100 + "  ·  "
+                        + Math.max(0, (now - pet.locatorNanos()) / 1_000_000_000L) + " с назад"
+                : pet.gear() == orbit.protocol.gen.PetGearTypeModule.PETGEARTYPE_ENEMY_LOCATOR ? "Пеленгатор: цели не видно"
+                : null;
         return new Card() {
             @Override
             public int height(int width) {
-                return out ? pad + titleLines(pet.name(), right, width) * line + 2 * bar + 4 + (pet.fuel() >= 0 ? line : 0) + pad
+                return out ? pad + titleLines(pet.name(), right, width) * line + 2 * bar + 4 + (pet.fuel() >= 0 ? line : 0)
+                        + (locator != null ? line : 0) + pad
                         : pad + line + pad - 4;
             }
 
@@ -545,6 +557,12 @@ final class Hud {
                     g.drawString(clip(g, String.format("Топливо %,d / %,d", pet.fuel(), pet.fuelMax())
                                     + (pet.heatMax() > 0 ? String.format("  ·  нагрев %.0f / %.0f", pet.heat(), pet.heatMax()) : ""),
                             width - 2 * pad), x + pad, y + pad + rows * line + 2 * bar + 4 + 13);
+                }
+                if (locator != null) {
+                    g.setFont(font(Font.PLAIN, 11f));
+                    g.setColor(locator.contains("цель у") ? MinimapPanel.LOCATOR : DIM);
+                    g.drawString(clip(g, locator, width - 2 * pad), x + pad,
+                            y + pad + rows * line + 2 * bar + 4 + (pet.fuel() >= 0 ? line : 0) + 13);
                 }
             }
         };

@@ -160,13 +160,22 @@ public record WorldSnapshot(long nanos, Hero hero, Map<Integer, Ship> ships, Map
      * @param repairCost what repairing the destroyed pet costs ({@code PetUIRepairButtonCommand}), -1 unknown or
      *                   not offered
      * @param comboRepair the combo ship repair is working now ({@code PetBuffCommand} effect 6)
+     * @param locatorX where the enemy locator last pointed ({@code PetGearLocatorUpdate}: its target, every ~2 s
+     *                 while it finds one; recorded 2026-11-11, the points led to the Cubikon), with
+     * @param locatorNanos when — 0 none on this map
      */
     public record Pet(boolean owned, boolean alive, boolean hasFuel, boolean active, int id, String name, int level,
                       Health health, int fuel, int fuelMax, double heat, double heatMax, int gear, long gearNanos,
-                      java.util.Set<Integer> gears, int repairCost, boolean comboRepair) {
+                      java.util.Set<Integer> gears, int repairCost, boolean comboRepair, int locatorX, int locatorY,
+                      long locatorNanos) {
 
         static final Pet NONE = new Pet(false, false, false, false, 0, "", 0, Health.UNKNOWN, -1, -1, -1, -1, -1, 0,
-                java.util.Set.of(), -1, false);
+                java.util.Set.of(), -1, false, 0, 0, 0);
+
+        /** The locator's point is this fresh (ms) or newer. */
+        public boolean locatorWithin(long nowNanos, long ms) {
+            return locatorNanos != 0 && nowNanos - locatorNanos <= ms * 1_000_000;
+        }
 
         public Pet {
             gears = gears == null ? java.util.Set.of() : java.util.Set.copyOf(gears);

@@ -40,6 +40,8 @@ final class MinimapPanel extends JPanel {
     static final Color BOX = new Color(0xffd84d);
     static final Color ORE = new Color(0x5ee6d0);
     static final Color PORTAL = new Color(0xf2f2f2);
+    /** The pet's enemy locator point. */
+    static final Color LOCATOR = new Color(0xc77dff);
     static final Color PORTAL_LABEL = new Color(0xa0aec0);
     static final Color ZONE_DANGER = new Color(255, 60, 60, 60);
     static final Color ZONE_BLOCKED = new Color(160, 160, 160, 70);
@@ -331,6 +333,25 @@ final class MinimapPanel extends JPanel {
             g.draw(diamond);
         }
 
+        // the enemy locator's point: a pulsing target sign while it is fresh
+        WorldSnapshot.Pet pet = w.pet();
+        if (pet.active() && pet.locatorWithin(w.nanos(), Hud.LOCATOR_SHOWN_MS)) {
+            double lx = p.x(pet.locatorX());
+            double ly = p.y(pet.locatorY());
+            double r = (7 + 2 * Math.sin(w.nanos() / 2e8)) * u;
+            g.setColor(LOCATOR);
+            g.setStroke(new BasicStroke((float) (1.6 * u)));
+            g.draw(new Ellipse2D.Double(lx - r, ly - r, 2 * r, 2 * r));
+            g.draw(new Line2D.Double(lx - r - 4 * u, ly, lx - r + 3 * u, ly));
+            g.draw(new Line2D.Double(lx + r - 3 * u, ly, lx + r + 4 * u, ly));
+            g.draw(new Line2D.Double(lx, ly - r - 4 * u, lx, ly - r + 3 * u));
+            g.draw(new Line2D.Double(lx, ly + r - 3 * u, lx, ly + r + 4 * u));
+            g.setStroke(new BasicStroke(1f));
+            if (!compact) {
+                g.setFont(labelFont);
+                drawLabel(g, "пеленгатор", lx + r + 5 * u, ly + 4 * u, LOCATOR);
+            }
+        }
         long sinceClick = System.nanoTime() - clickAt;
         if (clickAt != 0 && sinceClick < CLICK_MARK_NS) {
             float a = 1f - (float) sinceClick / CLICK_MARK_NS;

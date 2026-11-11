@@ -477,4 +477,76 @@ class CubikonModuleTest {
         assertTrue(Math.hypot(h.x() - 10_400, h.y() - 6_000) <= 650, "stayed by the cube: " + h);
         assertTrue(sim.sent.stream().noneMatch(p -> p instanceof orbit.protocol.gen.CollectBoxRequest), "no pickup");
     }
+
+    /** The pet launched, its enemy locator pointing at (x, y) now. */
+    private static void locator(Sim sim, int x, int y) {
+        orbit.protocol.gen.PetInitializationCommand init = new orbit.protocol.gen.PetInitializationCommand();
+        init.hasPet = true;
+        init.hasFuel = true;
+        init.petIsAlive = true;
+        sim.world.apply(init, sim.now);
+        if (!sim.world.snapshot(sim.now).pet().active()) {
+            orbit.protocol.gen.PetHeroActivationCommand a = new orbit.protocol.gen.PetHeroActivationCommand();
+            a.ownerId = 1;
+            a.petId = 500;
+            a.petName = "P";
+            a.x = sim.hero().x();
+            a.y = sim.hero().y();
+            sim.world.apply(a, sim.now);
+        }
+        orbit.protocol.gen.PetGearLocatorUpdate u = new orbit.protocol.gen.PetGearLocatorUpdate();
+        u.x = x;
+        u.y = y;
+        sim.world.apply(u, sim.now);
+    }
+
+    private static BotConfig withLocator(BotConfig c) {
+        return c.withPet(new BotConfig.Pet(true, "ENEMY_LOCATOR", 13, false, 0));
+    }
+
+    @Test
+    void theLocatorsCubeComesBeforeTheSpots() throws Exception {
+        // the nearest spot is 13400/3900; the locator says the cube is far off at 5000/11000
+        Sim sim = new Sim(withLocator(config(90, false)), 26, 12_000, 4_500);
+        CubikonModule m = new CubikonModule(sim.ctx, SpawnMemory.inMemory());
+        for (int t = 0; t < 120; t++) {
+            if (t % 20 == 0) {
+                locator(sim, 5_000, 11_000); // every ~2 s, as the pet sends it
+            }
+            m.tick();
+            sim.now += 100 * Sim.MS;
+        }
+        var d = sim.ctx.nav().destination();
+        assertTrue(d != null && Math.hypot(d.x() - 5_000, d.y() - 11_000) < 400, "to the locator's point: " + d);
+        assertTrue(m.status().startsWith("Пеленгатор"), m.status());
+    }
+
+    @Test
+    void withoutTheLocatorOrWithAStalePointTheSpotsAsBefore() throws Exception {
+        Sim sim = new Sim(withLocator(config(90, false)), 26, 12_000, 4_500);
+        CubikonModule m = new CubikonModule(sim.ctx, SpawnMemory.inMemory());
+        locator(sim, 5_000, 11_000);
+        sim.run(m::tick, 15_000); // one point, then silence: the pet lost it
+        var h = sim.hero();
+        assertTrue(Math.hypot(h.x() - 13_400, h.y() - 3_900) <= 450, "back on the nearest spot: " + h);
+        // the same without the locator in the config: the point is not even looked at
+        Sim plain = new Sim(config(90, false), 26, 12_000, 4_500);
+        CubikonModule p = new CubikonModule(plain.ctx, SpawnMemory.inMemory());
+        locator(plain, 5_000, 11_000);
+        plain.run(p::tick, 3_000);
+        assertTrue(!p.status().startsWith("Пеленгатор"), p.status());
+    }
+
+    @Test
+    void anEmptyLocatorPointSendsTheShipBackToTheSpots() throws Exception {
+        Sim sim = new Sim(withLocator(config(90, false)), 26, 12_000, 4_500);
+        CubikonModule m = new CubikonModule(sim.ctx, SpawnMemory.inMemory());
+        locator(sim, 12_300, 4_600); // right here, and no cube in sight
+        sim.run(m::tick, 500);
+        locator(sim, 12_300, 4_600);
+        sim.run(m::tick, 8_000);
+        assertTrue(!m.status().startsWith("Пеленгатор"), "the point is dropped: " + m.status());
+        assertTrue(m.status().contains("на 134/39") || m.status().contains("на 134/79") || m.status().contains("на 75/"),
+                "on to a spot: " + m.status());
+    }
 }
