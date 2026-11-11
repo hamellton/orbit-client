@@ -76,6 +76,13 @@ public final class CubikonModule implements BotModule {
     private boolean onCube;
     /** A Cubikon just died here: head for the next spawn at once, no fights on the way. */
     private int[] deadAt;
+    /** When the last cube died: its cargo box comes a moment later and is waited for. */
+    private long deadAtNanos;
+    /**
+     * The cube's box is waited for this long after its death before the ship flies on (to the locator's next cube
+     * or a spot): live 2026-11-11 the locator called the ship away a second after the kill and the box was lost.
+     */
+    static final long BOX_WAIT_MS = 4_000;
     private boolean moveOn;
     /** The chosen spawn's state is unknown: a short look after arriving, then choose again. */
     private boolean lookOnly;
@@ -190,6 +197,11 @@ public final class CubikonModule implements BotModule {
             if (setting(s, "collectBoxes", true) && boxes.tick(deadAt[0], deadAt[1])) {
                 status = "Ящик с куба";
                 return;
+            }
+            if (setting(s, "collectBoxes", true) && ctx.now() - deadAtNanos < BOX_WAIT_MS * 1_000_000) {
+                ctx.nav().stop();
+                status = "Жду ящик с куба";
+                return; // the box drops a moment after the kill
             }
             if (followLead(c, w, h)) {
                 return;
@@ -409,6 +421,7 @@ public final class CubikonModule implements BotModule {
                     attacker.clear();
                 }
                 deadAt = p;
+                deadAtNanos = ctx.now();
                 moveOn = true;
                 spot = null;
                 ctx.nav().stop();

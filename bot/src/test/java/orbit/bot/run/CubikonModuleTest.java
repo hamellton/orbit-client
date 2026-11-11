@@ -565,4 +565,37 @@ class CubikonModuleTest {
         var d = sim.ctx.nav().destination();
         assertTrue(d == null || Math.hypot(d.x(), d.y()) > 1_000, "not to 0/0: " + d);
     }
+
+    @Test
+    void theCubesBoxIsWaitedForBeforeTheLocatorCallsTheShipOn() throws Exception {
+        // live 2026-11-11: a second after the kill the locator had the next cube and the box was lost
+        BotConfig c = withLocator(config(90, false)).withCollect(new BotConfig.Collect(
+                java.util.Map.of("FROM_SHIP", new BotConfig.BoxRule(true, 0, 0)), 400, false, false));
+        Sim sim = new Sim(c, 26, 10_000, 9_000);
+        sim.lasers("ammunition_laser_ucb-100");
+        CubikonModule m = new CubikonModule(sim.ctx, SpawnMemory.inMemory());
+        sim.now += 1_000 * Sim.MS;
+        sim.npc(77, "-=[ Cubikon ]=-", 10_400, 9_200);
+        sim.run(m::tick, 3_000);
+        orbit.protocol.gen.ShipDestroyedCommand d = new orbit.protocol.gen.ShipDestroyedCommand();
+        d.destroyedUserId = 77;
+        sim.world.apply(d, sim.now);
+        locator(sim, 3_000, 2_000); // the next cube, far off
+        sim.run(m::tick, 1_500);
+        orbit.protocol.gen.AddBoxCommand box = new orbit.protocol.gen.AddBoxCommand();
+        box.hash = "cargo";
+        box.boxType = "FROM_SHIP";
+        box.x = 10_400;
+        box.y = 9_200;
+        sim.world.apply(box, sim.now);
+        for (int t = 0; t < 100 && sim.sent.stream().noneMatch(p -> p instanceof orbit.protocol.gen.CollectBoxRequest); t++) {
+            if (t % 20 == 0) {
+                locator(sim, 3_000, 2_000);
+            }
+            m.tick();
+            sim.now += 100 * Sim.MS;
+        }
+        assertTrue(sim.sent.stream().anyMatch(p -> p instanceof orbit.protocol.gen.CollectBoxRequest r && "cargo".equals(r.itemHash)),
+                "the cube's cargo box picked up first");
+    }
 }
