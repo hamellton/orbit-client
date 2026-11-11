@@ -124,6 +124,7 @@ public final class Navigator {
     private int clickX;
     private int clickY;
     private long lastSendNanos = Long.MIN_VALUE / 2;
+    private long noWayLoggedNanos = Long.MIN_VALUE / 2;
     private long retryAtNanos;
     private int clicks;
     /** The last click was a corner of a way around a zone, not the destination. */
@@ -240,7 +241,12 @@ public final class Navigator {
                 avoided.apply(h.mapId()));
         List<double[]> route = paths.path(h.x(), h.y(), d.x(), d.y());
         if (route.isEmpty()) {
-            log.warn("Нет пути к {}/{}", (int) d.x() / 100, (int) d.y() / 100);
+            if (now - noWayLoggedNanos > 10_000_000_000L) {
+                noWayLoggedNanos = now;
+                log.warn("Нет пути к {}/{} — {}", (int) d.x() / 100, (int) d.y() / 100, paths.explain(h.x(), h.y(), d.x(), d.y()));
+            } else {
+                log.debug("Нет пути к {}/{}", (int) d.x() / 100, (int) d.y() / 100);
+            }
             destination = null;
             return;
         }

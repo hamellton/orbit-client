@@ -62,6 +62,10 @@ public final class PathFinder {
     private final List<Obstacle> bases;
     private final double width;
     private final double height;
+    /** The config's avoided zone as drawn, {@code null} = none: searched cell by cell when corners find no way. */
+    private orbit.config.BotConfig.ZoneGrid grid;
+    /** What the obstacles are, for the «no way» message. */
+    private String summary = "";
 
     PathFinder(List<Obstacle> obstacles, double width, double height) {
         this(obstacles, List.of(), width, height);
@@ -72,6 +76,14 @@ public final class PathFinder {
         this.bases = bases;
         this.width = width;
         this.height = height;
+    }
+
+    /** The avoided zone alone, as {@link #of} builds it (tests). */
+    static PathFinder avoiding(orbit.config.BotConfig.ZoneGrid g, double width, double height) {
+        List<Obstacle> rects = rects(g, width, height);
+        PathFinder pf = new PathFinder(rects, rects, width, height);
+        pf.grid = g;
+        return pf;
     }
 
     /** Asset types of stations that shoot ships of other factions ({@code AssetTypeModule}). */
@@ -150,7 +162,16 @@ public final class PathFinder {
                 }
             }
         }
-        return new PathFinder(List.copyOf(list), List.copyOf(bases), map.width(), map.height());
+        PathFinder pf = new PathFinder(List.copyOf(list), List.copyOf(bases), map.width(), map.height());
+        if (avoided != null && !avoided.isEmpty()) {
+            pf.grid = avoided;
+        }
+        long serverZones = w.zones().values().stream().filter(WorldSnapshot.Zone::active).count();
+        int enemyBases = bases.size() - (avoided == null || avoided.isEmpty() ? 0 : rects(avoided, map.width(), map.height()).size());
+        pf.summary = "зоны сервера " + serverZones + " (" + w.zones().values().stream().filter(WorldSnapshot.Zone::active)
+                .map(z -> z.type() + (z.inverted() ? "i" : "")).distinct().toList() + "), чужие базы " + enemyBases
+                + ", мины " + (avoidMines ? w.mines().size() : 0) + ", запретная зона конфига " + (pf.grid != null ? "есть" : "нет");
+        return pf;
     }
 
     /**
@@ -287,6 +308,13 @@ public final class PathFinder {
         return new Obstacle(xs, ys, z.inverted());
     }
 
+    /** Why there may be no way: the start's and the goal's freedom and the obstacles. */
+    public String explain(double sx, double sy, double gx, double gy) {
+        return "старт " + (int) sx / 100 + "/" + (int) sy / 100 + (free(sx, sy) ? " свободен" : " в препятствии")
+                + ", цель " + (free(gx, gy) ? "свободна" : (nearestFree(gx, gy) == null ? "в препятствии, рядом свободного нет"
+                : "в препятствии")) + "; " + summary;
+    }
+
     public boolean free(double x, double y) {
         if (x < 0 || y < 0 || x > width || y > height) {
             return false;
@@ -371,7 +399,110 @@ public final class PathFinder {
                 }
             }
         }
-        return astar(nodes);
+        List<double[]> found = astar(nodes);
+        if (found.isEmpty() && grid != null) {
+            // lanes one cell wide between avoided cells (paths to the portals, live 2026-11-11 on 5-3): a corner
+            // of one rectangle nudged out lands in the next, so the corners see no way — walk the cells instead
+            return gridPath(sx, sy, goal);
+        }
+        return found;
+    }
+
+    /**
+     * A* over the avoided grid's cells (8 ways, no cutting a corner), then straightened: from each point straight
+     * on to the farthest point of the way still clear.
+     */
+    private List<double[]> gridPath(double sx, double sy, double[] goal) {
+        int n = grid.resolution();
+        double cw = width / n;
+        double ch = height / n;
+        int sc = cell(sx, cw, n);
+        int sr = cell(sy, ch, n);
+        int gc = cell(goal[0], cw, n);
+        int gr = cell(goal[1], ch, n);
+        boolean[] open = new boolean[n * n];
+        for (int r = 0; r < n; r++) {
+            for (int c = 0; c < n; c++) {
+                String row = r < grid.rows().size() ? grid.rows().get(r) : "";
+                boolean avoidedCell = c < row.length() && row.charAt(c) == '#';
+                open[r * n + c] = !avoidedCell && free((c + 0.5) * cw, (r + 0.5) * ch);
+            }
+        }
+        open[sr * n + sc] = true;
+        open[gr * n + gc] = true;
+        double[] g = new double[n * n];
+        int[] from = new int[n * n];
+        Arrays.fill(g, Double.MAX_VALUE);
+        Arrays.fill(from, -1);
+        int start = sr * n + sc;
+        int target = gr * n + gc;
+        g[start] = 0;
+        PriorityQueue<double[]> queue = new PriorityQueue<>((a, b) -> Double.compare(a[1], b[1]));
+        queue.add(new double[] {start, 0});
+        boolean[] done = new boolean[n * n];
+        while (!queue.isEmpty()) {
+            int u = (int) queue.poll()[0];
+            if (done[u]) {
+                continue;
+            }
+            done[u] = true;
+            if (u == target) {
+                break;
+            }
+            int ur = u / n;
+            int uc = u % n;
+            for (int dr = -1; dr <= 1; dr++) {
+                for (int dc = -1; dc <= 1; dc++) {
+                    int vr = ur + dr;
+                    int vc = uc + dc;
+                    if ((dr == 0 && dc == 0) || vr < 0 || vc < 0 || vr >= n || vc >= n || !open[vr * n + vc]) {
+                        continue;
+                    }
+                    if (dr != 0 && dc != 0 && (!open[ur * n + vc] || !open[vr * n + uc])) {
+                        continue; // no squeezing past a corner
+                    }
+                    int v = vr * n + vc;
+                    double cost = g[u] + Math.hypot(dc * cw, dr * ch);
+                    if (cost < g[v]) {
+                        g[v] = cost;
+                        from[v] = u;
+                        queue.add(new double[] {v, cost + Math.hypot((gc - vc) * cw, (gr - vr) * ch)});
+                    }
+                }
+            }
+        }
+        if (from[target] < 0 && target != start) {
+            return List.of();
+        }
+        List<double[]> cells = new ArrayList<>();
+        for (int v = target; v != start; v = from[v]) {
+            cells.add(0, new double[] {(v % n + 0.5) * cw, (v / n + 0.5) * ch});
+        }
+        if (!cells.isEmpty()) {
+            cells.set(cells.size() - 1, goal);
+        } else {
+            cells.add(goal);
+        }
+        List<double[]> out = new ArrayList<>();
+        double[] at = {sx, sy};
+        int i = 0;
+        while (i < cells.size()) {
+            int far = i;
+            for (int j = cells.size() - 1; j > i; j--) {
+                if (clear(at[0], at[1], cells.get(j)[0], cells.get(j)[1])) {
+                    far = j;
+                    break;
+                }
+            }
+            at = cells.get(far);
+            out.add(at);
+            i = far + 1;
+        }
+        return out;
+    }
+
+    private static int cell(double v, double size, int n) {
+        return Math.max(0, Math.min(n - 1, (int) (v / size)));
     }
 
     private List<double[]> astar(List<double[]> nodes) {

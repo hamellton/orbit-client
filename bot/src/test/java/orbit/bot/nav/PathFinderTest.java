@@ -262,4 +262,36 @@ class PathFinderTest {
         double[] end = path.getLast();
         assertEquals(9_500, end[0], 1);
     }
+
+    /** The user's 5-3 avoided zone (DarkBot profile PALLADIUM): all but the palladium field and one-cell lanes. */
+    private static orbit.config.BotConfig.ZoneGrid fiveThree() {
+        return new orbit.config.BotConfig.ZoneGrid(30, List.of(
+                "##############################", "##############################", "##############################",
+                "########################.#####", "########################.#####", "########################.#####",
+                "########################.#####", "########################.#..##", "########################.#.###",
+                "########################.#.###", "########################.#.###", "########################.#.###",
+                "########################.#.###", "########################.....#", "####################.........#",
+                "####################........##", "####################.#########", "####################.#########",
+                "####################..########", "#.###################.########", "#......................#######",
+                "#########..............#######", "#########..............#######", "#########..............#######",
+                "#########..............#######", "#########..............#######", "#########..............#######",
+                "#########..............#######", "##############################", "##############################"));
+    }
+
+    @Test
+    void theOneCellLanesToTheFieldAreFlown() {
+        // the user's lanes: from 5-3's portal (38 200/6 600) to the palladium field
+        var info = orbit.world.maps.MapCatalog.bundled().info(93);
+        PathFinder p = PathFinder.avoiding(fiveThree(), info.width(), info.height());
+        var path = p.path(38_200, 6_600, 23_200, 21_200);
+        assertFalse(path.isEmpty(), "a way down the lane");
+        double[] end = path.getLast();
+        assertEquals(23_200, end[0], 1);
+        assertEquals(21_200, end[1], 1);
+        double[] at = {38_200, 6_600};
+        for (double[] q : path) {
+            assertTrue(p.clear(at[0], at[1], q[0], q[1]), "every leg clear of the avoided cells");
+            at = q;
+        }
+    }
 }
