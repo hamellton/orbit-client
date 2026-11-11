@@ -59,6 +59,11 @@ public final class PetCare {
     static final long KAMIKAZE_HOLD_MS = 5_000;
     /** The kamikaze gear's button; its timer is the game's cooldown. */
     static final String KAMIKAZE_ITEM = "equipment_petgear_g-kk1";
+    /**
+     * The gear's cooldown by level in the client's item data (2026-11-04): 120, 60, 30 s; the pet blows up below
+     * 20% of its HP, within a radius of 163/228/293. The shortest is waited also when the button shows no timer.
+     */
+    static final long KAMIKAZE_MIN_COOLDOWN_MS = 30_000;
     private long crowdSeenAt = Long.MIN_VALUE / 2;
 
     public PetCare(BotContext ctx) {
@@ -146,7 +151,7 @@ public final class PetCare {
         WorldSnapshot.Item button = w.items().get(KAMIKAZE_ITEM);
         boolean ready = button == null || button.activatable() && button.remainingMs(now) == 0;
         boolean can = k.enabled() && pet.gears().contains(PetGearTypeModule.PETGEARTYPE_KAMIKAZE) && ready
-                && ms(now - boomAt) >= k.everyMinutes() * 60_000L;
+                && ms(now - boomAt) >= Math.max(KAMIKAZE_MIN_COOLDOWN_MS, k.everyMinutes() * 60_000L);
         boolean crowd = can && crowd(k, w, pet);
         if (crowd) {
             crowdSeenAt = now;

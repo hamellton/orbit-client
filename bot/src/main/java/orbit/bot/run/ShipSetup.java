@@ -27,6 +27,13 @@ public final class ShipSetup {
     static final long FORMATION_AFTER_CONFIG_MS = 5_500;
     /** No word from the server after a formation request this long: ask once more. */
     static final long FORMATION_ANSWER_MS = 8_000;
+    /**
+     * Unanswered requests are repeated ever more rarely (8, 16, 32 s, then a minute): with the configuration
+     * switching often the server kept the formations locked for minutes (live 2026-11-11, 57 warnings).
+     */
+    static final long FORMATION_ANSWER_MAX_MS = 60_000;
+    private int unanswered;
+    private boolean readyTold;
 
     private final Supplier<WorldSnapshot> world;
     private final Actions actions;
@@ -128,24 +135,35 @@ public final class ShipSetup {
                 ids.put(asked, h.formation()); // the server's answer wins over the table
                 log.debug("Формация {}: сервер подтвердил (№{})", asked, h.formation());
                 asked = null;
+                unanswered = 0;
+                readyTold = false;
             }
             if (asked != null && !asked.equals(f)) {
                 asked = null; // another formation is wanted now: a later request for the old one is new, not a repeat
+                unanswered = 0;
+                readyTold = false;
             }
             Integer known = ids.containsKey(f) ? ids.get(f) : formationId(f);
             // asking for the formation the ship already has gets no answer: check the server's number first
             boolean on = item != null && item.selected() || known != null && known == h.formation();
-            boolean waiting = asked != null && now - formationAt < FORMATION_ANSWER_MS * 1_000_000;
+            long answerMs = Math.min(FORMATION_ANSWER_MAX_MS, FORMATION_ANSWER_MS << Math.min(unanswered, 3));
+            boolean waiting = asked != null && now - formationAt < answerMs * 1_000_000;
             if (item != null && !on && !waiting && item.available() && cooledDown(item, now)
                     && now - formationAt > FORMATION_GAP_MS * 1_000_000
                     && now - configAt > FORMATION_AFTER_CONFIG_MS * 1_000_000) {
-                if (item.timerState() != orbit.protocol.gen.TimerStateModule.TIMERSTATE_READY) {
+                if (item.timerState() != orbit.protocol.gen.TimerStateModule.TIMERSTATE_READY && !readyTold) {
+                    readyTold = true;
                     log.warn("Формация {}: «готово» от сервера не пришло за {} с — пробую всё равно",
                             orbit.config.ItemCatalog.label(f), FORMATION_READY_WAIT_MS / 1_000);
                 }
                 if (f.equals(asked)) {
-                    log.warn("Формация {}: сервер не ответил за {} с (на корабле №{}, ждём №{}) — прошу ещё раз",
-                            orbit.config.ItemCatalog.label(f), FORMATION_ANSWER_MS / 1_000, h.formation(), known);
+                    unanswered++;
+                    if (unanswered == 1) {
+                        log.warn("Формация {}: сервер не ответил (на корабле №{}, ждём №{}) — повторяю всё реже",
+                                orbit.config.ItemCatalog.label(f), h.formation(), known);
+                    } else {
+                        log.debug("Формация {}: повтор {}", orbit.config.ItemCatalog.label(f), unanswered);
+                    }
                 } else {
                     log.info("Формация {}", orbit.config.ItemCatalog.label(f));
                 }

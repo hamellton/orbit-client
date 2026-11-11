@@ -89,8 +89,9 @@ class ShipSetupTest {
     void noAnswerAsksAgainOnlyAfterAWhile() {
         ShipSetup ship = setup();
         answers = false;
-        run(ship, new BotConfig.ShipMode(1, DRILL), 20_000);
-        assertEquals(3, asked.size(), "every 8 s, not every 3 s: " + asked);
+        run(ship, new BotConfig.ShipMode(1, DRILL), 60_000);
+        // 0, 8, 24, 56 s: ever more rarely while the server stays silent (live 2026-11-11: 57 warnings otherwise)
+        assertEquals(4, asked.size(), "8, 16, 32 s apart: " + asked);
     }
 
     @Test
