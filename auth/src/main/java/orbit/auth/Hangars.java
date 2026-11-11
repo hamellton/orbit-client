@@ -57,9 +57,22 @@ public final class Hangars {
     /** All hangars of the account. */
     public List<Hangar> list() throws IOException {
         HttpSession.Response r = http.get(origin + PATH + "?action=getHangarList", origin + Shop.START_PAGE);
-        JsonNode root = decode(r.body());
+        keep(r);
+        String body = r.body() == null ? "" : r.body().strip();
+        if (r.status() != 200) {
+            throw new IOException("сайт ответил HTTP " + r.status());
+        }
+        if (body.startsWith("<")) {
+            throw new IOException("сайт прислал страницу вместо списка (вход на сайт устарел?)");
+        }
+        JsonNode root;
+        try {
+            root = decode(body);
+        } catch (IOException | RuntimeException e) {
+            throw new IOException("ответ сайта не читается (" + body.length() + " символов)");
+        }
         if (root.path("isError").asInt(1) != 0) {
-            throw new IOException("сайт не отдал список ангаров");
+            throw new IOException("сайт вернул ошибку (isError " + root.path("isError").asText("?") + ")");
         }
         return parse(root);
     }
@@ -119,6 +132,21 @@ public final class Hangars {
         String answer = new String(decodeBytes(r.body()), StandardCharsets.UTF_8);
         if (!answer.contains("\"isError\":0")) {
             throw new IOException("сайт не сменил корабль: " + answer.substring(0, Math.min(200, answer.length())));
+        }
+    }
+
+    /** The last answer, the dosid masked, to see what the site sent ({@code local/debug/hangars-answer.txt}). */
+    static final java.nio.file.Path ANSWER_FILE = java.nio.file.Path.of("local", "debug", "hangars-answer.txt");
+
+    private static void keep(HttpSession.Response r) {
+        try {
+            java.nio.file.Files.createDirectories(ANSWER_FILE.getParent());
+            String body = r.body() == null ? "" : r.body();
+            String decoded = body.strip().startsWith("<") ? "" : new String(decodeBytes(body), StandardCharsets.UTF_8);
+            java.nio.file.Files.writeString(ANSWER_FILE, "HTTP " + r.status() + " " + orbit.secrets.SecretMask.mask(String.valueOf(r.url()))
+                    + "\n--- body ---\n" + orbit.secrets.SecretMask.mask(body) + "\n--- decoded ---\n" + orbit.secrets.SecretMask.mask(decoded));
+        } catch (IOException | RuntimeException ignored) {
+            // only for diagnosis
         }
     }
 

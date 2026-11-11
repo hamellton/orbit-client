@@ -369,8 +369,7 @@ public final class OrbitMain {
             try {
                 list = new orbit.auth.Hangars(auth.http(), origin).list();
             } catch (java.io.IOException | RuntimeException e) {
-                throw new java.io.IOException("сайт не отдал список (вход на сайт устарел?) — запустите аккаунт,"
-                        + " список обновится сам");
+                throw new java.io.IOException(e.getMessage() + " — запустите аккаунт, список обновится сам");
             }
             List<orbit.config.AccountSettings.Ship> ships = list.stream()
                     .map(h -> new orbit.config.AccountSettings.Ship(h.id(), h.ship(), h.design())).toList();
