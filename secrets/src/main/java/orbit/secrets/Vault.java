@@ -123,7 +123,7 @@ public final class Vault {
 
     /** Account names in alphabetical order. */
     public synchronized Map<String, Account> accounts() {
-        return Collections.unmodifiableMap(accounts);
+        return Collections.unmodifiableMap(new TreeMap<>(accounts)); // a copy: logins save while the window reads
     }
 
     public synchronized Account get(String name) {

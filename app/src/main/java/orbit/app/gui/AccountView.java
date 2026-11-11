@@ -242,7 +242,34 @@ final class AccountView extends JPanel {
         all.addActionListener(e -> orbit.app.gui.config.ConfigWindow.open(orbit.config.ConfigStore.openDefault(),
                 orbit.config.AccountSettings.DEFAULT_FILE, null));
         actions.add(all);
-        if (tab.stop() != null) {
+        if (tab.managed() != null) {
+            ManagedAccount a = tab.managed();
+            JButton toggle = new JButton();
+            toggle.addActionListener(e -> {
+                if (a.phase() == ManagedAccount.Phase.STOPPED) {
+                    String why = a.start(0);
+                    if (why != null) {
+                        javax.swing.JOptionPane.showMessageDialog(this, why, a.name(), javax.swing.JOptionPane.WARNING_MESSAGE);
+                    }
+                } else {
+                    a.stop();
+                }
+            });
+            Runnable show = () -> {
+                ManagedAccount.Phase p = a.phase();
+                toggle.setText(switch (p) {
+                    case STOPPED -> "Запустить";
+                    case RUNNING -> "Остановить";
+                    case STOPPING -> "Останавливается…";
+                });
+                toggle.setEnabled(p != ManagedAccount.Phase.STOPPING);
+                toggle.setToolTipText(p == ManagedAccount.Phase.STOPPED ? "Войти в игру и работать по конфигу аккаунта"
+                        : "Долетит до портала и выйдет из игры; остальные аккаунты продолжат");
+            };
+            show.run();
+            new Timer(500, e -> show.run()).start();
+            actions.add(toggle);
+        } else if (tab.stop() != null) {
             JButton stop = new JButton("Остановить");
             stop.setToolTipText("Долетит до портала и выйдет из игры; остальные аккаунты продолжат");
             stop.addActionListener(e -> {

@@ -65,7 +65,7 @@ public final class OrbitMain {
         // a dark macOS title bar; read when AWT starts, so before any window
         System.setProperty("apple.awt.application.appearance", "NSAppearanceNameDarkAqua");
         if (args.length == 0) {
-            usage();
+            manager(Options.parse(List.of()));
             return;
         }
         List<String> rest = Arrays.asList(args).subList(1, args.length);
@@ -77,6 +77,7 @@ public final class OrbitMain {
             case "render" -> render(o);
             case "configs" -> configs();
             case "proxy-check" -> proxyCheck(o);
+            case "manager" -> manager(o);
             default -> usage();
         }
     }
@@ -84,6 +85,7 @@ public final class OrbitMain {
     private static void usage() {
         System.err.println("""
                 Режимы:
+                  orbit                                    окно аккаунтов: добавить, прокси, запуск и остановка
                   orbit bot --account <имя> [--account <имя2> …] [--config <конфиг>] [--minutes N] [--headless]
                                                            бот входит в игру и работает по конфигу (N минут, затем выход)
                   orbit observe [--direct IP:порты]        окно бота по трафику официального клиента (через сниффер)
@@ -141,6 +143,32 @@ public final class OrbitMain {
             }
         }
         System.exit(failed == 0 ? 0 : 1);
+    }
+
+    // ---- manager ----
+
+    /**
+     * The account manager: the master password in a window, then the accounts — add, edit, proxy check,
+     * start and stop each or all — with a tab per started account and «Все».
+     */
+    private static void manager(Options o) throws Exception {
+        if (java.awt.GraphicsEnvironment.isHeadless()) {
+            System.err.println("Окно аккаунтов недоступно без экрана — используйте orbit bot --headless");
+            System.exit(2);
+        }
+        Vault vault = orbit.app.gui.VaultDialog.open(o.vault);
+        if (vault == null) {
+            System.exit(0);
+            return;
+        }
+        ClientProfile profile = Files.exists(o.profile) ? ClientProfile.load(o.profile) : ClientProfile.minimal();
+        if (profile.windowSettings() == null) {
+            log.warn("Профиль клиента {} не найден — раскладка окон и клавиши отправляться не будут", o.profile);
+        }
+        CountDownLatch closed = new CountDownLatch(1);
+        orbit.app.gui.ManagerWindow.open(vault, name -> new AccountRunner(name, vault, profile), closed::countDown);
+        closed.await();
+        System.exit(0);
     }
 
     // ---- configs ----
@@ -217,7 +245,7 @@ public final class OrbitMain {
     }
 
     /** One account's web login, game feed and listener. */
-    private record Rig(WorldFeed feed, AuthClient auth, SessionSource source, GameListener listener, ProxyRoute route) {
+    record Rig(WorldFeed feed, AuthClient auth, SessionSource source, GameListener listener, ProxyRoute route) {
     }
 
     /** The vault name of {@code main@ru5}: {@code main}. */
@@ -237,10 +265,14 @@ public final class OrbitMain {
      *                ({@code main@ru5}); logs, tabs, stop files and «Аккаунты» use the whole string
      */
     private static Rig rig(String account, Vault vault) throws AuthException {
+        return rig(account, vault, new WorldFeed("бот, " + account, account));
+    }
+
+    /** The same with a feed that outlives one start (the manager keeps an account's tab across restarts). */
+    static Rig rig(String account, Vault vault, WorldFeed feed) throws AuthException {
         ProxyRoute route = route(account, vault);
         AuthClient auth = new AuthClient(new HttpSession("", route.httpProxy()), AuthClient.Endpoints.production());
         AccountLogin login = new AccountLogin(auth, vault, loginOf(account), serverOf(account));
-        WorldFeed feed = new WorldFeed("бот, " + account, account);
         feed.setServer(login.server());
         feed.setProxy(route::describe, !route.direct());
         GameListener listener = new GameListener() {
@@ -291,7 +323,7 @@ public final class OrbitMain {
             spec = a == null ? orbit.secrets.ProxySpec.DIRECT : a.proxySpec();
         } catch (IllegalArgumentException e) {
             throw new AuthException(AuthException.Reason.PROXY_REJECTED,
-                    "Прокси аккаунта «" + loginOf(account) + "» не разбирается: " + e.getMessage() + ". Исправьте: vault set-proxy.");
+                    "Прокси аккаунта «" + loginOf(account) + "» не разбирается: " + e.getMessage() + ". Исправьте его в окне аккаунтов (или vault set-proxy).");
         }
         if (spec.direct()) {
             return ProxyRoute.none();
@@ -446,11 +478,11 @@ public final class OrbitMain {
      * @param config       the config the account runs now
      * @param switchConfig run another config from now on (also saved as the account's config)
      */
-    private record Sessions(Thread thread, Runnable close, java.util.function.Supplier<String> config,
+    record Sessions(Thread thread, Runnable close, java.util.function.Supplier<String> config,
                             java.util.function.Consumer<String> switchConfig) {
     }
 
-    private static Sessions sessions(Options o, String accountName, Rig rig, ClientProfile profile, long startDelayMs,
+    static Sessions sessions(Options o, String accountName, Rig rig, ClientProfile profile, long startDelayMs,
                                      Runnable endedByItself) throws java.io.IOException {
         WorldFeed feed = rig.feed();
         AuthClient auth = rig.auth();
@@ -536,6 +568,10 @@ public final class OrbitMain {
                     ModuleRun run = startModule(feed, conn, cfgName, cfg, end, why, profile, stopFile,
                             shopFor(auth, conn));
                     current.set(run);
+                    if (closed.get()) {
+                        // stopped while logging in: the stop found no module to finish, so finish this one
+                        Thread.ofPlatform().name("stop-" + accountName).start(() -> run.finish(conn));
+                    }
                     run.done().await();
                     conn.close();
                     game.join(10_000);

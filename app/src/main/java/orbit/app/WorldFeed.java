@@ -225,6 +225,12 @@ public final class WorldFeed {
         sessionStart = 0;
     }
 
+    /** The account was stopped: not in game any more, whatever the last packets said. */
+    public void stopped() {
+        loggedOut = true;
+        linkLost = false;
+    }
+
     public boolean loggedOut() {
         return loggedOut;
     }

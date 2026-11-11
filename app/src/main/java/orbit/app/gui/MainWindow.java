@@ -44,8 +44,19 @@ public final class MainWindow {
      * @param stop         logout at a portal ({@code null}: nothing to stop, e.g. observer mode)
      * @param config       the config it runs now ({@code null}: none)
      * @param switchConfig run another config from now on ({@code null}: not offered)
+     * @param managed      an account of the manager window: a start/stop button instead of a one-way stop
      */
-    public record Tab(WorldFeed feed, Runnable stop, Supplier<String> config, Consumer<String> switchConfig) {
+    public record Tab(WorldFeed feed, Runnable stop, Supplier<String> config, Consumer<String> switchConfig,
+                      ManagedAccount managed) {
+
+        public Tab(WorldFeed feed, Runnable stop, Supplier<String> config, Consumer<String> switchConfig) {
+            this(feed, stop, config, switchConfig, null);
+        }
+
+        /** The tab of a manager account. */
+        static Tab of(ManagedAccount a) {
+            return new Tab(a.feed(), a::stop, a::config, a::switchConfig, a);
+        }
     }
 
     private MainWindow() {
@@ -177,7 +188,7 @@ public final class MainWindow {
         pane.putClientProperty("JTabbedPane.tabType", "card");
         pane.putClientProperty("JTabbedPane.scrollButtonsPolicy", "asNeeded");
         pane.setTabLayoutPolicy(JTabbedPane.SCROLL_TAB_LAYOUT);
-        pane.addTab("Все", overview(tabs, pane));
+        pane.addTab("Все", overview(tabs, pane, 1));
         for (Tab t : tabs) {
             pane.addTab(t.feed().title(), AccountStatus.dot(() -> AccountStatus.of(t.feed())), new AccountView(t));
         }
@@ -194,8 +205,12 @@ public final class MainWindow {
         return pane;
     }
 
-    /** «Все»: the chosen accounts' maps in a grid sized to the window; a click opens the account. */
-    private static JComponent overview(List<Tab> tabs, JTabbedPane pane) {
+    /**
+     * «Все»: the chosen accounts' maps in a grid sized to the window; a click opens the account.
+     *
+     * @param firstTab the index of the first account's tab in {@code pane}
+     */
+    static JComponent overview(List<Tab> tabs, JTabbedPane pane, int firstTab) {
         JPanel grid = new JPanel(new Grid());
         grid.setBackground(SURFACE);
         grid.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
@@ -210,7 +225,7 @@ public final class MainWindow {
         for (int i = 0; i < tabs.size(); i++) {
             Tab t = tabs.get(i);
             MinimapPanel map = new MinimapPanel(t.feed(), true, t.config() != null ? t.config() : () -> null);
-            int tabIndex = i + 1;
+            int tabIndex = i + firstTab;
             map.addMouseListener(new java.awt.event.MouseAdapter() {
                 @Override
                 public void mouseClicked(java.awt.event.MouseEvent e) {
