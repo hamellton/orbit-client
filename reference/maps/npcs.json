@@ -1,0 +1,1222 @@
+[
+ {
+  "npcId": 1,
+  "name": "Streuner",
+  "shipType": "84"
+ },
+ {
+  "npcId": 2,
+  "name": "Lordakia",
+  "shipType": "71"
+ },
+ {
+  "npcId": 3,
+  "name": "Devolarium",
+  "shipType": "72"
+ },
+ {
+  "npcId": 4,
+  "name": "Mordon",
+  "shipType": "73"
+ },
+ {
+  "npcId": 5,
+  "name": "Sibelon",
+  "shipType": "74"
+ },
+ {
+  "npcId": 6,
+  "name": "Saimon",
+  "shipType": "75"
+ },
+ {
+  "npcId": 7,
+  "name": "Sibelonit",
+  "shipType": "76"
+ },
+ {
+  "npcId": 8,
+  "name": "Lordakium",
+  "shipType": "77"
+ },
+ {
+  "npcId": 9,
+  "name": "Kristallin",
+  "shipType": "78"
+ },
+ {
+  "npcId": 10,
+  "name": "Kristallon",
+  "shipType": "79"
+ },
+ {
+  "npcId": 11,
+  "name": "StreuneR",
+  "shipType": "85"
+ },
+ {
+  "npcId": 12,
+  "name": "Protegit",
+  "shipType": "81"
+ },
+ {
+  "npcId": 13,
+  "name": "Cubikon",
+  "shipType": "80"
+ },
+ {
+  "npcId": 14,
+  "name": "Boss Streuner",
+  "shipType": "23"
+ },
+ {
+  "npcId": 15,
+  "name": "Boss Lordakia",
+  "shipType": "24"
+ },
+ {
+  "npcId": 16,
+  "name": "Boss Mordon",
+  "shipType": "31"
+ },
+ {
+  "npcId": 17,
+  "name": "Boss Saimon",
+  "shipType": "25"
+ },
+ {
+  "npcId": 18,
+  "name": "Boss Devolarium",
+  "shipType": "26"
+ },
+ {
+  "npcId": 19,
+  "name": "Boss Sibelonit",
+  "shipType": "27"
+ },
+ {
+  "npcId": 20,
+  "name": "Boss Sibelon",
+  "shipType": "46"
+ },
+ {
+  "npcId": 21,
+  "name": "Boss Lordakium",
+  "shipType": "28"
+ },
+ {
+  "npcId": 22,
+  "name": "Boss Kristallin",
+  "shipType": "29"
+ },
+ {
+  "npcId": 23,
+  "name": "Boss Kristallon",
+  "shipType": "35"
+ },
+ {
+  "npcId": 24,
+  "name": "Boss StreuneR",
+  "shipType": "34"
+ },
+ {
+  "npcId": 25,
+  "name": "UFO",
+  "shipType": "ship_admin"
+ },
+ {
+  "npcId": 26,
+  "name": "UFONIT",
+  "shipType": "21"
+ },
+ {
+  "npcId": 27,
+  "name": "Aggro-Streuner",
+  "shipType": ""
+ },
+ {
+  "npcId": 28,
+  "name": "UberStreuner",
+  "shipType": "36"
+ },
+ {
+  "npcId": 29,
+  "name": "UberLordakia",
+  "shipType": "37"
+ },
+ {
+  "npcId": 30,
+  "name": "UberMordon",
+  "shipType": "43"
+ },
+ {
+  "npcId": 31,
+  "name": "UberSaimon",
+  "shipType": "38"
+ },
+ {
+  "npcId": 32,
+  "name": "UberDevolarium",
+  "shipType": "39"
+ },
+ {
+  "npcId": 33,
+  "name": "UberSibelonit",
+  "shipType": "40"
+ },
+ {
+  "npcId": 34,
+  "name": "UberSibelon",
+  "shipType": "47"
+ },
+ {
+  "npcId": 35,
+  "name": "UberLordakium",
+  "shipType": "41"
+ },
+ {
+  "npcId": 36,
+  "name": "UberKristallin",
+  "shipType": "42"
+ },
+ {
+  "npcId": 37,
+  "name": "UberKristallon",
+  "shipType": "45"
+ },
+ {
+  "npcId": 38,
+  "name": "UberStreuneR",
+  "shipType": "44"
+ },
+ {
+  "npcId": 39,
+  "name": "Demaner",
+  "shipType": "11"
+ },
+ {
+  "npcId": 40,
+  "name": "Kucurbium",
+  "shipType": "82"
+ },
+ {
+  "npcId": 41,
+  "name": "BossKucurbium",
+  "shipType": "83"
+ },
+ {
+  "npcId": 42,
+  "name": "Vagrant",
+  "shipType": "94"
+ },
+ {
+  "npcId": 43,
+  "name": "Marauder",
+  "shipType": "93"
+ },
+ {
+  "npcId": 44,
+  "name": "Outcast",
+  "shipType": "92"
+ },
+ {
+  "npcId": 45,
+  "name": "Corsair",
+  "shipType": "91"
+ },
+ {
+  "npcId": 46,
+  "name": "Hooligan",
+  "shipType": "96"
+ },
+ {
+  "npcId": 47,
+  "name": "Ravager",
+  "shipType": "97"
+ },
+ {
+  "npcId": 48,
+  "name": "Convict",
+  "shipType": "95"
+ },
+ {
+  "npcId": 49,
+  "name": "Century Falcon",
+  "shipType": "90"
+ },
+ {
+  "npcId": 50,
+  "name": "Unidentified Destroyer",
+  "shipType": "100"
+ },
+ {
+  "npcId": 51,
+  "name": "Unidentified Dreadnought",
+  "shipType": "99"
+ },
+ {
+  "npcId": 52,
+  "name": "Cubikon",
+  "shipType": ""
+ },
+ {
+  "npcId": 53,
+  "name": "UberProtegit",
+  "shipType": ""
+ },
+ {
+  "npcId": 54,
+  "name": "Ice Meteoroid",
+  "shipType": "101"
+ },
+ {
+  "npcId": 55,
+  "name": "Super Ice Meteoroid",
+  "shipType": "33"
+ },
+ {
+  "npcId": 56,
+  "name": "Icy",
+  "shipType": "103"
+ },
+ {
+  "npcId": 57,
+  "name": "1100101",
+  "shipType": "104"
+ },
+ {
+  "npcId": 58,
+  "name": "Interceptor",
+  "shipType": "111"
+ },
+ {
+  "npcId": 59,
+  "name": "Barracuda",
+  "shipType": "112"
+ },
+ {
+  "npcId": 60,
+  "name": "Saboteur",
+  "shipType": "113"
+ },
+ {
+  "npcId": 61,
+  "name": "Annihilator",
+  "shipType": "114"
+ },
+ {
+  "npcId": 62,
+  "name": "Battleray",
+  "shipType": "115"
+ },
+ {
+  "npcId": 64,
+  "name": "Scorcher",
+  "shipType": ""
+ },
+ {
+  "npcId": 65,
+  "name": "Melter",
+  "shipType": ""
+ },
+ {
+  "npcId": 66,
+  "name": "Devourer",
+  "shipType": ""
+ },
+ {
+  "npcId": 67,
+  "name": "Vagrant",
+  "shipType": ""
+ },
+ {
+  "npcId": 68,
+  "name": "Marauder",
+  "shipType": ""
+ },
+ {
+  "npcId": 69,
+  "name": "Outcast",
+  "shipType": ""
+ },
+ {
+  "npcId": 70,
+  "name": "Corsair",
+  "shipType": ""
+ },
+ {
+  "npcId": 71,
+  "name": "Hooligan",
+  "shipType": ""
+ },
+ {
+  "npcId": 72,
+  "name": "Ravager",
+  "shipType": ""
+ },
+ {
+  "npcId": 73,
+  "name": "Convict",
+  "shipType": ""
+ },
+ {
+  "npcId": 74,
+  "name": "Santa-1100101",
+  "shipType": "32"
+ },
+ {
+  "npcId": 75,
+  "name": "Referee-Bot",
+  "shipType": ""
+ },
+ {
+  "npcId": 76,
+  "name": "Sunburst Lordakium",
+  "shipType": "107"
+ },
+ {
+  "npcId": 77,
+  "name": "Saturn Phoenix",
+  "shipType": ""
+ },
+ {
+  "npcId": 78,
+  "name": "Saturn Yamato",
+  "shipType": ""
+ },
+ {
+  "npcId": 79,
+  "name": "Saturn Defcom",
+  "shipType": ""
+ },
+ {
+  "npcId": 80,
+  "name": "Saturn Liberator",
+  "shipType": ""
+ },
+ {
+  "npcId": 81,
+  "name": "Saturn Nostromo",
+  "shipType": ""
+ },
+ {
+  "npcId": 82,
+  "name": "Saturn Piranha",
+  "shipType": ""
+ },
+ {
+  "npcId": 83,
+  "name": "Saturn Bigboy",
+  "shipType": ""
+ },
+ {
+  "npcId": 84,
+  "name": "Saturn Vengeance",
+  "shipType": ""
+ },
+ {
+  "npcId": 85,
+  "name": "Saturn Goliath",
+  "shipType": ""
+ },
+ {
+  "npcId": 86,
+  "name": "Saturn Leonov",
+  "shipType": ""
+ },
+ {
+  "npcId": 87,
+  "name": "Saturn Venom",
+  "shipType": ""
+ },
+ {
+  "npcId": 88,
+  "name": "Saturn Sentinel",
+  "shipType": ""
+ },
+ {
+  "npcId": 89,
+  "name": "Saturn Spectrum",
+  "shipType": ""
+ },
+ {
+  "npcId": 90,
+  "name": "Saturn Diminisher",
+  "shipType": ""
+ },
+ {
+  "npcId": 91,
+  "name": "Saturn Solace",
+  "shipType": ""
+ },
+ {
+  "npcId": 92,
+  "name": "Saturn Revenge",
+  "shipType": ""
+ },
+ {
+  "npcId": 93,
+  "name": "Saturn Lightning",
+  "shipType": ""
+ },
+ {
+  "npcId": 94,
+  "name": "Saturn Avenger",
+  "shipType": ""
+ },
+ {
+  "npcId": 95,
+  "name": "Saturn Bastion",
+  "shipType": ""
+ },
+ {
+  "npcId": 96,
+  "name": "Saturn Enforcer",
+  "shipType": ""
+ },
+ {
+  "npcId": 97,
+  "name": "Saturn Spearhead",
+  "shipType": ""
+ },
+ {
+  "npcId": 98,
+  "name": "Saturn Citadel",
+  "shipType": ""
+ },
+ {
+  "npcId": 99,
+  "name": "Saturn Aegis",
+  "shipType": ""
+ },
+ {
+  "npcId": 100,
+  "name": "Saturn Crimson",
+  "shipType": ""
+ },
+ {
+  "npcId": 101,
+  "name": "Saturn Jade",
+  "shipType": ""
+ },
+ {
+  "npcId": 102,
+  "name": "Saturn Sapphire",
+  "shipType": ""
+ },
+ {
+  "npcId": 103,
+  "name": "Evil You",
+  "shipType": ""
+ },
+ {
+  "npcId": 104,
+  "name": "Evil Iris",
+  "shipType": ""
+ },
+ {
+  "npcId": 105,
+  "name": "Hitac-Minion 2.0",
+  "shipType": "117"
+ },
+ {
+  "npcId": 106,
+  "name": "Hitac 2.0",
+  "shipType": "116"
+ },
+ {
+  "npcId": 107,
+  "name": "Crazy Ufo",
+  "shipType": ""
+ },
+ {
+  "npcId": 108,
+  "name": "Boss Curcubitor",
+  "shipType": "118"
+ },
+ {
+  "npcId": 109,
+  "name": "Curcubitor",
+  "shipType": "119"
+ },
+ {
+  "npcId": 110,
+  "name": "Disguisor",
+  "shipType": "48"
+ },
+ {
+  "npcId": 111,
+  "name": "Protekid",
+  "shipType": ""
+ },
+ {
+  "npcId": 112,
+  "name": "Cubikid",
+  "shipType": ""
+ },
+ {
+  "npcId": 113,
+  "name": "Emperor Sibelon",
+  "shipType": "124"
+ },
+ {
+  "npcId": 114,
+  "name": "Emperor Lordakium",
+  "shipType": "123"
+ },
+ {
+  "npcId": 115,
+  "name": "Emperor Kristallon",
+  "shipType": "122"
+ },
+ {
+  "npcId": 116,
+  "name": "Demaner Freighter",
+  "shipType": "126"
+ },
+ {
+  "npcId": 117,
+  "name": "Demaner Escort",
+  "shipType": ""
+ },
+ {
+  "npcId": 118,
+  "name": "Skoll",
+  "shipType": "127"
+ },
+ {
+  "npcId": 119,
+  "name": "Frozen Icy",
+  "shipType": "103"
+ },
+ {
+  "npcId": 120,
+  "name": "Century Falcon",
+  "shipType": ""
+ },
+ {
+  "npcId": 121,
+  "name": "Deadly Battleray",
+  "shipType": ""
+ },
+ {
+  "npcId": 122,
+  "name": "Gygerim",
+  "shipType": "129"
+ },
+ {
+  "npcId": 123,
+  "name": "Gygerthrall",
+  "shipType": "128"
+ },
+ {
+  "npcId": 124,
+  "name": "Demaner Freighter",
+  "shipType": ""
+ },
+ {
+  "npcId": 125,
+  "name": "I-Hitac",
+  "shipType": "245"
+ },
+ {
+  "npcId": 126,
+  "name": "I-Egg",
+  "shipType": "247"
+ },
+ {
+  "npcId": 127,
+  "name": "I-Gygerthrall",
+  "shipType": "246"
+ },
+ {
+  "npcId": 128,
+  "name": "Gygerim Overlord",
+  "shipType": "248"
+ },
+ {
+  "npcId": 142,
+  "name": "P.E.T. Berserker",
+  "shipType": "142"
+ },
+ {
+  "npcId": 143,
+  "name": "P.E.T. Pack leader",
+  "shipType": "143"
+ },
+ {
+  "npcId": 144,
+  "name": "P.E.T. Veteran",
+  "shipType": "144"
+ },
+ {
+  "npcId": 145,
+  "name": "P.E.T. Alpha",
+  "shipType": "145"
+ },
+ {
+  "npcId": 146,
+  "name": "P.E.T. Alpha",
+  "shipType": "146"
+ },
+ {
+  "npcId": 147,
+  "name": "Emperor Streuner",
+  "shipType": "147"
+ },
+ {
+  "npcId": 148,
+  "name": "Streuner Guard Turret",
+  "shipType": "148"
+ },
+ {
+  "npcId": 149,
+  "name": "Technician Streuner",
+  "shipType": "149"
+ },
+ {
+  "npcId": 150,
+  "name": "Warrior Streuner",
+  "shipType": "150"
+ },
+ {
+  "npcId": 151,
+  "name": "Demon drone",
+  "shipType": "151"
+ },
+ {
+  "npcId": 152,
+  "name": "Recruit Streuner",
+  "shipType": "152"
+ },
+ {
+  "npcId": 153,
+  "name": "Aider Streuner",
+  "shipType": "153"
+ },
+ {
+  "npcId": 154,
+  "name": "Plagued Gygerthrall",
+  "shipType": "246"
+ },
+ {
+  "npcId": 155,
+  "name": "Blighted Gygerthrall",
+  "shipType": "249"
+ },
+ {
+  "npcId": 156,
+  "name": "Viral Kristallon",
+  "shipType": "250"
+ },
+ {
+  "npcId": 157,
+  "name": "Viral Gygerthrall",
+  "shipType": "249"
+ },
+ {
+  "npcId": 158,
+  "name": "Streuner Rocketeer",
+  "shipType": "158"
+ },
+ {
+  "npcId": 159,
+  "name": "Seeker Rocket",
+  "shipType": "159"
+ },
+ {
+  "npcId": 160,
+  "name": "Blighted Kristallon",
+  "shipType": "251"
+ },
+ {
+  "npcId": 161,
+  "name": "Plagued Kristallin",
+  "shipType": "252"
+ },
+ {
+  "npcId": 162,
+  "name": "Seeker Rocket",
+  "shipType": "253"
+ },
+ {
+  "npcId": 163,
+  "name": "Uber Interceptor",
+  "shipType": "257"
+ },
+ {
+  "npcId": 164,
+  "name": "Uber Barracuda",
+  "shipType": "255"
+ },
+ {
+  "npcId": 165,
+  "name": "Uber Saboteur",
+  "shipType": "258"
+ },
+ {
+  "npcId": 166,
+  "name": "Uber Annihilator",
+  "shipType": "254"
+ },
+ {
+  "npcId": 167,
+  "name": "Uber Battleray",
+  "shipType": "256"
+ },
+ {
+  "npcId": 172,
+  "name": "Unidentified",
+  "shipType": "213"
+ },
+ {
+  "npcId": 178,
+  "name": "Mindfire Behemoth",
+  "shipType": "225"
+ },
+ {
+  "npcId": 213,
+  "name": "Cote Lo",
+  "shipType": "260"
+ },
+ {
+  "npcId": 214,
+  "name": "Kodkod",
+  "shipType": "261"
+ },
+ {
+  "npcId": 215,
+  "name": "Aura Dun Jig",
+  "shipType": "262"
+ },
+ {
+  "npcId": 216,
+  "name": "Lac Lion",
+  "shipType": "263"
+ },
+ {
+  "npcId": 217,
+  "name": "Natal Nap",
+  "shipType": "264"
+ },
+ {
+  "npcId": 218,
+  "name": "Plutus Boss",
+  "shipType": "265"
+ },
+ {
+  "npcId": 219,
+  "name": "Plutus Warhead",
+  "shipType": "266"
+ },
+ {
+  "npcId": 220,
+  "name": "Plutus Turret",
+  "shipType": "267"
+ },
+ {
+  "npcId": 221,
+  "name": "Frozen Icy",
+  "shipType": "103"
+ },
+ {
+  "npcId": 222,
+  "name": "Frozen Kristallin",
+  "shipType": "109"
+ },
+ {
+  "npcId": 223,
+  "name": "Frozen Kristallon",
+  "shipType": "154"
+ },
+ {
+  "npcId": 224,
+  "name": "Frozen Boss Kristallin",
+  "shipType": "110"
+ },
+ {
+  "npcId": 225,
+  "name": "Frozen Boss Kristallon",
+  "shipType": "155"
+ },
+ {
+  "npcId": 226,
+  "name": "Frozen Meteoroid",
+  "shipType": "101"
+ },
+ {
+  "npcId": 227,
+  "name": "Frozen Super Meteoroid",
+  "shipType": "33"
+ },
+ {
+  "npcId": 228,
+  "name": "Synk",
+  "shipType": "271"
+ },
+ {
+  "npcId": 229,
+  "name": "Chaos Protegit",
+  "shipType": "273"
+ },
+ {
+  "npcId": 230,
+  "name": "Lanatum",
+  "shipType": "274"
+ },
+ {
+  "npcId": 231,
+  "name": "Styxus",
+  "shipType": "275"
+ },
+ {
+  "npcId": 232,
+  "name": "Charopos",
+  "shipType": "276"
+ },
+ {
+  "npcId": 233,
+  "name": "Hexor Mimesis",
+  "shipType": "278"
+ },
+ {
+  "npcId": 234,
+  "name": "Raging Mimesis",
+  "shipType": "279"
+ },
+ {
+  "npcId": 235,
+  "name": "Cloning Mimesis",
+  "shipType": "280"
+ },
+ {
+  "npcId": 236,
+  "name": "Cloned Mimesis",
+  "shipType": "280"
+ },
+ {
+  "npcId": 237,
+  "name": "Terror Mimesis",
+  "shipType": "281"
+ },
+ {
+  "npcId": 238,
+  "name": "Kamikaze Mimesis",
+  "shipType": "282"
+ },
+ {
+  "npcId": 239,
+  "name": "Reflector Mimesis",
+  "shipType": "283"
+ },
+ {
+  "npcId": 240,
+  "name": "EM Freighter",
+  "shipType": "277"
+ },
+ {
+  "npcId": 241,
+  "name": "Raider Mimesis",
+  "shipType": "285"
+ },
+ {
+  "npcId": 242,
+  "name": "Assailant Mimesis",
+  "shipType": "286"
+ },
+ {
+  "npcId": 243,
+  "name": "Medic Mimesis",
+  "shipType": "287"
+ },
+ {
+  "npcId": 244,
+  "name": "Hardy Mimesis",
+  "shipType": "288"
+ },
+ {
+  "npcId": 245,
+  "name": "Piercing Mimesis",
+  "shipType": "289"
+ },
+ {
+  "npcId": 246,
+  "name": "Obscured Mimesis",
+  "shipType": "290"
+ },
+ {
+  "npcId": 247,
+  "name": "Hounding Mimesis",
+  "shipType": "291"
+ },
+ {
+  "npcId": 248,
+  "name": "Mirror Mimesis",
+  "shipType": "292"
+ },
+ {
+  "npcId": 249,
+  "name": "Mirror Mimesis",
+  "shipType": "292"
+ },
+ {
+  "npcId": 250,
+  "name": "Sniper Mimesis",
+  "shipType": "293"
+ },
+ {
+  "npcId": 251,
+  "name": "Marker Mimesis",
+  "shipType": "294"
+ },
+ {
+  "npcId": 252,
+  "name": "Troublemaker Cyborg",
+  "shipType": "295"
+ },
+ {
+  "npcId": 253,
+  "name": "Cowering Cyborg",
+  "shipType": "296"
+ },
+ {
+  "npcId": 254,
+  "name": "Phasing Cyborg",
+  "shipType": "297"
+ },
+ {
+  "npcId": 255,
+  "name": "Demolition Cyborg",
+  "shipType": "298"
+ },
+ {
+  "npcId": 256,
+  "name": "Shielded Cyborg",
+  "shipType": "299"
+ },
+ {
+  "npcId": 257,
+  "name": "Singularity Cyborg",
+  "shipType": "300"
+ },
+ {
+  "npcId": 260,
+  "name": "Agatus",
+  "shipType": "307"
+ },
+ {
+  "npcId": 261,
+  "name": "Hitac 2.5",
+  "shipType": "116"
+ },
+ {
+  "npcId": 263,
+  "name": "Hitac-Minion 2.5",
+  "shipType": "117"
+ },
+ {
+  "npcId": 264,
+  "name": "Spinel",
+  "shipType": "305"
+ },
+ {
+  "npcId": 266,
+  "name": "Strokelight Barrage",
+  "shipType": "320"
+ },
+ {
+  "npcId": 270,
+  "name": "IceMinos",
+  "shipType": "322"
+ },
+ {
+  "npcId": 271,
+  "name": "PVP Saturn Spearhead",
+  "shipType": ""
+ },
+ {
+  "npcId": 272,
+  "name": "PVP Saturn Aegis",
+  "shipType": ""
+ },
+ {
+  "npcId": 273,
+  "name": "PVP Saturn Citadel",
+  "shipType": ""
+ },
+ {
+  "npcId": 274,
+  "name": "PVP Saturn Goliath",
+  "shipType": ""
+ },
+ {
+  "npcId": 275,
+  "name": "PVP Saturn Spectrum",
+  "shipType": ""
+ },
+ {
+  "npcId": 276,
+  "name": "PVP Saturn Sentinel",
+  "shipType": ""
+ },
+ {
+  "npcId": 277,
+  "name": "PVP Saturn Solace",
+  "shipType": ""
+ },
+ {
+  "npcId": 278,
+  "name": "PVP Saturn Venom",
+  "shipType": ""
+ },
+ {
+  "npcId": 279,
+  "name": "PVP Saturn Diminisher",
+  "shipType": ""
+ },
+ {
+  "npcId": 280,
+  "name": "Skoll",
+  "shipType": "127"
+ },
+ {
+  "npcId": 281,
+  "name": "The Stinger",
+  "shipType": "330"
+ },
+ {
+  "npcId": 282,
+  "name": "Pike",
+  "shipType": "331"
+ },
+ {
+  "npcId": 283,
+  "name": "Barb",
+  "shipType": "332"
+ },
+ {
+  "npcId": 284,
+  "name": "Lanternfish",
+  "shipType": "333"
+ },
+ {
+  "npcId": 285,
+  "name": "Spookfish",
+  "shipType": "334"
+ },
+ {
+  "npcId": 286,
+  "name": "Inspirit Mimesis",
+  "shipType": "289"
+ },
+ {
+  "npcId": 287,
+  "name": "Mimesis Turret",
+  "shipType": "349"
+ },
+ {
+  "npcId": 288,
+  "name": "Sheer Chaos Interceptor",
+  "shipType": "350"
+ },
+ {
+  "npcId": 289,
+  "name": "Sheer Chaos Annihilator",
+  "shipType": "351"
+ },
+ {
+  "npcId": 290,
+  "name": "Sheer Chaos Protegit",
+  "shipType": "352"
+ },
+ {
+  "npcId": 291,
+  "name": "Sunder Star",
+  "shipType": "353"
+ },
+ {
+  "npcId": 299,
+  "name": "Hitac Underling",
+  "shipType": "358"
+ },
+ {
+  "npcId": 300,
+  "name": "Hitac Underboss",
+  "shipType": "359"
+ },
+ {
+  "npcId": 317,
+  "name": "Frightful Curcubitor",
+  "shipType": "317"
+ },
+ {
+  "npcId": 401,
+  "name": "Sunder Star",
+  "shipType": "367"
+ },
+ {
+  "npcId": 407,
+  "name": "Missile Storm",
+  "shipType": "9371"
+ },
+ {
+  "npcId": 501,
+  "name": "Dreadfyre Fortress",
+  "shipType": "DREADFYRE_FORTRESS"
+ },
+ {
+  "npcId": 502,
+  "name": "Dreadfyre Guardian",
+  "shipType": "DREADFYRE_GUARDIAN"
+ },
+ {
+  "npcId": 503,
+  "name": "Dreadfyre Harbinger",
+  "shipType": "DREADFYRE_HARBINGER"
+ },
+ {
+  "npcId": 510,
+  "name": "Chronospire",
+  "shipType": "383"
+ },
+ {
+  "npcId": 511,
+  "name": "Veil Stalker",
+  "shipType": "384"
+ },
+ {
+  "npcId": 512,
+  "name": "Pyrospire",
+  "shipType": "385"
+ },
+ {
+  "npcId": 513,
+  "name": "Magma Stalker",
+  "shipType": "386"
+ },
+ {
+  "npcId": 514,
+  "name": "Vinespire",
+  "shipType": "387"
+ },
+ {
+  "npcId": 515,
+  "name": "Spore Stalker",
+  "shipType": "388"
+ },
+ {
+  "npcId": 516,
+  "name": "Nightmare Reaper",
+  "shipType": "395"
+ },
+ {
+  "npcId": 517,
+  "name": "Terror Shrike",
+  "shipType": "396"
+ },
+ {
+  "npcId": 518,
+  "name": "Boss Kristallon",
+  "shipType": "EMPEROR_KRISTALLON_BOSS_2"
+ }
+]

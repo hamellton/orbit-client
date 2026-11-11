@@ -11,14 +11,20 @@ import orbit.config.ItemCatalog;
 final class PetSection implements Section {
 
     /**
-     * The enemy locator's targets: the game's NPC numbers. 13 = Cubikon is known (the locator's points led to the
-     * cube, 2026-11-11); the others are the numbers the server offered on 3-6, named once they are known.
+     * The enemy locator's targets: every NPC of the game by name with its number («Cubikon (13)»), from the
+     * client's own table; Cubikon first, the bot's usual target.
      */
-    static final String[] LOCATOR_TARGETS = {"13 — Cubikon", "9", "10", "12", "22", "161"};
+    static String[] locatorTargets() {
+        java.util.List<String> out = new java.util.ArrayList<>();
+        java.util.List<orbit.world.maps.NpcCatalog.Npc> all = orbit.world.maps.NpcCatalog.bundled().all();
+        all.stream().filter(n -> n.id() == BotConfig.Pet.CUBIKON_LOCATOR).forEach(n -> out.add(n.label()));
+        all.stream().filter(n -> n.id() != BotConfig.Pet.CUBIKON_LOCATOR).forEach(n -> out.add(n.label()));
+        return out.toArray(String[]::new);
+    }
 
     private final JCheckBox enabled = new JCheckBox("Выпускать питомца");
     private final ItemBox gear = new ItemBox(ItemCatalog.PET_GEARS, true);
-    private final JComboBox<String> locator = new JComboBox<>(LOCATOR_TARGETS);
+    private final JComboBox<String> locator = new JComboBox<>(locatorTargets());
     private final JCheckBox repair = new JCheckBox("Чинить уничтоженного");
     private final JCheckBox combo = new JCheckBox("Комбо-ремонт при HP ниже");
     private final JSpinner comboBelow = Form.percent();
@@ -30,9 +36,9 @@ final class PetSection implements Section {
     private final JComponent view;
 
     PetSection() {
-        locator.setEditable(true);
-        locator.setPrototypeDisplayValue("13 — Cubikon (999)"); // the whole name shows
-        locator.setToolTipText("Номер NPC в игре; 13 — Cubikon. Другой номер — впишите");
+        locator.setPrototypeDisplayValue("PVP Saturn Diminisher (279)"); // the longest names show whole
+        locator.setMaximumRowCount(20);
+        locator.setToolTipText("Кого ищет пеленгатор. Начните печатать имя — список прыгнет к нему");
         enabled.addActionListener(e -> sync());
         gear.addActionListener(e -> sync());
         combo.addActionListener(e -> sync());
@@ -87,12 +93,10 @@ final class PetSection implements Section {
         BotConfig.Pet p = c.pet();
         enabled.setSelected(p.enabled());
         gear.set(p.gear());
-        String t = String.valueOf(p.locatorTarget());
-        String shown = t;
-        for (String s : LOCATOR_TARGETS) {
-            if (s.equals(t) || s.startsWith(t + " ")) {
-                shown = s;
-            }
+        String name = orbit.world.maps.NpcCatalog.bundled().name(p.locatorTarget());
+        String shown = (name != null ? name : "NPC") + " (" + p.locatorTarget() + ")";
+        if (name == null) {
+            locator.addItem(shown); // a number the game no longer has: kept as it was
         }
         locator.setSelectedItem(shown);
         repair.setSelected(!p.noRepair());
@@ -109,10 +113,10 @@ final class PetSection implements Section {
 
     @Override
     public BotConfig apply(BotConfig c) {
-        String text = String.valueOf(locator.getEditor().getItem()).strip();
-        java.util.regex.Matcher m = java.util.regex.Pattern.compile("^(\\d+)").matcher(text);
+        String text = String.valueOf(locator.getSelectedItem());
+        java.util.regex.Matcher m = java.util.regex.Pattern.compile("\\((\\d+)\\)$").matcher(text);
         if (!m.find()) {
-            throw new IllegalArgumentException("Питомец: цель локатора — номер NPC (13 — Cubikon)");
+            throw new IllegalArgumentException("Питомец: выберите цель пеленгатора из списка");
         }
         BotConfig.Kamikaze k = new BotConfig.Kamikaze(kamikaze.isSelected(), Form.intOf(kamikazeNpcs),
                 kamikazeFlagged.isSelected(), Form.intOf(kamikazeRadius), Form.intOf(kamikazeEvery));

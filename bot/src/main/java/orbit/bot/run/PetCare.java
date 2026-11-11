@@ -76,9 +76,10 @@ public final class PetCare {
         return "«" + orbit.config.ItemCatalog.label(gear).replaceFirst("\\s*\\(.*\\)$", "") + "»";
     }
 
-    /** What the locator looks for, by the game's NPC number: 13 is the Cubikon (seen 2026-11-11). */
+    /** What the locator looks for, by the game's NPC number (13 = Cubikon): its name from the game's table. */
     public static String locatorTarget(int npc) {
-        return npc == BotConfig.Pet.CUBIKON_LOCATOR ? "Cubikon" : "NPC №" + npc + " (имя неизвестно)";
+        String name = orbit.world.maps.NpcCatalog.bundled().name(npc);
+        return name != null ? name : "NPC №" + npc + " (в игре нет такого номера)";
     }
 
     /** The {@code PetGearTypeModule} number of a config name ({@code ENEMY_LOCATOR}…), -1 for none. */
