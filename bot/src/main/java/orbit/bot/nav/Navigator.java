@@ -54,6 +54,13 @@ public final class Navigator {
 
     private java.util.function.IntFunction<orbit.config.BotConfig.ZoneGrid> avoided = map -> null;
 
+    private java.util.function.IntFunction<orbit.config.BotConfig.ZoneGrid> preferred = map -> null;
+
+    /** The config's preferred zone of a map: a server's danger zone under it is flown into. */
+    public void setPreferredZones(java.util.function.IntFunction<orbit.config.BotConfig.ZoneGrid> zones) {
+        preferred = zones;
+    }
+
     /** The config's avoided zone of a map (DarkBot's «avoided zones»), flown round; {@code null} = none. */
     public void setAvoidedZones(java.util.function.IntFunction<orbit.config.BotConfig.ZoneGrid> zones) {
         avoided = zones;
@@ -238,7 +245,7 @@ public final class Navigator {
             return;
         }
         PathFinder paths = PathFinder.of(w, catalog, false, avoidMines.getAsBoolean(), baseRadius.getAsInt(),
-                avoided.apply(h.mapId()));
+                avoided.apply(h.mapId()), preferred.apply(h.mapId()));
         List<double[]> route = paths.path(h.x(), h.y(), d.x(), d.y());
         if (route.isEmpty()) {
             if (now - noWayLoggedNanos > 10_000_000_000L) {

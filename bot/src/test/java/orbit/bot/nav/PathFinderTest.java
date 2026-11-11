@@ -294,4 +294,29 @@ class PathFinderTest {
             at = q;
         }
     }
+
+    @Test
+    void aDangerZoneUnderThePreferredZoneIsFlownInto() {
+        // live 2026-11-11: 5-3's palladium field is a damage zone; the bot stopped at its edge
+        orbit.world.World world = withMine(10_000, 2_000, 1, 1); // map 1 (21 000 × 13 100), a mine out of the way
+        orbit.protocol.gen.MapAddPOICommand poi = new orbit.protocol.gen.MapAddPOICommand();
+        poi.poiId = "field";
+        poi.poiType = new orbit.protocol.gen.POITypeModule();
+        poi.poiType.typeValue = (short) orbit.protocol.gen.POITypeModule.POITYPE_DAMAGE;
+        poi.shape = (short) MapAddPOICommand.SHAPETYPE_RECTANGLE;
+        poi.shapeCoordinates = List.of(5_000, 7_000, 15_000, 12_000);
+        poi.active = true;
+        world.apply(poi, 1);
+        WorldSnapshot s = world.snapshot(1);
+        var maps = orbit.world.maps.MapCatalog.bundled();
+        java.util.List<String> rows = new java.util.ArrayList<>();
+        for (int r = 0; r < 10; r++) {
+            rows.add(r >= 6 && r <= 8 ? "...####..." : "..........");
+        }
+        var preferred = new orbit.config.BotConfig.ZoneGrid(10, rows);
+        double[] end = PathFinder.of(s, maps, false, false, 0, null, preferred).path(10_000, 2_000, 10_000, 8_200).getLast();
+        assertEquals(8_200, end[1], 1, "right into the field");
+        double[] edge = PathFinder.of(s, maps, false, false, 0, null, null).path(10_000, 2_000, 10_000, 8_200).getLast();
+        assertTrue(edge[1] < 7_000, "without the preferred zone: only to its edge");
+    }
 }

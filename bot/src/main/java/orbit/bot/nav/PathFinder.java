@@ -125,6 +125,17 @@ public final class PathFinder {
      */
     public static PathFinder of(WorldSnapshot w, MapCatalog catalog, boolean throughDanger, boolean avoidMines,
                                 int baseRadius, orbit.config.BotConfig.ZoneGrid avoided) {
+        return of(w, catalog, throughDanger, avoidMines, baseRadius, avoided, null);
+    }
+
+    /**
+     * The same with the config's preferred zone: a server's danger zone the user chose to work in is no obstacle
+     * (live 2026-11-11: 5-3's palladium field is a damage zone; DarkBot collects inside it, the bot stopped at
+     * its edge).
+     */
+    public static PathFinder of(WorldSnapshot w, MapCatalog catalog, boolean throughDanger, boolean avoidMines,
+                                int baseRadius, orbit.config.BotConfig.ZoneGrid avoided,
+                                orbit.config.BotConfig.ZoneGrid preferred) {
         MapCatalog.MapInfo map = catalog.info(w.hero().mapId());
         List<Obstacle> list = new ArrayList<>();
         List<Obstacle> bases = new ArrayList<>();
@@ -157,7 +168,7 @@ public final class PathFinder {
             boolean danger = z.type() == POITypeModule.POITYPE_RADIATION || z.type() == POITypeModule.POITYPE_DAMAGE;
             if (z.active() && (blocking || (danger && !throughDanger))) {
                 Obstacle o = polygon(z);
-                if (o != null) {
+                if (o != null && !(danger && overlaps(o, preferred, map.width(), map.height()))) {
                     list.add(o);
                 }
             }
@@ -172,6 +183,23 @@ public final class PathFinder {
                 .map(z -> z.type() + (z.inverted() ? "i" : "")).distinct().toList() + "), чужие базы " + enemyBases
                 + ", мины " + (avoidMines ? w.mines().size() : 0) + ", запретная зона конфига " + (pf.grid != null ? "есть" : "нет");
         return pf;
+    }
+
+    /** A preferred cell's centre lies inside the zone. */
+    static boolean overlaps(Obstacle o, orbit.config.BotConfig.ZoneGrid g, double width, double height) {
+        if (g == null || g.isEmpty()) {
+            return false;
+        }
+        int n = g.resolution();
+        for (int r = 0; r < g.rows().size(); r++) {
+            String row = g.rows().get(r);
+            for (int c = 0; c < row.length(); c++) {
+                if (row.charAt(c) == '#' && o.contains((c + 0.5) * width / n, (r + 0.5) * height / n)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     /**
