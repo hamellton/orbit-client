@@ -84,7 +84,9 @@ class AuthClientTest {
         AuthClient c = client();
         GameSession s = c.loginWithDosid("int1", DOSID);
         assertEquals(new MapServers.Address("gs-1.example", 6003), c.serverForMap(s, 1));
-        assertThrows(AuthException.class, () -> c.serverForMap(s, 777));
+        AuthException e = assertThrows(AuthException.class, () -> c.serverForMap(s, 777));
+        assertTrue(e.retryable(), "a map missing from maps.php is the site stumbling: try again soon");
+        assertTrue(e.getMessage().contains("777"), e.getMessage());
     }
 
     @Test

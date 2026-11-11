@@ -200,8 +200,7 @@ public final class AuthClient {
         MapServers servers = MapServers.parse(maps.body());
         MapServers.Address addr = servers.forMap(mapId);
         if (addr == null) {
-            throw new AuthException(AuthException.Reason.UNEXPECTED_PAGE,
-                    "Нет сервера для карты " + mapId);
+            throw mapsMissing(maps, servers, mapId);
         }
         // the site may rotate the cookie; keep the one the browser would have now
         String currentDosid = http.cookie(origin + "/", "dosid");
@@ -215,12 +214,26 @@ public final class AuthClient {
         return s;
     }
 
+    /**
+     * The map table ({@code maps.php}) lacks the map: every server lists its maps, so this is the site
+     * stumbling (seen right after a maintenance, with a slow login) — try again soon, keep the answer.
+     */
+    private AuthException mapsMissing(HttpSession.Response maps, MapServers servers, int mapId) {
+        Path kept = keepForDiagnosis(maps);
+        if (kept != null) {
+            log.warn("Ответ maps.php сохранён в {}", kept);
+        }
+        return new AuthException(AuthException.Reason.UNAVAILABLE, "Сайт не дал сервер карты " + mapId
+                + " (карт: " + servers.size() + ", HTTP " + maps.status() + ")");
+    }
+
     /** Looks up the game server of a map, e.g. after {@code ReloginCommand}. */
     public MapServers.Address serverForMap(GameSession session, int mapId) throws AuthException {
-        MapServers servers = MapServers.parse(request(() -> http.get(session.mapsUrl())).body());
+        HttpSession.Response maps = request(() -> http.get(session.mapsUrl()));
+        MapServers servers = MapServers.parse(maps.body());
         MapServers.Address addr = servers.forMap(mapId);
         if (addr == null) {
-            throw new AuthException(AuthException.Reason.UNEXPECTED_PAGE, "Нет сервера для карты " + mapId);
+            throw mapsMissing(maps, servers, mapId);
         }
         return addr;
     }
