@@ -21,6 +21,20 @@ final class CubikonSection implements Section {
     static final String[] WAIT_KILL = {"OFF", "ATTACKERS", "ALL"};
     static final String[] WAIT_KILL_NAMES = {"Никого", "Только атакующих", "Всех из списка NPC"};
     static final String[] MODE_NAMES = {"По кругу", "По запомненным"};
+    /** The x-6 maps: 1-6, 2-6, 3-6. */
+    static final int[] X6 = {18, 22, 26};
+    static final String[] X6_NAMES = {"1-6", "2-6", "3-6"};
+    static final String[] MAP_MODES = {"SOONEST", "ROUND"};
+    static final String[] MAP_MODE_NAMES = {"Где куб раньше", "По кругу"};
+    static final String[] TRAVEL = {"PORTALS", "JUMP_CPU"};
+    static final String[] TRAVEL_NAMES = {"Порталами", "CPU: купоны, потом уридий"};
+
+    private final JCheckBox[] mapBoxes = {new JCheckBox("1-6"), new JCheckBox("2-6"), new JCheckBox("3-6")};
+    private final javax.swing.JComboBox<String> mapMode = new javax.swing.JComboBox<>(MAP_MODE_NAMES);
+    private final javax.swing.JComboBox<String> travel = new javax.swing.JComboBox<>(TRAVEL_NAMES);
+    private final JSpinner jumpUridium = Form.number(0, 1_000_000, 500);
+    private final DefaultTableModel windows = new DefaultTableModel(new Object[] {"С", "По", "Карты"}, 0);
+    private final JTable windowTable = new JTable(windows);
 
     private final DefaultTableModel spots = new DefaultTableModel(new Object[] {"Спаун", "X", "Y"}, 0) {
         @Override
@@ -67,7 +81,29 @@ final class CubikonSection implements Section {
             waitKillRange.setEnabled(waitKill.getSelectedIndex() > 0);
             chase.setEnabled(waitKill.getSelectedIndex() > 0);
         });
+        windowTable.setPreferredScrollableViewportSize(new java.awt.Dimension(300, 3 * windowTable.getRowHeight()));
+        windowTable.setToolTipText("Время ЧЧ:ММ; карты — «1-6, 3-6». Окно через полночь: 22:00–02:00");
+        javax.swing.JButton addWindow = new javax.swing.JButton("Добавить");
+        addWindow.addActionListener(e -> windows.addRow(new Object[] {"08:00", "12:00", "1-6, 2-6, 3-6"}));
+        javax.swing.JButton removeWindow = new javax.swing.JButton("Удалить");
+        removeWindow.addActionListener(e -> {
+            int r = windowTable.getSelectedRow();
+            if (r >= 0) {
+                windows.removeRow(r);
+            }
+        });
+        travel.addActionListener(e -> jumpUridium.setEnabled(travel.getSelectedIndex() == 1));
         view = new Form()
+                .section("Карты")
+                .row("Где фармить", Form.inline(mapBoxes))
+                .row("Выбор карты", mapMode)
+                .note("Ни одной — рабочая карта из «Общее». Живой куб держит на карте.")
+                .row("По времени", new javax.swing.JScrollPane(windowTable))
+                .row("", Form.inline(addWindow, removeWindow))
+                .note("Окно расписания заменяет отмеченные карты, пока длится.")
+                .row("Перелёт", travel)
+                .row("Уридия на прыжки в день", jumpUridium)
+                .note("Прыжок через CPU ещё не готов — пока порталами.")
                 .section("Кубиконы")
                 .note("Живой куб — летит сразу, даже если его бьют; иначе ждёт на спотах.")
                 .row("Выбор спота", mode)
@@ -131,7 +167,63 @@ final class CubikonSection implements Section {
         int i = java.util.Arrays.asList(MODES).indexOf(m.path("spotMode").asText("ROUND"));
         mode.setSelectedIndex(Math.max(0, i));
         learn.setSelected(m.path("learnSpawns").asBoolean(true));
+        java.util.List<Integer> maps = orbit.bot.mod.CubeMaps.maps(m);
+        for (int k = 0; k < X6.length; k++) {
+            mapBoxes[k].setSelected(maps.contains(X6[k]));
+        }
+        mapMode.setSelectedIndex(Math.max(0, java.util.Arrays.asList(MAP_MODES).indexOf(m.path("mapMode").asText("SOONEST"))));
+        windows.setRowCount(0);
+        for (JsonNode w : m.path("mapSchedule")) {
+            windows.addRow(new Object[] {w.path("from").asText(), w.path("to").asText(), mapNames(orbit.bot.mod.CubeMaps.maps(w))});
+        }
+        travel.setSelectedIndex(Math.max(0, java.util.Arrays.asList(TRAVEL).indexOf(m.path("travel").asText("PORTALS"))));
+        Form.set(jumpUridium, m.path("jumpUridiumPerDay").asInt(5_000));
+        jumpUridium.setEnabled(travel.getSelectedIndex() == 1);
         showLearned();
+    }
+
+    static String mapNames(java.util.List<Integer> ids) {
+        java.util.List<String> out = new java.util.ArrayList<>();
+        for (int k = 0; k < X6.length; k++) {
+            if (ids.contains(X6[k])) {
+                out.add(X6_NAMES[k]);
+            }
+        }
+        return String.join(", ", out);
+    }
+
+    /** «1-6, 3-6» → map ids; refuses what is not an x-6 map. */
+    static java.util.List<Integer> mapIds(String text) {
+        java.util.List<Integer> out = new java.util.ArrayList<>();
+        for (String part : text.split("[,;\\s]+")) {
+            if (part.isBlank()) {
+                continue;
+            }
+            int k = java.util.Arrays.asList(X6_NAMES).indexOf(part.strip());
+            if (k < 0) {
+                throw new IllegalArgumentException("карта «" + part.strip() + "» — нужно 1-6, 2-6 или 3-6");
+            }
+            if (!out.contains(X6[k])) {
+                out.add(X6[k]);
+            }
+        }
+        if (out.isEmpty()) {
+            throw new IllegalArgumentException("в окне расписания не указаны карты");
+        }
+        return out;
+    }
+
+    private static String time(Object v) {
+        String t = String.valueOf(v).strip();
+        if (t.matches("\\d:\\d\\d")) {
+            t = "0" + t;
+        }
+        try {
+            java.time.LocalTime.parse(t);
+        } catch (java.time.DateTimeException e) {
+            throw new IllegalArgumentException("время «" + v + "» — нужно ЧЧ:ММ");
+        }
+        return t;
     }
 
     /** What the bot has learned so far (local/cubikon-spawns.json). */
@@ -173,6 +265,26 @@ final class CubikonSection implements Section {
         m.put("chaseFromSpot", chase.getSelectedIndex() == 1);
         m.put("spotMode", MODES[mode.getSelectedIndex()]);
         m.put("learnSpawns", learn.isSelected());
+        if (windowTable.isEditing()) {
+            windowTable.getCellEditor().stopCellEditing();
+        }
+        ArrayNode maps = m.putArray("maps");
+        for (int k = 0; k < X6.length; k++) {
+            if (mapBoxes[k].isSelected()) {
+                maps.add(X6[k]);
+            }
+        }
+        m.put("mapMode", MAP_MODES[mapMode.getSelectedIndex()]);
+        ArrayNode sched = m.putArray("mapSchedule");
+        for (int r = 0; r < windows.getRowCount(); r++) {
+            ObjectNode w = sched.addObject();
+            w.put("from", time(windows.getValueAt(r, 0)));
+            w.put("to", time(windows.getValueAt(r, 1)));
+            ArrayNode wm = w.putArray("maps");
+            mapIds(String.valueOf(windows.getValueAt(r, 2))).forEach(wm::add);
+        }
+        m.put("travel", TRAVEL[travel.getSelectedIndex()]);
+        m.put("jumpUridiumPerDay", Form.intOf(jumpUridium));
         if (untouched && m.equals(defaults())) {
             return c; // nothing set for a config of another module: do not add the section
         }
@@ -195,6 +307,11 @@ final class CubikonSection implements Section {
         m.put("chaseFromSpot", false);
         m.put("spotMode", "ROUND");
         m.put("learnSpawns", true);
+        m.putArray("maps");
+        m.put("mapMode", "SOONEST");
+        m.putArray("mapSchedule");
+        m.put("travel", "PORTALS");
+        m.put("jumpUridiumPerDay", 5_000);
         return m;
     }
 }

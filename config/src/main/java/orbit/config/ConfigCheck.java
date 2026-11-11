@@ -44,7 +44,12 @@ public final class ConfigCheck {
                 }
             }
             case CUBIKON -> {
-                if (!CUBIKON_MAPS.contains(map.id())) {
+                com.fasterxml.jackson.databind.JsonNode cs = c.modules().get(BotConfig.Module.CUBIKON.key());
+                boolean mapsChosen = cs != null && cs.path("maps").isArray() && !cs.path("maps").isEmpty();
+                if (cs != null && "JUMP_CPU".equals(cs.path("travel").asText())) {
+                    out.add(warning("прыжок через CPU ещё не готов — между картами бот летит порталами"));
+                }
+                if (!mapsChosen && !CUBIKON_MAPS.contains(map.id())) {
                     out.add(warning("кубы появляются на 1-6, 2-6, 3-6, а карта — " + map.name()));
                 }
                 BotConfig.NpcRule cube = c.npcs().get("-=[ Cubikon ]=-");

@@ -62,7 +62,10 @@ class SectionsTest {
                 .withModuleSettings("cubikon", Json.MAPPER.readTree("""
                         {"spots": [[7500, 3900], [13400, 3900], [13400, 7900], [7500, 7900]], "arriveDistance": 450,
                          "waitSeconds": 90, "collectBoxes": true, "boxesDuringFight": false, "boxesWhileCubikonHpAbove": 0.25, "waitKill": "ATTACKERS",
-                         "waitKillRange": 1200, "chaseFromSpot": true, "spotMode": "LEARNED", "learnSpawns": false}"""))
+                         "waitKillRange": 1200, "chaseFromSpot": true, "spotMode": "LEARNED", "learnSpawns": false,
+                         "maps": [22, 26], "mapMode": "ROUND",
+                         "mapSchedule": [{"from": "08:00", "to": "12:00", "maps": [18]}, {"from": "22:00", "to": "02:00", "maps": [18, 26]}],
+                         "travel": "JUMP_CPU", "jumpUridiumPerDay": 3000}"""))
                 .withModuleSettings("gate", Json.MAPPER.readTree("{\"gateId\": 71, \"kamikaze\": {\"enabled\": true, \"minNpcs\": 5}}"))
                 .withDescription("Кубы на 3-6");
         return new BotConfig(c.schema(), c.description(), c.module(), c.general(), c.npcs(), c.loot(), c.collect(), c.pet(),

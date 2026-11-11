@@ -78,6 +78,11 @@ public final class CubikonModule implements BotModule {
     /** Leave for a due cube this long before its flight time says (acceleration, a turn, a late click). */
     static final long LEAD_MS = 12_000;
     private String status = "Cubikon";
+    /** Which x-6 map to work on (several maps, a timetable). */
+    private final CubeMaps maps;
+    private int workMap;
+    private long workMapAt;
+    private boolean jumpTold;
 
     public CubikonModule(BotContext ctx, SpawnMemory memory) {
         this.ctx = ctx;
@@ -85,6 +90,7 @@ public final class CubikonModule implements BotModule {
         this.attacker = new Attacker(ctx);
         this.boxes = new BoxPicker(ctx);
         this.nanoBase = ctx.now();
+        this.maps = new CubeMaps(ctx.maps());
     }
 
     @Override
@@ -92,9 +98,31 @@ public final class CubikonModule implements BotModule {
         return status;
     }
 
+    /**
+     * The x-6 map to work on now ({@link CubeMaps}): one map, several (where a cube is due first, or in
+     * turn), or a timetable of maps; re-chosen about once a second.
+     */
     @Override
     public int workingMap() {
-        return ctx.config().get().general().workingMap();
+        BotConfig c = ctx.config().get();
+        WorldSnapshot.Hero h = ctx.world().get().hero();
+        long now = ctx.now();
+        if (workMap == 0 || now - workMapAt > 1_000_000_000L) {
+            JsonNode s = c.modules().get(BotConfig.Module.CUBIKON.key());
+            if (s != null && "JUMP_CPU".equals(s.path("travel").asText()) && !jumpTold) {
+                jumpTold = true;
+                log.warn("Прыжок через CPU пока не готов — между картами лечу порталами");
+            }
+            boolean cubeHere = cubesMap == h.mapId() && !cubes.isEmpty();
+            workMap = maps.choose(s, c.general().workingMap(), h.mapId(), h.x(), h.y(), h.factionId(), cubeHere, memory,
+                    wallMs(), wallTime());
+            workMapAt = now;
+        }
+        return workMap;
+    }
+
+    private java.time.LocalTime wallTime() {
+        return java.time.LocalTime.ofInstant(java.time.Instant.ofEpochMilli(wallMs()), java.time.ZoneId.systemDefault());
     }
 
     @Override
@@ -295,6 +323,9 @@ public final class CubikonModule implements BotModule {
                 if (learn) {
                     memory.killed(h.mapId(), p[0], p[1], now);
                 }
+                maps.killedOn(ctx.config().get().modules().get(BotConfig.Module.CUBIKON.key()),
+                        ctx.config().get().general().workingMap(), h.mapId(), wallTime());
+                workMapAt = 0; // choose the map again now
             }
             return true;
         });
