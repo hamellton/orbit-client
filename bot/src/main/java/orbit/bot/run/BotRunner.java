@@ -237,6 +237,9 @@ public final class BotRunner {
                     module.pause();
                 }
                 ctx.nav().stop();
+                if (h.attackTargetId() != 0) {
+                    ctx.actions().stopAttack(); // the module only forgets its target, the lasers would go on
+                }
             }
             boxCheck.tick(w);
             show(w.boxCheck().text(w.nanos()));

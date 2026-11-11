@@ -158,6 +158,22 @@ class PalladiumModuleTest {
     }
 
     @Test
+    void theCheckStopsTheLasersAtOnce() {
+        Sim sim = new Sim(config(), 93, 20_000, 20_000);
+        sim.npc(50, "-=[ Barracuda ]=-", 20_300, 20_000);
+        orbit.protocol.gen.AttackLaserRunCommand run = new orbit.protocol.gen.AttackLaserRunCommand();
+        run.attackerId = 1;
+        run.targetId = 50;
+        sim.world.apply(run, sim.now);
+        sim.world.apply(allRed(20_000, 20_000), sim.now);
+        BotRunner r = new BotRunner(sim.ctx, () -> false, s -> { });
+        int sent = sim.sent.size();
+        r.tick();
+        assertTrue(sim.sent.subList(sent, sim.sent.size()).stream()
+                .anyMatch(p -> p instanceof orbit.protocol.gen.AttackAbortLaserRequest), "lasers stopped: " + sim.sent);
+    }
+
+    @Test
     void aShipDestroyedDuringTheCheckIsRevived() {
         // live 2026-11-12 on ge3: killed by an NPC during the check, the bot stayed on the kill screen
         Sim sim = new Sim(config(), 93, 20_000, 20_000);
