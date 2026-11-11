@@ -17,6 +17,8 @@ public class AuthException extends Exception {
         ACCOUNT_BLOCKED,
         /** Maintenance, network trouble or an unexpected page — retry later. */
         UNAVAILABLE,
+        /** The site shows its maintenance page: the game servers are down for a while — retry, slowly. */
+        MAINTENANCE,
         /** The site layout changed and could not be understood. */
         UNEXPECTED_PAGE,
         /** The account's proxy rejected its login or is not the type set — retrying will not help. */
@@ -41,6 +43,6 @@ public class AuthException extends Exception {
 
     /** Whether trying again later can succeed without user action. */
     public boolean retryable() {
-        return reason == Reason.UNAVAILABLE;
+        return reason == Reason.UNAVAILABLE || reason == Reason.MAINTENANCE;
     }
 }

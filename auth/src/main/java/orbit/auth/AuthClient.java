@@ -218,7 +218,7 @@ public final class AuthClient {
     }
 
     private static AuthException maintenanceError() {
-        return new AuthException(AuthException.Reason.UNAVAILABLE,
+        return new AuthException(AuthException.Reason.MAINTENANCE,
                 "Сервера игры на техобслуживании (сайт показывает страницу работ) — вход повторится позже.");
     }
 

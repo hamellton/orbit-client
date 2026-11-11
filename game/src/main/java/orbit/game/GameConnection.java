@@ -199,6 +199,7 @@ public final class GameConnection implements AutoCloseable {
         GameSession session = null;
         MapServers.Address server = null;
         int failures = 0;
+        int maintenance = 0; // logins in a row that met the site's maintenance page
         try {
             while (!closed.get()) {
                 if (session == null) {
@@ -209,12 +210,16 @@ public final class GameConnection implements AutoCloseable {
                         if (!e.retryable()) {
                             throw e;
                         }
-                        Duration wait = settings.backoff(failures++);
-                        log.warn("Вход на сайт не удался: {} Повтор через {} с", e.getMessage(), wait.toSeconds());
+                        // a maintenance lasts half an hour or more: knock rarely, not every few seconds
+                        Duration wait = e.reason() == AuthException.Reason.MAINTENANCE
+                                ? ConnectionSettings.maintenanceWait(maintenance++, java.util.concurrent.ThreadLocalRandom.current())
+                                : settings.backoff(failures++);
+                        log.warn("Вход на сайт не удался: {} Повтор через {}", e.getMessage(), spoken(wait));
                         listener.onState(GameListener.State.RECONNECTING, e.getMessage());
                         sleep(wait);
                         continue;
                     }
+                    maintenance = 0;
                     server = new MapServers.Address(session.gameHost(), session.gamePort());
                 }
                 try {
@@ -517,6 +522,12 @@ public final class GameConnection implements AutoCloseable {
                 // already closed
             }
         }
+    }
+
+    /** {@code 15 с}, {@code 4 мин 12 с}. */
+    static String spoken(Duration d) {
+        long s = Math.round(d.toMillis() / 1000.0);
+        return s < 60 ? s + " с" : s / 60 + " мин" + (s % 60 == 0 ? "" : " " + s % 60 + " с");
     }
 
     private void sleep(Duration d) throws InterruptedException {

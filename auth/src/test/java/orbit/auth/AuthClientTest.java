@@ -112,11 +112,11 @@ class AuthClientTest {
     void maintenanceIsWaitedOut() {
         maintenance = true;
         AuthException e = assertThrows(AuthException.class, () -> client().loginWithDosid("int1", DOSID));
-        assertEquals(AuthException.Reason.UNAVAILABLE, e.reason());
+        assertEquals(AuthException.Reason.MAINTENANCE, e.reason());
         org.junit.jupiter.api.Assertions.assertTrue(e.retryable(), "a maintenance is retried later");
         org.junit.jupiter.api.Assertions.assertTrue(e.getMessage().contains("техобслуживании"), e.getMessage());
         AuthException p = assertThrows(AuthException.class, () -> client().loginWithPassword("pilot", "right"));
-        assertEquals(AuthException.Reason.UNAVAILABLE, p.reason(), "after a password login too");
+        assertEquals(AuthException.Reason.MAINTENANCE, p.reason(), "after a password login too");
     }
 
     @Test

@@ -33,4 +33,17 @@ public record ConnectionSettings(ProxyConnector proxy, Duration keepAlive, Durat
     Duration backoff(int attempt) {
         return backoff.get(Math.min(attempt, backoff.size() - 1));
     }
+
+    /** Waits while the site shows its maintenance page: 1, 2, 4, 8, then every 10 minutes. */
+    static final List<Duration> MAINTENANCE_WAITS = List.of(Duration.ofMinutes(1), Duration.ofMinutes(2),
+            Duration.ofMinutes(4), Duration.ofMinutes(8), Duration.ofMinutes(10));
+
+    /**
+     * The wait before the next login during a maintenance, ±20% at random so that several accounts do not
+     * knock at the same second.
+     */
+    static Duration maintenanceWait(int attempt, java.util.random.RandomGenerator random) {
+        Duration base = MAINTENANCE_WAITS.get(Math.min(attempt, MAINTENANCE_WAITS.size() - 1));
+        return Duration.ofMillis(Math.round(base.toMillis() * (0.8 + 0.4 * random.nextDouble())));
+    }
 }
