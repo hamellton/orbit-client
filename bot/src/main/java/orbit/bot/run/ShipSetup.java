@@ -41,6 +41,24 @@ public final class ShipSetup {
     private long missingSince;
     static final long MISSING_WARN_MS = 20_000;
 
+    /**
+     * The number the server gives a formation in {@code DroneFormationChangeCommand}: {@code f-11-he} is 11
+     * (recordings), the numbered ones follow their names; Ring and Drill are 14 and 15, next in the game's
+     * list after Bat (13) and the two numbers other ships show most in the recordings. {@code null} for the
+     * others: the bot learns them from the server's answers.
+     */
+    static Integer formationId(String item) {
+        java.util.regex.Matcher m = java.util.regex.Pattern.compile("drone_formation_f-(\\d\\d)-").matcher(item);
+        if (m.find()) {
+            return Integer.parseInt(m.group(1));
+        }
+        return switch (item) {
+            case "drone_formation_f-3d-rg" -> 14;
+            case "drone_formation_f-3d-dr" -> 15;
+            default -> null;
+        };
+    }
+
     public ShipSetup(Supplier<WorldSnapshot> world, Actions actions, LongSupplier clock, java.util.Random random) {
         this.world = world;
         this.actions = actions;
@@ -81,19 +99,24 @@ public final class ShipSetup {
             // the server answers a formation change with DroneFormationChangeCommand at once; the item bar's
             // «selected» may come much later, so the answer counts — asking again every few seconds did not help
             if (asked != null && h.formationNanos() > formationAt) {
-                ids.putIfAbsent(asked, h.formation());
+                Integer table = formationId(asked);
+                if (table != null && table != h.formation()) {
+                    log.warn("Формация {}: сервер называет её №{}, а не №{} — запомнил", asked, h.formation(), table);
+                }
+                ids.put(asked, h.formation()); // the server's answer wins over the table
                 log.debug("Формация {}: сервер подтвердил (№{})", asked, h.formation());
                 asked = null;
             }
-            Integer known = ids.get(f);
+            Integer known = ids.containsKey(f) ? ids.get(f) : formationId(f);
+            // asking for the formation the ship already has gets no answer: check the server's number first
             boolean on = item != null && item.selected() || known != null && known == h.formation();
             boolean waiting = asked != null && now - formationAt < FORMATION_ANSWER_MS * 1_000_000;
             if (item != null && !on && !waiting && item.available() && item.remainingMs(now) == 0
                     && now - formationAt > FORMATION_GAP_MS * 1_000_000
                     && now - configAt > FORMATION_AFTER_CONFIG_MS * 1_000_000) {
                 if (f.equals(asked)) {
-                    log.warn("Формация {}: сервер не ответил за {} с — прошу ещё раз", orbit.config.ItemCatalog.label(f),
-                            FORMATION_ANSWER_MS / 1_000);
+                    log.warn("Формация {}: сервер не ответил за {} с (на корабле №{}, ждём №{}) — прошу ещё раз",
+                            orbit.config.ItemCatalog.label(f), FORMATION_ANSWER_MS / 1_000, h.formation(), known);
                 } else {
                     log.info("Формация {}", orbit.config.ItemCatalog.label(f));
                 }

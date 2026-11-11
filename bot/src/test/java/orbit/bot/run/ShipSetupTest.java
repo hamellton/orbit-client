@@ -90,4 +90,25 @@ class ShipSetupTest {
         run(ship, new BotConfig.ShipMode(1, DRILL), 20_000);
         assertEquals(3, asked.size(), "every 8 s, not every 3 s: " + asked);
     }
+
+    @Test
+    void aFormationTheShipHasIsNotAskedFor() {
+        ShipSetup ship = setup();
+        // a configuration switch: the server puts that configuration's formation itself (Drill = 15)
+        DroneFormationChangeCommand d = new DroneFormationChangeCommand();
+        d.uid = 1;
+        d.selectedFormationId = 15;
+        world.apply(d, now);
+        run(ship, new BotConfig.ShipMode(1, DRILL), 20_000);
+        assertEquals(List.of(), asked, "asking for it would get no answer");
+    }
+
+    @Test
+    void formationNumbers() {
+        assertEquals(11, ShipSetup.formationId("drone_formation_f-11-he"));
+        assertEquals(1, ShipSetup.formationId("drone_formation_f-01-tu"));
+        assertEquals(14, ShipSetup.formationId(RING));
+        assertEquals(15, ShipSetup.formationId(DRILL));
+        assertEquals(null, ShipSetup.formationId("drone_formation_f-3d-wl"));
+    }
 }
