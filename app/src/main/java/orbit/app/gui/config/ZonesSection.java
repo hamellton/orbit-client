@@ -23,9 +23,9 @@ import orbit.world.maps.MapCatalog;
 
 /**
  * «Зоны»: preferred and avoided areas drawn on the map, cell by cell (a 30 × 30 grid over the map,
- * the way DarkBot stores them). «Рисовать / Стирать» says what the left button does (the right one does the
- * opposite); «Кисть» paints cell by cell while dragging, «Прямоугольник» fills the dragged frame on release, as
- * DarkBot's editor does.
+ * the way DarkBot stores them), edited the way DarkBot's zone editor does it: drag a frame over the cells (a
+ * click is a frame of one); on release, a frame whose cells are all like the first one flips them, a mixed one
+ * is filled by the left button and cleared by the right; the middle button flips every cell on its own.
  */
 final class ZonesSection implements Section {
 
@@ -41,9 +41,6 @@ final class ZonesSection implements Section {
     private final Map<Integer, boolean[][][]> grids = new TreeMap<>(); // map → [layer][y][x]
     private Map<Integer, List<BotConfig.SafetySpot>> spots = Map.of();
     private final JComponent view;
-    private final javax.swing.JRadioButton draw = new javax.swing.JRadioButton("Рисовать");
-    private final javax.swing.JRadioButton erase = new javax.swing.JRadioButton("Стирать");
-    private final javax.swing.JComboBox<String> shape = new javax.swing.JComboBox<>(new String[] {"Кисть", "Прямоугольник"});
 
     ZonesSection(MapCatalog catalog) {
         this.catalog = catalog;
@@ -52,11 +49,6 @@ final class ZonesSection implements Section {
         ButtonGroup g = new ButtonGroup();
         g.add(preferred);
         g.add(avoided);
-        ButtonGroup act = new ButtonGroup();
-        act.add(draw);
-        act.add(erase);
-        draw.setSelected(true);
-        shape.setToolTipText("Кисть — по клеткам, пока ведёте; прямоугольник — вся рамка при отпускании");
         JButton clear = new JButton("Очистить");
         clear.addActionListener(e -> {
             boolean[][] layer = layer(map.mapId());
@@ -68,7 +60,8 @@ final class ZonesSection implements Section {
         // never scrolls: the controls in one line (wrapping when narrow), the whole map in the rest of the tab
         javax.swing.JLabel help = new javax.swing.JLabel("ⓘ");
         help.setForeground(Color.GRAY);
-        help.setToolTipText("ЛКМ — как выбрано (рисовать или стирать), ПКМ — наоборот. Зоны свои для каждой карты.");
+        help.setToolTipText("<html>Как в DarkBot: выделите рамкой (или кликните клетку).<br>Одинаковые клетки — "
+                + "переключатся; разные — ЛКМ закрасит, ПКМ сотрёт;<br>колесо — каждую наоборот. Зоны свои для каждой карты.</html>");
         canvas.setToolTipText(null);
         preferred.setText("Предпочтительная");
         avoided.setText("Запретная");
@@ -78,10 +71,6 @@ final class ZonesSection implements Section {
         controls.add(new javax.swing.JLabel("   Зона"));
         controls.add(preferred);
         controls.add(avoided);
-        controls.add(new javax.swing.JLabel("   "));
-        controls.add(draw);
-        controls.add(erase);
-        controls.add(shape);
         controls.add(clear);
         controls.add(help);
         JPanel page = new JPanel(new java.awt.BorderLayout(0, 4));
@@ -167,8 +156,7 @@ final class ZonesSection implements Section {
     /** The map with its grid. */
     private final class Canvas extends JPanel {
 
-        private Boolean paintValue;
-        /** The rectangle tool: where the drag started and where the mouse is (cells), or {@code null}. */
+        /** The frame being dragged: where it started and where the mouse is (cells), or {@code null}. */
         private int[] from;
         private int[] to;
         /** The cell under the mouse, for the highlight. */
@@ -181,44 +169,28 @@ final class ZonesSection implements Section {
             MouseAdapter m = new MouseAdapter() {
                 @Override
                 public void mousePressed(MouseEvent e) {
-                    boolean left = !SwingUtilities.isRightMouseButton(e);
-                    paintValue = left == draw.isSelected(); // the right button does the opposite
-                    if (rectangle()) {
-                        from = cell(e);
-                        to = from;
-                        repaint();
-                    } else {
-                        paintAt(e);
-                    }
+                    from = cell(e);
+                    to = from;
+                    repaint();
                 }
 
                 @Override
                 public void mouseDragged(MouseEvent e) {
-                    hover = cell(e);
-                    if (rectangle()) {
-                        if (from != null) {
-                            int[] c = cell(e);
-                            to = c != null ? c : to;
-                            repaint();
-                        }
-                    } else {
-                        paintAt(e);
+                    int[] c = cell(e);
+                    hover = c;
+                    if (from != null && c != null) {
+                        to = c;
                     }
+                    repaint();
                 }
 
                 @Override
                 public void mouseReleased(MouseEvent e) {
-                    if (rectangle() && from != null && to != null && paintValue != null) {
-                        boolean[][] layer = layer(map.mapId());
-                        for (int y = Math.min(from[1], to[1]); y <= Math.max(from[1], to[1]); y++) {
-                            for (int x = Math.min(from[0], to[0]); x <= Math.max(from[0], to[0]); x++) {
-                                layer[y][x] = paintValue;
-                            }
-                        }
+                    if (from != null && to != null) {
+                        apply(SwingUtilities.isMiddleMouseButton(e), SwingUtilities.isLeftMouseButton(e));
                     }
                     from = null;
                     to = null;
-                    paintValue = null;
                     repaint();
                 }
 
@@ -251,10 +223,6 @@ final class ZonesSection implements Section {
             return new java.awt.Rectangle((getWidth() - w) / 2, (getHeight() - h) / 2, w, h);
         }
 
-        private boolean rectangle() {
-            return shape.getSelectedIndex() == 1;
-        }
-
         /** The grid cell under the mouse, or {@code null} off the map. */
         private int[] cell(MouseEvent e) {
             java.awt.Rectangle a = area();
@@ -263,15 +231,12 @@ final class ZonesSection implements Section {
             return x >= 0 && y >= 0 && x < RESOLUTION && y < RESOLUTION ? new int[] {x, y} : null;
         }
 
-        private void paintAt(MouseEvent e) {
-            if (paintValue == null) {
-                return;
-            }
-            int[] c = cell(e);
-            if (c != null) {
-                layer(map.mapId())[c[1]][c[0]] = paintValue;
-                repaint();
-            }
+        /**
+         * DarkBot's rule for the released frame: the middle button flips each cell; otherwise, all cells like
+         * the first one — flip them all; mixed — the left button fills, the right one clears.
+         */
+        private void apply(boolean each, boolean left) {
+            frame(layer(map.mapId()), from[0], from[1], to[0], to[1], each, left);
         }
 
         /** A cell's rectangle on the screen. */
@@ -313,8 +278,7 @@ final class ZonesSection implements Section {
                 g.drawLine(a.x, a.y + i * a.height / RESOLUTION, a.x + a.width, a.y + i * a.height / RESOLUTION);
             }
             // what the mouse would change: the frame being dragged, or the cell under it
-            boolean erasing = paintValue != null ? !paintValue : erase.isSelected();
-            Color mark = erasing ? new Color(255, 255, 255, 150) : (preferred.isSelected() ? PREFERRED : AVOIDED);
+            Color mark = preferred.isSelected() ? PREFERRED : AVOIDED;
             if (from != null && to != null) {
                 java.awt.Rectangle r = cellRect(a, Math.min(from[0], to[0]), Math.min(from[1], to[1]),
                         Math.max(from[0], to[0]), Math.max(from[1], to[1]));
@@ -350,6 +314,32 @@ final class ZonesSection implements Section {
             if (a.width >= SMALL) { // a tiny map keeps only its marks: the names would cover it
                 g.setColor(Color.LIGHT_GRAY);
                 g.drawString(info.name() + "   " + info.width() / 100 + "×" + info.height() / 100, a.x + 6, a.y + 16);
+            }
+        }
+    }
+
+    /**
+     * DarkBot's zone editor rule for a frame from the cell (fx, fy) to (tx, ty): {@code each} (middle button) flips
+     * every cell; otherwise, all cells like the first one — all flipped; mixed — {@code left} fills, else clears.
+     */
+    static void frame(boolean[][] layer, int fx, int fy, int tx, int ty, boolean each, boolean left) {
+        int x0 = Math.min(fx, tx);
+        int x1 = Math.max(fx, tx);
+        int y0 = Math.min(fy, ty);
+        int y1 = Math.max(fy, ty);
+        boolean first = layer[fy][fx];
+        boolean mixed = false;
+        for (int y = y0; y <= y1 && !mixed; y++) {
+            for (int x = x0; x <= x1; x++) {
+                if (layer[y][x] != first) {
+                    mixed = true;
+                    break;
+                }
+            }
+        }
+        for (int y = y0; y <= y1; y++) {
+            for (int x = x0; x <= x1; x++) {
+                layer[y][x] = each ? !layer[y][x] : mixed ? left : !first;
             }
         }
     }
