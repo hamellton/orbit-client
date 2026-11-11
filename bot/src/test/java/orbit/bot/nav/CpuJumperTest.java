@@ -26,6 +26,7 @@ class CpuJumperTest {
     private final List<String> sent = new ArrayList<>();
     private long now = 1_000 * MS;
     private boolean answers = true;
+    private int countdown = 10;
 
     private CpuJumper jumper(boolean cpu, int vouchers, double uridium) {
         ShipInitializationCommand si = new ShipInitializationCommand();
@@ -59,7 +60,7 @@ class CpuJumperTest {
         now += 50 * MS;
         switch (m) {
             case "JCPU|GET" -> legacy(PRICES);
-            case "JCPU|J" -> legacy("0|A|JCPU|S|10|26");
+            case "JCPU|J" -> legacy("0|A|JCPU|S|" + countdown + "|26");
             default -> {
                 if (m.startsWith("JCPU|S|")) {
                     legacy("0|A|JCPU|C|" + m.substring(7) + "|375|1");
@@ -128,5 +129,15 @@ class CpuJumperTest {
         answers = false;
         assertEquals(CpuJumper.Result.FAILED, run(silent, 26, 0, 10_000));
         assertEquals(List.of("JCPU|GET"), sent);
+    }
+
+    @Test
+    void aCountdownCalledOffIsTriedAgainSoon() {
+        CpuJumper j = jumper(true, 481, 0);
+        countdown = -1; // as the server seems to answer a ship under fire
+        assertEquals(CpuJumper.Result.FAILED, run(j, 26, 0, 5_000), "no waiting out a countdown that is not there");
+        assertTrue(j.failure().contains("отменил"), j.failure());
+        now += 3 * 60_000 * MS;
+        assertTrue(j.worthTrying(26), "two minutes later the jump is tried again, not after ten");
     }
 }

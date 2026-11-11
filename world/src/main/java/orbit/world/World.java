@@ -435,6 +435,9 @@ public final class World {
                 // other jump CPU messages: not part of the model
             }
         }
+        if (!"I".equals(a[3])) {
+            log.info("Прыжок CPU, сервер: {}", String.join("|", a)); // rare and still being learnt
+        }
     }
 
     private double gainedCredits;

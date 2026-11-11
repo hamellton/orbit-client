@@ -39,6 +39,8 @@ public final class CpuJumper {
     static final long LANDING_MS = 15_000;
     /** A map whose jump failed is reached by portals for this long. */
     static final long RETRY_MS = 10 * 60_000L;
+    /** …and after the server called the countdown off (seen under fire, 2026-11-11): soon again. */
+    static final long RETRY_CANCELLED_MS = 2 * 60_000L;
 
     private final Supplier<WorldSnapshot> world;
     private final Actions actions;
@@ -47,6 +49,7 @@ public final class CpuJumper {
     private final Random random;
     private final Path ledger;
     private final Map<Integer, Long> failedAt = new HashMap<>();
+    private final Map<Integer, Long> retryAfter = new HashMap<>();
     private int target;
     private Step step;
     private long since;
@@ -74,7 +77,7 @@ public final class CpuJumper {
     /** False for a while after a jump to this map failed: fly by portals meanwhile. */
     public boolean worthTrying(int map) {
         Long at = failedAt.get(map);
-        return at == null || clock.getAsLong() - at > RETRY_MS * 1_000_000;
+        return at == null || clock.getAsLong() - at > retryAfter.getOrDefault(map, RETRY_MS) * 1_000_000;
     }
 
     /**
@@ -97,6 +100,10 @@ public final class CpuJumper {
         if (map != target || step == null) {
             if (!cpu.equipped()) {
                 return fail(map, "на корабле нет CPU прыжка");
+            }
+            if (!h.attackers().isEmpty()) {
+                // standing still for a countdown under fire: the server seems to call it off; fly instead
+                return fail(map, "корабль под огнём", 30_000);
             }
             target = map;
             step = Step.PRICES;
@@ -148,6 +155,9 @@ public final class CpuJumper {
             }
             case JUMPING -> {
                 boolean counting = cpu.countdownNanos() > since && cpu.countdownMap() == map;
+                if (counting && cpu.countdownSeconds() <= 0) {
+                    return fail(map, "сервер отменил отсчёт (" + cpu.countdownSeconds() + ")", RETRY_CANCELLED_MS);
+                }
                 long limit = (counting ? cpu.countdownSeconds() * 1_000L : ANSWER_MS) + LANDING_MS;
                 if (now - since > limit * 1_000_000) {
                     return fail(map, counting ? "отсчёт прошёл, а корабль не на " + name(map) : "сервер не начал прыжок");
@@ -158,8 +168,13 @@ public final class CpuJumper {
     }
 
     private Result fail(int map, String why) {
+        return fail(map, why, RETRY_MS);
+    }
+
+    private Result fail(int map, String why, long retryMs) {
         failure = why;
         failedAt.put(map, clock.getAsLong());
+        retryAfter.put(map, retryMs);
         log.warn("Прыжок CPU не вышел: {} — лечу порталами", why);
         reset();
         return Result.FAILED;
