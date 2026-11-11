@@ -154,6 +154,27 @@ public final class Navigator {
         destination = null;
     }
 
+    /**
+     * Stops the ship where it is: a click on its own position, as a player stops (the server has no stop
+     * request); forgets the destination. Nothing is sent when the ship stands still.
+     */
+    public void halt() {
+        destination = null;
+        WorldSnapshot.Hero h = world.get().hero();
+        if (h.id() == 0 || !h.alive() || !h.moving()) {
+            return;
+        }
+        MoveRequest m = new MoveRequest();
+        m.positionX = h.x();
+        m.positionY = h.y();
+        m.targetX = h.x();
+        m.targetY = h.y();
+        clickX = h.x();
+        clickY = h.y();
+        sender.accept(m);
+        lastSendNanos = clock.getAsLong();
+    }
+
     public Destination destination() {
         return destination;
     }

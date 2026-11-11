@@ -218,4 +218,23 @@ class BotRunnerTest {
         sim.now += 4 * 60_000 * Sim.MS; // four quiet minutes
         assertEquals(portal, dieAndRevive(sim, r), "not «in a row» any more");
     }
+
+    @Test
+    void thePauseStopsTheShipAndTheEndOfItFliesOnAtOnce() throws Exception {
+        // live 2026-11-11: paused, the ship flew on to the module's last click
+        Sim sim = new Sim(CubikonModuleTest.config(90, false), 26, 18_000, 11_000);
+        BotRunner r = new BotRunner(sim.ctx, () -> false, s -> { });
+        sim.run(r::tick, 6_000);
+        assertTrue(sim.world.snapshot(sim.now).hero().moving(), "flying to a spawn");
+        r.setPaused(true);
+        sim.run(r::tick, 1_000);
+        var at = sim.hero();
+        sim.run(r::tick, 2_000);
+        assertEquals(at, sim.hero(), "stands still while paused");
+        int sent = sim.sent.size();
+        r.setPaused(false);
+        sim.run(r::tick, 500);
+        assertTrue(sim.sent.subList(sent, sim.sent.size()).stream().anyMatch(p -> p instanceof orbit.protocol.gen.MoveRequest),
+                "flies on within half a second");
+    }
 }

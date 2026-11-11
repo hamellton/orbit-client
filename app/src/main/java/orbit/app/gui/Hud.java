@@ -179,6 +179,13 @@ final class Hud {
                     + "  ·  " + heroStatus(h));
             lines.add("Лазер: " + item(w.selected("lasers")));
             lines.add("Ракеты: " + item(w.selected("rockets")));
+            // the launcher only on a ship that has one; with its load (the button's counter, 0…5 on the HST)
+            WorldSnapshot.Item launcher = w.items().values().stream()
+                    .filter(i -> i.id().startsWith("equipment_weapon_rocketlauncher_") && i.available()).findFirst().orElse(null);
+            if (launcher != null) {
+                int full = launcher.maxCounter() > 0 ? (int) launcher.maxCounter() : 5;
+                lines.add("Ракетомёт: " + item(w.selected("rocket_launchers")) + "  ·  " + (int) launcher.counter() + "/" + full);
+            }
         } else {
             lines.add(feed.state());
         }

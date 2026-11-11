@@ -329,7 +329,7 @@ public final class BotRunner {
                 if (module != null) {
                     module.pause();
                 }
-                ctx.nav().stop();
+                ctx.nav().halt(); // stop where it is: it would fly on to the module's last click
             }
             state = State.PAUSED;
             show("Пауза");
