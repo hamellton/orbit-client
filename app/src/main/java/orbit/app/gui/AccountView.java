@@ -44,6 +44,8 @@ final class AccountView extends JPanel {
     private final MinimapPanel map;
     private final SidePanel side;
     private final JScrollPane sideScroll;
+    private final List<Timer> timers = new java.util.ArrayList<>();
+    private final List<Runnable> onDispose = new java.util.ArrayList<>();
 
     AccountView(MainWindow.Tab tab) {
         super(new BorderLayout());
@@ -63,7 +65,7 @@ final class AccountView extends JPanel {
         body.add(map);
         body.add(sideScroll);
 
-        JSplitPane split = new JSplitPane(JSplitPane.VERTICAL_SPLIT, body, log(tab.feed()));
+        JSplitPane split = new JSplitPane(JSplitPane.VERTICAL_SPLIT, body, log(tab.feed(), onDispose));
         split.setResizeWeight(0.82);
         split.setOneTouchExpandable(true);
         split.setBorder(BorderFactory.createEmptyBorder());
@@ -97,12 +99,24 @@ final class AccountView extends JPanel {
         };
         apply.run();
         ViewSettings.shared().onChange(() -> SwingUtilities.invokeLater(apply));
-        new Timer(REFRESH_MS, e -> {
+        timer(REFRESH_MS, e -> {
             if (isShowing()) {
                 map.repaint(); // a hidden tab is not drawn
                 side.repaint();
             }
-        }).start();
+        });
+    }
+
+    private void timer(int ms, java.awt.event.ActionListener action) {
+        Timer t = new Timer(ms, action);
+        timers.add(t);
+        t.start();
+    }
+
+    /** The tab was closed: no more refreshes, no more log lines. */
+    void dispose() {
+        timers.forEach(Timer::stop);
+        onDispose.forEach(Runnable::run);
     }
 
     /** Lays out the map and the cards: side by side when wide, the cards under the map otherwise. */
@@ -214,14 +228,14 @@ final class AccountView extends JPanel {
                     tab.switchConfig().accept(chosen);
                 }
             });
-            new Timer(1_000, e -> {
+            timer(1_000, e -> {
                 String now = tab.config().get();
                 if (now != null && !configs.isPopupVisible() && !now.equals(configs.getSelectedItem())) {
                     filling[0] = true;
                     fill(configs);
                     filling[0] = false;
                 }
-            }).start();
+            });
             JPanel cfg = group();
             cfg.add(cfgLabel);
             cfg.add(configs);
@@ -267,7 +281,7 @@ final class AccountView extends JPanel {
                         : "Долетит до портала и выйдет из игры; остальные аккаунты продолжат");
             };
             show.run();
-            new Timer(500, e -> show.run()).start();
+            timer(500, e -> show.run());
             actions.add(toggle);
         } else if (tab.stop() != null) {
             JButton stop = new JButton("Остановить");
@@ -284,14 +298,14 @@ final class AccountView extends JPanel {
             AccountStatus st = AccountStatus.of(tab.feed());
             status.setText(st.label);
             status.setForeground(st.color);
-            long since = tab.feed().sessionStartNanos();
-            clock.setText(since == 0 ? "" : "сессия " + Hud.clock(java.time.Duration.ofNanos(tab.feed().now() - since)));
+            clock.setText(tab.feed().sessionStartNanos() == 0 ? ""
+                    : "сессия " + Hud.clock(java.time.Duration.ofNanos(tab.feed().sessionNanos())));
             String via = tab.feed().proxyInfo();
             proxy.setText(via.isEmpty() ? "" : "через " + via);
             proxy.setVisible(!via.isEmpty());
         };
         refresh.run();
-        new Timer(500, e -> refresh.run()).start();
+        timer(500, e -> refresh.run());
         return bar;
     }
 
@@ -324,7 +338,7 @@ final class AccountView extends JPanel {
         return p;
     }
 
-    private static JComponent log(WorldFeed feed) {
+    private static JComponent log(WorldFeed feed, List<Runnable> onDispose) {
         JTextArea log = new JTextArea();
         log.setEditable(false);
         log.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
@@ -343,8 +357,10 @@ final class AccountView extends JPanel {
                 log.replaceRange("", 0, excess);
             }
         };
-        List<String> backlog = GuiLogAppender.subscribe(feed.account(), line -> SwingUtilities.invokeLater(() -> append.accept(line)));
-        backlog.forEach(append);
+        GuiLogAppender.Subscription sub = GuiLogAppender.subscribe(feed.account(),
+                line -> SwingUtilities.invokeLater(() -> append.accept(line)));
+        sub.backlog().forEach(append);
+        onDispose.add(sub.cancel());
         return scroll;
     }
 }

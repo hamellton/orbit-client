@@ -52,20 +52,25 @@ public class GuiLogAppender extends UnsynchronizedAppenderBase<ILoggingEvent> {
         }
     }
 
+    /** The lines logged before {@link #subscribe}, and how to stop listening. */
+    record Subscription(List<String> backlog, Runnable cancel) {
+    }
+
     /**
-     * Lines logged so far and every new one; returns the backlog.
+     * Lines logged so far and every new one.
      *
      * @param account only this account's lines and those of no account; {@code null} = all
      */
-    static List<String> subscribe(String account, Consumer<String> listener) {
+    static Subscription subscribe(String account, Consumer<String> listener) {
         java.util.function.Predicate<Line> mine = l -> account == null || l.account() == null || account.equals(l.account());
+        Consumer<Line> each = l -> {
+            if (mine.test(l)) {
+                listener.accept(l.text());
+            }
+        };
         synchronized (LINES) {
-            LISTENERS.add(l -> {
-                if (mine.test(l)) {
-                    listener.accept(l.text());
-                }
-            });
-            return LINES.stream().filter(mine).map(Line::text).toList();
+            LISTENERS.add(each);
+            return new Subscription(LINES.stream().filter(mine).map(Line::text).toList(), () -> LISTENERS.remove(each));
         }
     }
 }

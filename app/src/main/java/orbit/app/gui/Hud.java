@@ -174,7 +174,7 @@ final class Hud {
         if (config != null) {
             lines.add("Конфиг: " + config);
         }
-        if (h.id() != 0) {
+        if (h.id() != 0 && !feed.loggedOut()) {
             lines.add(MapCatalog.bundled().info(h.mapId()).name() + "  ·  " + h.x() / 100 + "/" + h.y() / 100
                     + "  ·  " + heroStatus(h));
             lines.add("Лазер: " + item(w.selected("lasers")));
@@ -182,8 +182,7 @@ final class Hud {
         } else {
             lines.add(feed.state());
         }
-        long since = feed.sessionStartNanos();
-        String time = since == 0 ? "" : clock(Duration.ofNanos(feed.now() - since));
+        String time = feed.sessionStartNanos() == 0 ? "" : clock(Duration.ofNanos(feed.sessionNanos()));
         Font titleFont = font(Font.BOLD, 13f);
         Font textFont = font(Font.PLAIN, 12f);
         Font smallFont = font(Font.PLAIN, 11f);

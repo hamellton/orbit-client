@@ -205,6 +205,15 @@ public final class MainWindow {
         return pane;
     }
 
+    private static final String OVERVIEW_TIMERS = "orbit.overviewTimers";
+
+    /** An overview that is replaced: its refreshes stop. */
+    static void disposeOverview(Component overview) {
+        if (overview instanceof JComponent c && c.getClientProperty(OVERVIEW_TIMERS) instanceof List<?> timers) {
+            timers.forEach(t -> ((Timer) t).stop());
+        }
+    }
+
     /**
      * «Все»: the chosen accounts' maps in a grid sized to the window; a click opens the account.
      *
@@ -222,6 +231,7 @@ public final class MainWindow {
         choose.add(show);
         List<JCheckBox> boxes = new ArrayList<>();
         List<MinimapPanel> maps = new ArrayList<>();
+        List<Timer> timers = new ArrayList<>();
         for (int i = 0; i < tabs.size(); i++) {
             Tab t = tabs.get(i);
             MinimapPanel map = new MinimapPanel(t.feed(), true, t.config() != null ? t.config() : () -> null);
@@ -236,7 +246,7 @@ public final class MainWindow {
             maps.add(map);
             JCheckBox box = new JCheckBox(t.feed().title(), true);
             box.setOpaque(false);
-            new Timer(1_000, e -> box.setText(t.feed().title())).start();
+            timers.add(new Timer(1_000, e -> box.setText(t.feed().title())));
             boxes.add(box);
             choose.add(box);
         }
@@ -252,12 +262,14 @@ public final class MainWindow {
         };
         boxes.forEach(b -> b.addActionListener(e -> relayout.run()));
         relayout.run();
-        new Timer(100, e -> {
+        timers.add(new Timer(100, e -> {
             if (grid.isShowing()) {
                 grid.repaint();
             }
-        }).start();
+        }));
+        timers.forEach(Timer::start);
         JPanel page = new JPanel(new BorderLayout());
+        page.putClientProperty(OVERVIEW_TIMERS, timers);
         page.add(choose, BorderLayout.NORTH);
         page.add(grid, BorderLayout.CENTER);
         return page;

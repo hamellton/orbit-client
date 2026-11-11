@@ -138,6 +138,34 @@ class ManagerWindowTest {
     }
 
     @Test
+    void closingAStoppedAccountsTab(@TempDir Path dir) throws Exception {
+        Map<String, Fake> fakes = new HashMap<>();
+        ManagerWindow w = new ManagerWindow(vault(dir), n -> fakes.computeIfAbsent(n, Fake::new));
+        w.refresh();
+        assertNull(w.startOne("alpha", 0, false));
+        assertNull(w.startOne("beta", 0, false));
+        assertEquals(4, w.pane.getTabCount());
+        assertEquals(Boolean.TRUE, ((javax.swing.JComponent) w.pane.getComponentAt(2)).getClientProperty("JTabbedPane.tabClosable"));
+        assertNull(((javax.swing.JComponent) w.pane.getComponentAt(1)).getClientProperty("JTabbedPane.tabClosable"),
+                "«Все» has no ×");
+
+        fakes.get("alpha").phase = ManagedAccount.Phase.STOPPED;
+        w.closeTab(2);
+        assertEquals(3, w.pane.getTabCount());
+        assertEquals(List.of("alpha", "beta"), w.model.names, "the account stays in the list");
+        w.closeTab(0);
+        w.closeTab(1);
+        assertEquals(3, w.pane.getTabCount(), "«Аккаунты» and «Все» are not closed");
+
+        fakes.get("beta").phase = ManagedAccount.Phase.STOPPED;
+        w.closeTab(2);
+        assertEquals(1, w.pane.getTabCount(), "no account tab left: «Все» goes too");
+
+        assertNull(w.startOne("alpha", 0, false));
+        assertEquals(3, w.pane.getTabCount(), "a new start brings the tab back");
+    }
+
+    @Test
     void snapshotDraws(@TempDir Path dir) throws Exception {
         Map<String, Fake> fakes = new HashMap<>();
         BufferedImage img = ManagerWindow.snapshot(vault(dir), n -> fakes.computeIfAbsent(n, Fake::new), List.of("alpha"),

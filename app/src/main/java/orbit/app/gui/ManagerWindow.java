@@ -69,6 +69,8 @@ public final class ManagerWindow {
         pane.putClientProperty("JTabbedPane.scrollButtonsPolicy", "asNeeded");
         pane.setTabLayoutPolicy(JTabbedPane.SCROLL_TAB_LAYOUT);
         pane.addTab("Аккаунты", accountsPage());
+        pane.putClientProperty("JTabbedPane.tabCloseCallback",
+                (java.util.function.BiConsumer<JTabbedPane, Integer>) (p, index) -> closeTab(index));
     }
 
     /** The window's content drawn into an image without showing it (to check the look). */
@@ -273,9 +275,7 @@ public final class ManagerWindow {
         }
         int tab = tabOf(n);
         if (tab >= 0) {
-            tabs.remove(tab - FIRST_TAB);
-            pane.removeTabAt(tab);
-            rebuildOverview();
+            dropTab(tab);
         }
         managed.remove(n);
         refresh();
@@ -419,11 +419,45 @@ public final class ManagerWindow {
         if (pane.getTabCount() < FIRST_TAB) {
             pane.addTab("Все", new JPanel());
         }
-        pane.addTab(a.feed().title(), AccountStatus.dot(() -> status(a)), new AccountView(tab));
+        AccountView view = new AccountView(tab);
+        view.putClientProperty("JTabbedPane.tabClosable", true);
+        view.putClientProperty("JTabbedPane.tabCloseToolTipText", "Закрыть вкладку (запущенный аккаунт сначала выйдет из игры)");
+        pane.addTab(a.feed().title(), AccountStatus.dot(() -> status(a)), view);
+        rebuildOverview();
+    }
+
+    /** The tab's ×: a running account is stopped first (after a question); the account stays in the list. */
+    void closeTab(int index) {
+        if (index < FIRST_TAB || index >= pane.getTabCount()) {
+            return;
+        }
+        ManagedAccount a = tabs.get(index - FIRST_TAB).managed();
+        if (a.phase() == ManagedAccount.Phase.RUNNING) {
+            if (JOptionPane.showConfirmDialog(frame, "Остановить «" + a.name() + "» (долетит до портала и выйдет из игры) "
+                    + "и закрыть вкладку?", "Закрыть вкладку", JOptionPane.OK_CANCEL_OPTION,
+                    JOptionPane.QUESTION_MESSAGE) != JOptionPane.OK_OPTION) {
+                return;
+            }
+            a.stop();
+        }
+        dropTab(index);
+        refresh();
+    }
+
+    private void dropTab(int index) {
+        Component view = pane.getComponentAt(index);
+        tabs.remove(index - FIRST_TAB);
+        pane.removeTabAt(index);
+        if (view instanceof AccountView v) {
+            v.dispose();
+        }
         rebuildOverview();
     }
 
     private void rebuildOverview() {
+        if (pane.getTabCount() >= FIRST_TAB) {
+            MainWindow.disposeOverview(pane.getComponentAt(1));
+        }
         if (tabs.isEmpty()) {
             if (pane.getTabCount() >= FIRST_TAB) {
                 pane.removeTabAt(1);
@@ -506,8 +540,8 @@ public final class ManagerWindow {
         WorldFeed feed = a.feed();
         String session = "";
         String results = "";
-        if (a.phase() != ManagedAccount.Phase.STOPPED && feed.sessionStartNanos() != 0) {
-            session = Hud.clock(java.time.Duration.ofNanos(feed.now() - feed.sessionStartNanos()));
+        if (feed.sessionStartNanos() != 0) { // after a stop: the session's length and results stay
+            session = Hud.clock(java.time.Duration.ofNanos(feed.sessionNanos()));
             WorldSnapshot.Rewards r = feed.snapshot().rewards();
             double hours = feed.sessionHours();
             results = money(r.credits(), hours) + " кр · " + money(r.uridium(), hours) + " ур";

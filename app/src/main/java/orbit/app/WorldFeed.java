@@ -30,6 +30,8 @@ public final class WorldFeed {
     private volatile boolean loggedOut;
     /** When the first ship initialisation arrived (session start), 0 before. */
     private volatile long sessionStart;
+    /** When the session ended (logout, stop): its clock stops there; 0 while it runs. */
+    private volatile long sessionEnd;
     /** What the bot is doing; set by the behaviour modules (stage 4–5), none yet. */
     private volatile String action;
     /** Time base of the model: real time, or the replay clock. */
@@ -47,8 +49,23 @@ public final class WorldFeed {
 
     /** Session length in hours (0 before the session starts). */
     public double sessionHours() {
+        return sessionNanos() / 3.6e12;
+    }
+
+    /** How long the session has run (frozen once it ended), 0 before it started. */
+    public long sessionNanos() {
         long since = sessionStart;
-        return since == 0 ? 0 : (now() - since) / 3.6e12;
+        if (since == 0) {
+            return 0;
+        }
+        long end = sessionEnd;
+        return Math.max(0, (end != 0 ? end : now()) - since);
+    }
+
+    private void endSession() {
+        if (sessionStart != 0 && sessionEnd == 0) {
+            sessionEnd = now();
+        }
     }
 
     /** The session's results in one line (for the log). */
@@ -173,6 +190,7 @@ public final class WorldFeed {
             case JumpInitiatedCommand j -> log.info("Прыжок на карту {}", maps.info(j.mapId).name());
             case orbit.protocol.gen.LegacyModule m when "0|l".equals(m.message) -> {
                 loggedOut = true;
+                endSession();
                 log.info("Сервер завершил сессию (выход)");
             }
             case orbit.protocol.gen.KillScreenPostCommand k -> {
@@ -223,12 +241,14 @@ public final class WorldFeed {
     public void newSession() {
         loggedOut = false;
         sessionStart = 0;
+        sessionEnd = 0;
     }
 
     /** The account was stopped: not in game any more, whatever the last packets said. */
     public void stopped() {
         loggedOut = true;
         linkLost = false;
+        endSession();
     }
 
     public boolean loggedOut() {
@@ -250,7 +270,13 @@ public final class WorldFeed {
         if (a != null) {
             return a;
         }
-        return mode.startsWith("бот") ? "нет (бот пока только держит связь)" : "— (корабль ведёт игрок)";
+        if (!mode.startsWith("бот")) {
+            return "— (корабль ведёт игрок)";
+        }
+        if (loggedOut) {
+            return "Не в игре";
+        }
+        return stats != null ? "Ожидание" : "нет (бот пока только держит связь)";
     }
 
     public String mode() {
