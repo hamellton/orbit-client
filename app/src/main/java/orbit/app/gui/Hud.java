@@ -249,8 +249,9 @@ final class Hud {
         stats.add(new String[] {"Опыт", money(h.experience())});
         stats.add(new String[] {"Честь", money(h.honor())});
         stats.add(new String[] {"Скорость", h.speed() > 0 ? String.valueOf(h.speed()) : "—"});
-        stats.add(new String[] {"Трюм", h.cargoMax() > 0
-                ? String.format("%,d / %,d", h.cargoMax() - h.cargoFree(), h.cargoMax()) : "—"});
+        // the ore in the hold, as it changes (pickups, sales); the login's cargoSpace is only the start
+        long used = inv.ores().isEmpty() ? h.cargoMax() - h.cargoFree() : inv.cargoUsed();
+        stats.add(new String[] {"Трюм", h.cargoMax() > 0 ? String.format("%,d / %,d", used, h.cargoMax()) : "—"});
         stats.add(new String[] {"Конфигурация", h.config() > 0 ? String.valueOf(h.config()) : "—"});
         String keys = keys(inv.bootyKeys());
         boolean nano = h.health().nanoHullMax() > 0;

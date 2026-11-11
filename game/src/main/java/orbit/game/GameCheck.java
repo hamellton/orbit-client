@@ -65,7 +65,7 @@ public final class GameCheck {
                         + "лазер %s, ракеты %s, предметов %d; игроков %d, NPC %d (ближайший: %s), "
                         + "питомцев %d, ящиков %d, руды %d, порталов %d, объектов %d, зон %d%s",
                 map.name(), map.width(), map.height(), h.x(), h.y(), h.moving() ? " (летит)" : "", h.health().hpPercent() * 100, h.config(),
-                h.cargoFree(), h.cargoMax(), itemText(laser), itemText(rocket), w.items().size(),
+                w.cargoFree(), h.cargoMax(), itemText(laser), itemText(rocket), w.items().size(),
                 w.nearest(WorldSnapshot.ShipKind.PLAYER).size(), npcs.size(), nearest,
                 w.nearest(WorldSnapshot.ShipKind.PET).size(), boxes, w.collectables().size() - boxes,
                 w.portals().size(), w.assets().size(), w.zones().size(),
