@@ -205,7 +205,10 @@ public final class CubikonModule implements BotModule {
             }
             boolean selling = BoxPicker.cargoFull(c, w) && (BotConfig.Collect.CARGO_PET.equals(c.collect().cargo())
                     || BotConfig.Collect.CARGO_BASE.equals(c.collect().cargo()))
-                    && c.collect().sellOres().stream().anyMatch(o -> w.inventory().ores().getOrDefault(o, 0.0) >= 1);
+                    && c.collect().sellOres().stream().anyMatch(o -> w.inventory().ores().getOrDefault(o, 0.0) >= 1)
+                    // only worth it when the config picks up the cube's cargo box at all
+                    && c.collect().boxes().entrySet().stream()
+                            .anyMatch(e -> e.getKey().startsWith("FROM_SHIP") && e.getValue().collect());
             long wait = selling ? BOX_WAIT_SELLING_MS : BOX_WAIT_MS;
             if (setting(s, "collectBoxes", true) && ctx.now() - deadAtNanos < wait * 1_000_000) {
                 ctx.nav().stop();
