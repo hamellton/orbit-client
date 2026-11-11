@@ -32,6 +32,7 @@ class AuthClientTest {
     private HttpServer server;
     private int sasPosts;
     private boolean maintenance;
+    private boolean unavailable;
     private String origin;
 
     @BeforeEach
@@ -140,6 +141,16 @@ class AuthClientTest {
     }
 
     @Test
+    void theSitesOwnTroubleIsRetriedSoon() {
+        // live 2026-11-11: nginx answered the game page with «503 Service Temporarily Unavailable»
+        unavailable = true;
+        AuthException e = assertThrows(AuthException.class, () -> client().loginWithDosid("int1", DOSID));
+        assertEquals(AuthException.Reason.UNAVAILABLE, e.reason());
+        assertTrue(e.retryable(), "not a failed session: the connection tries again after a short pause");
+        assertTrue(e.getMessage().contains("503"), e.getMessage());
+    }
+
+    @Test
     void expiredDosidIsReported() {
         AuthException e = assertThrows(AuthException.class, () -> client().loginWithDosid("int1", "stale"));
         assertEquals(AuthException.Reason.SESSION_EXPIRED, e.reason());
@@ -245,6 +256,10 @@ class AuthClientTest {
     }
 
     private void internal(HttpExchange ex) throws IOException {
+        if (unavailable) {
+            send(ex, 503, "<html><head><title>503 Service Temporarily Unavailable</title></head></html>", false);
+            return;
+        }
         String cookie = String.valueOf(ex.getRequestHeaders().getFirst("Cookie"));
         if (!java.util.List.of(cookie.split(";\\s*")).contains("dosid=" + DOSID)) {
             redirect(ex, "/index.es?action=externalHome&loginError=95");

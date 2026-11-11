@@ -394,7 +394,13 @@ public final class AuthClient {
 
     private static HttpSession.Response request(Call call) throws AuthException {
         try {
-            return call.run();
+            HttpSession.Response r = call.run();
+            // the site's own trouble (live 2026-11-11: nginx «503 Service Temporarily Unavailable» on the game page):
+            // try again soon, it is not a failed session
+            if (r.status() >= 500 && !maintenance(r)) {
+                throw new AuthException(AuthException.Reason.UNAVAILABLE, "Сайт временно недоступен (HTTP " + r.status() + ")");
+            }
+            return r;
         } catch (IOException e) {
             throw new AuthException(AuthException.Reason.UNAVAILABLE,
                     "Нет связи с сайтом: " + e.getMessage(), e);
