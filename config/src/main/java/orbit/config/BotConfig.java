@@ -298,9 +298,31 @@ public record BotConfig(
     }
 
     /** The rule for an NPC by its in-game name ({@code -=[ Streuner ]=-}), or {@code null}. */
+    /**
+     * The rule for an NPC as the game names it ({@code -=[ Protegit ]=-}); a rule under the bare name
+     * ({@code Protegit}, as the game's NPC table has it) counts too.
+     */
     public NpcRule npc(String name) {
-        return npcs.get(name);
+        NpcRule r = npcs.get(name);
+        if (r != null || name == null) {
+            return r;
+        }
+        String core = bare(name);
+        for (Map.Entry<String, NpcRule> e : npcs.entrySet()) {
+            if (bare(e.getKey()).equals(core)) {
+                return e.getValue();
+            }
+        }
+        return null;
     }
+
+    /** An NPC name without the game's decoration: {@code -=[ Protegit ]=-} → {@code protegit}. */
+    public static String bare(String name) {
+        return BARE.computeIfAbsent(name, n -> n.replaceAll("^[^\\p{L}\\p{N}]+|[^\\p{L}\\p{N}]+$", "").replaceAll("\\s+", " ").toLowerCase(java.util.Locale.ROOT));
+    }
+
+    /** {@link #bare} is asked for every ship every tick: names repeat, the answers are kept. */
+    private static final java.util.concurrent.ConcurrentHashMap<String, String> BARE = new java.util.concurrent.ConcurrentHashMap<>();
 
     /** The main modules. Keys are stable (they name the {@link #modules} sections). */
     public enum Module {

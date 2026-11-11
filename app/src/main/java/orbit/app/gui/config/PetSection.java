@@ -1,7 +1,6 @@
 package orbit.app.gui.config;
 
 import javax.swing.JCheckBox;
-import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JSpinner;
 import orbit.config.BotConfig;
@@ -24,7 +23,8 @@ final class PetSection implements Section {
 
     private final JCheckBox enabled = new JCheckBox("Выпускать питомца");
     private final ItemBox gear = new ItemBox(ItemCatalog.PET_GEARS, true);
-    private final JComboBox<String> locator = new JComboBox<>(locatorTargets());
+    /** The locator's target: a button with the chosen NPC; a click opens the list with a search field. */
+    private final javax.swing.JButton locator = new javax.swing.JButton();
     private final JCheckBox repair = new JCheckBox("Чинить уничтоженного");
     private final JCheckBox combo = new JCheckBox("Комбо-ремонт при HP ниже");
     private final JSpinner comboBelow = Form.percent();
@@ -36,9 +36,15 @@ final class PetSection implements Section {
     private final JComponent view;
 
     PetSection() {
-        locator.setPrototypeDisplayValue("PVP Saturn Diminisher (279)"); // the longest names show whole
-        locator.setMaximumRowCount(20);
-        locator.setToolTipText("Кого ищет пеленгатор. Начните печатать имя — список прыгнет к нему");
+        locator.setHorizontalAlignment(javax.swing.SwingConstants.LEFT);
+        locator.setToolTipText("Кого ищет пеленгатор — откроется список с поиском");
+        locator.addActionListener(e -> {
+            String chosen = NpcPicker.pick(locator, "Цель пеленгатора", java.util.List.of(locatorTargets()),
+                    locator.getText().replaceFirst(" ▾$", ""), false);
+            if (chosen != null) {
+                locator.setText(chosen + " ▾");
+            }
+        });
         enabled.addActionListener(e -> sync());
         gear.addActionListener(e -> sync());
         combo.addActionListener(e -> sync());
@@ -95,10 +101,7 @@ final class PetSection implements Section {
         gear.set(p.gear());
         String name = orbit.world.maps.NpcCatalog.bundled().name(p.locatorTarget());
         String shown = (name != null ? name : "NPC") + " (" + p.locatorTarget() + ")";
-        if (name == null) {
-            locator.addItem(shown); // a number the game no longer has: kept as it was
-        }
-        locator.setSelectedItem(shown);
+        locator.setText(shown + " ▾");
         repair.setSelected(!p.noRepair());
         combo.setSelected(p.comboRepairBelow() > 0);
         Form.setFraction(comboBelow, p.comboRepairBelow() > 0 ? p.comboRepairBelow() : 0.5);
@@ -113,7 +116,7 @@ final class PetSection implements Section {
 
     @Override
     public BotConfig apply(BotConfig c) {
-        String text = String.valueOf(locator.getSelectedItem());
+        String text = locator.getText().replaceFirst(" ▾$", "");
         java.util.regex.Matcher m = java.util.regex.Pattern.compile("\\((\\d+)\\)$").matcher(text);
         if (!m.find()) {
             throw new IllegalArgumentException("Питомец: выберите цель пеленгатора из списка");

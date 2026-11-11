@@ -91,7 +91,10 @@ final class KillSection implements Section {
         }));
         JButton add = new JButton("Добавить");
         add.addActionListener(e -> {
-            String name = JOptionPane.showInputDialog(table, "Имя NPC, напр. -=[ Streuner ]=-:");
+            // every NPC of the game by name (the bot knows «Protegit» also as «-=[ Protegit ]=-»), or one typed in
+            java.util.List<String> names = orbit.world.maps.NpcCatalog.bundled().all().stream()
+                    .map(orbit.world.maps.NpcCatalog.Npc::name).distinct().toList();
+            String name = NpcPicker.pick(table, "Добавить NPC", names, null, true);
             if (name != null && !name.isBlank()) {
                 int row = table.convertRowIndexToView(npcs.add(name.strip(), 0));
                 table.setRowSelectionInterval(row, row);
