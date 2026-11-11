@@ -222,6 +222,16 @@ public final class GameConnection implements AutoCloseable {
     }
 
     /** Main loop: log in, stay online, follow server changes, reconnect on failures. */
+    /**
+     * The website is tried again no sooner than this: a Wi-Fi restart or the site's own trouble takes a minute
+     * or two (the user, 2026-11-11), knocking every few seconds helps nothing.
+     */
+    static final Duration SITE_RETRY_MIN = Duration.ofMinutes(1);
+
+    private static Duration max(Duration a, Duration b) {
+        return a.compareTo(b) >= 0 ? a : b;
+    }
+
     public void run() {
         logContext = org.slf4j.MDC.getCopyOfContextMap();
         runner = Thread.currentThread();
@@ -242,7 +252,7 @@ public final class GameConnection implements AutoCloseable {
                         // a maintenance lasts half an hour or more: knock rarely, not every few seconds
                         Duration wait = e.reason() == AuthException.Reason.MAINTENANCE
                                 ? ConnectionSettings.maintenanceWait(maintenance++, java.util.concurrent.ThreadLocalRandom.current())
-                                : settings.backoff(failures++);
+                                : max(SITE_RETRY_MIN, settings.backoff(failures++));
                         String why = e.getMessage().replaceFirst("\\.$", "");
                         log.warn("Вход на сайт не удался: {}. Повтор через {}", why, spoken(wait));
                         // short, for the window: what and when the next try is
