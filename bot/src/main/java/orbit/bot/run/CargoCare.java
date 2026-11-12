@@ -298,7 +298,6 @@ final class CargoCare {
             failedAt = ctx.now();
         } else {
             soldAt = ctx.now();
-            ctx.stats().soldAt = soldAt;
             soldList = lastList;
         }
         pet.setTrade(false);

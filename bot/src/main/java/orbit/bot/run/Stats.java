@@ -29,8 +29,6 @@ public final class Stats {
     }
     /** A full hold is being sold right now ({@code CargoCare}): the modules may wait for the room it makes. */
     public volatile boolean selling;
-    /** When the last sale went through ({@code ctx.now()}); the hold shows the room a moment later. */
-    public volatile long soldAt = Long.MIN_VALUE / 2;
     /** The way a full hold is handled now (the module's or the config's), for the box picker; null = the config's. */
     public volatile String cargoMode;
     public final AtomicInteger deaths = new AtomicInteger();
