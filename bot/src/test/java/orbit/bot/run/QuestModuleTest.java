@@ -223,4 +223,35 @@ class QuestModuleTest {
         assertTrue(m.workingMap() != map && m.workingMap() != 0, "another x-3/x-4 map: "
                 + MapCatalog.bundled().info(m.workingMap()).name());
     }
+
+    @Test
+    void salvageKillsTheNpcsAndPicksTheirCargo() {
+        // 310023 (ru1 2026-11-12): «salvage 100» — the cargo boxes of killed NPCs (SalvageCondition: faction, ship
+        // type, NPC number, loot type, ore); here the NPC is Saimon (6), who lives on x-3 and x-4
+        int map = MapCatalog.bundled().byName("3-4").id();
+        Sim sim = new Sim(BotConfig.empty(), map, 10_000, 6_000);
+        sim.lasers("ammunition_laser_ucb-100");
+        take(sim, 501, 3, 23, 100, "0", "0", "6", "0", "0");
+        sim.npc(800, "-=[ Saimon ]=-", 10_500, 6_100);
+        QuestModule m = new QuestModule(sim.ctx, NpcMaps.shared(), orbit.world.maps.OreMaps.inMemory());
+        m.visited(sim.now);
+        sim.run(m::tick, 3_000);
+        assertEquals(800, sim.world.snapshot(sim.now).hero().selectedId());
+        assertTrue(m.status().startsWith("Квест 501: подобрать груз с NPC: Saimon"), m.status());
+
+        // the cargo it leaves is picked up
+        Sim box = new Sim(BotConfig.empty(), map, 10_000, 6_000);
+        take(box, 502, 3, 23, 100, "0", "0", "6", "0", "0");
+        orbit.protocol.gen.AddBoxCommand cargo = new orbit.protocol.gen.AddBoxCommand();
+        cargo.hash = "c1";
+        cargo.boxType = "FROM_SHIP";
+        cargo.x = 10_300;
+        cargo.y = 6_000;
+        box.world.apply(cargo, box.now);
+        QuestModule b = new QuestModule(box.ctx, NpcMaps.shared(), orbit.world.maps.OreMaps.inMemory());
+        b.visited(box.now);
+        box.run(b::tick, 5_000);
+        assertTrue(box.sent.stream().anyMatch(p -> p instanceof orbit.protocol.gen.CollectBoxRequest r && "c1".equals(r.itemHash)),
+                b.status());
+    }
 }

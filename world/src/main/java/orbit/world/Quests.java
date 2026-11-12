@@ -132,6 +132,7 @@ public record Quests(Map<Integer, Quest> active, List<Offer> offers, Map<Integer
     public static final int DAMAGE_PLAYERS = 30;
     public static final int VISIT_MAP = 34;
     public static final int MISCELLANEOUS = 19;
+    public static final int SALVAGE = 23;
     public static final int SELL_ORE = 52;
     public static final int LEVEL = 53;
     public static final int COLLECT_BONUS_BOX = 55;

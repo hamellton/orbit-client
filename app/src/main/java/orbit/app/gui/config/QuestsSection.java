@@ -31,6 +31,7 @@ final class QuestsSection implements Section {
         TYPES.put("CHALLENGE", "Испытания");
         KINDS.put("KILL", "Убить NPC");
         KINDS.put("DAMAGE", "Урон по NPC");
+        KINDS.put("SALVAGE", "Подобрать груз с убитых NPC");
         KINDS.put("BOX", "Собрать бонусные ящики");
         KINDS.put("ORE", "Собрать руду");
         KINDS.put("SELL", "Продать руду");

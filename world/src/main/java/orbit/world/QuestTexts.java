@@ -47,6 +47,8 @@ public final class QuestTexts {
             case Quests.COLLECT_LOOT -> "собрать " + (c.matches().isEmpty() ? "предметы" : c.matches().get(0));
             case Quests.REFINE_ORE -> "переработать " + (c.matches().isEmpty() ? "руду" : c.matches().get(0));
             case Quests.COLLECT_BONUS_BOX -> "собрать бонусные ящики";
+            case Quests.SALVAGE -> "подобрать груз с NPC" + (c.match(4) > 0 ? " (" + ore(c.match(4)) + ")" : "")
+                    + (c.match(2) > 0 ? ": " + npc(c.match(2)) : "");
             case Quests.VISIT_MAP -> "побывать на " + map(c.match(0));
             case Quests.MAP, Quests.ON_MAP -> "на карте " + String.join(" или ", maps(c));
             case Quests.COORDINATES -> "долететь до " + c.match(0) / 100 + "/" + c.match(1) / 100 + " ("

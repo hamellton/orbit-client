@@ -36,8 +36,8 @@ import org.slf4j.LoggerFactory;
  * chain); quests the bot cannot do are not taken, and a taken one it cannot do waits.
  *
  * <p>Settings ({@code modules.quests}, the «Квесты» tab): {@code types} — quest types to take (default DAILY, WEEKLY,
- * EVENT, MISSION — the user's choice 2026-11-12); {@code do} — condition kinds to do (KILL, DAMAGE, BOX, ORE, SELL,
- * MAP; all by default); {@code revisitMinutes} — how often to look at the giver again (360).
+ * EVENT, MISSION — the user's choice 2026-11-12); {@code do} — condition kinds to do (KILL, DAMAGE, SALVAGE, BOX, ORE,
+ * SELL, MAP; all by default); {@code revisitMinutes} — how often to look at the giver again (360).
  */
 public final class QuestModule implements BotModule {
 
@@ -52,7 +52,10 @@ public final class QuestModule implements BotModule {
     /** Bosses are easier elsewhere than on 4-5 (the user, 2026-11-12): that map counts as this many jumps more. */
     static final int BOSS_4_5_EXTRA_HOPS = 4;
 
-    enum Kind { KILL, DAMAGE, BOX, ORE, SELL, MAP }
+    enum Kind { KILL, DAMAGE, SALVAGE, BOX, ORE, SELL, MAP }
+
+    /** The cargo a killed NPC leaves ({@code FROM_SHIP}), what a «salvage» condition counts. */
+    static final String CARGO = "FROM_SHIP";
 
     private final BotContext ctx;
     private final NpcMaps npcMaps;
@@ -183,12 +186,12 @@ public final class QuestModule implements BotModule {
         Quests.Condition c = condition(q.active().get(work.quest()), work.condition());
         String progress = QuestTexts.condition(c) + (c.target() > 0 ? " " + (long) c.current() + "/" + (long) c.target() : "");
         switch (work.kind()) {
-            case KILL, DAMAGE, BOX, ORE -> {
+            case KILL, DAMAGE, SALVAGE, BOX, ORE -> {
                 if (notFound(w, now)) {
                     return;
                 }
                 if (worker == null) {
-                    boolean kill = work.kind() == Kind.KILL || work.kind() == Kind.DAMAGE;
+                    boolean kill = work.kind() == Kind.KILL || work.kind() == Kind.DAMAGE || work.kind() == Kind.SALVAGE;
                     worker = new KillModule(questContext(work), kill, true);
                 }
                 worker.tick();
@@ -241,6 +244,7 @@ public final class QuestModule implements BotModule {
     private static String what(Kind k) {
         return switch (k) {
             case KILL, DAMAGE -> "бью";
+            case SALVAGE -> "бью и подбираю груз";
             case BOX, ORE -> "собираю";
             case SELL -> "продаю";
             case MAP -> "лечу";
@@ -293,6 +297,9 @@ public final class QuestModule implements BotModule {
             return best == null ? null : new Work(quest.id(), c.id(), k, best, Set.copyOf(where.get(best)), Double.NaN,
                     Double.NaN, -1, want);
         }
+        if (c.type() == Quests.SALVAGE && doing.contains("SALVAGE")) {
+            return salvageWork(quest, c, w);
+        }
         if (c.type() == Quests.COLLECT_BONUS_BOX && doing.contains("BOX")) {
             int map = ctx.config().get().general().workingMap();
             return new Work(quest.id(), c.id(), Kind.BOX, map > 0 ? map : h.mapId(), Set.of(BONUS_BOX), Double.NaN,
@@ -322,6 +329,43 @@ public final class QuestModule implements BotModule {
                     point ? c.match(1) : Double.NaN, -1);
         }
         return null;
+    }
+
+    /**
+     * «Salvage»: the cargo of killed NPCs ({@code SalvageCondition}: faction, ship type, NPC number, loot type, ore).
+     * The NPC of the condition when it names one; else the NPCs of the quest's other kill conditions (310023: Sibelon
+     * and Saimon, then 100 of their cargo); else the config's own NPCs on its working map.
+     */
+    private Work salvageWork(Quests.Quest quest, Quests.Condition c, WorldSnapshot w) {
+        List<Quests.Condition> sources = new java.util.ArrayList<>();
+        if (c.match(2) > 0) {
+            sources.add(new Quests.Condition(c.id(), Quests.KILL_NPC, List.of(String.valueOf(c.match(2))), c.target(),
+                    c.current(), c.active(), c.completed(), c.mandatory(), List.of()));
+        } else {
+            quest.leaves().stream().filter(o -> QuestTargets.killing(o) || QuestTargets.damaging(o)).forEach(sources::add);
+        }
+        for (Quests.Condition src : sources) {
+            Map<Integer, Set<String>> where = new LinkedHashMap<>(QuestTargets.where(src, npcMaps));
+            where.keySet().removeIf(m -> notThere.getOrDefault(m, Set.of()).contains(c.id()));
+            Integer best = nearest(where.keySet(), w.hero());
+            if (best != null) {
+                return new Work(quest.id(), c.id(), Kind.SALVAGE, best, Set.copyOf(where.get(best)), Double.NaN,
+                        Double.NaN, -1, QuestTargets.wanted(src));
+            }
+        }
+        if (!sources.isEmpty()) {
+            return null;
+        }
+        BotConfig cfg = ctx.config().get();
+        Set<String> own = new TreeSet<>();
+        cfg.npcs().forEach((n, r) -> {
+            if (r.kill()) {
+                own.add(n);
+            }
+        });
+        int map = cfg.general().workingMap();
+        return own.isEmpty() ? null : new Work(quest.id(), c.id(), Kind.SALVAGE, map > 0 ? map : w.hero().mapId(),
+                Set.copyOf(own), Double.NaN, Double.NaN, -1);
     }
 
     /** Collect an ore: where it lies in sight, else the nearest map where it was seen. */
@@ -423,7 +467,7 @@ public final class QuestModule implements BotModule {
 
     static BotConfig questConfig(BotConfig c, Work wk) {
         BotConfig out = c;
-        if (wk.kind() == Kind.KILL || wk.kind() == Kind.DAMAGE) {
+        if (wk.kind() == Kind.KILL || wk.kind() == Kind.DAMAGE || wk.kind() == Kind.SALVAGE) {
             Map<String, BotConfig.NpcRule> npcs = new LinkedHashMap<>();
             for (String n : wk.names()) {
                 BotConfig.NpcRule own = c.npc(n);
@@ -432,6 +476,15 @@ public final class QuestModule implements BotModule {
                         : new BotConfig.NpcRule(500, 0, true, Set.of(), Set.of(), null));
             }
             out = out.withNpcs(npcs);
+            if (wk.kind() == Kind.SALVAGE) {
+                // their cargo too: what the condition counts
+                BotConfig.Collect k = c.collect();
+                Map<String, BotConfig.BoxRule> boxes = new LinkedHashMap<>(k.boxes());
+                BotConfig.BoxRule own = k.boxes().get(CARGO);
+                boxes.put(CARGO, new BotConfig.BoxRule(true, own != null ? own.waitMs() : 0, own != null ? own.priority() : 0));
+                out = out.withCollect(new BotConfig.Collect(boxes, k.radius(), k.stayAwayFromEnemies(), k.ignoreContested(),
+                        k.cargo(), k.cargoFullAt(), k.sellOres()));
+            }
         } else if (wk.kind() == Kind.BOX || wk.kind() == Kind.ORE) {
             BotConfig.Collect k = c.collect();
             Map<String, BotConfig.BoxRule> boxes = new LinkedHashMap<>();
@@ -482,7 +535,7 @@ public final class QuestModule implements BotModule {
     /** The condition kinds to do ({@code do}); all by default. */
     Set<String> kinds() {
         Set<String> out = new TreeSet<>();
-        for (String k : strings("do", List.of("KILL", "DAMAGE", "BOX", "ORE", "SELL", "MAP"))) {
+        for (String k : strings("do", List.of("KILL", "DAMAGE", "SALVAGE", "BOX", "ORE", "SELL", "MAP"))) {
             out.add(k.toUpperCase(java.util.Locale.ROOT));
         }
         return out;
