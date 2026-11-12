@@ -406,7 +406,8 @@ public final class QuestModule implements BotModule {
         }
         worker = null;
         work = null;
-        visit = new QuestGiverVisit(ctx, types(), this::doable, java.util.Set.copyOf(ids("first")));
+        visit = new QuestGiverVisit(ctx, types(), this::doable, java.util.Set.copyOf(ids("first")))
+                .withGiverMaps(orbit.world.maps.GiverMaps.shared().all());
         told = "";
     }
 

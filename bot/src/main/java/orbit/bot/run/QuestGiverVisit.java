@@ -40,6 +40,23 @@ public final class QuestGiverVisit {
     private final Predicate<Quests.Quest> doable;
     /** Quests the user marked «Первым»: read and taken whatever their type. */
     private final Set<Integer> always;
+    /** Maps where a quest giver was seen ({@link orbit.world.maps.GiverMaps}). */
+    private Set<Integer> givers = Set.of();
+
+    /** The maps the bot saw a quest giver on, tried too. */
+    public QuestGiverVisit withGiverMaps(Set<Integer> maps) {
+        givers = Set.copyOf(maps);
+        return this;
+    }
+
+    /** Another company's map: N-x with N its number. */
+    private static boolean enemy(String name, int faction) {
+        if (name.length() < 2 || name.charAt(1) != '-') {
+            return false;
+        }
+        int company = name.charAt(0) - '0';
+        return company >= 1 && company <= 3 && company != faction;
+    }
     private Step step = Step.TO_BASE;
     private final List<Integer> bases = new ArrayList<>();
     private int base;
@@ -378,7 +395,15 @@ public final class QuestGiverVisit {
      */
     private List<Integer> bases(WorldSnapshot.Hero h) {
         List<int[]> found = new ArrayList<>(); // {map, jumps, order}
-        List<String> names = List.of(h.factionId() + "-8", h.factionId() + "-1", h.factionId() + "-4", h.factionId() + "-5");
+        List<String> names = new ArrayList<>(List.of(h.factionId() + "-8", h.factionId() + "-1", h.factionId() + "-4",
+                h.factionId() + "-5"));
+        // and the maps the bot saw a giver on (5-2, if it has one), not another company's
+        for (int map : givers) {
+            String n = ctx.maps().info(map).name();
+            if (!names.contains(n) && !enemy(n, h.factionId())) {
+                names.add(n);
+            }
+        }
         boolean giverHere = ctx.world().get().assets().values().stream().anyMatch(a -> a.type() == GIVER_TYPE);
         if (giverHere) {
             found.add(new int[] {h.mapId(), -1, -1});

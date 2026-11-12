@@ -165,6 +165,11 @@ public final class WorldFeed {
         if (learnNpcMaps && p instanceof orbit.protocol.gen.ShipCreateCommand c && c.npc) {
             orbit.world.maps.NpcMaps.shared().learn(world.snapshot(nanos).hero().mapId(), c.userName);
         }
+        if (learnNpcMaps && p instanceof orbit.protocol.gen.AssetCreateCommand a && a.type != null && a.type.typeValue == 34
+                && orbit.world.maps.GiverMaps.shared().learn(world.snapshot(nanos).hero().mapId())) {
+            log.info("Квестодатель {} есть на {} — запомнил", a.userName,
+                    MapCatalog.bundled().info(world.snapshot(nanos).hero().mapId()).name());
+        }
         if (learnNpcMaps && p instanceof orbit.protocol.gen.AddOreCommand o && o.oreType != null) {
             orbit.world.maps.OreMaps.shared().learn(world.snapshot(nanos).hero().mapId(), o.oreType.typeValue);
         }

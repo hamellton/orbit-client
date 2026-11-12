@@ -191,4 +191,19 @@ class QuestGiverVisitTest {
         v.tick();
         assertTrue(v.status().endsWith("на 3-5") || v.step() != QuestGiverVisit.Step.TO_BASE, v.status());
     }
+
+    @Test
+    void aMapWhereTheBotSawAGiverIsTriedToo() {
+        // the user 2026-11-12: if 5-2 has a quest giver, no need to fly elsewhere
+        int map52 = MapCatalog.bundled().byName("5-2").id();
+        Sim sim = new Sim(BotConfig.empty(), map52, 5_000, 5_000);
+        QuestGiverVisit v = new QuestGiverVisit(sim.ctx, Set.of(Quests.DAILY), q -> true).withGiverMaps(Set.of(map52));
+        v.tick();
+        assertTrue(v.step() != QuestGiverVisit.Step.TO_BASE || v.status().endsWith("на 5-2"), v.status());
+        // another company's base is never one of them
+        QuestGiverVisit e = new QuestGiverVisit(sim.ctx, Set.of(Quests.DAILY), q -> true)
+                .withGiverMaps(Set.of(MapCatalog.bundled().byName("1-8").id()));
+        e.tick();
+        assertTrue(!e.status().endsWith("на 1-8"), e.status());
+    }
 }
