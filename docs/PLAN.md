@@ -418,7 +418,20 @@ SAFETY в нужном кубам объёме → KILL для кубов → 5�
         `SeasonPassRewardClaimRequest`); Diminishing — своё окно (`DiminishingQuestAcceptQuestRequest`); «Galaxy
         Trek» в клиенте не найден (ближе всего Space Search, `SpaceSearchRequest`) — спросить пользователя.
       В записях: GE1 — ежедневный 1021; ru1 — миссии 118015, 120024, 120032 (убить игроков), 122001 (35 000
-      Protegit, 22-й уровень). Взятия квеста под снифером нет — нужна запись пользователя.
+      Protegit, 22-й уровень).
+      *Запись пользователя ru1 2026-11-12 15:13 (`session-20261112-151306-2`), квестодатель «Reginald Crowley» на 2-8
+      у 9736/… (объект 150000097, тип 34):* сервер включает квестодателя в ~400 от него (включён в 397, выключен в
+      427) и сам шлёт `QuestListCommand` сразу за `QuestGiversAvailableCommand`; клик по нему — `MapAssetActivationRequest
+      (150000097)`, через 0,4–0,6 с `QuestGiverApproachedRequest(150000097)`, через 0,4 с `QuestSettingsRequest`
+      (available и unattempted — true, остальные false); при первом открытии клиент ещё до этого просит условия первого
+      квеста списка; `QuestInfoRequest` по каждому выбранному квесту через 1–4 с; `QuestAcceptRequest` через 2–9 с после
+      условий, ответ — `QuestInitializationCommand` и новый `QuestListCommand`; за одно открытие взято до трёх
+      квестов (2 с между взятиями); `QuestGiverWindowClosedRequest` через 2–7 с. `maxQuests` — свободные места для
+      миссий (0 при пяти миссиях, 1 после отмены одной); ежедневные и еженедельные брались и при 0. Отмена —
+      `QuestCancelRequest`, ответ `QuestCancelledCommand` и новый список. Квесты: цепочка 22-го уровня — 122000 (3 500
+      Cubikon), 122002 (65 000 Interceptor), 122003 (10 500 Annihilator), 122004 (17 500 Saboteur, взят); ежедневные
+      317029 (4 Kristallon за 24 ч — условие 63), 318001 (по 3 боссов Kristallin, Kristallon, Lordakium, StreuneR),
+      314008 (12 UberKristallin); еженедельные 606002/606006/606009 — врата (не делать); событие 500483 (условие 19).
       Делаем:
       - [x] 1. видеть квесты: модель мира (`Quests` в `WorldSnapshot`: взятые с прогрессом, предложения
         квестодателя, условия до взятия, включённые квестодатели; `QuestTexts` — условия по-русски), карточка

@@ -32,7 +32,8 @@ public final class QuestTexts {
 
     /** Timer-like conditions: target and value are milliseconds. */
     public static boolean isTime(Quests.Condition c) {
-        return c.type() == Quests.TIMER || c.type() == Quests.HASTE || c.type() == Quests.COUNTDOWN;
+        return c.type() == Quests.TIMER || c.type() == Quests.HASTE || c.type() == Quests.COUNTDOWN
+                || c.type() == Quests.REAL_TIME_HASTE;
     }
 
     /** {@code убить Protegit}, {@code собрать прометий}, {@code побывать на 1-5}… */
@@ -54,6 +55,8 @@ public final class QuestTexts {
             case Quests.KILL_PLAYERS, Quests.KILL_PLAYER -> "убить игроков";
             case Quests.DAMAGE_PLAYERS -> "урон по игрокам";
             case Quests.AVOID_DEATH -> c.target() > 0 ? "умереть не больше " + (long) c.target() + " раз" : "не умереть";
+            case Quests.REAL_TIME_HASTE -> "успеть за " + seconds(c.target()) + " (осталось " + seconds(c.current()) + ")";
+            case Quests.MISCELLANEOUS -> "особое условие";
             case Quests.TIMER, Quests.HASTE, Quests.COUNTDOWN -> c.target() > 0
                     ? "за " + seconds(c.target()) + " (прошло " + seconds(c.current()) + ")" : "на время";
             case Quests.LEVEL -> "достичь " + (long) c.target() + " уровня";
@@ -84,6 +87,9 @@ public final class QuestTexts {
 
     private static String seconds(double ms) {
         long s = (long) (ms / 1000);
+        if (s >= 3600) {
+            return s / 3600 + " ч" + (s % 3600 / 60 > 0 ? " " + s % 3600 / 60 + " мин" : "");
+        }
         return s >= 60 ? s / 60 + " мин" + (s % 60 > 0 ? " " + s % 60 + " с" : "") : s + " с";
     }
 
