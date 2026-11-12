@@ -205,7 +205,25 @@ public final class WorldFeed {
                     state = "В игре: " + where;
                 }
             }
-            case JumpInitiatedCommand j -> log.info("Прыжок на карту {}", maps.info(j.mapId).name());
+            case JumpInitiatedCommand j -> {
+                log.info("Прыжок на карту {}", maps.info(j.mapId).name());
+                // through a portal the data does not know (5-2 → 5-1, live 2026-11-12): remember where it leads
+                WorldSnapshot ws = world.snapshot(now());
+                WorldSnapshot.Hero hh = ws.hero();
+                ws.portals().values().stream()
+                        .filter(g -> Math.hypot(g.x() - hh.x(), g.y() - hh.y()) <= 600)
+                        .min(java.util.Comparator.comparingDouble(g -> Math.hypot(g.x() - hh.x(), g.y() - hh.y())))
+                        .ifPresent(g -> {
+                            if (maps.learn(hh.mapId(), g.x(), g.y(), j.mapId, g.factionId())) {
+                                log.info("Запомнил портал: {} ({}/{}) ведёт на {}", maps.info(hh.mapId()).name(),
+                                        g.x() / 100, g.y() / 100, maps.info(j.mapId).name());
+                            }
+                        });
+            }
+            case orbit.protocol.gen.JumpgateCreateCommand jg when maps.portalNear(
+                    world.snapshot(now()).hero().mapId(), jg.x, jg.y, 400) == null && world.snapshot(now()).hero().mapId() > 0 ->
+                    log.info("Портал без названия на {}: {}/{} (компания {}) — куда ведёт, узнаю после прыжка",
+                            maps.info(world.snapshot(now()).hero().mapId()).name(), jg.x / 100, jg.y / 100, jg.factionId);
             // a base's HQ, refinery and repair dock with their company: where the ship can repair safely
             case orbit.protocol.gen.AssetCreateCommand a when a.type != null
                     && java.util.Set.of(46, 47, 50, 51, 52, 53, 54).contains((int) a.type.typeValue) -> {

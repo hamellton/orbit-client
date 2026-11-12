@@ -71,6 +71,18 @@ final class BlockMenu {
             choice.add(r);
             menu.add(r);
         }
+        if (b == ViewSettings.Block.GROUP || b == ViewSettings.Block.TARGET) {
+            menu.addSeparator();
+            JMenu numbers = new JMenu("HP и щит показывать");
+            ButtonGroup style = new ButtonGroup();
+            for (ViewSettings.Numbers n : ViewSettings.Numbers.values()) {
+                JRadioButtonMenuItem r = new JRadioButtonMenuItem(n.label, v.numbers() == n);
+                r.addActionListener(e -> v.setNumbers(n));
+                style.add(r);
+                numbers.add(r);
+            }
+            menu.add(numbers);
+        }
         menu.addSeparator();
         menu.add(allMenu());
         JMenu window = new JMenu("Окно");

@@ -114,4 +114,25 @@ class MapCatalogTest {
     private static WorldSnapshot.Zone zone(int shape, boolean inverted, Integer... coords) {
         return new WorldSnapshot.Zone("z", 0, shape, List.of(coords), inverted, true);
     }
+
+    @org.junit.jupiter.api.Test
+    void aPortalJumpedThroughIsLearnedAndKept(@org.junit.jupiter.api.io.TempDir java.nio.file.Path dir) throws Exception {
+        java.nio.file.Path file = dir.resolve("portals-learned.json");
+        MapCatalog c;
+        try (var m = MapCatalog.class.getResourceAsStream("maps.json"); var p = MapCatalog.class.getResourceAsStream("portals.json")) {
+            c = MapCatalog.parse(m, p);
+        }
+        c.useLearned(file);
+        int before = c.portals(92).size();
+        org.junit.jupiter.api.Assertions.assertTrue(c.learn(92, 10_400, 12_700, 91, 0), "5-2 → 5-1 is new");
+        org.junit.jupiter.api.Assertions.assertFalse(c.learn(92, 10_450, 12_700, 91, 0), "the same one again");
+        org.junit.jupiter.api.Assertions.assertFalse(c.learn(92, 2_800, 3_600, 93, 0), "the data has it");
+        org.junit.jupiter.api.Assertions.assertEquals(before + 1, c.portals(92).size());
+        MapCatalog again;
+        try (var m = MapCatalog.class.getResourceAsStream("maps.json"); var p = MapCatalog.class.getResourceAsStream("portals.json")) {
+            again = MapCatalog.parse(m, p);
+        }
+        again.useLearned(file);
+        org.junit.jupiter.api.Assertions.assertEquals("5-1", again.portals(92).getLast().toName());
+    }
 }

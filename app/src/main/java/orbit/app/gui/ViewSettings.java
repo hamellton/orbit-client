@@ -94,6 +94,32 @@ public final class ViewSettings {
         }
     }
 
+    /** How the group's and the targets' bars write hull and shield. */
+    public enum Numbers {
+        EXACT("Числа (245 300 / 250 000)"),
+        PERCENT("Проценты (98%)"),
+        BOTH("Числа и проценты");
+
+        public final String label;
+
+        Numbers(String label) {
+            this.label = label;
+        }
+    }
+
+    private Numbers numbers = Numbers.EXACT;
+
+    public synchronized Numbers numbers() {
+        return numbers;
+    }
+
+    public void setNumbers(Numbers n) {
+        synchronized (this) {
+            numbers = n;
+        }
+        changed();
+    }
+
     public static ViewSettings shared() {
         return SHARED;
     }
@@ -114,6 +140,11 @@ public final class ViewSettings {
                     if (s != null) {
                         v.shown.put(sec, Boolean.parseBoolean(s));
                     }
+                }
+                try {
+                    v.numbers = Numbers.valueOf(p.getProperty("numbers", Numbers.EXACT.name()));
+                } catch (IllegalArgumentException ignored) {
+                    // an old or broken value: numbers
                 }
                 for (Block b : Block.values()) {
                     String s = p.getProperty("block." + b.name());
@@ -216,6 +247,7 @@ public final class ViewSettings {
         Properties p = new Properties();
         places.forEach((b, pl) -> p.setProperty("block." + b.name(), pl.name()));
         shown.forEach((s, on) -> p.setProperty("section." + s.name(), String.valueOf(on)));
+        p.setProperty("numbers", numbers.name());
         try {
             Files.createDirectories(file.getParent());
             try (Writer w = Files.newBufferedWriter(file)) {

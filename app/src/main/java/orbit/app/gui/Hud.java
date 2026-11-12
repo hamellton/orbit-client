@@ -748,9 +748,9 @@ final class Hud {
         WorldSnapshot.Group group = w.group();
         WorldSnapshot.Hero h = w.hero();
         List<WorldSnapshot.Member> others = group.members().stream().filter(m -> m.id() != h.id()).toList();
-        int rowH = line + 2 * 9 + 10;
+        int rowH = line + 2 * 11 + 12;
         // what each one has selected, as the game's group window shows it
-        int targetH = line + 6;
+        int targetH = 14 + 11 + 6;
         return new Card() {
             @Override
             public int height(int width) {
@@ -784,25 +784,22 @@ final class Hud {
                     g.drawString(right, x + width - pad - fm.stringWidth(right), ry + 11);
                     Health mh = memberHealth(w, m);
                     if (mh.known()) {
-                        bar(g, x + pad, ry + 15, width - 2 * pad, 9, mh.hp(), mh.hpMax(), HP_BAR, true);
-                        bar(g, x + pad, ry + 26, width - 2 * pad, 9, mh.shield(), mh.shieldMax(), SHIELD_BAR, true);
+                        valueBar(g, x + pad, ry + 15, width - 2 * pad, 11, mh.hp(), mh.hpMax(), HP_BAR);
+                        valueBar(g, x + pad, ry + 28, width - 2 * pad, 11, mh.shield(), mh.shieldMax(), SHIELD_BAR);
                     }
                     ry += rowH;
                     if (!m.targetName().isEmpty() && !m.loggedOut()) {
-                        // «→ target», its hull and shield side by side in one thin row
+                        // «→ target» on its line, its hull and shield under it, side by side
                         int indent = pad + 10;
                         g.setFont(font(Font.PLAIN, 11f));
                         g.setColor(MinimapPanel.ENEMY);
-                        int nameW = Math.min((width - indent - pad) / 2, fm.stringWidth("→ " + m.targetName()) + 6);
-                        g.drawString(clip(g, "→ " + m.targetName(), nameW), x + indent, ry + 9);
+                        g.drawString(clip(g, "→ " + m.targetName(), width - indent - pad), x + indent, ry + 10);
                         Health th = m.targetHealth();
                         if (th.known()) {
-                            int bx = x + indent + nameW + 4;
+                            int bx = x + indent;
                             int bw = (x + width - pad - bx - 4) / 2;
-                            if (bw > 20) {
-                                bar(g, bx, ry + 2, bw, 8, th.hp(), th.hpMax(), HP_BAR, true);
-                                bar(g, bx + bw + 4, ry + 2, bw, 8, th.shield(), th.shieldMax(), SHIELD_BAR, true);
-                            }
+                            valueBar(g, bx, ry + 14, bw, 11, th.hp(), th.hpMax(), HP_BAR);
+                            valueBar(g, bx + bw + 4, ry + 14, bw, 11, th.shield(), th.shieldMax(), SHIELD_BAR);
                         }
                         ry += targetH;
                     }
@@ -880,8 +877,8 @@ final class Hud {
             g.drawString(clip(g, kind, inner), x + 10, ty + 10);
             ty += 14;
             if (bars) {
-                bar(g, x + 10, ty + 2, inner, 9, t.health().hp(), t.health().hpMax(), HP_BAR, true);
-                bar(g, x + 10, ty + 13, inner, 9, t.health().shield(), t.health().shieldMax(), SHIELD_BAR, true);
+                valueBar(g, x + 10, ty + 2, inner, 9, t.health().hp(), t.health().hpMax(), HP_BAR);
+                valueBar(g, x + 10, ty + 13, inner, 9, t.health().shield(), t.health().shieldMax(), SHIELD_BAR);
                 ty += 2 * 9 + 6;
             }
         }
@@ -1033,6 +1030,61 @@ final class Hud {
             text = String.format("%.0f%%", 100 * share); // big numbers in a narrow bar: the share fits
         }
         g.drawString(text, x + (w - fm.stringWidth(text)) / 2, y + (barHeight + fm.getAscent() - fm.getDescent()) / 2);
+    }
+
+    /**
+     * A hull or shield bar written as the user chose ({@link ViewSettings.Numbers}): numbers by default, shortened
+     * («245к / 250к») when the bar is narrow, the share only as the last resort.
+     */
+    private void valueBar(Graphics2D g, int x, int y, int w, int barHeight, double now, double max, Color color) {
+        g.setColor(BAR_TRACK);
+        g.fill(new RoundRectangle2D.Double(x, y, w, barHeight, barHeight, barHeight));
+        if (max <= 0 || now < 0) {
+            return;
+        }
+        double share = Math.min(1, now / max);
+        g.setColor(color);
+        g.fill(new RoundRectangle2D.Double(x, y, Math.max(barHeight, w * share), barHeight, barHeight, barHeight));
+        if (barHeight < 9) {
+            return;
+        }
+        g.setFont(font(Font.PLAIN, barHeight >= 13 ? 10f : barHeight >= 11 ? 9f : 8f));
+        FontMetrics fm = g.getFontMetrics();
+        String pct = String.format("%.0f%%", 100 * share);
+        String full = num(now) + " / " + num(max);
+        String shortened = shortNum(now) + " / " + shortNum(max);
+        List<String> tries = switch (ViewSettings.shared().numbers()) {
+            case PERCENT -> List.of(pct);
+            case BOTH -> List.of(full + "  ·  " + pct, shortened + " · " + pct, shortened, shortNum(now), pct);
+            case EXACT -> List.of(full, shortened, shortNum(now), pct);
+        };
+        String text = pct;
+        for (String t : tries) {
+            if (fm.stringWidth(t) <= w - 6) {
+                text = t;
+                break;
+            }
+        }
+        g.setColor(Color.WHITE);
+        g.drawString(text, x + (w - fm.stringWidth(text)) / 2, y + (barHeight + fm.getAscent() - fm.getDescent()) / 2);
+    }
+
+    static String num(double v) {
+        return String.format("%,.0f", v).replace(',', ' ').replace('\u00a0', ' ');
+    }
+
+    /** 245 300 → 245к, 1 250 000 → 1,25М. */
+    static String shortNum(double v) {
+        if (v >= 1_000_000) {
+            return String.format("%.2fМ", v / 1_000_000).replace('.', ',').replace(",00М", "М");
+        }
+        if (v >= 10_000) {
+            return String.format("%.0fк", v / 1_000);
+        }
+        if (v >= 1_000) {
+            return String.format("%.1fк", v / 1_000).replace('.', ',').replace(",0к", "к");
+        }
+        return String.format("%.0f", v);
     }
 
     static String heroStatus(WorldSnapshot.Hero h) {

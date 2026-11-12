@@ -119,9 +119,82 @@ public final class MapCatalog {
         return maps;
     }
 
-    /** Known portals of a map (empty for gates and instances). */
+    /** Known portals of a map (empty for gates and instances): the bundled ones and those learned here. */
     public List<Portal> portals(int mapId) {
-        return portals.getOrDefault(mapId, List.of());
+        List<Portal> base = portals.getOrDefault(mapId, List.of());
+        List<Portal> extra = learned.get(mapId);
+        if (extra == null || extra.isEmpty()) {
+            return base;
+        }
+        List<Portal> all = new ArrayList<>(base);
+        all.addAll(extra);
+        return all;
+    }
+
+    /** Portals the data does not have, learned by jumping through them ({@code local/portals-learned.json}). */
+    public static final java.nio.file.Path LEARNED = java.nio.file.Path.of("local", "portals-learned.json");
+    private final Map<Integer, List<Portal>> learned = new java.util.concurrent.ConcurrentHashMap<>();
+    private java.nio.file.Path learnedFile;
+
+    /** Reads the portals learned before and keeps the new ones in {@code file}. */
+    public synchronized void useLearned(java.nio.file.Path file) {
+        learnedFile = file;
+        learned.clear();
+        try {
+            if (file != null && java.nio.file.Files.exists(file)) {
+                for (JsonNode m : JSON.readTree(file.toFile()).path("maps")) {
+                    List<Portal> list = new ArrayList<>();
+                    for (JsonNode p : m.path("portals")) {
+                        list.add(new Portal(p.get("x").asInt(), p.get("y").asInt(), p.get("toId").asInt(),
+                                p.path("to").asText(), p.path("faction").asInt()));
+                    }
+                    learned.put(m.get("id").asInt(), List.copyOf(list));
+                }
+            }
+        } catch (IOException e) {
+            // a broken file: learned again
+        }
+    }
+
+    /**
+     * A portal at {@code x/y} of map {@code from} took the ship to {@code to}: kept unless the data already has a
+     * portal there. True when new.
+     */
+    public synchronized boolean learn(int from, int x, int y, int to, int faction) {
+        if (from <= 0 || to <= 0 || from == to || portalNear(from, x, y, 400) != null) {
+            return false;
+        }
+        List<Portal> list = new ArrayList<>(learned.getOrDefault(from, List.of()));
+        list.add(new Portal(x, y, to, info(to).name(), faction));
+        learned.put(from, List.copyOf(list));
+        if (learnedFile != null) {
+            com.fasterxml.jackson.databind.node.ObjectNode root = JSON.createObjectNode();
+            root.put("source", "learned by jumping (portals the bundled data does not have)");
+            com.fasterxml.jackson.databind.node.ArrayNode maps = root.putArray("maps");
+            new java.util.TreeMap<>(learned).forEach((id, ps) -> {
+                com.fasterxml.jackson.databind.node.ObjectNode m = maps.addObject();
+                m.put("id", id);
+                m.put("name", info(id).name());
+                com.fasterxml.jackson.databind.node.ArrayNode a = m.putArray("portals");
+                for (Portal p : ps) {
+                    com.fasterxml.jackson.databind.node.ObjectNode o = a.addObject();
+                    o.put("x", p.x());
+                    o.put("y", p.y());
+                    o.put("to", p.toName());
+                    o.put("toId", p.toId());
+                    if (p.faction() != 0) {
+                        o.put("faction", p.faction());
+                    }
+                }
+            });
+            try {
+                java.nio.file.Files.createDirectories(learnedFile.toAbsolutePath().getParent());
+                JSON.writerWithDefaultPrettyPrinter().writeValue(learnedFile.toFile(), root);
+            } catch (IOException e) {
+                // kept for this run
+            }
+        }
+        return true;
     }
 
     /** The known portal nearest to a point, within {@code maxDistance}; {@code null} if none. */

@@ -40,7 +40,10 @@ public final class LogStore {
         LogRules.Kind kind = LogRules.of(logger, level != LogEntry.Level.INFO, message);
         String simple = LogRules.simpleName(logger);
         boolean fold = kind.category() != LogCategory.SUMMARY && (details == null || details.isEmpty());
-        String key = level + "|" + simple + "|" + (kind.important() ? message : NUMBER.matcher(message).replaceAll("#"));
+        boolean loot = message.startsWith(LOOT);
+        // the loot of each kill adds up in one row (any amounts); other journal lines fold only worded the same
+        String key = level + "|" + simple + "|" + (loot ? LOOT
+                : kind.important() ? message : NUMBER.matcher(message).replaceAll("#"));
         LogEntry row = null;
         synchronized (rows) {
             if (account != null) {
@@ -51,7 +54,7 @@ public final class LogStore {
                 for (Iterator<LogEntry> it = mine.descendingIterator(); it.hasNext(); ) {
                     LogEntry e = it.next();
                     if (e.key().equals(key) && time - e.last() <= MERGE_MS && time - e.first() <= SPAN_MS) {
-                        e.repeat(message, time);
+                        e.repeat(loot ? sumLoot(e.text(), message) : message, time);
                         row = e;
                         break;
                     }
@@ -74,6 +77,45 @@ public final class LogStore {
             l.accept(row);
         }
         return row;
+    }
+
+    static final String LOOT = "Добыча:";
+    static final String LOOT_SUM = "Добыча всего:";
+    private static final Pattern LOOT_PART = Pattern.compile("^\\+([\\d\\s\\u00a0.,]*\\d)\\s+(.+)$");
+
+    /**
+     * «Добыча: +4 569 опыта · +32 чести» added to the row's sum so far: «Добыча всего: +9 138 опыта · +64 чести»
+     * (amounts by name, in the order first seen; a part that is not «+N name» is kept once as it is).
+     */
+    static String sumLoot(String sofar, String next) {
+        java.util.LinkedHashMap<String, Double> sum = new java.util.LinkedHashMap<>();
+        java.util.LinkedHashSet<String> other = new java.util.LinkedHashSet<>();
+        for (String text : List.of(sofar, next)) {
+            String body = text.startsWith(LOOT_SUM) ? text.substring(LOOT_SUM.length())
+                    : text.startsWith(LOOT) ? text.substring(LOOT.length()) : text;
+            for (String part : body.split("·")) {
+                String t = part.strip();
+                if (t.isEmpty()) {
+                    continue;
+                }
+                java.util.regex.Matcher m = LOOT_PART.matcher(t);
+                if (m.matches()) {
+                    String digits = m.group(1).replaceAll("[\\s\\u00a0]", "").replace(',', '.');
+                    try {
+                        sum.merge(m.group(2).strip(), Double.parseDouble(digits), Double::sum);
+                        continue;
+                    } catch (NumberFormatException ignored) {
+                        // kept as words below
+                    }
+                }
+                other.add(t);
+            }
+        }
+        List<String> parts = new ArrayList<>();
+        sum.forEach((name, v) -> parts.add("+" + String.format("%,.0f", v).replace(',', ' ').replace('\u00a0', ' ')
+                + " " + name));
+        parts.addAll(other);
+        return LOOT_SUM + " " + String.join("  ·  ", parts);
     }
 
     /** All rows, oldest first. */
