@@ -55,7 +55,18 @@ public final class NpcMaps {
         return shared;
     }
 
-    private void read(JsonNode root) {
+    /**
+     * NPCs that live only on some maps ({@code "only"} in the bundled file): seen elsewhere they came with a special
+     * event (the user, 2026-11-12: Boss Kristallon lives on x-7 and 4-5, elsewhere only in events).
+     */
+    private final Map<String, Set<Integer>> only = new TreeMap<>();
+
+    void read(JsonNode root) {
+        root.path("only").fields().forEachRemaining(e -> {
+            Set<Integer> maps = new TreeSet<>();
+            e.getValue().forEach(n -> maps.add(n.asInt()));
+            only.put(e.getKey(), maps);
+        });
         root.fields().forEachRemaining(e -> {
             try {
                 int map = Integer.parseInt(e.getKey());
@@ -80,9 +91,11 @@ public final class NpcMaps {
         return true;
     }
 
-    /** The NPCs known on a map (as the game names them). */
+    /** The NPCs known on a map (as the game names them), those that live only elsewhere left out. */
     public synchronized Set<String> on(int map) {
-        return Set.copyOf(known.getOrDefault(map, Set.of()));
+        Set<String> out = new TreeSet<>(known.getOrDefault(map, Set.of()));
+        out.removeIf(n -> only.containsKey(n) && !only.get(n).contains(map));
+        return Set.copyOf(out);
     }
 
     /** The maps with any NPC known. */

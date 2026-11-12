@@ -88,7 +88,15 @@
     "..::{ Boss Sibelonit }::.."
   ],
   "18": [
-    "-=[ Kristallin ]=-"
+    "-=[ Kristallin ]=-",
+    "-=[ Kristallon ]=-",
+    "..::{ Boss Kristallin }::.."
+  ],
+  "19": [
+    "-=[ Kristallin ]=-",
+    "-=[ Kristallon ]=-",
+    "..::{ Boss Kristallin }::..",
+    "..::{ Boss Kristallon }::.."
   ],
   "21": [
     "-=[ Lordakia ]=-",
@@ -103,13 +111,14 @@
     "-=[ Kristallon ]=-",
     "-=[ Plagued Kristallin ]=-",
     "-=[ Protegit ]=-",
-    "..::{ Boss Kristallin }::..",
-    "..::{ Boss Kristallon }::.."
+    "..::{ Boss Kristallin }::.."
   ],
   "23": [
     "-=[ Blighted Kristallon ]=-",
     "-=[ Kristallin ]=-",
-    "-=[ Kristallon ]=-"
+    "-=[ Kristallon ]=-",
+    "..::{ Boss Kristallin }::..",
+    "..::{ Boss Kristallon }::.."
   ],
   "24": [
     "-=[ StreuneR ]=-",
@@ -138,7 +147,9 @@
   "27": [
     "-=[ Blighted Kristallon ]=-",
     "-=[ Kristallin ]=-",
-    "-=[ Kristallon ]=-"
+    "-=[ Kristallon ]=-",
+    "..::{ Boss Kristallin }::..",
+    "..::{ Boss Kristallon }::.."
   ],
   "28": [
     "-=[ StreuneR ]=-",
@@ -148,6 +159,7 @@
   "29": [
     "( Uber Battleray )",
     "( UberDevolarium )",
+    "( UberKristallin )",
     "( UberLordakia )",
     "( UberMordon )",
     "( UberSaimon )",
@@ -188,5 +200,13 @@
     "-=[ Interceptor ]=-",
     "-=[ Rabbit ]=-",
     "-=[ Saboteur ]=-"
-  ]
+  ],
+  "only": {
+    "..::{ Boss Kristallon }::..": [
+      19,
+      23,
+      27,
+      29
+    ]
+  }
 }
