@@ -588,8 +588,13 @@ final class Hud {
                 : pet.locatorWithin(now, LOCATOR_SHOWN_MS)
                 ? "Пеленгатор нашёл цель: " + pet.locatorX() / 100 + "/" + pet.locatorY() / 100 + "  ·  "
                         + Math.max(0, (now - pet.locatorNanos()) / 1_000_000_000L) + " с назад"
-                : pet.gear() == orbit.protocol.gen.PetGearTypeModule.PETGEARTYPE_ENEMY_LOCATOR ? "Пеленгатор: цель не найдена"
-                : null;
+                : pet.gear() != orbit.protocol.gen.PetGearTypeModule.PETGEARTYPE_ENEMY_LOCATOR ? null
+                // no point at all: the game said «nothing» (it sends -1/-1) or none came yet on this map; an old one:
+                // the game sends points now and then — while the ship fights the target there are none (live
+                // 2026-11-12: «not found» while the bot killed Saboteurs)
+                : pet.locatorNanos() == 0 ? "Пеленгатор: цель не найдена"
+                : "Пеленгатор ждёт новую точку  ·  последняя " + Math.max(0, (now - pet.locatorNanos()) / 1_000_000_000L)
+                        + " с назад";
         return new Card() {
             @Override
             public int height(int width) {
