@@ -285,7 +285,7 @@ public final class PetCare {
                 : kamikazeOn ? PetGearTypeModule.PETGEARTYPE_KAMIKAZE
                 : questLocator ? PetGearTypeModule.PETGEARTYPE_ENEMY_LOCATOR : gearId(cfg.gear());
         String label = trade ? "«Торговый модуль»" : kamikazeOn ? "«Камикадзе»"
-                : questLocator ? "«Пеленгатор врагов» (квест)" : gearName(cfg.gear());
+                : questLocator ? "«Пеленгатор врагов» (для модуля)" : gearName(cfg.gear());
         if (want < 0) {
             return;
         }
