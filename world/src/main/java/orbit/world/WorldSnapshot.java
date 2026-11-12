@@ -19,7 +19,19 @@ public record WorldSnapshot(long nanos, Hero hero, Map<Integer, Ship> ships, Map
                             Map<Integer, Long> activatable, int jumpingTo, Death death,
                             java.util.Set<String> slotItems, Map<Integer, Kill> destroyed, Rewards rewards,
                             List<Invitation> invitations, List<Contact> contacts, Map<String, Mine> mines,
-                            Boosters boosters, JumpCpu jumpCpu, BoxCheck boxCheck) {
+                            Boosters boosters, JumpCpu jumpCpu, BoxCheck boxCheck, Quests quests) {
+
+    /** Without quests (older callers and tests). */
+    public WorldSnapshot(long nanos, Hero hero, Map<Integer, Ship> ships, Map<String, Collectable> collectables,
+                         Map<Integer, Portal> portals, Map<Integer, Asset> assets, Map<String, Zone> zones,
+                         Group group, Map<String, Item> items, Inventory inventory, Pet pet,
+                         Map<Integer, Long> activatable, int jumpingTo, Death death,
+                         java.util.Set<String> slotItems, Map<Integer, Kill> destroyed, Rewards rewards,
+                         List<Invitation> invitations, List<Contact> contacts, Map<String, Mine> mines,
+                         Boosters boosters, JumpCpu jumpCpu, BoxCheck boxCheck) {
+        this(nanos, hero, ships, collectables, portals, assets, zones, group, items, inventory, pet, activatable, jumpingTo,
+                death, slotItems, destroyed, rewards, invitations, contacts, mines, boosters, jumpCpu, boxCheck, Quests.NONE);
+    }
 
     /**
      * The game's box check ({@code CaptchaTriggerCommand}, live 2026-11-12 on gb2): pick some or all of the

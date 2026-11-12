@@ -190,6 +190,9 @@ public final class World {
 
     /** Applies a packet received from the server at {@code nanos} ({@code System.nanoTime()}). */
     public synchronized void apply(Packet packet, long nanos) {
+        if (quests.apply(packet, nanos)) {
+            return;
+        }
         switch (packet) {
             case ShipInitializationCommand p -> initHero(p, nanos);
             case orbit.protocol.gen.CPUInitializationCommand p -> jumpCpuEquipped = p.advancedJumpCPUEquipped;
@@ -538,10 +541,11 @@ public final class World {
                         : WorldSnapshot.Boosters.NONE,
                 new WorldSnapshot.JumpCpu(jumpCpuEquipped, jumpVouchers, Map.copyOf(jumpPrices), jumpPricesNanos,
                         jumpConfirmedMap, jumpConfirmedPrice, jumpConfirmedNanos, jumpCountdownMap, jumpCountdownSeconds,
-                        jumpCountdownNanos), boxCheck);
+                        jumpCountdownNanos), boxCheck, quests.snapshot());
     }
 
     private WorldSnapshot.BoxCheck boxCheck;
+    private final QuestBook quests = new QuestBook();
 
     private boolean jumpCpuEquipped;
     private int jumpVouchers = -1;
@@ -1186,6 +1190,7 @@ public final class World {
     /** Everything that belongs to the current map; the hero and the group survive a map change. */
     private void clearMap() {
         boxCheck = null; // the check's boxes belong to the map the client leaves
+        quests.clearMap();
         activatable.clear();
         mines.clear();
         jumpingTo = 0;

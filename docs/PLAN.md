@@ -396,7 +396,40 @@ SAFETY в нужном кубам объёме → KILL для кубов → 5�
       3-BL (групповой NPC, приоритет, игнор владения/атакованности, PET Enemy Locator) и «импульсы» —
       Impulse II ради ринуска (по профилям `BL_INVOKE`, `BL_RINUSK` из DarkBot пользователя).
 - [ ] 5б.9 Квесты: сам берёт и выполняет квесты, в том числе цепочку больших квестов (пример: с 22 на
-      24 уровень), ежедневные, Galaxy Trek, Season Pass (`QUEST_MODULE`).
+      24 уровень), ежедневные, Galaxy Trek, Season Pass (`QUEST_MODULE`). Решения пользователя 2026-11-12:
+      отдельный модуль «Квесты»; брать миссии (цепочки), ежедневные, еженедельные, событийные.
+      Как в клиенте (декомпиляция 2026-11-04, `QuestGiver.as`, `QuestProxy.as`, `QuestManager.as`, `questfm/`):
+      - квестодатель — объект карты типа 34 (`AssetCreateCommand`); сервер сам решает, что корабль рядом, и включает
+        значок (`QuestGiversAvailableCommand.mapObjectId` = `assetId`); клик → `QuestGiverApproachedRequest(assetId)`,
+        пустой список → `QuestListRequest` → `QuestListCommand` (квесты: номер, типы, мин. уровень, можно ли взять
+        0 нельзя/1 можно/2 идёт/3 сделан, свободные места `maxQuests`/`maxEventQuests`); выбор квеста →
+        `QuestInfoRequest(id)` → `QuestInfoCommand` (условия и награды до взятия; клиент сам просит первый);
+        «Принять» → `QuestAcceptRequest(id)` → `QuestInitializationCommand`; закрытие окна →
+        `QuestGiverWindowClosedRequest(assetId)`. Взять можно только у квестодателя;
+      - прогресс `QuestConditionUpdateCommand`, сдан `QuestCompletedCommand` (награда сама, без запроса), провален
+        `QuestFailedCommand`, отменён `QuestCancelRequest` → `QuestCancelledCommand`; `QuestPrivilegeCommand/Request`
+        — какой квест показан в HUD;
+      - условие строится по `displayType`; `matches`: KILL_NPC 6 — номер NPC (`npcs.json`, 12 = Protegit),
+        KILL_NPCS 27 — число и номера, COLLECT 5 — старый номер руды (1 прометий … 15 палладий), COLLECT_LOOT 67 —
+        loot id, COLLECT_BONUS_BOX 55, VISIT_MAP 34 / MAP 16 / ON_MAP 77 — номера карт, COORDINATES 11 — x, y, z,
+        радиус, TRAVEL 13 — расстояние, SELL_ORE 52, REFINE_ORE 69, AVOID_DEATH 10, TIMER 1 / HASTE 2 (мс);
+        KILL_PLAYERS 28 и урон игрокам — не делать; FINISH_GALAXY_GATE 79 — пока нет модуля врат;
+      - Battle Pass / Season Pass — квесты без взятия, награды кнопкой (`BattlePassCollectRequest`,
+        `SeasonPassRewardClaimRequest`); Diminishing — своё окно (`DiminishingQuestAcceptQuestRequest`); «Galaxy
+        Trek» в клиенте не найден (ближе всего Space Search, `SpaceSearchRequest`) — спросить пользователя.
+      В записях: GE1 — ежедневный 1021; ru1 — миссии 118015, 120024, 120032 (убить игроков), 122001 (35 000
+      Protegit, 22-й уровень). Взятия квеста под снифером нет — нужна запись пользователя.
+      Делаем:
+      - [x] 1. видеть квесты: модель мира (`Quests` в `WorldSnapshot`: взятые с прогрессом, предложения
+        квестодателя, условия до взятия, включённые квестодатели; `QuestTexts` — условия по-русски), карточка
+        «Квесты» в окне (тип, номер, ★ квест HUD, условие с полосой прогресса); в журнале «Квест N взят / выполнен:
+        награды / провален / отменён». Сверено с записью ru1 2026-11-11: 5 миссий (3 на игроков, 4 122/35 000
+        Protegit, 0/250 UberProtegit);
+      - [ ] 2. брать: к квестодателю домашней базы, список, условия каждого, взять подходящие, закрыть окно
+        (сверить с записью пользователя);
+      - [ ] 3. выполнять: условие → работа готовых частей (убийство NPC на нужной карте, сбор, перелёт, продажа);
+        сдан — к квестодателю за следующим (цепочка);
+      - [ ] 4. потом: Battle Pass / Season Pass (награды), Diminishing, Galaxy Trek.
 - [~] 5б.10 Палладий (`PALLADIUM`) — в точности как у пользователя в DarkBot (профиль `PALLADIUM` из сборки GE5,
       2026-11-11; «там сейчас отлично работает»). Источники — факты, не код: README профиля, настройки DmPlugin
       «Palladium Hangar» из профиля (плагин закрытый — не декомпилируем), открытый «Palladium Module» (Popcorn,

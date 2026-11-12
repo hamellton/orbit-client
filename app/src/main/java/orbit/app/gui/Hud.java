@@ -90,10 +90,69 @@ final class Hud {
         if (w.group().exists()) {
             out.put(ViewSettings.Block.GROUP, group(w));
         }
+        put(out, ViewSettings.Block.QUESTS, quests(w.quests()));
         if (feed.stats() != null || !w.rewards().equals(WorldSnapshot.Rewards.NONE)) {
             out.put(ViewSettings.Block.STATS, stats(w, feed));
         }
         return out;
+    }
+
+    static final Color QUEST_BAR = new Color(0xa855f7);
+    static final int MAX_QUESTS = 6;
+
+    /** The taken quests: type and number, then each condition with its progress (the HUD's quest first). */
+    private Card quests(orbit.world.Quests q) {
+        if (q.active().isEmpty()) {
+            return null;
+        }
+        List<orbit.world.Quests.Quest> list = q.active().values().stream()
+                .sorted(Comparator.comparingInt((orbit.world.Quests.Quest x) -> x.id() == q.privileged() ? 0 : 1)
+                        .thenComparingInt(orbit.world.Quests.Quest::id))
+                .limit(MAX_QUESTS).toList();
+        int more = q.active().size() - list.size();
+        int condH = line + 12;
+        return new Card() {
+            @Override
+            public int height(int width) {
+                int h = pad + line;
+                for (orbit.world.Quests.Quest x : list) {
+                    h += line + x.leaves().size() * condH;
+                }
+                return h + (more > 0 ? line : 0) + pad - 4;
+            }
+
+            @Override
+            public void paint(Graphics2D g, int x, int y, int width) {
+                frame(g, x, y, width, height(width), QUEST_BAR);
+                g.setFont(font(Font.PLAIN, 11f));
+                g.setColor(DIM);
+                g.drawString("Квесты: " + q.active().size(), x + pad, y + pad + 10);
+                int ry = y + pad + line;
+                for (orbit.world.Quests.Quest quest : list) {
+                    g.setFont(font(Font.BOLD, 12f));
+                    g.setColor(TEXT);
+                    String head = orbit.world.QuestTexts.type(quest.types()) + " " + quest.id()
+                            + (quest.id() == q.privileged() ? "  ★" : "");
+                    g.drawString(clip(g, head, width - 2 * pad), x + pad, ry + 11);
+                    ry += line;
+                    for (orbit.world.Quests.Condition c : quest.leaves()) {
+                        g.setFont(font(Font.PLAIN, 11f));
+                        g.setColor(c.completed() ? HP_BAR : TEXT);
+                        String text = (c.completed() ? "✓ " : "") + orbit.world.QuestTexts.condition(c);
+                        g.drawString(clip(g, text, width - 2 * pad), x + pad, ry + 10);
+                        if (c.target() > 0 && !orbit.world.QuestTexts.isTime(c) && c.type() != orbit.world.Quests.AVOID_DEATH) {
+                            bar(g, x + pad, ry + 13, width - 2 * pad, 9, c.current(), c.target(), QUEST_BAR, false);
+                        }
+                        ry += condH;
+                    }
+                }
+                if (more > 0) {
+                    g.setFont(font(Font.PLAIN, 11f));
+                    g.setColor(DIM);
+                    g.drawString("… и ещё " + more, x + pad, ry + 11);
+                }
+            }
+        };
     }
 
     private static void put(Map<ViewSettings.Block, Card> out, ViewSettings.Block b, Card c) {

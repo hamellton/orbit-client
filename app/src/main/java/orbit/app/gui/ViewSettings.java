@@ -26,6 +26,7 @@ public final class ViewSettings {
         BOOSTERS("Бустеры"),
         PET("Питомец"),
         GROUP("Группа"),
+        QUESTS("Квесты"),
         STATS("Итоги сессии");
 
         public final String label;
