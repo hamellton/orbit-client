@@ -206,6 +206,15 @@ class WorldTest {
         own.message = "0|n|LSH|7|" + HERO;
         w.apply(own, 0);
         assertFalse(w.snapshot(0).ships().get(7).lockedByOther(), "our own attack does not grey it out");
+
+        orbit.protocol.gen.PetHeroActivationCommand pet = new orbit.protocol.gen.PetHeroActivationCommand();
+        pet.ownerId = HERO;
+        pet.petId = 4_400;
+        pet.petName = "P";
+        w.apply(pet, 0);
+        own.message = "0|n|LSH|7|4400";
+        w.apply(own, 0);
+        assertFalse(w.snapshot(0).ships().get(7).lockedByOther(), "nor our own pet's");
     }
 
     @Test

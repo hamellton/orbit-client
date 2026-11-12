@@ -979,7 +979,8 @@ public final class World {
                     case "LSH" -> {
                         ShipState s = a.length >= 5 ? ships.get(parseInt(a[3], 0)) : null;
                         int attacker = a.length >= 5 ? parseInt(a[4], 0) : 0;
-                        if (s != null && attacker != hero.id && !inGroup(attacker)) {
+                        // our own pet hitting it first is ours too
+                        if (s != null && attacker != hero.id && attacker != hero.petId && !inGroup(attacker)) {
                             s.lockedByOther = true;
                         }
                     }
