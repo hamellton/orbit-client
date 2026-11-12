@@ -26,7 +26,7 @@ public final class LogRules {
             Map.entry("SpawnMemory", LogCategory.BATTLE),
             Map.entry("CubeMaps", LogCategory.BATTLE),
             Map.entry("BoxPicker", LogCategory.LOOT),
-            Map.entry("LootLog", LogCategory.LOOT),
+            Map.entry("LootLog", LogCategory.REWARDS),
             Map.entry("PalladiumModule", LogCategory.LOOT),
             Map.entry("CargoCare", LogCategory.TRADE),
             Map.entry("BuyWatch", LogCategory.TRADE),
@@ -69,7 +69,7 @@ public final class LogRules {
             Map.entry(p("^Квестодатель"), LogCategory.QUESTS),
             Map.entry(p("^(Состояние:|Ангары:|Вход )"), LogCategory.CONNECTION),
             Map.entry(p("^Корабль сменён"), LogCategory.SHIP),
-            Map.entry(p("^Добыча:"), LogCategory.LOOT),
+            Map.entry(p("^Добыча"), LogCategory.REWARDS),
             Map.entry(p("^Скорость корабля"), LogCategory.SHIP));
 
     /** Plain lines that still go to the journal. */

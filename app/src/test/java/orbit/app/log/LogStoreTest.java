@@ -106,6 +106,7 @@ class LogStoreTest {
         LogStore s = new LogStore();
         LogEntry a = s.add("1", I, "orbit.app.LootLog", "Добыча: +4 569 опыта  ·  +32 чести  ·  +14 103 кредитов  ·  +12 уридия", "", 0);
         assertTrue(a.important(), "loot is in the journal");
+        assertEquals(LogCategory.REWARDS, a.category(), "under «Добыча», not «Сбор»");
         s.add("1", I, "orbit.bot.mod.Attacker", "Цель уничтожена (всего 2)", "", 1);
         assertSame(a, s.add("1", I, "orbit.app.LootLog", "Добыча: +26 730 опыта  ·  +99 чести  ·  +5 EMP-01", "", 2));
         assertEquals("Добыча всего: +31 299 опыта  ·  +131 чести  ·  +14 103 кредитов  ·  +12 уридия  ·  +5 EMP-01", a.text());

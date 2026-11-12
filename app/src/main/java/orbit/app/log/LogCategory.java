@@ -7,6 +7,9 @@ public enum LogCategory {
     WORK("Работа", 0x60a5fa),
     SUMMARY("Итоги", 0xa78bfa),
     BATTLE("Бой", 0xf87171),
+    /** What the game paid: experience, honor, credits, uridium, items (per kill and summed up). */
+    REWARDS("Добыча", 0xeab308),
+    /** Boxes and ores picked up. */
     LOOT("Сбор", 0xfbbf24),
     TRADE("Торговля", 0x34d399),
     SAFETY("Безопасность", 0xfb923c),
