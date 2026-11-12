@@ -642,6 +642,21 @@ public final class Attacker {
      * speeds, the radius reached gradually, the side chosen by the 5 points ahead each way (switched when one way is
      * blocked and the other not, or better by 300), a blocked point searched round (docs Д1).
      */
+    /**
+     * The target moves away from the ship (not round it, not towards it): only then is the circle drawn in (live
+     * 2026-11-13: Boss Kristallon fought at 520 of its 615, hit the ship half the fight).
+     */
+    private boolean fleeing(WorldSnapshot.Ship t, WorldSnapshot.Hero h) {
+        if (!t.moving()) {
+            return false;
+        }
+        double dx = t.x() - h.x();
+        double dy = t.y() - h.y();
+        double d = Math.max(1, Math.hypot(dx, dy));
+        double away = (vx * dx + vy * dy) / d; // its speed along the line from the ship to it
+        return away > 0.3 * Math.max(1, Math.hypot(vx, vy));
+    }
+
     private void circle(Threats th, WorldSnapshot.Hero h, WorldSnapshot.Ship t, double radius) {
         if (circleDir == 0) {
             circleDir = ctx.random().nextBoolean() ? 1 : -1;
@@ -657,8 +672,8 @@ public final class Attacker {
         if (!t.moving() || t.health().known() && t.health().hpPercent() < 0.25) {
             r = Math.min(r, 600);
         }
-        if (t.moving()) {
-            r *= 0.8; // a moving one does not leave the radius while the ship goes round
+        if (fleeing(t, h)) {
+            r *= 0.8; // one going away does not leave the radius while the ship goes round
         }
         double dist = Math.hypot(h.x() - cx, h.y() - cy);
         double angle = Math.atan2(h.y() - cy, h.x() - cx);
