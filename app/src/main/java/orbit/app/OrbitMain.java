@@ -65,6 +65,7 @@ public final class OrbitMain {
         // a dark macOS title bar; read when AWT starts, so before any window
         System.setProperty("apple.awt.application.appearance", "NSAppearanceNameDarkAqua");
         WorldFeed.learnNpcMaps = true; // the NPCs met are remembered by map (local/npc-maps.json)
+        orbit.bot.mod.FightLog.enable(); // temporary: each fight in the log and local/fight-log.csv
         // portals the data lacks, learned by jumping (5-2 → 5-1)
         orbit.world.maps.MapCatalog.bundled().useLearned(orbit.world.maps.MapCatalog.LEARNED);
         if (args.length == 0) {

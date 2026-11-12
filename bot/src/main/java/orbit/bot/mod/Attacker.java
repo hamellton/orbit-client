@@ -114,9 +114,17 @@ public final class Attacker {
         healthDropAt = ctx.now();
         WorldSnapshot.Hero h = ctx.world().get().hero();
         log.info("Цель: {} в {}", s.name(), (int) s.distanceTo(h.x(), h.y()));
+        if (fight.active()) {
+            fight.end("сменил цель", ctx.now());
+        }
+        fight.begin(s, h, ctx.now());
+        endReason = "прервал (ремонт, бегство, пауза)";
     }
 
     public void clear() {
+        if (fight.active()) {
+            fight.end(endReason, ctx.now());
+        }
         targetId = 0;
         shotAt = false;
         seenAt = 0;
@@ -198,6 +206,9 @@ public final class Attacker {
                     ctx.stats().cubesKilled.incrementAndGet();
                 }
                 log.info("Цель уничтожена (всего {})", kills);
+                endReason = "убит";
+            } else {
+                endReason = "пропала из вида";
             }
             clear();
             return false;
@@ -208,6 +219,7 @@ public final class Attacker {
         // 2026-11-12: only the first shooter's group gets it, except cubes and group NPCs)
         if (Targets.taken(c, w, t) && (t.lockedByOther() || !shotAt)) {
             log.info("Цель {} чужая ({}) — бросаю", t.name(), t.lockedByOther() ? "её взял другой игрок" : "её уже бьют");
+            endReason = "чужая";
             givenUp.put(t.id(), now + GIVE_UP_MS * 1_000_000);
             if (h.attackTargetId() == t.id()) {
                 ctx.actions().stopAttack();
@@ -225,6 +237,11 @@ public final class Attacker {
         ctx.ship().want(chasing ? c.general().run() : onTheWay ? c.general().travel() : c.general().offensive());
         BotConfig.FightMove mode = mode(c, rule, t, h, now);
         Threats threats = move ? new Threats(ctx, ctx.world().get(), c, t.id()) : null;
+        fight.sample(w, t, radius, switch (mode) {
+            case KITE -> "отход";
+            case STAND -> "стою";
+            default -> "кружу";
+        }, now);
         boolean holding = mode == BotConfig.FightMove.KITE || mode == BotConfig.FightMove.STAND;
         if (move && dist > (holding ? radius * KITE_APPROACH : radius + 60) && now >= nextApproach) {
             // a fleeing target: aim where it will be and go well inside the radius, re-aiming often (live 2026-11-12:
@@ -371,6 +388,9 @@ public final class Attacker {
     private Double kiteAngle;
     private boolean kiteTold;
     private double[] standAt;
+    /** The temporary record of the fight (FightLog). */
+    private final FightLog fight = new FightLog();
+    private String endReason = "прервал (ремонт, бегство, пауза)";
     /** The circle's side lately turned, and how long a turn for something only worse waits after it. */
     private long sideTurnedAt = Long.MIN_VALUE / 2;
     static final long SIDE_HOLD_NS = 3_000_000_000L;
@@ -566,6 +586,7 @@ public final class Attacker {
             if (aheadBlocked && !backBlocked || better) {
                 circleDir = -circleDir;
                 sideTurnedAt = now;
+                fight.turned();
                 log.info("Кружу в другую сторону: там {}", aheadBlocked ? "нельзя" : "другие NPC или враги");
             }
         }
@@ -769,6 +790,7 @@ public final class Attacker {
             return false;
         }
         WorldSnapshot.Item laser = ctx.world().get().selected("lasers");
+        endReason = "не теряет HP";
         log.warn("{} не теряет HP {} с (патроны {}) — бросаю цель", t.name(), NO_DAMAGE_MS / 1000,
                 laser == null ? "?" : orbit.config.ItemCatalog.label(laser.id()) + " ×" + (long) laser.counter());
         givenUp.put(t.id(), now + GIVE_UP_MS * 1_000_000);
