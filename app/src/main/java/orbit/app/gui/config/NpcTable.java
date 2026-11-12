@@ -85,7 +85,7 @@ final class NpcTable extends AbstractTableModel {
         Row r = new Row();
         r.name = name;
         r.kill = true;
-        r.radius = 550;
+        r.radius = 0; // the recommended one (DarkBot's list)
         r.maps = mapId == 0 ? new LinkedHashSet<>() : new LinkedHashSet<>(Set.of(mapId));
         r.flags = new LinkedHashSet<>();
         rows.add(r);

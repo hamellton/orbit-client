@@ -86,7 +86,8 @@ class DarkBotImportTest {
         assertTrue(c.general().roamSequential());
 
         BotConfig.NpcRule npc = c.npc("-=[ Testnpc ]=-");
-        assertEquals(560, npc.radius());
+        assertEquals(0, npc.radius(), "DarkBot's own 560: the recommended radius (0)");
+        assertEquals(500, c.npc("-=[ Calm ]=-").radius(), "a radius the user set stays");
         assertEquals(-10, npc.priority());
         assertTrue(npc.kill());
         assertEquals(Set.of("IGNORE_OWNERSHIP", "KAMIKAZE", "ODD"), npc.flags());

@@ -123,6 +123,7 @@ final class KillSection implements Section {
         javax.swing.JLabel help = new javax.swing.JLabel("ⓘ");
         help.setForeground(java.awt.Color.GRAY);
         help.setToolTipText("<html>Приоритет: меньше — раньше (−100 первым). Карты: «все» — везде.<br>"
+                + "Радиус 0 — рекомендуемый DarkBot (Streuner 450, Boss Kristallon 615…), нет в списке — 560.<br>"
                 + "Патроны «общие» — как выбрано выше.<br>Флаги — клик по ячейке, галочки из списка.</html>");
         JPanel bar = new JPanel(new BorderLayout(8, 0));
         bar.add(Form.bar(title, help), BorderLayout.WEST);

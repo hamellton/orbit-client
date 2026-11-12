@@ -8,7 +8,10 @@ import orbit.world.WorldSnapshot;
 public final class Targets {
 
     /** Distance kept when an NPC has no rule. */
-    /** An NPC with no radius of its own: the user's DarkBot profiles give almost every NPC 560. */
+    /**
+     * An NPC with no radius of its own (0 in the config's table) and none DarkBot recommends
+     * ({@link orbit.world.maps.NpcRadius}): the user's DarkBot profiles give such NPCs 560.
+     */
     public static final double DEFAULT_RADIUS = 560;
 
     private Targets() {
@@ -54,7 +57,11 @@ public final class Targets {
 
     public static double radius(BotConfig c, WorldSnapshot.Ship s, int mapId) {
         BotConfig.NpcRule r = rule(c, s, mapId);
-        return r != null && r.radius() > 0 ? r.radius() : DEFAULT_RADIUS;
+        if (r != null && r.radius() > 0) {
+            return r.radius(); // the user's own
+        }
+        double recommended = orbit.world.maps.NpcRadius.bundled().of(s.name());
+        return recommended > 0 ? recommended : DEFAULT_RADIUS;
     }
 
     /** The best target within {@code maxDistance}: lowest priority value, then nearest. */

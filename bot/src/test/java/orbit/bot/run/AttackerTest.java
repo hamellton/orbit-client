@@ -284,4 +284,19 @@ class AttackerTest {
         }
         assertTrue(inRange > ticks * 0.8, "in range " + inRange + " of " + ticks + " ticks");
     }
+
+    @Test
+    void aRadiusLeftAtZeroIsTheRecommendedOne() {
+        BotConfig c = BotConfig.empty().withNpcs(Map.of(
+                "..::{ Boss Kristallon }::..", new BotConfig.NpcRule(0, 0, true, Set.of(), Set.of(), null),
+                "-=[ Kristallon ]=-", new BotConfig.NpcRule(700, 0, true, Set.of(), Set.of(), null)));
+        Sim sim = new Sim(c, 23, 10_000, 6_000);
+        sim.npc(1, "..::{ Boss Kristallon }::..", 10_200, 6_000);
+        sim.npc(2, "-=[ Kristallon ]=-", 10_300, 6_000);
+        sim.npc(3, "-=[ Somebody ]=-", 10_400, 6_000);
+        var w = sim.world.snapshot(sim.now);
+        assertEquals(615, orbit.bot.mod.Targets.radius(c, w.ships().get(1), 23), "DarkBot's recommendation");
+        assertEquals(700, orbit.bot.mod.Targets.radius(c, w.ships().get(2), 23), "the user's own");
+        assertEquals(560, orbit.bot.mod.Targets.radius(c, w.ships().get(3), 23), "neither");
+    }
 }

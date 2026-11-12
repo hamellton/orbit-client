@@ -31,6 +31,10 @@ import java.util.TreeMap;
  */
 public final class DarkBotImport {
 
+    /** The radius DarkBot gives a new NPC: an imported NPC with it was never tuned by the user. */
+    static final double DARKBOT_DEFAULT_RADIUS = 560;
+
+
     /** Spawn spots of Cubikons on the x-6 maps (the user's working GE5 Cubi Camp profile). */
     static final int[][] CUBIKON_SPOTS = {{7500, 3900}, {13400, 3900}, {13400, 7900}, {7500, 7900}};
 
@@ -213,7 +217,12 @@ public final class DarkBotImport {
             Set<Integer> maps = new LinkedHashSet<>();
             n.path("mapList").forEach(m -> maps.add(m.asInt()));
             // DarkBot's SAB is one switch for all NPCs: carry it to every NPC that is killed
-            out.put(e.getKey(), new BotConfig.NpcRule(n.path("radius").asDouble(500), n.path("priority").asInt(0),
+            // 560 is DarkBot's own default, not the user's choice: left at 0 — the recommended radius (NpcRadius)
+            double radius = n.path("radius").asDouble(0);
+            if (radius == DARKBOT_DEFAULT_RADIUS) {
+                radius = 0;
+            }
+            out.put(e.getKey(), new BotConfig.NpcRule(radius, n.path("priority").asInt(0),
                     n.path("kill").asBoolean(false), flags, maps, null, sabOn && n.path("kill").asBoolean(false)));
         });
         if (!unknownFlags.isEmpty()) {
