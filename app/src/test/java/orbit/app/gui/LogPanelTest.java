@@ -73,4 +73,24 @@ class LogPanelTest {
         assertEquals("HP 20% — ухожу на ремонт", p.shown().getLast().text());
         p.dispose();
     }
+
+    @Test
+    void periodsInWords() {
+        assertEquals(0L, LogPanel.parsePeriod("За всё время"));
+        assertEquals(0L, LogPanel.parsePeriod(""));
+        assertEquals(5 * 60_000L, LogPanel.parsePeriod("5 мин"));
+        assertEquals(130 * 60_000L, LogPanel.parsePeriod("2ч 10м"));
+        assertEquals(130 * 60_000L, LogPanel.parsePeriod("2 часа 10 минут"));
+        assertEquals(90 * 60_000L, LogPanel.parsePeriod("1.5ч"));
+        assertEquals(90 * 60_000L, LogPanel.parsePeriod("90"));
+        assertEquals(30 * 3_600_000L, LogPanel.parsePeriod("1д 6ч"));
+        assertEquals(130 * 60_000L, LogPanel.parsePeriod("2h10m"));
+        assertEquals(null, LogPanel.parsePeriod("вчера"));
+        assertEquals(null, LogPanel.parsePeriod("0"));
+        for (String p : LogPanel.PERIODS) {
+            assertEquals(true, LogPanel.parsePeriod(p) != null, p);
+        }
+        assertEquals("2 ч 10 мин", LogPanel.periodText(130 * 60_000L));
+        assertEquals("1 д 6 ч", LogPanel.periodText(30 * 3_600_000L));
+    }
 }

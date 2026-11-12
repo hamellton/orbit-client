@@ -80,8 +80,11 @@ public final class LogPanel extends JPanel {
     private static final Color ROUTINE = new Color(0xa3adbb);
     private static final Color[] ACCOUNT_COLORS = {new Color(0x38bdf8), new Color(0xf472b6), new Color(0xa3e635),
             new Color(0xfbbf24), new Color(0xc084fc), new Color(0x2dd4bf), new Color(0xfb923c), new Color(0x60a5fa)};
-    private static final String[] PERIODS = {"За всё время", "Последний час", "3 часа", "12 часов", "24 часа"};
-    private static final long[] PERIOD_MS = {0, 3_600_000L, 3 * 3_600_000L, 12 * 3_600_000L, 24 * 3_600_000L};
+    /** The ready periods; any other can be typed in («2ч 10м», «45м», «1.5ч», «90» = minutes). */
+    static final String[] PERIODS = {"За всё время", "5 мин", "10 мин", "15 мин", "20 мин", "30 мин", "1 ч", "2 ч",
+            "3 ч", "6 ч", "12 ч", "24 ч"};
+    private static final java.util.regex.Pattern PERIOD_PART =
+            java.util.regex.Pattern.compile("(\\d+(?:[.,]\\d+)?)\\s*(сут|дн|д|час|ч|мин|м|сек|с|d|h|m|s)?[а-яa-z]*");
     private static final Preferences PREFS = Preferences.userRoot().node("orbit/log");
 
     private final LogStore store;
@@ -196,7 +199,7 @@ public final class LogPanel extends JPanel {
         drain = new Timer(250, e -> drain());
         drain.start();
         // «the last hour» moves on: rows that left it go
-        ageing = new Timer(60_000, e -> {
+        ageing = new Timer(10_000, e -> {
             if (periodMs > 0) {
                 rebuild();
             }
@@ -259,10 +262,16 @@ public final class LogPanel extends JPanel {
             bar.add(accounts);
         }
         JComboBox<String> period = new JComboBox<>(PERIODS);
-        period.setToolTipText("За какое время");
+        period.setEditable(true);
+        period.setPrototypeDisplayValue("За всё время  ");
+        period.setToolTipText("За какое время показывать: выберите или впишите своё — «2ч 10м», «45м», «1.5ч», «90» (минуты)");
         period.addActionListener(e -> {
-            periodMs = PERIOD_MS[period.getSelectedIndex()];
-            rebuild();
+            Long ms = parsePeriod(String.valueOf(period.getSelectedItem()));
+            period.putClientProperty("JComponent.outline", ms == null ? "error" : null);
+            if (ms != null && ms != periodMs) {
+                periodMs = ms;
+                rebuild();
+            }
         });
         bar.add(period);
 
@@ -655,6 +664,10 @@ public final class LogPanel extends JPanel {
         if (err > 0) {
             s.append("   ·   ошибок ").append(err);
         }
+        if (periodMs > 0) {
+            s.append("   ·   за последние ").append(periodText(periodMs)).append(" (с ")
+                    .append(time(System.currentTimeMillis() - periodMs, false)).append(")");
+        }
         if (!hidden.isEmpty()) {
             s.append("   ·   скрыто разделов: ").append(hidden.size());
         }
@@ -1018,6 +1031,60 @@ public final class LogPanel extends JPanel {
         b.setToolTipText(tip);
         b.setFocusable(false);
         return b;
+    }
+
+    /**
+     * A period in words: «5 мин», «2ч 10м», «1.5ч», «1д 6ч», «90» (minutes); «За всё время», «всё» or empty = 0
+     * (no limit); {@code null} when not understood.
+     */
+    static Long parsePeriod(String text) {
+        String t = text == null ? "" : text.strip().toLowerCase(Locale.ROOT);
+        if (t.isEmpty() || t.startsWith("за всё") || t.startsWith("за все") || t.equals("всё") || t.equals("все")) {
+            return 0L;
+        }
+        java.util.regex.Matcher m = PERIOD_PART.matcher(t);
+        double total = 0;
+        int end = 0;
+        boolean any = false;
+        while (m.find()) {
+            if (!t.substring(end, m.start()).isBlank()) {
+                return null;
+            }
+            double v = Double.parseDouble(m.group(1).replace(',', '.'));
+            String unit = m.group(2) == null ? "м" : m.group(2);
+            double mul = switch (unit) {
+                case "сут", "дн", "д", "d" -> 86_400_000;
+                case "час", "ч", "h" -> 3_600_000;
+                case "сек", "с", "s" -> 1_000;
+                default -> 60_000;
+            };
+            total += v * mul;
+            end = m.end();
+            any = true;
+        }
+        if (!any || !t.substring(end).isBlank() || total <= 0) {
+            return null;
+        }
+        return (long) total;
+    }
+
+    /** «2 ч 10 мин» for the status line. */
+    static String periodText(long ms) {
+        long min = Math.round(ms / 60_000.0);
+        long d = min / 1440;
+        long h = min % 1440 / 60;
+        long m = min % 60;
+        List<String> parts = new ArrayList<>();
+        if (d > 0) {
+            parts.add(d + " д");
+        }
+        if (h > 0) {
+            parts.add(h + " ч");
+        }
+        if (m > 0 || parts.isEmpty()) {
+            parts.add(m + " мин");
+        }
+        return String.join(" ", parts);
     }
 
     /** ⌘ on a Mac, Ctrl elsewhere (and with no screen, as in tests). */
