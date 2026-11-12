@@ -303,6 +303,7 @@ public final class Attacker {
                 && t.health().hpPercent() < 0.25;
         ctx.ship().want(chasing || runCircle ? c.general().run() : onTheWay ? c.general().travel() : c.general().offensive());
         Threats threats = move ? new Threats(ctx, ctx.world().get(), c, t.id()) : null;
+        fight.radius(radius, Targets.baseRadius(c, t, h.mapId()), !Targets.ownRadius(c, t, h.mapId()));
         fight.sample(w, t, radius, switch (mode) {
             case KITE -> "отход";
             case STAND -> "стою";

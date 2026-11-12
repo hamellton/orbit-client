@@ -60,8 +60,23 @@ public final class Targets {
         if (r != null && r.radius() > 0) {
             return r.radius(); // the user's own
         }
+        return RadiusTuner.radius(s.name(), baseRadius(c, s, mapId));
+    }
+
+    /** The radius with nothing learned: the user's own, else DarkBot's recommended, else {@link #DEFAULT_RADIUS}. */
+    static double baseRadius(BotConfig c, WorldSnapshot.Ship s, int mapId) {
+        BotConfig.NpcRule r = rule(c, s, mapId);
+        if (r != null && r.radius() > 0) {
+            return r.radius();
+        }
         double recommended = orbit.world.maps.NpcRadius.bundled().of(s.name());
         return recommended > 0 ? recommended : DEFAULT_RADIUS;
+    }
+
+    /** The user set the NPC's radius: nothing is learned for it. */
+    static boolean ownRadius(BotConfig c, WorldSnapshot.Ship s, int mapId) {
+        BotConfig.NpcRule r = rule(c, s, mapId);
+        return r != null && r.radius() > 0;
     }
 
     /** The best target within {@code maxDistance}: lowest priority value, then nearest. */

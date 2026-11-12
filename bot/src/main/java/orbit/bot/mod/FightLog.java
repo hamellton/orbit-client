@@ -64,6 +64,9 @@ public final class FightLog {
         samples = 0;
         inRange = 0;
         hitBy.clear();
+        inRangeNs = 0;
+        targetHitNs = 0;
+        tune = false;
     }
 
     private static double percent(WorldSnapshot.Ship t) {
@@ -74,12 +77,32 @@ public final class FightLog {
         return max <= 0 ? -1 : (t.health().hp() + t.health().shield()) / max;
     }
 
+    /** For the radius learning: the distance fought at, its base, and the time in range and under the target's fire. */
+    private double used;
+    private double base;
+    private boolean tune;
+    private long inRangeNs;
+    private long targetHitNs;
+
+    /** The radius the fight was fought at and the one with nothing learned; {@code tune} — it may be learned. */
+    void radius(double usedRadius, double baseRadius, boolean mayTune) {
+        used = usedRadius;
+        base = baseRadius;
+        tune = mayTune;
+    }
+
     void sample(WorldSnapshot w, WorldSnapshot.Ship t, double radius, String how, long now) {
         if (target == null) {
             return;
         }
         WorldSnapshot.Hero h = w.hero();
         long dt = now - lastSample;
+        if (t.distanceTo(h.x(), h.y()) <= radius + 50) {
+            inRangeNs += dt;
+            if (t.attackTargetId() == h.id()) {
+                targetHitNs += dt;
+            }
+        }
         lastSample = now;
         heroHp1 = h.health().hpPercent();
         double tp = percent(t);
@@ -114,6 +137,11 @@ public final class FightLog {
         }
         String who = target;
         target = null;
+        if (tune && inRangeNs > 0) {
+            boolean reached = targetHp0 < 0 || targetHp1 < 0 || targetHp1 < targetHp0 - 0.01 || "убит".equals(outcome);
+            RadiusTuner.learn(who, base, used, inRangeNs / 1e9, (double) targetHitNs / inRangeNs,
+                    reached && !"не теряет HP".equals(outcome));
+        }
         if (!enabled || samples == 0) {
             return;
         }
