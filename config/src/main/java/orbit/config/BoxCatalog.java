@@ -55,6 +55,7 @@ public final class BoxCatalog {
         add("HYBRID_ALLOY_BOX", "ящик с Gygerthrall (гибридный сплав)", PLAIN, 0);
         add("INDOCTRINE_OIL_BOX", "ящик врат X-7 (масло индоктрина)", PLAIN, 0);
         add("SOLAR_CLASH", "ящик с инвоков и бегемота", BL, 0);
+        add("UNSTABLE_BLACKLIGHT_CACHE", "нестабильный тайник Blacklight", BL, 0);
         add("ore_8", "палладий", WAIT, 750);
         add("PIRATE_BOOTY", "пиратский бути-ящик (зелёный)", WAIT, 5_500);
         add("PIRATE_BOOTY_RED", "пиратский бути-ящик (красный)", WAIT, 5_500);

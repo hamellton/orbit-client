@@ -144,10 +144,20 @@ public record BotConfig(
      * @param avoidRadius how far from such a player
      */
     @JsonInclude(JsonInclude.Include.NON_EMPTY)
+    /**
+     * @param stationRadius keep this far from another company's clan battle stations (they fire at the ship;
+     *                      Blacklight, 2026-11-12); 0 = off, {@code null} in an older file = {@link #STATION_RADIUS}
+     */
     public record Flee(FleeMode mode, Set<String> players, Set<String> never, int sight, int rememberSec, boolean jump,
-                       int waitSec, boolean avoid, int avoidRadius) {
+                       int waitSec, boolean avoid, int avoidRadius, Integer stationRadius) {
 
         public static final int AVOID_RADIUS = 2_500;
+        public static final int STATION_RADIUS = 1_600;
+
+        public Flee(FleeMode mode, Set<String> players, Set<String> never, int sight, int rememberSec, boolean jump,
+                    int waitSec, boolean avoid, int avoidRadius) {
+            this(mode, players, never, sight, rememberSec, jump, waitSec, avoid, avoidRadius, null);
+        }
 
         public static final Flee OFF = new Flee(FleeMode.OFF, null, null, 2_000, 60, true, 90);
 
@@ -164,6 +174,7 @@ public record BotConfig(
             rememberSec = Math.max(0, rememberSec);
             waitSec = Math.max(0, waitSec);
             avoidRadius = avoidRadius <= 0 ? AVOID_RADIUS : avoidRadius;
+            stationRadius = stationRadius == null ? STATION_RADIUS : Math.max(0, stationRadius);
         }
 
         /** From the older switches in {@link General} (and DarkBot's RUNNING section). */

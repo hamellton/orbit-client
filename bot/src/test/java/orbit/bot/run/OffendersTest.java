@@ -123,4 +123,40 @@ class OffendersTest {
         assertTrue(second.status().startsWith("Ухожу от Hunter"), second.status());
         assertEquals(first.deaths(), second.deaths());
     }
+
+    private static void station(Sim sim, int id, int faction, int x, int y) {
+        orbit.protocol.gen.AssetCreateCommand a = new orbit.protocol.gen.AssetCreateCommand();
+        a.assetId = id;
+        a.type = new orbit.protocol.gen.AssetTypeModule();
+        a.type.typeValue = (short) Offenders.BATTLESTATION;
+        a.factionId = faction;
+        a.clanId = 500;
+        a.clanTag = "CBS";
+        a.posX = x;
+        a.posY = y;
+        sim.world.apply(a, sim.now);
+    }
+
+    @Test
+    void anotherCompanysBattleStationIsKeptClearOfOwnIsNot() {
+        // Blacklight: the clans' stations fire at the ship (2026-11-12); avoiding players is off here
+        Sim sim = new Sim(config(false), 93, 20_000, 7_000);
+        station(sim, 900, 1, 21_000, 7_000);
+        ore(sim, "under", 21_200, 7_000);
+        ore(sim, "far", 14_000, 7_000);
+        BotRunner r = new BotRunner(sim.ctx, () -> false, s -> { });
+        sim.run(r::tick, 1_000);
+        assertTrue(r.status().startsWith("Ухожу от станция [CBS]"), r.status());
+        sim.run(r::tick, 30_000);
+        var h = sim.world.snapshot(sim.now).hero();
+        assertTrue(Math.hypot(h.x() - 21_000, h.y() - 7_000) > BotConfig.Flee.STATION_RADIUS, h.x() + "/" + h.y());
+        assertEquals(java.util.Set.of("far"), new java.util.HashSet<>(harvested(sim, 0)));
+
+        Sim own = new Sim(config(false), 93, 20_000, 7_000);
+        station(own, 901, 3, 21_000, 7_000); // the ship's company
+        ore(own, "under", 20_600, 7_000);
+        BotRunner r2 = new BotRunner(own.ctx, () -> false, s -> { });
+        own.run(r2::tick, 8_000);
+        assertTrue(harvested(own, 0).contains("under"), "the own company's station is no danger");
+    }
 }

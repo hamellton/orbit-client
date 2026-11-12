@@ -324,7 +324,7 @@ public final class BotRunner {
             show("Бегу от " + flee.threat());
             return;
         }
-        if (offenders.on()) {
+        if (offenders.active()) {
             if (offenders.sightings() != offendersSeen) {
                 offendersSeen = offenders.sightings();
                 if (module != null) {

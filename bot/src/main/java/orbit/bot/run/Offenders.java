@@ -63,6 +63,33 @@ public final class Offenders {
         return config().avoid();
     }
 
+    /** Anything to keep clear: remembered players, or another company's battle stations. */
+    boolean active() {
+        return on() || config().stationRadius() > 0;
+    }
+
+    /** {@code AssetTypeModule}: a clan battle station. */
+    static final int BATTLESTATION = 36;
+
+    /** Another company's clan battle stations on the map (they fire at the ship), when the config keeps away. */
+    private volatile List<Circle> stations = List.of();
+
+    private static List<Circle> stations(WorldSnapshot w, int radius) {
+        if (radius <= 0) {
+            return List.of();
+        }
+        WorldSnapshot.Hero h = w.hero();
+        List<Circle> out = new ArrayList<>();
+        for (WorldSnapshot.Asset a : w.assets().values()) {
+            if (a.type() == BATTLESTATION && a.factionId() != 0 && a.factionId() != h.factionId()
+                    && (h.clanId() == 0 || a.clanId() != h.clanId())) {
+                String tag = a.clanTag() == null || a.clanTag().isBlank() ? "" : " [" + a.clanTag() + "]";
+                out.add(new Circle("станция" + tag, a.x(), a.y(), radius));
+            }
+        }
+        return out;
+    }
+
     /** Learns who shoots or killed the ship, and where the remembered ones are; every tick, dead or alive. */
     void observe(WorldSnapshot w) {
         WorldSnapshot.Hero h = w.hero();
@@ -109,7 +136,12 @@ public final class Offenders {
         }
         seen.values().removeIf(s -> now - s.nanos() > LAST_SEEN_NS || s.map() != h.mapId());
         double r = f.avoidRadius();
-        shown = !f.avoid() ? List.of() : seen.values().stream().map(s -> new Circle(s.name(), s.x(), s.y(), r)).toList();
+        stations = stations(w, f.stationRadius());
+        List<Circle> all = new ArrayList<>(stations);
+        if (f.avoid()) {
+            seen.values().forEach(s -> all.add(new Circle(s.name(), s.x(), s.y(), r)));
+        }
+        shown = List.copyOf(all);
     }
 
     /** The circles kept clear now, any thread. */
@@ -165,19 +197,26 @@ public final class Offenders {
 
     /** Circles {x, y, r} to keep clear now: remembered players in sight or seen a short while ago. Empty when off. */
     List<double[]> circles() {
-        if (!on()) {
-            return List.of();
-        }
-        double r = config().avoidRadius();
         List<double[]> out = new ArrayList<>();
-        for (Seen s : seen.values()) {
-            out.add(new double[] {s.x(), s.y(), r});
+        for (Circle c : stations) {
+            out.add(new double[] {c.x(), c.y(), c.radius()});
+        }
+        if (on()) {
+            double r = config().avoidRadius();
+            for (Seen s : seen.values()) {
+                out.add(new double[] {s.x(), s.y(), r});
+            }
         }
         return out;
     }
 
     /** The name of the remembered player whose circle the ship is in, or {@code null}. */
     String inside(WorldSnapshot.Hero h) {
+        for (Circle c : stations) {
+            if (Math.hypot(c.x() - h.x(), c.y() - h.y()) <= c.radius()) {
+                return c.name();
+            }
+        }
         if (!on()) {
             return null;
         }

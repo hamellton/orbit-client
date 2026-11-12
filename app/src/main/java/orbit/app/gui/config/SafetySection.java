@@ -40,9 +40,12 @@ final class SafetySection implements Section {
     private final JSpinner fleeWait = Form.number(0, 3_600, 10);
     private final JCheckBox avoid = new JCheckBox("Обходить тех, кто стрелял или убил (за сессию)");
     private final JSpinner avoidRadius = Form.number(500, 10_000, 100);
+    private final JCheckBox stations = new JCheckBox("Держаться дальше от чужих станций кланов, на");
+    private final JSpinner stationRadius = Form.number(500, 5_000, 100);
     private final JComponent view;
 
     SafetySection() {
+        stations.addActionListener(e -> stationRadius.setEnabled(stations.isSelected()));
         view = new Form()
                 .section("Ремонт")
                 .row("На ремонт при HP ниже, %", repairMin)
@@ -71,6 +74,8 @@ final class SafetySection implements Section {
                 .row("", avoid)
                 .row("Держаться от них дальше, чем", avoidRadius)
                 .note("Не убегает на портал: работает дальше, но на другом краю карты. Работает и при «Не убегать».")
+                .row("", Form.inline(stations, stationRadius))
+                .note("Станции чужих компаний стреляют (Blacklight): цели и ящики под ними не берёт, облетает.")
                 .section("Гибель")
                 .row("Стоп после смертей", maxDeaths)
                 .note("0 — без ограничения.")
@@ -124,6 +129,9 @@ final class SafetySection implements Section {
         Form.set(fleeWait, f.waitSec());
         avoid.setSelected(f.avoid());
         Form.set(avoidRadius, f.avoidRadius());
+        stations.setSelected(f.stationRadius() > 0);
+        Form.set(stationRadius, f.stationRadius() > 0 ? f.stationRadius() : BotConfig.Flee.STATION_RADIUS);
+        stationRadius.setEnabled(stations.isSelected());
     }
 
     @Override
@@ -133,7 +141,8 @@ final class SafetySection implements Section {
         }
         BotConfig.Flee f = new BotConfig.Flee(FLEE_MODES[fleeMode.getSelectedIndex()], names(fleePlayers.getText()),
                 names(fleeNever.getText()), Form.intOf(fleeSight), Form.intOf(fleeRemember), fleeJump.isSelected(),
-                Form.intOf(fleeWait), avoid.isSelected(), Form.intOf(avoidRadius));
+                Form.intOf(fleeWait), avoid.isSelected(), Form.intOf(avoidRadius),
+                stations.isSelected() ? Form.intOf(stationRadius) : 0);
         if (!f.equals(c.flee())) {
             c = c.withFlee(f);
         }
