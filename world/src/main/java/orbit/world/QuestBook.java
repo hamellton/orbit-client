@@ -53,7 +53,7 @@ final class QuestBook {
                 Quests.Quest quest = quest(q.quest);
                 boolean fresh = active.put(quest.id(), quest) == null;
                 if (fresh && offersNanos != 0) {
-                    log.info("Квест {} взят: {}", quest.id(), describe(quest));
+                    log.info("Квест {} взят: {}", QuestTitles.label(quest.id()), describe(quest));
                 }
                 markOffer(quest.id(), Quests.RUNNING);
             }
@@ -61,16 +61,16 @@ final class QuestBook {
                     u.state.active, u.state.completed);
             case QuestCompletedCommand c -> {
                 Quests.Quest q = active.remove(c.id);
-                log.info("Квест {} выполнен{}", c.id, q == null ? "" : ": " + rewards(q));
+                log.info("Квест {} выполнен{}", QuestTitles.label(c.id), q == null ? "" : ": " + rewards(q));
                 markOffer(c.id, Quests.COMPLETED);
             }
             case QuestFailedCommand f -> {
                 active.remove(f.id);
-                log.warn("Квест {} провален", f.id);
+                log.warn("Квест {} провален", QuestTitles.label(f.id));
             }
             case QuestCancelledCommand c -> {
                 active.remove(c.id);
-                log.info("Квест {} отменён", c.id);
+                log.info("Квест {} отменён", QuestTitles.label(c.id));
             }
             case QuestPrivilegeCommand pr -> privileged = pr.questId;
             case QuestListCommand l -> {

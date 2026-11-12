@@ -273,7 +273,8 @@ public final class QuestGiverVisit {
                 return true;
             }
             boolean can = doable.test(d);
-            log.info("Квест {} ({}): {} — {}", d.id(), QuestTexts.type(d.types()), describe(d), can ? "беру" : "не умею, пропускаю");
+            log.info("Квест {} ({}): {} — {}", orbit.world.QuestTitles.label(d.id()), QuestTexts.type(d.types()), describe(d),
+                    can ? "беру" : "не умею, пропускаю");
             if (can) {
                 toTake.add(d.id());
             }

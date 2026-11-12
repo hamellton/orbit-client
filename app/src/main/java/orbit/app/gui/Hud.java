@@ -131,8 +131,9 @@ final class Hud {
                 for (orbit.world.Quests.Quest quest : list) {
                     g.setFont(font(Font.BOLD, 12f));
                     g.setColor(TEXT);
+                    String title = orbit.world.QuestTitles.of(quest.id());
                     String head = orbit.world.QuestTexts.type(quest.types()) + " " + quest.id()
-                            + (quest.id() == q.privileged() ? "  ★" : "");
+                            + (title != null ? " «" + title + "»" : "") + (quest.id() == q.privileged() ? "  ★" : "");
                     g.drawString(clip(g, head, width - 2 * pad), x + pad, ry + 11);
                     ry += line;
                     for (orbit.world.Quests.Condition c : quest.leaves()) {

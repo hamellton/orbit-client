@@ -22,6 +22,12 @@ public final class QuestCatalog {
 
     /** One quest as seen: its type, conditions and rewards in words, its lowest level (0 unknown). */
     public record Entry(int id, String type, String conditions, String rewards, int minLevel) {
+
+        /** The game's title ({@link QuestTitles}), or "". */
+        public String title() {
+            String t = QuestTitles.of(id);
+            return t == null ? "" : t;
+        }
     }
 
     private final Path file;

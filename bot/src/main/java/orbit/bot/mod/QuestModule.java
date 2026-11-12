@@ -211,7 +211,7 @@ public final class QuestModule implements BotModule {
             if (work == null || work.quest() != next.quest() || work.condition() != next.condition()
                     || work.kind() != next.kind() || work.map() != next.map()) {
                 Quests.Condition c = condition(q.active().get(next.quest()), next.condition());
-                log.info("Квест {}: {} {}/{} — {} на {}", next.quest(), QuestTexts.condition(c), (long) c.current(),
+                log.info("Квест {}: {} {}/{} — {} на {}", orbit.world.QuestTitles.label(next.quest()), QuestTexts.condition(c), (long) c.current(),
                         (long) c.target(), what(next.kind()), ctx.maps().info(next.map()).name());
             }
             if (worker != null) {

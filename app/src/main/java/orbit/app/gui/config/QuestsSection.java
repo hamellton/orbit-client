@@ -76,9 +76,9 @@ final class QuestsSection implements Section {
                 + " взятый (прогресс пропадёт) и не брать. Названий сервер не присылает — квест узнаётся по условиям.");
         table.setAutoCreateRowSorter(true);
         table.setFillsViewportHeight(true);
-        table.getColumnModel().getColumn(4).setCellEditor(new javax.swing.DefaultCellEditor(
+        table.getColumnModel().getColumn(5).setCellEditor(new javax.swing.DefaultCellEditor(
                 new javax.swing.JComboBox<>(Marks.MARKS)));
-        int[] widths = {70, 90, 420, 260, 100};
+        int[] widths = {70, 200, 90, 360, 240, 100};
         for (int i = 0; i < widths.length; i++) {
             table.getColumnModel().getColumn(i).setPreferredWidth(widths[i]);
         }
@@ -171,7 +171,7 @@ final class QuestsSection implements Section {
         static final String NONE = "—";
         static final String[] MARKS = {NONE, "Первым", "Не делать", "Отменить"};
         static final String[] KEYS = {null, "first", "skip", "cancel"};
-        private static final String[] COLUMNS = {"№", "Тип", "Условия", "Награда", "Отметка"};
+        private static final String[] COLUMNS = {"№", "Название", "Тип", "Условия", "Награда", "Отметка"};
         private final List<Object[]> rows = new java.util.ArrayList<>();
 
         void load(Map<Integer, orbit.world.QuestCatalog.Entry> seen, List<Integer> first, List<Integer> skip,
@@ -184,7 +184,9 @@ final class QuestsSection implements Section {
             for (int id : ids) {
                 orbit.world.QuestCatalog.Entry e = seen.get(id);
                 String mark = first.contains(id) ? MARKS[1] : skip.contains(id) ? MARKS[2] : cancel.contains(id) ? MARKS[3] : NONE;
-                rows.add(new Object[] {id, e == null ? "?" : e.type() + (e.minLevel() > 0 ? ", ур. " + e.minLevel() : ""),
+                String title = orbit.world.QuestTitles.of(id);
+                rows.add(new Object[] {id, title == null ? "" : title,
+                    e == null ? "?" : e.type() + (e.minLevel() > 0 ? ", ур. " + e.minLevel() : ""),
                     e == null ? "(бот его ещё не видел)" : e.conditions(), e == null ? "" : e.rewards(), mark});
             }
             fireTableDataChanged();
@@ -194,7 +196,7 @@ final class QuestsSection implements Section {
         List<Integer> marked(String key) {
             List<Integer> out = new java.util.ArrayList<>();
             for (Object[] r : rows) {
-                int i = java.util.Arrays.asList(MARKS).indexOf(String.valueOf(r[4]));
+                int i = java.util.Arrays.asList(MARKS).indexOf(String.valueOf(r[5]));
                 if (i > 0 && key.equals(KEYS[i])) {
                     out.add((Integer) r[0]);
                 }
@@ -224,7 +226,7 @@ final class QuestsSection implements Section {
 
         @Override
         public boolean isCellEditable(int r, int c) {
-            return c == 4;
+            return c == 5;
         }
 
         @Override
