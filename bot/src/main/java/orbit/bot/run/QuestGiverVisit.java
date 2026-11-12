@@ -310,6 +310,10 @@ public final class QuestGiverVisit {
             int id = toTake.removeFirst();
             Quests.Offer o = q.offers().stream().filter(x -> x.questId() == id).findFirst().orElse(null);
             if (o == null || o.status() != Quests.ACCEPTABLE || !slotFor(o)) {
+                // live 2026-11-12 on ru1: after three daily quests two more were left without a word
+                log.info("Квест {} не беру: {}", id, o == null ? "его больше нет в списке"
+                        : o.status() != Quests.ACCEPTABLE ? "сервер больше не даёт взять (" + status(o.status()) + ")"
+                        : "нет свободного места");
                 continue;
             }
             taking = id;
@@ -320,6 +324,15 @@ public final class QuestGiverVisit {
         step = Step.CLOSING;
         at = now + ctx.pause(1_500, 5_000);
         return true;
+    }
+
+    private static String status(int s) {
+        return switch (s) {
+            case Quests.NOT_ACCEPTABLE -> "нельзя взять — лимит или условие";
+            case Quests.RUNNING -> "уже идёт";
+            case Quests.COMPLETED -> "уже выполнен";
+            default -> "статус " + s;
+        };
     }
 
     private boolean closing(long now) {

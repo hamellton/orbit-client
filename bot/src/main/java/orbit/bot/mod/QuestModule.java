@@ -51,6 +51,11 @@ public final class QuestModule implements BotModule {
     static final long NOT_THERE_MS = 10 * 60_000;
     /** Bosses are easier elsewhere than on 4-5 (the user, 2026-11-12): that map counts as this many jumps more. */
     static final int BOSS_4_5_EXTRA_HOPS = 4;
+    /**
+     * Another company's map (N-x with N its company) counts as this many jumps more: its players and stations
+     * shoot at the ship (live 2026-11-12 on ru1: EIC sent to MMO's 1-3 for Devolarium, which also live on 2-3).
+     */
+    static final int ENEMY_MAP_EXTRA_HOPS = 8;
 
     enum Kind { KILL, DAMAGE, SALVAGE, BOX, ORE, SELL, MAP }
 
@@ -413,13 +418,23 @@ public final class QuestModule implements BotModule {
                 }
                 hops = route.size();
             }
-            hops += extra.applyAsInt(m);
+            hops += extra.applyAsInt(m) + (enemyMap(m, h.factionId()) ? ENEMY_MAP_EXTRA_HOPS : 0);
             if (hops < bestHops) {
                 best = m;
                 bestHops = hops;
             }
         }
         return best;
+    }
+
+    /** A map of another company: its name starts with that company's number (1-3 is MMO's, 2-3 EIC's, 3-3 VRU's). */
+    private boolean enemyMap(int map, int faction) {
+        String n = ctx.maps().info(map).name();
+        if (faction <= 0 || n.length() < 2 || n.charAt(1) != '-' && !n.endsWith("BL")) {
+            return false;
+        }
+        int company = n.charAt(0) - '0';
+        return company >= 1 && company <= 3 && company != faction;
     }
 
     /** A quest the bot can do: each of its open required conditions is one it does, or a limit it keeps. */

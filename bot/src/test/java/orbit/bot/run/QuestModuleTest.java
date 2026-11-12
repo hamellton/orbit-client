@@ -254,4 +254,25 @@ class QuestModuleTest {
         assertTrue(box.sent.stream().anyMatch(p -> p instanceof orbit.protocol.gen.CollectBoxRequest r && "c1".equals(r.itemHash)),
                 b.status());
     }
+
+    @Test
+    void theOwnCompanysMapComesBeforeAnEnemysOne() {
+        // live 2026-11-12 on ru1: EIC on 2-8 sent to MMO's 1-3 for Devolarium (3), who also live on 2-3 and 3-3
+        Sim sim = new Sim(BotConfig.empty(), MapCatalog.bundled().byName("2-8").id(), 5_000, 5_000);
+        orbit.protocol.gen.ShipInitializationCommand si = new orbit.protocol.gen.ShipInitializationCommand();
+        si.userId = 1;
+        si.mapId = MapCatalog.bundled().byName("2-8").id();
+        si.factionId = 2;
+        si.x = 5_000;
+        si.y = 5_000;
+        si.speed = 400;
+        si.hitPoints = 100_000;
+        si.hitMax = 100_000;
+        sim.world.apply(si, sim.now);
+        take(sim, 601, 3, 6, 2, "3");
+        QuestModule m = new QuestModule(sim.ctx, NpcMaps.shared(), orbit.world.maps.OreMaps.inMemory());
+        m.visited(sim.now);
+        m.tick();
+        assertEquals("2-3", MapCatalog.bundled().info(m.workingMap()).name());
+    }
 }
