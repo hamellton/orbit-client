@@ -173,4 +173,51 @@ class HealingTest {
         assertTrue(!jumpsAtPortal(2, 2000, 2000, -1, false), "escape jumps off");
         assertTrue(!jumpsAtPortal(2, 2000, 2000, 0.05, false), "HP 10 % is above 5 %");
     }
+
+    static void base(Sim sim, int id, int type, int faction, int x, int y) {
+        orbit.protocol.gen.AssetCreateCommand a = new orbit.protocol.gen.AssetCreateCommand();
+        a.assetId = id;
+        a.type = new orbit.protocol.gen.AssetTypeModule();
+        a.type.typeValue = (short) type;
+        a.factionId = faction;
+        a.posX = x;
+        a.posY = y;
+        sim.world.apply(a, sim.now);
+    }
+
+    private static Sim lowHp(int map, int x, int y) {
+        BotConfig c = BotConfig.empty().withSafety(new BotConfig.Safety(0.3, 0.9, 0.3, 0, null,
+                new BotConfig.Heal(-1, -1, -1), 10, "PORTAL", 0, 0));
+        return new Sim(c, map, x, y);
+    }
+
+    @Test
+    void onFiveTwoTheRepairIsAtTheSharedBaseNotAtAPortal() {
+        // the ship by the 5-3 portal, the shared station farther away: still the station (the user, 2026-11-12)
+        Sim sim = lowHp(92, 3_500, 6_750);
+        base(sim, 500, 47, 0, 10_500, 6_750); // HQ of the shared station
+        base(sim, 501, 47, 1, 3_000, 6_000);  // another company's: never
+        Safety s = new Safety(sim.ctx);
+        for (int t = 0; t < 30; t++) {
+            hurt(sim, 10_000, 0);
+            s.tick(true);
+            sim.now += 100 * Sim.MS;
+        }
+        assertEquals(10_500, (int) sim.ctx.nav().destination().x());
+        assertEquals(6_750, (int) sim.ctx.nav().destination().y());
+        assertTrue(sim.sent.stream().noneMatch(p -> p instanceof orbit.protocol.gen.JumpRequest));
+    }
+
+    @Test
+    void aPortalThatDoesNotLetTheShipThroughIsNotTriedAgain() {
+        Sim sim = lowHp(2, 2_000, 2_000); // 1-2 by its 1-1 portal; the jump never happens in the sim
+        Safety s = new Safety(sim.ctx);
+        for (int t = 0; t < 300; t++) {
+            hurt(sim, 10_000, 0);
+            s.tick(true);
+            sim.now += 100 * Sim.MS;
+        }
+        assertEquals(1, sim.sent.stream().filter(p -> p instanceof orbit.protocol.gen.JumpRequest).count());
+        assertTrue(sim.ctx.stats().closedPortals.contains("2:2000:2000"));
+    }
 }

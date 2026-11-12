@@ -45,6 +45,11 @@ public final class Stats {
     public int cubesFought() {
         return cubes.size();
     }
+    /**
+     * Portals that did not let the ship through ({@code map:x:y}): a jump asked and nothing happened (live
+     * 2026-11-12: 5-2 → 5-4, twice under fire). Kept for the run, the account's whole stay.
+     */
+    public final java.util.Set<String> closedPortals = java.util.concurrent.ConcurrentHashMap.newKeySet();
     /** Cubikons that died while the bot was shooting at them. */
     public final AtomicInteger cubesKilled = new AtomicInteger();
 }

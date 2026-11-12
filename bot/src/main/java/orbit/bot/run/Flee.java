@@ -176,8 +176,13 @@ public final class Flee {
 
     /** The portal the ship reaches well before the enemy: the most head start, shortest flight on a tie. */
     private MapCatalog.Portal portal(WorldSnapshot.Hero h) {
-        java.util.List<MapCatalog.Portal> all = ctx.maps().portals(h.mapId()).stream()
-                .filter(p -> p.faction() == 0 || p.faction() == h.factionId()).toList();
+        // the portals that let the ship through (shown by the server, none refused this run), else the map's known ones
+        java.util.List<MapCatalog.Portal> all = SafePlaces.usablePortals(ctx.world().get(), ctx.maps(),
+                ctx.stats().closedPortals);
+        if (all.isEmpty()) {
+            all = ctx.maps().portals(h.mapId()).stream()
+                    .filter(p -> p.faction() == 0 || p.faction() == h.factionId()).toList();
+        }
         // a portal with a way back first, unless the user lets the bot jump anywhere
         java.util.List<MapCatalog.Portal> back = ctx.config().get().safety().oneWayJumps() ? all
                 : all.stream().filter(p -> !Safety.oneWay(ctx.maps(), p, h)).toList();

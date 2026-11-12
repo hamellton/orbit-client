@@ -532,6 +532,8 @@ public final class BotRunner {
         if (all.isEmpty()) {
             ctx.maps().portals(h.mapId()).forEach(x -> all.add(new int[] {x.x(), x.y()}));
         }
+        // a base (own or shared) is as safe (the user, 2026-11-12: on 5-2 the shared base, not a portal)
+        SafePlaces.bases(w).forEach(b -> all.add(new int[] {b.x(), b.y()}));
         return all.stream().min(Comparator.comparingDouble(x -> Math.hypot(x[0] - h.x(), x[1] - h.y()))).orElse(null);
     }
 
@@ -554,7 +556,7 @@ public final class BotRunner {
             }
             ctx.nav().tick();
             logoutAt = 0;
-            show("К порталу для выхода");
+            show("К порталу или базе для выхода");
             return;
         }
         ctx.nav().stop();

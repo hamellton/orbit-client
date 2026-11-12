@@ -37,6 +37,10 @@ public final class Safety {
     private long hpRoseAt = Long.MIN_VALUE / 2;
     private long jumpAt;
     private boolean oneWayTold;
+    /** The last escape jump: from which map, through which portal (checked {@link #JUMP_CHECK_MS} later). */
+    private int jumpedFrom;
+    private MapCatalog.Portal jumpedVia;
+    static final long JUMP_CHECK_MS = 8_000;
     private long jumpedAt = Long.MIN_VALUE / 2;
     private double lastHp = -1;
     private long hurtAt = Long.MIN_VALUE / 2;
@@ -92,6 +96,7 @@ public final class Safety {
         }
         lastHp = hull;
         boolean attacked = !h.attackers().isEmpty() || now - hurtAt < HURT_MS * 1_000_000;
+        checkJump(w, h, now);
         heal(w, s, now, hp, attacked);
         if (!repairing) {
             double limit = attacked || fighting ? s.repairHpMin() : s.repairHpNoNpc();
@@ -104,7 +109,8 @@ public final class Safety {
                 ctx.stats().repairs.incrementAndGet();
                 repairMap = h.mapId();
                 ctx.nav().stop();
-                log.info("HP {}% — ухожу на ремонт", pct(hp));
+                SafePlaces.Place to = SafePlaces.nearest(w, ctx.maps(), ctx.stats().closedPortals, s.oneWayJumps());
+                log.info("HP {}% — ухожу на ремонт{}", pct(hp), to == null ? "" : ": " + to.name());
             } else {
                 return false;
             }
@@ -115,37 +121,56 @@ public final class Safety {
             return false;
         }
         ctx.ship().want(s.repairMode());
-        MapCatalog.Portal portal = nearestPortal(h);
-        if (portal == null) {
-            return true; // no portal known (gate, instance): stay and heal
+        // a base (own or shared) or a portal that lets the ship through (on 5-2: the shared base)
+        SafePlaces.Place place = SafePlaces.nearest(w, ctx.maps(), ctx.stats().closedPortals, s.oneWayJumps());
+        if (place == null) {
+            return true; // nothing known (gate, instance): stay and heal
         }
-        double dist = Math.hypot(portal.x() - h.x(), portal.y() - h.y());
-        if (dist > AT_PORTAL) {
-            if (ctx.nav().idle() || ctx.nav().destination().x() != portal.x()) {
-                ctx.nav().moveTo(portal.x(), portal.y(), true);
+        if (place.distance(h) > place.reach()) {
+            if (ctx.nav().idle() || ctx.nav().destination().x() != place.x() || ctx.nav().destination().y() != place.y()) {
+                ctx.nav().moveTo(place.x(), place.y(), true);
             }
             ctx.nav().tick();
             return true;
         }
-        if (attacked && hp < s.escapeHp() && w.jumpingTo() == 0 && now - jumpedAt > 10_000_000_000L) {
-            if (!s.oneWayJumps() && oneWay(ctx.maps(), portal, h)) {
+        MapCatalog.Portal portal = place.portal();
+        if (portal != null && attacked && hp < s.escapeHp() && w.jumpingTo() == 0 && now - jumpedAt > 10_000_000_000L) {
+            if (!place.jumpable()) {
                 // 5-2 → 5-3 has no way back but the whole loop round the pirate maps (live 2026-11-12): stay in the
                 // portal's shelter and heal here
                 if (!oneWayTold) {
-                    log.warn("На портале под огнём, HP {}%, но с {} обратно не вернуться — не прыгаю, лечусь здесь",
-                            pct(hp), portal.toName());
+                    log.warn("На портале под огнём, HP {}%, но {} — не прыгаю, лечусь здесь", pct(hp),
+                            oneWay(ctx.maps(), portal, h) ? "с " + portal.toName() + " обратно не вернуться"
+                                    : "портал на " + portal.toName() + " не пускает");
                     oneWayTold = true;
                 }
             } else if (jumpAt == 0) {
                 jumpAt = now + ctx.pause(200, 700);
             } else if (now >= jumpAt) {
-                log.warn("На портале под огнём, HP {}% — прыгаю", pct(hp));
+                log.warn("На портале под огнём, HP {}% — прыгаю на {}", pct(hp), portal.toName());
                 ctx.actions().jump();
                 jumpedAt = now;
                 jumpAt = 0;
+                jumpedFrom = h.mapId();
+                jumpedVia = portal;
             }
         }
         return true;
+    }
+
+    /**
+     * A jump asked {@link #JUMP_CHECK_MS} ago and the ship still here, not jumping: the portal does not let it
+     * through (closed for the company, an event map) — never again this run.
+     */
+    private void checkJump(WorldSnapshot w, WorldSnapshot.Hero h, long now) {
+        if (jumpedVia == null || now - jumpedAt < JUMP_CHECK_MS * 1_000_000) {
+            return;
+        }
+        if (h.mapId() == jumpedFrom && w.jumpingTo() == 0) {
+            ctx.stats().closedPortals.add(SafePlaces.key(jumpedFrom, jumpedVia));
+            log.warn("Портал на {} не пускает — больше туда не прыгаю", jumpedVia.toName());
+        }
+        jumpedVia = null;
     }
 
     /** HP at {@code repairHpMax} and the shield at {@code repairToShield} (or no shield): nothing to repair. */
@@ -232,12 +257,6 @@ public final class Safety {
     static boolean oneWay(MapCatalog maps, MapCatalog.Portal portal, WorldSnapshot.Hero h) {
         return portal.toId() > 0 && maps.portals(portal.toId()).stream()
                 .noneMatch(p -> p.toId() == h.mapId() && (p.faction() == 0 || p.faction() == h.factionId()));
-    }
-
-    private MapCatalog.Portal nearestPortal(WorldSnapshot.Hero h) {
-        return ctx.maps().portals(h.mapId()).stream()
-                .filter(p -> p.faction() == 0 || p.faction() == h.factionId())
-                .min(Comparator.comparingDouble(p -> Math.hypot(p.x() - h.x(), p.y() - h.y()))).orElse(null);
     }
 
     static int pct(double v) {
