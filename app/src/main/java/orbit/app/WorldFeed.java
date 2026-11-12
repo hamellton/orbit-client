@@ -74,6 +74,33 @@ public final class WorldFeed {
     }
 
     private final String account;
+    private long heatAt;
+
+    /** Temporary: every NPC in sight with its place, one line each in {@code local/npc-heat.csv}. */
+    private static void heat(WorldSnapshot w) {
+        int map = w.hero().mapId();
+        if (map <= 0) {
+            return;
+        }
+        StringBuilder sb = new StringBuilder();
+        long t = System.currentTimeMillis() / 1000;
+        for (WorldSnapshot.Ship s : w.ships().values()) {
+            if (s.npc()) {
+                sb.append(t).append(';').append(map).append(';').append(s.name()).append(';').append(s.x()).append(';')
+                        .append(s.y()).append('\n');
+            }
+        }
+        sb.append(t).append(';').append(map).append(";HERO;").append(w.hero().x()).append(';').append(w.hero().y()).append('\n');
+        try {
+            java.nio.file.Path f = java.nio.file.Path.of("local", "npc-heat.csv");
+            java.nio.file.Files.createDirectories(f.toAbsolutePath().getParent());
+            java.nio.file.Files.writeString(f, sb, java.nio.charset.StandardCharsets.UTF_8,
+                    java.nio.file.StandardOpenOption.CREATE, java.nio.file.StandardOpenOption.APPEND);
+        } catch (java.io.IOException e) {
+            // a temporary help
+        }
+    }
+
     /** The map left by the last jump, until the ship appears on the next one. */
     private volatile int jumpedFrom;
 
@@ -188,6 +215,10 @@ public final class WorldFeed {
             MapFeatures.shared().note(world.snapshot(nanos)); // obstacles and stations for the «Зоны» tab
         }
         rememberPlayers(nanos);
+        if (learnNpcMaps && nanos - heatAt > 5_000_000_000L) {
+            heatAt = nanos;
+            heat(world.snapshot(nanos)); // temporary: where the NPCs stand (to draw the zones by)
+        }
         loot.flush(nanos, false);
         if (p instanceof orbit.protocol.gen.LegacyModule lm) {
             loot.legacy(lm.message, nanos);
