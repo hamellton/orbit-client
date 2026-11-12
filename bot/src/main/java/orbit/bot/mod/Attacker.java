@@ -234,8 +234,12 @@ public final class Attacker {
         track(t, now);
         boolean chasing = move && dist > radius + CHASE_GAP && (follow || c.general().runModeChase());
         boolean onTheWay = move && dist > radius + APPROACH && h.attackers().isEmpty();
-        ctx.ship().want(chasing ? c.general().run() : onTheWay ? c.general().travel() : c.general().offensive());
         BotConfig.FightMove mode = mode(c, rule, t, h, now);
+        // going round it (or backing off) in the run configuration: faster, hit less (DarkBot's RUN_CONFIG_IN_CIRCLE;
+        // the user farms Impulse II so with no shield)
+        boolean runCircle = c.loot().runCircle() && dist <= radius * KITE_APPROACH
+                && (mode == BotConfig.FightMove.CIRCLE || mode == BotConfig.FightMove.KITE);
+        ctx.ship().want(chasing || runCircle ? c.general().run() : onTheWay ? c.general().travel() : c.general().offensive());
         Threats threats = move ? new Threats(ctx, ctx.world().get(), c, t.id()) : null;
         fight.sample(w, t, radius, switch (mode) {
             case KITE -> "отход";

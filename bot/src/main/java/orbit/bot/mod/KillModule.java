@@ -66,7 +66,11 @@ public final class KillModule implements BotModule {
         }
         if (kill) {
             double range = c.loot().ignoreFartherThan() > 0 ? c.loot().ignoreFartherThan() : Double.MAX_VALUE;
-            WorldSnapshot.Ship t = Targets.best(c, w, range, s -> attacker.gaveUp(s.id()) || ctx.nav().inDanger(s.x(), s.y()));
+            MapCatalog.MapInfo here = ctx.maps().info(w.hero().mapId());
+            // «only in the preferred zone» (DarkBot's ONLY_KILL_PREFERRED; the user's BL_RINUSK keeps to a zone)
+            boolean onlyZone = c.general().onlyKillPreferred();
+            WorldSnapshot.Ship t = Targets.best(c, w, range, s -> attacker.gaveUp(s.id()) || ctx.nav().inDanger(s.x(), s.y())
+                    || onlyZone && !Zones.inPreferred(c, here, s.x(), s.y()));
             if (t != null) {
                 roamTo = null;
                 attacker.target(t);

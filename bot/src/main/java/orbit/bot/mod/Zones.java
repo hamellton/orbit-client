@@ -38,6 +38,15 @@ final class Zones {
         return new double[] {(cell[0] + 0.2 + 0.6 * random.nextDouble()) * cw, (cell[1] + 0.2 + 0.6 * random.nextDouble()) * ch};
     }
 
+    /** The point lies in the map's preferred zone, or the map has none. */
+    static boolean inPreferred(BotConfig c, MapCatalog.MapInfo map, double x, double y) {
+        BotConfig.Zones z = c.zones().get(map.id());
+        if (z == null || z.preferred() == null || z.preferred().isEmpty()) {
+            return true;
+        }
+        return z.preferred().contains(x, y, map.width(), map.height());
+    }
+
     /** The point lies in the map's avoided zone. */
     static boolean avoided(BotConfig c, int mapId, double x, double y, MapCatalog maps) {
         BotConfig.Zones z = c.zones().get(mapId);

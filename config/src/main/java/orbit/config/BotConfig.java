@@ -567,17 +567,26 @@ public record BotConfig(
      * @param fireLauncher the bot fires the launcher itself when it is loaded (ships without the launcher CPU)
      * @param move        how to move in a fight ({@link FightMove}); {@code null} in an older file = {@code circle}
      *                    on → circle, off → stand
+     * @param runCircle   circle (and back off) in the run configuration — faster, hit less (DarkBot's
+     *                    {@code RUN_CONFIG_IN_CIRCLE}; the user's BL_RINUSK farms Impulse II so with no shield)
      */
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public record Loot(String ammo, String sab, double sabBelow, int sabNpcShieldMin, String rsb,
                        boolean groupNpcs, int ignoreFartherThan, String rocket, boolean fireRockets, boolean circle,
-                       List<String> fallback, String launcher, boolean fireLauncher, String move) {
+                       List<String> fallback, String launcher, boolean fireLauncher, String move, Boolean runCircle) {
+
+        public Loot(String ammo, String sab, double sabBelow, int sabNpcShieldMin, String rsb,
+                    boolean groupNpcs, int ignoreFartherThan, String rocket, boolean fireRockets, boolean circle,
+                    List<String> fallback, String launcher, boolean fireLauncher, String move) {
+            this(ammo, sab, sabBelow, sabNpcShieldMin, rsb, groupNpcs, ignoreFartherThan, rocket, fireRockets, circle,
+                    fallback, launcher, fireLauncher, move, null);
+        }
 
         public Loot(String ammo, String sab, double sabBelow, int sabNpcShieldMin, String rsb,
                     boolean groupNpcs, int ignoreFartherThan, String rocket, boolean fireRockets, boolean circle,
                     List<String> fallback, String launcher, boolean fireLauncher) {
             this(ammo, sab, sabBelow, sabNpcShieldMin, rsb, groupNpcs, ignoreFartherThan, rocket, fireRockets, circle,
-                    fallback, launcher, fireLauncher, null);
+                    fallback, launcher, fireLauncher, (String) null);
         }
 
         public Loot(String ammo, String sab, double sabBelow, int sabNpcShieldMin, String rsb,
@@ -592,6 +601,7 @@ public record BotConfig(
 
         public Loot {
             fallback = fallback == null ? List.of() : List.copyOf(fallback);
+            runCircle = runCircle != null && runCircle;
         }
 
         /** The config's way of moving in a fight. */
