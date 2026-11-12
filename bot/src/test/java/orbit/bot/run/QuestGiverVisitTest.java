@@ -161,4 +161,23 @@ class QuestGiverVisitTest {
         assertTrue(Math.hypot(h.x() - 9_736, h.y() - 3_400) < 400, "by the giver");
         assertEquals(base, h.mapId(), "the giver of the base it is on");
     }
+
+    @Test
+    void theNearestOwnBaseIsVisited() {
+        // live 2026-11-12 on ru1: EIC on 1-3 flew 6 jumps to 2-8 though 2-1 is three away
+        Sim sim = new Sim(BotConfig.empty(), MapCatalog.bundled().byName("1-3").id(), 5_000, 5_000);
+        orbit.protocol.gen.ShipInitializationCommand si = new orbit.protocol.gen.ShipInitializationCommand();
+        si.userId = 1;
+        si.mapId = MapCatalog.bundled().byName("1-3").id();
+        si.factionId = 2;
+        si.x = 5_000;
+        si.y = 5_000;
+        si.speed = 400;
+        si.hitPoints = 100_000;
+        si.hitMax = 100_000;
+        sim.world.apply(si, sim.now);
+        QuestGiverVisit v = new QuestGiverVisit(sim.ctx, Set.of(Quests.DAILY), q -> true);
+        v.tick();
+        assertTrue(v.status().endsWith("на 2-1"), v.status());
+    }
 }

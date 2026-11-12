@@ -15,7 +15,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * One visit to the quest giver of the own home base, as the user did it with the client (ru1 2026-11-12, plan 5б.9):
- * to the base (x-8, else x-1) and to within reach of the giver (a map asset of type 34; the server switches it on at
+ * to the nearest own base (x-1 or x-8) and to within reach of the giver (a map asset of type 34; the server switches it on at
  * about 400 and sends its quest list itself), a click on it ({@code MapAssetActivationRequest}), the window
  * ({@code QuestGiverApproachedRequest}, {@code QuestSettingsRequest}), the conditions of each offered quest of a wanted
  * type ({@code QuestInfoRequest}), «Принять» for those the bot can do ({@code QuestAcceptRequest}, one by one, while
@@ -359,24 +359,34 @@ public final class QuestGiverVisit {
         }).toList());
     }
 
-    /** The own home bases with a quest giver: x-8 first (the user's 2-8), then x-1, those with a way there. */
+    /**
+     * The own home bases (x-1, x-8) with a way there, nearest first by jumps (live 2026-11-12 on ru1: from 1-3 the
+     * bot flew 6 jumps to 2-8 with 2-1 three away); the other one is tried when the first has no quest giver.
+     */
     private List<Integer> bases(WorldSnapshot.Hero h) {
-        List<Integer> out = new ArrayList<>();
-        for (String n : List.of(h.factionId() + "-8", h.factionId() + "-1")) {
-            MapCatalog.MapInfo m = ctx.maps().byName(n);
+        List<int[]> found = new ArrayList<>(); // {map, jumps, order}
+        List<String> names = List.of(h.factionId() + "-8", h.factionId() + "-1");
+        for (int i = 0; i < names.size(); i++) {
+            MapCatalog.MapInfo m = ctx.maps().byName(names.get(i));
             if (m == null) {
                 continue;
             }
-            boolean here = m.id() == h.mapId();
-            if (here || !orbit.bot.nav.Router.route(ctx.maps(), h.mapId(), h.x(), h.y(), m.id(), h.factionId(),
-                    h.level() > 0 ? h.level() : Integer.MAX_VALUE).isEmpty()) {
-                if (here) {
-                    out.addFirst(m.id());
-                } else {
-                    out.add(m.id());
+            int jumps;
+            if (m.id() == h.mapId()) {
+                jumps = 0;
+            } else {
+                List<?> route = orbit.bot.nav.Router.route(ctx.maps(), h.mapId(), h.x(), h.y(), m.id(), h.factionId(),
+                        h.level() > 0 ? h.level() : Integer.MAX_VALUE);
+                if (route.isEmpty()) {
+                    continue;
                 }
+                jumps = route.size();
             }
+            found.add(new int[] {m.id(), jumps, i});
         }
+        found.sort(java.util.Comparator.<int[]>comparingInt(f -> f[1]).thenComparingInt(f -> f[2]));
+        List<Integer> out = new ArrayList<>();
+        found.forEach(f -> out.add(f[0]));
         return out;
     }
 }
