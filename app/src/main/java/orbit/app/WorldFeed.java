@@ -206,6 +206,14 @@ public final class WorldFeed {
                 }
             }
             case JumpInitiatedCommand j -> log.info("Прыжок на карту {}", maps.info(j.mapId).name());
+            // a base's HQ, refinery and repair dock with their company: where the ship can repair safely
+            case orbit.protocol.gen.AssetCreateCommand a when a.type != null
+                    && java.util.Set.of(46, 47, 50, 51, 52, 53, 54).contains((int) a.type.typeValue) -> {
+                int mine = world.snapshot(now()).hero().factionId();
+                log.info("Станция {} на {}: {} ({}/{})", a.userName, maps.info(world.snapshot(now()).hero().mapId()).name(),
+                        a.factionId == 0 ? "общая" : a.factionId == mine ? "своя" : "чужая, компания " + a.factionId,
+                        a.posX / 100, a.posY / 100);
+            }
             case orbit.protocol.gen.LegacyModule m when "0|l".equals(m.message) -> {
                 loggedOut = true;
                 endSession();
