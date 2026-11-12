@@ -33,11 +33,17 @@ public final class QuestTexts {
     /** Timer-like conditions: target and value are milliseconds. */
     public static boolean isTime(Quests.Condition c) {
         return c.type() == Quests.TIMER || c.type() == Quests.HASTE || c.type() == Quests.COUNTDOWN
-                || c.type() == Quests.REAL_TIME_HASTE;
+                || c.type() == Quests.REAL_TIME_HASTE || c.type() == Quests.ENDURANCE;
     }
 
-    /** {@code убить Protegit}, {@code собрать прометий}, {@code побывать на 1-5}… */
+    /** {@code убить Protegit}, {@code собрать прометий (на 1-BL или 3-BL)}… — with the maps a sub-condition binds it to. */
     public static String condition(Quests.Condition c) {
+        List<Integer> on = c.onMaps();
+        String text = bare(c);
+        return on.isEmpty() ? text : text + " (на " + String.join(" или ", on.stream().map(QuestTexts::map).toList()) + ")";
+    }
+
+    private static String bare(Quests.Condition c) {
         return switch (c.type()) {
             case Quests.KILL_NPC -> "убить " + npc(c.match(0));
             case Quests.KILL_NPCS -> "убить " + String.join(" или ", npcs(c));
@@ -57,6 +63,7 @@ public final class QuestTexts {
             case Quests.KILL_PLAYERS, Quests.KILL_PLAYER -> "убить игроков";
             case Quests.DAMAGE_PLAYERS -> "урон по игрокам";
             case Quests.AVOID_DEATH -> c.target() > 0 ? "умереть не больше " + (long) c.target() + " раз" : "не умереть";
+            case Quests.ENDURANCE -> "продержаться " + seconds(c.target());
             case Quests.REAL_TIME_HASTE -> "успеть за " + seconds(c.target()) + " (осталось " + seconds(c.current()) + ")";
             case Quests.MISCELLANEOUS -> "особое условие";
             case Quests.TIMER, Quests.HASTE, Quests.COUNTDOWN -> c.target() > 0

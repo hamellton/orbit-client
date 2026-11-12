@@ -400,4 +400,51 @@ class QuestModuleTest {
         var active = sim.world.snapshot(sim.now).quests().active();
         assertFalse(m.doable(active.get(122001)), "not taken either");
     }
+
+    /** A kill condition bound to maps by a sub-condition «on these maps», as 117079 on ru1 (2026-11-12). */
+    static void takeOnMaps(Sim sim, int id, int npc, double target, int... maps) {
+        QuestDefinitionModule d = QuestGiverVisitTest.Giver.definition(id);
+        d.types.getFirst().type = 3;
+        QuestConditionModule c = d.rootCase.modifier.getFirst().condition;
+        c.matches = List.of(String.valueOf(npc));
+        c.targetValue = target;
+        QuestConditionModule on = new QuestConditionModule();
+        on.id = c.id + 1;
+        on.type = 77;
+        on.displayType = 77;
+        on.matches = java.util.Arrays.stream(maps).mapToObj(String::valueOf).toList();
+        on.state = new orbit.protocol.gen.QuestConditionStateModule();
+        c.subConditions = List.of(on);
+        orbit.protocol.gen.QuestInitializationCommand init = new orbit.protocol.gen.QuestInitializationCommand();
+        init.quest = d;
+        sim.world.apply(init, sim.now);
+    }
+
+    @Test
+    void killsBoundToAMapAreDoneOnlyThere() {
+        // Saimon live on x-3 and x-4; the ship is on 3-4, but the quest counts them on 3-3 only
+        int map34 = MapCatalog.bundled().byName("3-4").id();
+        int map33 = MapCatalog.bundled().byName("3-3").id();
+        Sim sim = new Sim(BotConfig.empty(), map34, 10_000, 6_000);
+        takeOnMaps(sim, 801, 6, 10, map33);
+        var quest = sim.world.snapshot(sim.now).quests().active().get(801);
+        assertEquals(1, quest.leaves().size(), "the kill is the work, the map its bound");
+        assertEquals("убить Saimon (на 3-3)", orbit.world.QuestTexts.condition(quest.leaves().getFirst()));
+        QuestModule m = new QuestModule(sim.ctx, NpcMaps.shared(), orbit.world.maps.OreMaps.inMemory());
+        m.visited(sim.now);
+        m.tick();
+        assertEquals(map33, m.workingMap());
+    }
+
+    @Test
+    void piratesWithNoMapAreHuntedOn52() {
+        // the user 2026-11-12: more chance of a group on 5-2; Saboteur (60) live on 5-1 … 5-3, the ship is on 5-1
+        int map51 = MapCatalog.bundled().byName("5-1").id();
+        Sim sim = new Sim(BotConfig.empty(), map51, 10_000, 6_000);
+        take(sim, 802, 2, 6, 17_500, "60");
+        QuestModule m = new QuestModule(sim.ctx, NpcMaps.shared(), orbit.world.maps.OreMaps.inMemory());
+        m.visited(sim.now);
+        m.tick();
+        assertEquals("5-2", MapCatalog.bundled().info(m.workingMap()).name());
+    }
 }

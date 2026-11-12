@@ -440,11 +440,23 @@ public final class QuestModule implements BotModule {
         Set<String> doing = kinds();
         if (QuestTargets.killing(c) && doing.contains("KILL") || QuestTargets.damaging(c) && doing.contains("DAMAGE")) {
             Map<Integer, Set<String>> where = new LinkedHashMap<>(QuestTargets.where(c, npcMaps));
-            where.keySet().removeIf(m -> notThere.getOrDefault(m, Set.of()).contains(c.id()));
             Set<String> want = QuestTargets.wanted(c);
+            // the quest says where the kills count (a sub-condition «on these maps»): only there — and there even if
+            // the bot never saw them on it, the quest says they live there
+            List<Integer> on = c.onMaps();
+            if (!on.isEmpty()) {
+                where.keySet().retainAll(on);
+                if (where.isEmpty()) {
+                    on.forEach(m -> where.put(m, Set.of()));
+                }
+            }
+            where.keySet().removeIf(m -> notThere.getOrDefault(m, Set.of()).contains(c.id()));
             boolean bosses = !want.isEmpty() && want.stream().allMatch(n -> n.startsWith("boss"));
             int map45 = ctx.maps().byName("4-5") == null ? -1 : ctx.maps().byName("4-5").id();
-            Integer best = nearest(where.keySet(), h, m -> bosses && m == map45 ? BOSS_4_5_EXTRA_HOPS : 0);
+            Integer best = on.isEmpty() ? pirateMap(want, where.keySet(), h) : null;
+            if (best == null) {
+                best = nearest(where.keySet(), h, m -> bosses && m == map45 ? BOSS_4_5_EXTRA_HOPS : 0);
+            }
             Kind k = QuestTargets.killing(c) ? Kind.KILL : Kind.DAMAGE;
             List<Integer> ids = QuestTargets.npcIds(c);
             return best == null ? null : new Work(quest.id(), c.id(), k, best, Set.copyOf(where.get(best)), Double.NaN,
@@ -533,6 +545,25 @@ public final class QuestModule implements BotModule {
         int map = cfg.general().workingMap();
         return own.isEmpty() ? null : new Work(quest.id(), c.id(), Kind.SALVAGE, map > 0 ? map : w.hero().mapId(),
                 Set.copyOf(own), Double.NaN, Double.NaN, -1);
+    }
+
+    /** The pirates' names (letters only, lower case), the «Uber» ones too. */
+    static final Set<String> PIRATES = Set.of("saboteur", "interceptor", "barracuda", "annihilator", "battleray",
+            "ubersaboteur", "uberinterceptor", "uberbarracuda", "uberannihilator", "uberbattleray");
+
+    /**
+     * Pirate NPCs with no map in the quest: 5-2 (the user, 2026-11-12: more chance of a group there, the quest closes
+     * sooner), when they live there and it can be reached.
+     */
+    private Integer pirateMap(Set<String> want, Set<Integer> maps, WorldSnapshot.Hero h) {
+        if (want.isEmpty() || !PIRATES.containsAll(want)) {
+            return null;
+        }
+        orbit.world.maps.MapCatalog.MapInfo m52 = ctx.maps().byName("5-2");
+        if (m52 == null || !maps.contains(m52.id())) {
+            return null;
+        }
+        return nearest(List.of(m52.id()), h);
     }
 
     /** Collect an ore: where it lies in sight, else the nearest map where it was seen. */

@@ -77,12 +77,40 @@ public record Quests(Map<Integer, Quest> active, List<Offer> offers, Map<Integer
             return new Condition(id, type, matches, target, current, active, completed, mandatory, sub);
         }
 
+        /**
+         * The work: this condition itself when its sub-conditions only bound it (a map to do it on, a time limit — live
+         * 2026-11-12: 117079 «kill 10 NPC 177», sub «on 1-BL or 3-BL»), else the sub-conditions that are work.
+         */
         void leaves(List<Condition> out) {
-            if (sub.isEmpty()) {
+            List<Condition> work = sub.stream().filter(c -> !c.bound()).toList();
+            if (work.isEmpty()) {
                 out.add(this);
             } else {
-                sub.forEach(c -> c.leaves(out));
+                work.forEach(c -> c.leaves(out));
             }
+        }
+
+        /** A condition that only bounds its parent: where (on a map) or how fast / how safely. */
+        public boolean bound() {
+            return switch (type) {
+                case MAP, ON_MAP, TIMER, HASTE, COUNTDOWN, REAL_TIME_HASTE, AVOID_DEATH -> true;
+                default -> false;
+            };
+        }
+
+        /** The maps a sub-condition says the work counts on (any of them), empty when anywhere. */
+        public List<Integer> onMaps() {
+            List<Integer> out = new ArrayList<>();
+            for (Condition c : sub) {
+                if (c.type == MAP || c.type == ON_MAP) {
+                    for (int i = 0; i < c.matches.size(); i++) {
+                        if (c.match(i) > 0) {
+                            out.add(c.match(i));
+                        }
+                    }
+                }
+            }
+            return out;
         }
 
         void all(List<Condition> out) {
@@ -119,6 +147,7 @@ public record Quests(Map<Integer, Quest> active, List<Offer> offers, Map<Integer
      */
     public static final int TIMER = 1;
     public static final int HASTE = 2;
+    public static final int ENDURANCE = 3;
     public static final int COUNTDOWN = 4;
     public static final int COLLECT = 5;
     public static final int KILL_NPC = 6;
