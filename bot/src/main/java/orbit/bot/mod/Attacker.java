@@ -402,6 +402,13 @@ public final class Attacker {
     /** Slower than this share of the ship's speed: a slow NPC, to be kept at the radius. */
     static final double SLOW_SHARE = 0.6;
     private long watchedSince;
+    /** The ship's top speed seen: its speed changes with the config (live 2026-11-13: 89 ↔ 444, the mode flipped). */
+    private double heroTopSpeed;
+
+    private double heroTop(WorldSnapshot.Hero h) {
+        heroTopSpeed = Math.max(heroTopSpeed, h.speed());
+        return Math.max(1, heroTopSpeed);
+    }
     private BotConfig.FightMove modeTold;
 
     /**
@@ -416,7 +423,7 @@ public final class Attacker {
             double top = KIND_SPEED.getOrDefault(t.name(), 0.0);
             if (CubikonModule.isCubikon(t)) {
                 m = BotConfig.FightMove.CIRCLE;
-            } else if (top >= SLOW_SHARE * Math.max(1, h.speed())) {
+            } else if (top >= SLOW_SHARE * heroTop(h)) {
                 m = BotConfig.FightMove.CIRCLE;
             } else if (top > 30) {
                 m = BotConfig.FightMove.KITE;
