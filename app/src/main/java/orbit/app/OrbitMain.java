@@ -633,7 +633,7 @@ public final class OrbitMain {
                     int wantHangar = run.runner().hangarRequest();
                     if (wantHangar != 0 && !closed.get() && lastHost.get() != null) {
                         // the module asked for another ship (two-ship palladium): switch it on the site, log in again
-                        if (!switchHangar(auth, lastHost.get(), wantHangar, cfg, feed)) {
+                        if (!switchHangar(auth, source, lastHost.get(), wantHangar, cfg, feed)) {
                             log.error("Корабль на сайте не сменился — аккаунт остановлен, чтобы не входить и выходить"
                                     + " по кругу; проверьте корабли палладия в настройках аккаунта");
                             break;
@@ -826,14 +826,16 @@ public final class OrbitMain {
     /**
      * Makes {@code want} the active ship on the site, then waits the module's extra pause (DmPlugin's 5 s); a ship
      * the account does not have is never asked for. A refusal («too short a time between two actions») is tried
-     * again after a pause, a few times.
+     * again after a pause, a few times. A stale site login (a page instead of the list, after a long session) is
+     * renewed once by a new site login, the same one a game login does.
      *
      * @return false when the ship could not be made active (the account then stops: no log in/out loop)
      */
-    private static boolean switchHangar(AuthClient auth, String host, int want, orbit.config.BotConfig cfg, WorldFeed feed)
-            throws InterruptedException {
+    static boolean switchHangar(AuthClient auth, SessionSource source, String host, int want, orbit.config.BotConfig cfg,
+            WorldFeed feed) throws InterruptedException {
         var hangars = new orbit.auth.Hangars(auth.http(), host);
         feed.setState("Смена корабля");
+        boolean renewed = false;
         for (int attempt = 1; ; attempt++) {
             Thread.sleep(attempt == 1 ? 3_000 : SWITCH_GAP_MS);
             try {
@@ -850,6 +852,20 @@ public final class OrbitMain {
                     log.info("Корабль сменён на сайте: ангар {} → {}", active, want);
                 }
                 break;
+            } catch (orbit.auth.Hangars.Expired e) {
+                if (renewed) {
+                    log.warn("Корабль не сменить: вход на сайт устарел и после нового входа");
+                    return false;
+                }
+                renewed = true;
+                log.info("Вход на сайт устарел — вхожу на сайт заново, чтобы сменить корабль");
+                try {
+                    source.fresh();
+                } catch (orbit.auth.AuthException a) {
+                    log.warn("Корабль не сменить: новый вход на сайт не удался — {}", a.getMessage());
+                    return false;
+                }
+                attempt = 0; // the tries start again with the new login
             } catch (java.io.IOException e) {
                 if (attempt >= SWITCH_TRIES) {
                     log.warn("Корабль не сменить: {}", e.getMessage());

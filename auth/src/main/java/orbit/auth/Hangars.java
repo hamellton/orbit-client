@@ -35,6 +35,14 @@ public final class Hangars {
         }
     }
 
+    /** The site sent a page instead of the list: its login is stale (live 2026-11-12 on gb2, after a night). */
+    public static final class Expired extends IOException {
+
+        Expired() {
+            super("сайт прислал страницу вместо списка (вход на сайт устарел)");
+        }
+    }
+
     private static volatile String lastShape = "";
 
     /** The field names (no values) of the last list's first hangar: to learn where the site puts the design. */
@@ -63,7 +71,7 @@ public final class Hangars {
             throw new IOException("сайт ответил HTTP " + r.status());
         }
         if (body.startsWith("<")) {
-            throw new IOException("сайт прислал страницу вместо списка (вход на сайт устарел?)");
+            throw new Expired();
         }
         JsonNode root;
         try {
