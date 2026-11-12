@@ -341,4 +341,53 @@ public final class Actions {
         r.mapAssetId = assetId;
         sender.accept(r);
     }
+
+    // ---- quests: the quest giver's window, as the client (user's recording ru1 2026-11-12) ----
+
+    /** The window opened on a quest giver the server switched on ({@code QuestGiverApproachedRequest}, its asset id). */
+    public void questGiverApproached(int assetId) {
+        orbit.protocol.gen.QuestGiverApproachedRequest r = new orbit.protocol.gen.QuestGiverApproachedRequest();
+        r.questGiverId = assetId;
+        sender.accept(r);
+    }
+
+    /** The window's list filters, as the client sends them on opening (available and not attempted). */
+    public void questSettings() {
+        orbit.protocol.gen.QuestSettingsRequest r = new orbit.protocol.gen.QuestSettingsRequest();
+        r.availableFilter = true;
+        r.inLevelRangeFilter = false;
+        r.unattemptedFilter = true;
+        r.attemptedFilter = false;
+        r.completedFilter = false;
+        r.unavailableFilter = false;
+        sender.accept(r);
+    }
+
+    /** A quest picked in the list: its conditions and rewards ({@code QuestInfoRequest} → {@code QuestInfoCommand}). */
+    public void questInfo(int questId) {
+        orbit.protocol.gen.QuestInfoRequest r = new orbit.protocol.gen.QuestInfoRequest();
+        r.questId = questId;
+        sender.accept(r);
+    }
+
+    /** «Принять» in the quest giver's window. */
+    public void questAccept(int questId) {
+        orbit.protocol.gen.QuestAcceptRequest r = new orbit.protocol.gen.QuestAcceptRequest();
+        r.questId = questId;
+        sender.accept(r);
+    }
+
+    /** The quest giver's window closed. */
+    public void questGiverClosed(int assetId) {
+        orbit.protocol.gen.QuestGiverWindowClosedRequest r = new orbit.protocol.gen.QuestGiverWindowClosedRequest();
+        r.questGiverId = assetId;
+        sender.accept(r);
+    }
+
+    /** Cancels a taken quest (the quest window's «Отменить»). */
+    public void questCancel(int questId) {
+        orbit.protocol.gen.QuestCancelRequest r = new orbit.protocol.gen.QuestCancelRequest();
+        r.questId = questId;
+        sender.accept(r);
+    }
 }
