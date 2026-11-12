@@ -299,4 +299,53 @@ class AttackerTest {
         assertEquals(700, orbit.bot.mod.Targets.radius(c, w.ships().get(2), 23), "the user's own");
         assertEquals(560, orbit.bot.mod.Targets.radius(c, w.ships().get(3), 23), "neither");
     }
+
+    /** The closest the chasing NPC came over a fight (it flies at the ship, 300/s; the ship does 400/s). */
+    static double closest(Sim sim, Attacker a, long ms) {
+        double min = Double.MAX_VALUE;
+        for (long t = 0; t < ms; t += 100) {
+            a.tick(true);
+            sim.now += 100 * Sim.MS;
+            var w = sim.world.snapshot(sim.now);
+            var n = w.ships().get(7);
+            var h = w.hero();
+            double d = Math.hypot(h.x() - n.x(), h.y() - n.y());
+            if (t > 3_000) {
+                min = Math.min(min, d);
+            }
+
+            if (t % 500 == 0) {
+                orbit.protocol.gen.MoveCommand m = new orbit.protocol.gen.MoveCommand();
+                m.userId = 7;
+                m.x = h.x();
+                m.y = h.y();
+                m.timeToTarget = (int) (d / 300 * 1000);
+                sim.world.apply(m, sim.now);
+            }
+        }
+        return min;
+    }
+
+    @Test
+    void holdingTheRadiusKeepsAChasingNpcOff() {
+        // Blacklight NPCs chase (the user, 2026-11-12): backing off keeps them near the radius, standing lets them in
+        BotConfig kite = BotConfig.empty()
+                .withLoot(new BotConfig.Loot("ammunition_laser_lcb-10", null, 0, 0, null, true, 0, null, false, false, null,
+                        null, false, true))
+                .withNpcs(Map.of("-=[ Target ]=-", new BotConfig.NpcRule(500, 0, true, Set.of(), Set.of(), null)));
+        Sim sim = new Sim(kite, 1, 10_500, 6_000);
+        sim.lasers("ammunition_laser_lcb-10");
+        sim.npc(7, "-=[ Target ]=-", 10_000, 6_000);
+        Attacker a = new Attacker(sim.ctx);
+        a.target(sim.world.snapshot(sim.now).ships().get(7));
+        double kept = closest(sim, a, 20_000);
+        assertTrue(kept > 450, "kept near the radius: " + kept);
+
+        Sim stand = new Sim(config(false, null, Set.of()), 1, 10_500, 6_000);
+        stand.lasers("ammunition_laser_lcb-10");
+        stand.npc(7, "-=[ Target ]=-", 10_000, 6_000);
+        Attacker b = new Attacker(stand.ctx);
+        b.target(stand.world.snapshot(stand.now).ships().get(7));
+        assertTrue(closest(stand, b, 20_000) < 150, "standing, it comes in");
+    }
 }

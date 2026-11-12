@@ -519,11 +519,20 @@ public record BotConfig(
      * @param fallback    ammunition to take, in order, when the wanted one has run out
      * @param launcher    rocket launcher rockets to keep selected ({@code null} = as in the game, {@link #NO_ROCKETS} = none)
      * @param fireLauncher the bot fires the launcher itself when it is loaded (ships without the launcher CPU)
+     * @param kite        keep the target at the radius and move away from it as it comes (Blacklight NPCs chase;
+     *                    the user, 2026-11-12), only where the zones let; wins over {@code circle}
      */
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public record Loot(String ammo, String sab, double sabBelow, int sabNpcShieldMin, String rsb,
                        boolean groupNpcs, int ignoreFartherThan, String rocket, boolean fireRockets, boolean circle,
-                       List<String> fallback, String launcher, boolean fireLauncher) {
+                       List<String> fallback, String launcher, boolean fireLauncher, Boolean kite) {
+
+        public Loot(String ammo, String sab, double sabBelow, int sabNpcShieldMin, String rsb,
+                    boolean groupNpcs, int ignoreFartherThan, String rocket, boolean fireRockets, boolean circle,
+                    List<String> fallback, String launcher, boolean fireLauncher) {
+            this(ammo, sab, sabBelow, sabNpcShieldMin, rsb, groupNpcs, ignoreFartherThan, rocket, fireRockets, circle,
+                    fallback, launcher, fireLauncher, null);
+        }
 
         public Loot(String ammo, String sab, double sabBelow, int sabNpcShieldMin, String rsb,
                     boolean groupNpcs, int ignoreFartherThan, String rocket, boolean fireRockets, boolean circle,
@@ -537,6 +546,7 @@ public record BotConfig(
 
         public Loot {
             fallback = fallback == null ? List.of() : List.copyOf(fallback);
+            kite = kite != null && kite;
         }
 
         public Loot(String ammo, String sab, double sabBelow, int sabNpcShieldMin, String rsb, boolean groupNpcs,

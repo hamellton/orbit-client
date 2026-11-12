@@ -49,7 +49,8 @@ final class KillSection implements Section {
     private final ItemBox rocket = new ItemBox(ROCKET_CHOICES, true);
     private final ItemBox fallback1 = new ItemBox(ItemCatalog.LASERS, true);
     private final ItemBox fallback2 = new ItemBox(ItemCatalog.LASERS, true);
-    private final JCheckBox circle = new JCheckBox("Кружить вокруг цели");
+    private static final String[] MOVES = {"Кружить вокруг цели", "Держать дистанцию (отходить)", "Стоять на радиусе"};
+    private final javax.swing.JComboBox<String> move = new javax.swing.JComboBox<>(MOVES);
     private final JCheckBox fireRockets = new JCheckBox("Пускать ракеты сам (без ракетного CPU)");
     private final JSpinner ignoreFarther = Form.number(0, 50_000, 500);
     private final NpcTable npcs;
@@ -141,7 +142,10 @@ final class KillSection implements Section {
         useRsb.addActionListener(e -> sync());
         fireRockets.setToolTipText("С ракетным CPU бот только держит тип; тип для NPC — в списке");
         fireLauncher.setToolTipText("С CPU ракетомёта (RLLB-X) он стреляет сам; бот держит тип ракет");
-        circle.setToolTipText("Часть выстрелов мимо; не кружит с NO_CIRCLE и на споте куба");
+        move.setToolTipText("<html>Кружить — облёт по радиусу (не с NO_CIRCLE и не на споте куба).<br>"
+                + "Держать дистанцию — бить на своём радиусе и отходить, когда NPC догоняет (Blacklight),<br>"
+                + "только туда, где можно по зонам, мимо станций, обидчиков и других NPC.<br>"
+                + "Стоять — подлететь на радиус и стоять.</html>");
         groupNpcs.setToolTipText("Сначала добивать NPC рядом, а не лететь к дальним");
         // the settings in two top-aligned columns: ammunition | rockets and targets; one under the other when narrow
         JComponent ammoColumn = new Form()
@@ -161,7 +165,7 @@ final class KillSection implements Section {
                 .row("Ракетомёт", launcher)
                 .row("", fireLauncher)
                 .section("Цели")
-                .row("", circle)
+                .row("В бою", move)
                 .row("", groupNpcs)
                 .row("Не видеть дальше", ignoreFarther)
                 .build(false);
@@ -261,7 +265,7 @@ final class KillSection implements Section {
         rocket.set(l.rocket());
         fallback1.set(l.fallback().size() > 0 ? l.fallback().get(0) : null);
         fallback2.set(l.fallback().size() > 1 ? l.fallback().get(1) : null);
-        circle.setSelected(l.circle());
+        move.setSelectedIndex(l.kite() ? 1 : l.circle() ? 0 : 2);
         fireRockets.setSelected(l.fireRockets());
         launcher.set(l.launcher());
         fireLauncher.setSelected(l.fireLauncher());
@@ -278,7 +282,8 @@ final class KillSection implements Section {
         BotConfig.Loot l = new BotConfig.Loot(ammo.get(), useSab.isSelected() ? sab.get() : null,
                 useSab.isSelected() ? Form.fraction(sabBelow) : loaded.sabBelow(), Form.intOf(sabNpcShield),
                 useRsb.isSelected() ? rsb.get() : null, groupNpcs.isSelected(), Form.intOf(ignoreFarther), rocket.get(),
-                fireRockets.isSelected(), circle.isSelected(), fallbacks(), launcher.get(), fireLauncher.isSelected());
+                fireRockets.isSelected(), move.getSelectedIndex() == 0, fallbacks(), launcher.get(), fireLauncher.isSelected(),
+                move.getSelectedIndex() == 1);
         Map<String, BotConfig.NpcRule> list = new TreeMap<>(npcs.get());
         return c.withLoot(l).withNpcs(list);
     }

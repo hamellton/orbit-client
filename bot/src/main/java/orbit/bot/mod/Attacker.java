@@ -99,6 +99,8 @@ public final class Attacker {
         targetId = s.id();
         shotAt = false;
         circleDir = 0;
+        kiteAngle = null;
+        kiteTold = false;
         t0Cubikon = CubikonModule.isCubikon(s);
         if (t0Cubikon) {
             ctx.stats().cubeFought(s.id());
@@ -214,7 +216,12 @@ public final class Attacker {
         boolean chasing = move && dist > radius + CHASE_GAP && (follow || c.general().runModeChase());
         boolean onTheWay = move && dist > radius + APPROACH && h.attackers().isEmpty();
         ctx.ship().want(chasing ? c.general().run() : onTheWay ? c.general().travel() : c.general().offensive());
-        if (move && dist > radius + 60 && now >= nextApproach) {
+        boolean kite = c.loot().kite() && (rule == null || !rule.has(BotConfig.NpcFlag.NO_CIRCLE));
+        if (move && kite && dist <= radius * KITE_APPROACH && now >= nextApproach) {
+            // hold the radius, away from it as it comes (Blacklight NPCs chase; the user, 2026-11-12)
+            kite(c, ctx.world().get(), h, t, radius);
+            nextApproach = now + ctx.pause(300, 500);
+        } else if (move && dist > radius + 60 && now >= nextApproach) {
             // a fleeing target: aim where it will be and go well inside the radius, re-aiming often (live 2026-11-12:
             // Boss Kristallon ran, the ship stopped at the radius of where it had been and never fired); the
             // «aggressive follow» flag aims at where it flies
@@ -337,6 +344,71 @@ public final class Attacker {
      * Within the radius: the next point a little further round the target, at the radius give or take a
      * few percent, always the same way round for one target.
      */
+    /** Farther than this share of the radius the ship flies in as usual; nearer it holds the radius. */
+    static final double KITE_APPROACH = 1.5;
+    /** The ship keeps this far from the map's edge while backing off. */
+    static final double KITE_MARGIN = 500;
+    private Double kiteAngle;
+    private boolean kiteTold;
+
+    /**
+     * One step of holding the radius: of 24 directions a little way off, the one that leaves the target nearest the
+     * radius — never closer when it is already too close, inside the preferred zone, out of the avoided zone, clear
+     * of the danger circles (offenders, clan stations), away from other NPCs, and turning as little as may be.
+     * Nothing allowed: circling as before.
+     */
+    private void kite(BotConfig c, WorldSnapshot w, WorldSnapshot.Hero h, WorldSnapshot.Ship t, double radius) {
+        if (!kiteTold) {
+            log.info("Держу дистанцию от {} (радиус {})", t.name(), (int) radius);
+            kiteTold = true;
+        }
+        double[] at = ahead(t, h, radius);
+        orbit.world.maps.MapCatalog.MapInfo m = ctx.maps().info(h.mapId());
+        BotConfig.Zones z = c.zones().get(h.mapId());
+        BotConfig.ZoneGrid pref = z == null || z.preferred() == null || z.preferred().isEmpty() ? null : z.preferred();
+        BotConfig.ZoneGrid avoid = z == null || z.avoided() == null || z.avoided().isEmpty() ? null : z.avoided();
+        double step = Math.max(350, Math.min(700, radius));
+        double want = radius * 0.95;
+        double now = Math.hypot(h.x() - at[0], h.y() - at[1]);
+        double best = Double.MAX_VALUE;
+        double[] to = null;
+        double bestAngle = 0;
+        for (int i = 0; i < 24; i++) {
+            double a = i * Math.PI / 12;
+            double x = h.x() + Math.cos(a) * step;
+            double y = h.y() + Math.sin(a) * step;
+            if (x < KITE_MARGIN || y < KITE_MARGIN || x > m.width() - KITE_MARGIN || y > m.height() - KITE_MARGIN
+                    || avoid != null && avoid.contains(x, y, m.width(), m.height()) || ctx.nav().inDanger(x, y)) {
+                continue;
+            }
+            double d = Math.hypot(x - at[0], y - at[1]);
+            // too close: as far from it as the step goes; at the radius: along it (no closer, no farther)
+            double cost = now < want ? 2 * want - d : Math.abs(d - want);
+            if (pref != null && !pref.contains(x, y, m.width(), m.height())) {
+                cost += 1_500;
+            }
+            for (WorldSnapshot.Ship o : w.ships().values()) {
+                if (o.kind() == WorldSnapshot.ShipKind.NPC && o.id() != t.id() && Math.hypot(o.x() - x, o.y() - y) < 900) {
+                    cost += 500;
+                }
+            }
+            if (kiteAngle != null) {
+                cost += Math.abs(Math.atan2(Math.sin(a - kiteAngle), Math.cos(a - kiteAngle))) * 120;
+            }
+            if (cost < best) {
+                best = cost;
+                to = new double[] {x, y};
+                bestAngle = a;
+            }
+        }
+        if (to == null) {
+            circle(h, t, radius);
+            return;
+        }
+        kiteAngle = bestAngle;
+        ctx.nav().moveTo(to[0], to[1], false);
+    }
+
     private void circle(WorldSnapshot.Hero h, WorldSnapshot.Ship t, double radius) {
         if (circleDir == 0) {
             circleDir = ctx.random().nextBoolean() ? 1 : -1;
