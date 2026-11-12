@@ -220,4 +220,11 @@ class HealingTest {
         assertEquals(1, sim.sent.stream().filter(p -> p instanceof orbit.protocol.gen.JumpRequest).count());
         assertTrue(sim.ctx.stats().closedPortals.contains("2:2000:2000"));
     }
+
+    @Test
+    void fiveTwoIsLeftOnlyOneWay() {
+        assertTrue(SafePlaces.hardToLeave(lowHp(92, 5_000, 5_000).world.snapshot(0), orbit.world.maps.MapCatalog.bundled()));
+        assertTrue(!SafePlaces.hardToLeave(lowHp(2, 5_000, 5_000).world.snapshot(0), orbit.world.maps.MapCatalog.bundled()));
+        assertTrue(!SafePlaces.hardToLeave(lowHp(16, 5_000, 5_000).world.snapshot(0), orbit.world.maps.MapCatalog.bundled()));
+    }
 }

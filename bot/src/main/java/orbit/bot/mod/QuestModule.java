@@ -68,6 +68,7 @@ public final class QuestModule implements BotModule {
     private QuestGiverVisit visit;
     private long visitedAt = Long.MIN_VALUE / 2;
     private boolean visitedOnce;
+    private boolean giverLaterTold;
     private int activeSeen = -1;
     private Work work;
     private KillModule worker;
@@ -198,8 +199,21 @@ public final class QuestModule implements BotModule {
         boolean finishedOne = activeSeen >= 0 && q.active().size() < activeSeen;
         activeSeen = q.active().size();
         long revisit = (long) setting("revisitMinutes", DEFAULT_REVISIT_MIN) * 60_000_000_000L;
-        if ((!visitedOnce || finishedOne || now - visitedAt > revisit || next == null && now - visitedAt > revisit / 6)
-                && !busy()) {
+        boolean due = !visitedOnce || finishedOne || now - visitedAt > revisit || next == null && now - visitedAt > revisit / 6;
+        // on a map left only one way (5-2 → 5-3, back by the whole loop) its quests first, the giver after
+        // (the user, 2026-11-12: «нельзя прыгать на 5-3, потом нужно делать целый облет»)
+        if (due && next != null && next.map() == w.hero().mapId()
+                && orbit.bot.run.SafePlaces.hardToLeave(w, ctx.maps())) {
+            if (!giverLaterTold) {
+                log.info("Квесты: к квестодателю позже — с {} обратно только кругом, сначала доделаю квесты здесь",
+                        ctx.maps().info(w.hero().mapId()).name());
+                giverLaterTold = true;
+            }
+            due = false;
+        } else if (!due) {
+            giverLaterTold = false;
+        }
+        if (due && !busy()) {
             visitedOnce = true;
             startVisit(finishedOne ? "квест сдан — за следующим" : next == null ? "нет квестов, которые бот умеет"
                     : "пора посмотреть новые квесты");

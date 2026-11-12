@@ -112,4 +112,28 @@ public final class SafePlaces {
                 .map(p -> new Place(p.x(), p.y(), "портал на " + p.toName(), p, false))
                 .min(near).orElse(null);
     }
+
+    /**
+     * Every way out of the map is one-way (5-2: only to 5-3, back by the whole loop round the pirate maps; its
+     * 5-4 leads nowhere else): leaving costs a long way back, so the map's work is finished first.
+     */
+    public static boolean hardToLeave(WorldSnapshot w, MapCatalog maps) {
+        WorldSnapshot.Hero h = w.hero();
+        boolean anyOut = false;
+        for (MapCatalog.Portal p : maps.portals(h.mapId())) {
+            if (p.faction() != 0 && p.faction() != h.factionId() || p.toId() <= 0) {
+                continue;
+            }
+            // a dead end (its portals all lead back here) is no way out
+            boolean wayOut = maps.portals(p.toId()).stream().anyMatch(q -> q.toId() > 0 && q.toId() != h.mapId());
+            if (!wayOut) {
+                continue;
+            }
+            anyOut = true;
+            if (!Safety.oneWay(maps, p, h)) {
+                return false;
+            }
+        }
+        return anyOut;
+    }
 }
