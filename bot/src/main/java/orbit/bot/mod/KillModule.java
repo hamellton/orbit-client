@@ -74,7 +74,8 @@ public final class KillModule implements BotModule {
                     || onlyZone && !Zones.inPreferred(c, here, s.x(), s.y())
                     // not one in a crowd of NPCs that attack on sight (live 2026-11-13 on 2-BL: Abide I packs took
                     // 5–9 % of the hull a second while Impulse II was fought)
-                    || Targets.crowd(w, s) >= CROWD_MAX);
+                    || Targets.crowd(w, s) >= CROWD_MAX
+                    || attacker.tooStrong(s.name()));
             if (t != null) {
                 roamTo = null;
                 attacker.target(t);
@@ -105,6 +106,7 @@ public final class KillModule implements BotModule {
                 .filter(e -> e.getValue().kill() && e.getValue().has(BotConfig.NpcFlag.PET_LOCATOR)
                         && e.getValue().appliesOn(map))
                 .filter(e -> w.ships().values().stream().noneMatch(s -> s.npc() && e.getKey().equals(s.name())))
+                .filter(e -> !attacker.tooStrong(e.getKey()))
                 .sorted(java.util.Comparator.comparingInt(e -> e.getValue().priority()))
                 .mapToInt(e -> npcNumber(e.getKey())).filter(id -> id > 0).findFirst().orElse(0);
     }

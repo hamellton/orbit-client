@@ -420,4 +420,46 @@ class AttackerTest {
         sweep(sim, a, 6_000); // circling while it is not known
         assertTrue(sweep(sim, a, 10_000) < 25, "stands once it is seen still");
     }
+
+    @Test
+    void aTargetTooStrongToKillBeforeTheRepairIsLeftAndItsKindSkipped() {
+        // live 2026-11-13: Boss Kristallon on LCB-10 — 30 % of it for 50 % of the hull, healed back by the next try
+        BotConfig c = BotConfig.empty()
+                .withLoot(new BotConfig.Loot("ammunition_laser_lcb-10", null, 0, 0, null, true, 0, null, false, true, null))
+                .withNpcs(Map.of("-=[ Strong ]=-", new BotConfig.NpcRule(500, 0, true, Set.of(), Set.of(), null)))
+                .withSafety(new BotConfig.Safety(0.3, 0.9, 0.3, 0, null, null, 10, "PORTAL", 0, 0));
+        Sim sim = new Sim(c, 1, 10_400, 6_000);
+        sim.lasers("ammunition_laser_lcb-10");
+        sim.npc(7, "-=[ Strong ]=-", 10_000, 6_000);
+        orbit.protocol.gen.ShipSelectionCommand sel = new orbit.protocol.gen.ShipSelectionCommand();
+        sel.userId = 7;
+        sel.hitpoints = 1_000_000;
+        sel.hitpointsMax = 1_000_000;
+        sel.shield = 0;
+        sel.shieldMax = 0;
+        sim.world.apply(sel, sim.now);
+        Attacker a = new Attacker(sim.ctx);
+        a.target(sim.world.snapshot(sim.now).ships().get(7));
+        double target = 1_000_000;
+        double hull = 100_000;
+        boolean gone = false;
+        for (int t = 0; t < 250 && !gone; t++) {
+            target -= 300; // 0.3 % a second
+            hull -= 300;   // 3 % a second
+            orbit.protocol.gen.AttackHitCommand onNpc = new orbit.protocol.gen.AttackHitCommand();
+            onNpc.victimId = 7;
+            onNpc.victimHitpoints = target;
+            sim.world.apply(onNpc, sim.now);
+            orbit.protocol.gen.AttackHitCommand onUs = new orbit.protocol.gen.AttackHitCommand();
+            onUs.victimId = 1;
+            onUs.attackerId = 7;
+            onUs.victimHitpoints = hull;
+            onUs.victimShield = 50_000;
+            sim.world.apply(onUs, sim.now);
+            gone = !a.tick(true);
+            sim.now += 100 * Sim.MS;
+        }
+        assertTrue(gone, "left");
+        assertTrue(a.tooStrong("-=[ Strong ]=-"), "its kind is skipped a while");
+    }
 }

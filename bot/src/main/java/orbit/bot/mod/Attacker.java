@@ -63,6 +63,65 @@ public final class Attacker {
     public static final long GIVE_UP_MS = 120_000;
 
     /** An NPC the bot gave up on a moment ago (not to be picked again right away). */
+    /** NPC kinds the ship cannot kill before it must repair (name → until, nanos), skipped a while. */
+    private static final java.util.Map<String, Long> TOO_STRONG = new java.util.concurrent.ConcurrentHashMap<>();
+    /** A fight is judged after this long, and such a kind skipped this long. */
+    static final long JUDGE_NS = 15_000_000_000L;
+    static final long TOO_STRONG_NS = 10 * 60_000_000_000L;
+    /** The kill must come this much sooner than the repair. */
+    static final double WIN_MARGIN = 1.3;
+    private double judgeTarget0 = -1;
+    private double judgeHull0 = -1;
+
+    /** The kind was found too strong a while ago: not taken (nor looked for with the locator) until then. */
+    public boolean tooStrong(String name) {
+        Long until = name == null ? null : TOO_STRONG.get(name);
+        return until != null && ctx.now() < until;
+    }
+
+    /**
+     * After {@link #JUDGE_NS} of fighting: at this pace the target would die after the ship has to leave for repair
+     * (live 2026-11-13: Boss Kristallon on LCB-10 — 30 % of it for 50 % of the hull, healed back by the next try) —
+     * left, and its kind skipped {@link #TOO_STRONG_NS}.
+     */
+    private boolean cannotWin(BotConfig c, WorldSnapshot.Ship t, WorldSnapshot.Hero h, long now) {
+        double tp = FightShare.of(t);
+        double hp = h.health().hpPercent();
+        if (tp < 0 || hp < 0) {
+            return false;
+        }
+        if (judgeTarget0 < 0) {
+            judgeTarget0 = tp;
+            judgeHull0 = hp;
+            return false;
+        }
+        long age = now - watchedSince;
+        if (age < JUDGE_NS) {
+            return false;
+        }
+        double secs = age / 1e9;
+        double killRate = (judgeTarget0 - tp) / secs;
+        double lossRate = (judgeHull0 - hp) / secs;
+        if (lossRate < 0.004) {
+            return false; // hardly hurt: take the time it takes
+        }
+        double toRepair = (hp - c.safety().repairHpMin()) / lossRate;
+        double toKill = killRate <= 0 ? Double.MAX_VALUE : tp / killRate;
+        if (toKill <= toRepair * WIN_MARGIN) {
+            return false;
+        }
+        TOO_STRONG.put(t.name(), now + TOO_STRONG_NS);
+        endReason = "не тяну";
+        log.warn("{}: не тяну — добить за ~{} с, а на ремонт через ~{} с; таких пропускаю {} мин", t.name(),
+                toKill == Double.MAX_VALUE ? "∞" : String.valueOf(Math.round(toKill)), Math.round(toRepair),
+                TOO_STRONG_NS / 60_000_000_000L);
+        if (h.attackTargetId() == t.id()) {
+            ctx.actions().stopAttack();
+        }
+        clear();
+        return true;
+    }
+
     public boolean gaveUp(int id) {
         Long until = givenUp.get(id);
         if (until == null) {
@@ -104,6 +163,8 @@ public final class Attacker {
         standAt = null;
         modeTold = null;
         watchedSince = ctx.now();
+        judgeTarget0 = -1;
+        judgeHull0 = -1;
         t0Cubikon = CubikonModule.isCubikon(s);
         if (t0Cubikon) {
             ctx.stats().cubeFought(s.id());
@@ -290,6 +351,9 @@ public final class Attacker {
         }
         // close enough to shoot: it must lose something soon, whether the attack started or not (without
         // ammunition the game never starts it)
+        if (cannotWin(c, t, h, now)) {
+            return false;
+        }
         if (dist <= radius + 200) {
             if (noDamage(t, now)) {
                 return false;
@@ -393,6 +457,17 @@ public final class Attacker {
     private Double kiteAngle;
     private boolean kiteTold;
     private double[] standAt;
+    /** A ship's hull and shield together as a share of their maximum, -1 when unknown. */
+    static final class FightShare {
+        static double of(WorldSnapshot.Ship t) {
+            if (!t.health().known()) {
+                return -1;
+            }
+            double max = t.health().hpMax() + Math.max(0, t.health().shieldMax());
+            return max <= 0 ? -1 : (t.health().hp() + Math.max(0, t.health().shield())) / max;
+        }
+    }
+
     /** The temporary record of the fight (FightLog). */
     private final FightLog fight = new FightLog();
     private String endReason = "прервал (ремонт, бегство, пауза)";
