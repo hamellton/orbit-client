@@ -138,6 +138,32 @@ class NavigatorTest {
     }
 
     @Test
+    void aWallThatComesAfterTheRouteIsFlownRoundToo() {
+        // live 2026-11-12: right after the login the route was planned before the server's walls came
+        Navigator nav = navigator(9, 3000, 6500);
+        nav.moveTo(18000, 6500, false);
+        nav.tick();
+        assertEquals(1, sent.size(), "straight on: no walls known yet");
+        now += 500 * MS;
+        MapAddPOICommand poi = new MapAddPOICommand();
+        poi.poiId = "late-wall";
+        poi.poiType = new POITypeModule();
+        poi.poiType.typeValue = (short) POITypeModule.POITYPE_NO_ACCESS;
+        poi.shape = (short) MapAddPOICommand.SHAPETYPE_CIRCLE;
+        poi.shapeCoordinates = List.of(10500, 6500, 2500);
+        poi.active = true;
+        world.apply(poi, now);
+        WorldSnapshot.Zone zone = world.snapshot(now).zones().get("late-wall");
+        for (long t = 0; t < 120_000 && !nav.idle(); t += 100) {
+            nav.tick();
+            now += 100 * MS;
+            WorldSnapshot.Hero h = world.snapshot(now).hero();
+            assertTrue(!ZoneGeometry.contains(zone, h.x(), h.y()), "inside the late wall at " + h.x() + "," + h.y());
+        }
+        assertTrue(nav.idle(), "arrived");
+    }
+
+    @Test
     void clicksAgainWhenTheServerMovesTheShip() {
         Navigator nav = navigator(9, 10000, 6000);
         nav.moveTo(15000, 6000, false);

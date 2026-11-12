@@ -122,6 +122,39 @@ public final class Navigator {
 
     private Supplier<List<double[]>> players = List::of;
 
+    /** The server's zones the current route was planned with. */
+    private java.util.Set<String> plannedZones = java.util.Set.of();
+
+    private static java.util.Set<String> zoneKey(WorldSnapshot w) {
+        java.util.Set<String> k = new java.util.HashSet<>();
+        for (WorldSnapshot.Zone z : w.zones().values()) {
+            if (z.active()) {
+                k.add(z.id());
+            }
+        }
+        return k;
+    }
+
+    /**
+     * The server sent zones (walls) after the route was planned and one of them lies across the flight to the click:
+     * plan again (live 2026-11-12: right after the login the route was made before the walls came, and the ship flew
+     * through one on the map).
+     */
+    private boolean newZoneOnCourse(WorldSnapshot w, WorldSnapshot.Hero h) {
+        java.util.Set<String> now = zoneKey(w);
+        if (now.equals(plannedZones)) {
+            return false;
+        }
+        PathFinder p = PathFinder.of(w, catalog, false, avoidMines.getAsBoolean(), baseRadius.getAsInt(),
+                avoided.apply(h.mapId()), preferred.apply(h.mapId()), players.get());
+        if (p.clear(h.x(), h.y(), clickX, clickY)) {
+            plannedZones = now; // the new zones are not in the way
+            return false;
+        }
+        log.info("Сервер прислал зону на пути — перестраиваю маршрут");
+        return true;
+    }
+
     /**
      * Circles {x, y, r} round the players to keep away from (those who attacked the ship this session): flown round,
      * and {@link #inDanger} for the modules' choice of targets.
@@ -284,7 +317,7 @@ public final class Navigator {
         // around a zone: click the next corner shortly before reaching this one, like a player steering
         boolean turn = flyingToClick && viaWaypoint && Math.hypot(clickX - h.x(), clickY - h.y()) < TURN_AHEAD;
         boolean mineAhead = flyingToClick && (mineOnCourse(w, h, clickX, clickY) || baseOnCourse(w, h, clickX, clickY, d)
-                || playerOnCourse(h, clickX, clickY, d));
+                || playerOnCourse(h, clickX, clickY, d) || newZoneOnCourse(w, h));
         if (flyingToClick && !refine && !turn && !mineAhead) {
             return; // on course
         }
@@ -293,6 +326,7 @@ public final class Navigator {
         }
         PathFinder paths = PathFinder.of(w, catalog, false, avoidMines.getAsBoolean(), baseRadius.getAsInt(),
                 avoided.apply(h.mapId()), preferred.apply(h.mapId()), players.get());
+        plannedZones = zoneKey(w);
         List<double[]> route = paths.path(h.x(), h.y(), d.x(), d.y());
         if (route.isEmpty()) {
             if (now - noWayLoggedNanos > 10_000_000_000L) {
