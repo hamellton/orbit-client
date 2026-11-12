@@ -40,6 +40,7 @@ public final class Safety {
     /** The last escape jump: from which map, through which portal (checked {@link #JUMP_CHECK_MS} later). */
     private int jumpedFrom;
     private MapCatalog.Portal jumpedVia;
+    private int deathsAtJump;
     static final long JUMP_CHECK_MS = 8_000;
     /** The map the last escape jump left: no escape jump back into it this soon. */
     private int escapedFrom;
@@ -101,8 +102,16 @@ public final class Safety {
         boolean attacked = !h.attackers().isEmpty() || now - hurtAt < HURT_MS * 1_000_000;
         checkJump(w, h, now);
         heal(w, s, now, hp, attacked);
+        noteHp(hp, now);
         if (!repairing) {
             double limit = attacked || fighting ? s.repairHpMin() : s.repairHpNoNpc();
+            // losing hull fast: leave the more early, so as to reach the portal (live 2026-11-13: 25 % → 5 % on the
+            // 7 s way to it, killed)
+            double early = attacked ? Math.min(EARLY_MAX, hpLossPerSecond(now) * EARLY_SECONDS) : 0;
+            if (early > 0.02 && hp >= limit && hp < limit + early) {
+                log.info("Теряю {}% HP в секунду — ухожу на ремонт раньше", pct(hpLossPerSecond(now)));
+            }
+            limit += early;
             // «repaired» already (a target not above the start, as the palladium profile: below 15 %, up to 0 %):
             // no trip — it would end at once, every tick (live 2026-11-12 on int1: 447 «repairs», the ship
             // stopped each 100 ms)
@@ -158,6 +167,7 @@ public final class Safety {
                 jumpAt = 0;
                 jumpedFrom = h.mapId();
                 jumpedVia = portal;
+                deathsAtJump = ctx.stats().deaths.get();
                 escapedFrom = h.mapId();
             }
         }
@@ -169,6 +179,12 @@ public final class Safety {
      * through (closed for the company, an event map) — never again this run.
      */
     private void checkJump(WorldSnapshot w, WorldSnapshot.Hero h, long now) {
+        if (jumpedVia != null && (w.death() != null || !h.alive() || ctx.stats().deaths.get() != deathsAtJump)) {
+            // killed before the jump went: the portal is not to blame (live 2026-11-13: 2-8 marked closed after a
+            // death at it, the next repair went to the far 1-BL portal and died there)
+            jumpedVia = null;
+            return;
+        }
         if (jumpedVia == null || now - jumpedAt < JUMP_CHECK_MS * 1_000_000) {
             return;
         }
@@ -257,6 +273,30 @@ public final class Safety {
             ctx.actions().useItem(REPAIR_BOT);
             healedAt = now;
         }
+    }
+
+    /** The seconds of flight a fast loss of hull is allowed for, and the most the repair moves up for it. */
+    static final double EARLY_SECONDS = 6;
+    static final double EARLY_MAX = 0.3;
+    /** Hull shares of the last seconds: {nanos, share}. */
+    private final java.util.ArrayDeque<double[]> hpSeen = new java.util.ArrayDeque<>();
+
+    private void noteHp(double hp, long now) {
+        hpSeen.addLast(new double[] {now, hp});
+        while (!hpSeen.isEmpty() && now - hpSeen.peekFirst()[0] > 4e9) {
+            hpSeen.removeFirst();
+        }
+    }
+
+    /** The share of hull lost a second over the last 4 seconds (0 when none or rising). */
+    private double hpLossPerSecond(long now) {
+        if (hpSeen.size() < 2) {
+            return 0;
+        }
+        double[] first = hpSeen.peekFirst();
+        double[] last = hpSeen.peekLast();
+        double secs = (last[0] - first[0]) / 1e9;
+        return secs < 1 ? 0 : Math.max(0, (first[1] - last[1]) / secs);
     }
 
     /** No portal on the far map leads back here (the pirate maps: 5-2 → 5-3, 5-3 → 4-4). */

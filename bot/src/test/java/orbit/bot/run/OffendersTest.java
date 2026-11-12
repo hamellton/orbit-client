@@ -159,4 +159,22 @@ class OffendersTest {
         own.run(r2::tick, 8_000);
         assertTrue(harvested(own, 0).contains("under"), "the own company's station is no danger");
     }
+
+    @Test
+    void anNpcShootingTheShipThatIsNotFoughtIsLeft() {
+        // live 2026-11-13: roaming for Impulse II, Abide I (not on the list) shot the ship to death
+        Sim sim = new Sim(config(false), 93, 20_000, 7_000);
+        sim.npc(55, "\\\\ Abide I //", 20_600, 7_000);
+        ore(sim, "far", 14_000, 7_000);
+        BotRunner r = new BotRunner(sim.ctx, () -> false, s -> { });
+        orbit.protocol.gen.AttackLaserRunCommand run = new orbit.protocol.gen.AttackLaserRunCommand();
+        run.attackerId = 55;
+        run.targetId = 1;
+        sim.world.apply(run, sim.now);
+        sim.run(r::tick, 300);
+        assertTrue(r.status().startsWith("Ухожу от \\\\ Abide I //"), r.status());
+        sim.run(r::tick, 20_000);
+        var h = sim.world.snapshot(sim.now).hero();
+        assertTrue(Math.hypot(h.x() - 20_600, h.y() - 7_000) > 560, "out of its reach: " + h.x() + "/" + h.y());
+    }
 }

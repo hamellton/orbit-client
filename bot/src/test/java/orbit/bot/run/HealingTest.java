@@ -263,4 +263,40 @@ class HealingTest {
         assertEquals(1, sim.sent.stream().filter(p -> p instanceof orbit.protocol.gen.JumpRequest).count(),
                 "no jump back into 2-BL");
     }
+
+    @Test
+    void aPortalIsNotBlamedWhenTheShipDiedBeforeTheJump() {
+        // live 2026-11-13: killed at the 2-8 portal, revived on 2-BL; 8 s on the portal was marked closed
+        Sim sim = lowHp(2, 2_000, 2_000);
+        Safety s = new Safety(sim.ctx);
+        for (int t = 0; t < 30; t++) {
+            hurt(sim, 10_000, 0);
+            s.tick(true);
+            sim.now += 100 * Sim.MS;
+        }
+        assertEquals(1, sim.sent.stream().filter(p -> p instanceof orbit.protocol.gen.JumpRequest).count());
+        sim.ctx.stats().deaths.incrementAndGet(); // killed before it jumped (the revive counts it)
+        for (int t = 0; t < 120; t++) {
+            hurt(sim, 60_000, 0);
+            s.tick(true);
+            sim.now += 100 * Sim.MS;
+        }
+        assertTrue(sim.ctx.stats().closedPortals.isEmpty(), "not the portal's fault");
+    }
+
+    @Test
+    void losingHullFastTheRepairStartsEarlier() {
+        // repair below 30 %; losing 4 % a second the ship leaves at about 50 % (6 s of flight)
+        Sim sim = lowHp(1, 10_000, 6_000);
+        Safety s = new Safety(sim.ctx);
+        double hp = 90_000;
+        for (int t = 0; t < 200 && !s.repairing(); t++) {
+            hp -= 400; // 4 % of 100 000 a second, 10 ticks a second
+            hurt(sim, hp, 0);
+            s.tick(true);
+            sim.now += 100 * Sim.MS;
+        }
+        assertTrue(s.repairing());
+        assertTrue(hp > 45_000, "left at " + hp / 1_000 + " %");
+    }
 }

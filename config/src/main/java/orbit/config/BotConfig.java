@@ -147,9 +147,16 @@ public record BotConfig(
     /**
      * @param stationRadius keep this far from another company's clan battle stations (they fire at the ship;
      *                      Blacklight, 2026-11-12); 0 = off, {@code null} in an older file = {@link #STATION_RADIUS}
+     * @param npcs          get out of the reach of an NPC that shoots the ship though the config does not fight it
+     *                      (live 2026-11-13: Abide I killed the ship roaming for Impulse II); {@code null} = on
      */
     public record Flee(FleeMode mode, Set<String> players, Set<String> never, int sight, int rememberSec, boolean jump,
-                       int waitSec, boolean avoid, int avoidRadius, Integer stationRadius) {
+                       int waitSec, boolean avoid, int avoidRadius, Integer stationRadius, Boolean npcs) {
+
+        public Flee(FleeMode mode, Set<String> players, Set<String> never, int sight, int rememberSec, boolean jump,
+                    int waitSec, boolean avoid, int avoidRadius, Integer stationRadius) {
+            this(mode, players, never, sight, rememberSec, jump, waitSec, avoid, avoidRadius, stationRadius, null);
+        }
 
         public static final int AVOID_RADIUS = 2_500;
         public static final int STATION_RADIUS = 1_600;
@@ -175,6 +182,7 @@ public record BotConfig(
             waitSec = Math.max(0, waitSec);
             avoidRadius = avoidRadius <= 0 ? AVOID_RADIUS : avoidRadius;
             stationRadius = stationRadius == null ? STATION_RADIUS : Math.max(0, stationRadius);
+            npcs = npcs == null || npcs;
         }
 
         /** From the older switches in {@link General} (and DarkBot's RUNNING section). */

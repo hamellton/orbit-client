@@ -63,9 +63,50 @@ public final class Offenders {
         return config().avoid();
     }
 
-    /** Anything to keep clear: remembered players, or another company's battle stations. */
+    /** Anything to keep clear: remembered players, another company's battle stations, NPCs shooting the ship. */
     boolean active() {
-        return on() || config().stationRadius() > 0;
+        return on() || config().stationRadius() > 0 || config().npcs();
+    }
+
+    /** An NPC shooting the ship is kept off this much beyond the radius the list keeps from it. */
+    static final double NPC_EXTRA = 250;
+    /** It is avoided this long after its last shot. */
+    static final long NPC_MEMORY_NS = 15_000_000_000L;
+
+    private record Shooter(String name, double x, double y, double radius, long nanos) {
+    }
+
+    private final Map<Integer, Shooter> shooters = new HashMap<>();
+    private volatile List<Circle> npcCircles = List.of();
+
+    /**
+     * The NPCs shooting the ship that the config does not fight (it would answer those): kept off — circles of their
+     * radius and a little more, while they shoot and a short while after.
+     */
+    private void noteShooters(WorldSnapshot w) {
+        WorldSnapshot.Hero h = w.hero();
+        long now = w.nanos();
+        BotConfig c = ctx.config().get();
+        if (!config().npcs()) {
+            shooters.clear();
+            npcCircles = List.of();
+            return;
+        }
+        for (WorldSnapshot.Ship s : w.ships().values()) {
+            if (s.npc() && s.attackTargetId() == h.id() && h.attackTargetId() != s.id()
+                    && !orbit.bot.mod.Targets.attackable(c, s, h.mapId())) {
+                double r = orbit.bot.mod.Targets.radius(c, s, h.mapId()) + NPC_EXTRA;
+                if (!shooters.containsKey(s.id())) {
+                    log.warn("{} стреляет, а его не бью — отхожу из его досягаемости", s.name());
+                }
+                shooters.put(s.id(), new Shooter(s.name(), s.x(), s.y(), r, now));
+            } else if (shooters.containsKey(s.id())) {
+                Shooter old = shooters.get(s.id());
+                shooters.put(s.id(), new Shooter(old.name(), s.x(), s.y(), old.radius(), old.nanos()));
+            }
+        }
+        shooters.entrySet().removeIf(e -> now - e.getValue().nanos() > NPC_MEMORY_NS || !w.ships().containsKey(e.getKey()));
+        npcCircles = shooters.values().stream().map(s -> new Circle(s.name(), s.x(), s.y(), s.radius())).toList();
     }
 
     /** {@code AssetTypeModule}: a clan battle station. */
@@ -137,7 +178,9 @@ public final class Offenders {
         seen.values().removeIf(s -> now - s.nanos() > LAST_SEEN_NS || s.map() != h.mapId());
         double r = f.avoidRadius();
         stations = stations(w, f.stationRadius());
+        noteShooters(w);
         List<Circle> all = new ArrayList<>(stations);
+        all.addAll(npcCircles);
         if (f.avoid()) {
             seen.values().forEach(s -> all.add(new Circle(s.name(), s.x(), s.y(), r)));
         }
@@ -201,6 +244,9 @@ public final class Offenders {
         for (Circle c : stations) {
             out.add(new double[] {c.x(), c.y(), c.radius()});
         }
+        for (Circle c : npcCircles) {
+            out.add(new double[] {c.x(), c.y(), c.radius()});
+        }
         if (on()) {
             double r = config().avoidRadius();
             for (Seen s : seen.values()) {
@@ -212,6 +258,11 @@ public final class Offenders {
 
     /** The name of the remembered player whose circle the ship is in, or {@code null}. */
     String inside(WorldSnapshot.Hero h) {
+        for (Circle c : npcCircles) {
+            if (Math.hypot(c.x() - h.x(), c.y() - h.y()) <= c.radius()) {
+                return c.name();
+            }
+        }
         for (Circle c : stations) {
             if (Math.hypot(c.x() - h.x(), c.y() - h.y()) <= c.radius()) {
                 return c.name();
