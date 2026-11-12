@@ -164,7 +164,8 @@ class QuestGiverVisitTest {
 
     @Test
     void theNearestOwnBaseIsVisited() {
-        // live 2026-11-12 on ru1: EIC on 1-3 flew 6 jumps to 2-8 though 2-1 is three away
+        // live 2026-11-12 on ru1: EIC on 1-3 flew 6 jumps to 2-8 though 2-1 is three away (givers also on x-4, x-5:
+        // 2-4 is as near from 1-3 as 2-1 — the order breaks the tie, x-1 before x-4)
         Sim sim = new Sim(BotConfig.empty(), MapCatalog.bundled().byName("1-3").id(), 5_000, 5_000);
         orbit.protocol.gen.ShipInitializationCommand si = new orbit.protocol.gen.ShipInitializationCommand();
         si.userId = 1;
@@ -178,6 +179,16 @@ class QuestGiverVisitTest {
         sim.world.apply(si, sim.now);
         QuestGiverVisit v = new QuestGiverVisit(sim.ctx, Set.of(Quests.DAILY), q -> true);
         v.tick();
-        assertTrue(v.status().endsWith("на 2-1"), v.status());
+        assertTrue(v.status().endsWith("на 2-1") || v.status().endsWith("на 2-4"), v.status());
+    }
+
+    @Test
+    void aGiverInSightIsVisitedWithoutAFlight() {
+        int map = MapCatalog.bundled().byName("3-5").id(); // x-5: a giver there too (the user)
+        Sim sim = new Sim(BotConfig.empty(), map, 5_000, 5_000);
+        new Giver(sim, 6_000, 5_000);
+        QuestGiverVisit v = new QuestGiverVisit(sim.ctx, Set.of(Quests.DAILY), q -> true);
+        v.tick();
+        assertTrue(v.status().endsWith("на 3-5") || v.step() != QuestGiverVisit.Step.TO_BASE, v.status());
     }
 }

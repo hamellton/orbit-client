@@ -15,7 +15,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * One visit to the quest giver of the own home base, as the user did it with the client (ru1 2026-11-12, plan 5б.9):
- * to the nearest own base (x-1 or x-8) and to within reach of the giver (a map asset of type 34; the server switches it on at
+ * to the nearest own map with a quest giver (x-1, x-4, x-5, x-8) and to within reach of the giver (a map asset of type 34; the server switches it on at
  * about 400 and sends its quest list itself), a click on it ({@code MapAssetActivationRequest}), the window
  * ({@code QuestGiverApproachedRequest}, {@code QuestSettingsRequest}), the conditions of each offered quest of a wanted
  * type ({@code QuestInfoRequest}), «Принять» for those the bot can do ({@code QuestAcceptRequest}, one by one, while
@@ -360,15 +360,20 @@ public final class QuestGiverVisit {
     }
 
     /**
-     * The own home bases (x-1, x-8) with a way there, nearest first by jumps (live 2026-11-12 on ru1: from 1-3 the
-     * bot flew 6 jumps to 2-8 with 2-1 three away); the other one is tried when the first has no quest giver.
+     * The own company's maps with a quest giver (x-1, x-4, x-5, x-8 — the user, 2026-11-12) with a way there, nearest
+     * first by jumps (live 2026-11-12 on ru1: from 1-3 the bot flew 6 jumps to 2-8 with 2-1 three away); the map the
+     * ship is on comes first when a giver is in sight there. The next one is tried when one has no quest giver.
      */
     private List<Integer> bases(WorldSnapshot.Hero h) {
         List<int[]> found = new ArrayList<>(); // {map, jumps, order}
-        List<String> names = List.of(h.factionId() + "-8", h.factionId() + "-1");
+        List<String> names = List.of(h.factionId() + "-8", h.factionId() + "-1", h.factionId() + "-4", h.factionId() + "-5");
+        boolean giverHere = ctx.world().get().assets().values().stream().anyMatch(a -> a.type() == GIVER_TYPE);
+        if (giverHere) {
+            found.add(new int[] {h.mapId(), -1, -1});
+        }
         for (int i = 0; i < names.size(); i++) {
             MapCatalog.MapInfo m = ctx.maps().byName(names.get(i));
-            if (m == null) {
+            if (m == null || giverHere && m.id() == h.mapId()) {
                 continue;
             }
             int jumps;
