@@ -635,6 +635,64 @@ class CubikonModuleTest {
                 "picked up once there is room");
     }
 
+    /** A cube killed with a full hold, its FROM_SHIP box by it and the pet selling: the module and the sim. */
+    private static Object[] killedWithAFullHold() throws Exception {
+        BotConfig c = config(90, false).withCollect(new BotConfig.Collect(
+                java.util.Map.of("FROM_SHIP", new BotConfig.BoxRule(true, 0, 0)), 400, false, false,
+                BotConfig.Collect.CARGO_PET, 0, null));
+        Sim sim = new Sim(c, 26, 10_000, 9_000);
+        sim.lasers("ammunition_laser_ucb-100");
+        orbit.protocol.gen.LegacyModule cap = new orbit.protocol.gen.LegacyModule();
+        cap.message = "0|A|c|1600";
+        sim.world.apply(cap, sim.now);
+        CubikonModule m = new CubikonModule(sim.ctx, SpawnMemory.inMemory());
+        sim.now += 1_000 * Sim.MS;
+        sim.npc(77, "-=[ Cubikon ]=-", 10_400, 9_200);
+        sim.run(m::tick, 3_000);
+        orbit.protocol.gen.ShipDestroyedCommand d = new orbit.protocol.gen.ShipDestroyedCommand();
+        d.destroyedUserId = 77;
+        sim.world.apply(d, sim.now);
+        sim.world.apply(ores(1_600), sim.now);
+        orbit.protocol.gen.AddBoxCommand box = new orbit.protocol.gen.AddBoxCommand();
+        box.hash = "cargo";
+        box.boxType = "FROM_SHIP";
+        box.x = 10_400;
+        box.y = 9_200;
+        sim.world.apply(box, sim.now);
+        sim.ctx.stats().selling = true;
+        return new Object[] {sim, m};
+    }
+
+    @Test
+    void aLongSaleAndALateRecountStillGetTheCubesBox() throws Exception {
+        // live 2026-11-11: a fixed 20 s was too short when the pet's sale or the hold's recount took longer
+        Object[] o = killedWithAFullHold();
+        Sim sim = (Sim) o[0];
+        CubikonModule m = (CubikonModule) o[1];
+        sim.run(m::tick, 15_000); // the sale takes 15 s
+        sim.ctx.stats().selling = false;
+        sim.ctx.stats().soldAt = sim.now;
+        sim.run(m::tick, 10_000); // the hold is recounted 10 s later: 25 s after the kill
+        assertTrue(m.status().contains("Жду ящик"), "still by the box: " + m.status());
+        sim.world.apply(ores(0), sim.now);
+        sim.run(m::tick, 3_000);
+        assertTrue(sim.sent.stream().anyMatch(p -> p instanceof orbit.protocol.gen.CollectBoxRequest r && "cargo".equals(r.itemHash)),
+                "picked up once there is room");
+    }
+
+    @Test
+    void aFailedSaleSendsTheShipOnAtOnce() throws Exception {
+        // live 2026-11-11 19:54: the pet's sale failed after 15 s and the ship had stood there for nothing
+        Object[] o = killedWithAFullHold();
+        Sim sim = (Sim) o[0];
+        CubikonModule m = (CubikonModule) o[1];
+        sim.run(m::tick, 8_000);
+        assertTrue(m.status().contains("Жду ящик"), "by the box while selling: " + m.status());
+        sim.ctx.stats().selling = false; // failed: no soldAt
+        sim.run(m::tick, 300);
+        assertTrue(!m.status().contains("Жду ящик"), "on at once: " + m.status());
+    }
+
     private static orbit.protocol.gen.AttributeOreCountUpdateCommand ores(double duranium) {
         orbit.protocol.gen.AttributeOreCountUpdateCommand o = new orbit.protocol.gen.AttributeOreCountUpdateCommand();
         orbit.protocol.gen.OreCountModule m = new orbit.protocol.gen.OreCountModule();

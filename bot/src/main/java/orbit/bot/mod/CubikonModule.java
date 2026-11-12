@@ -84,10 +84,13 @@ public final class CubikonModule implements BotModule {
      */
     static final long BOX_WAIT_MS = 4_000;
     /**
-     * …and this long while a full hold is being sold: the cube's ore goes straight into the hold and what does not
-     * fit drops as the FROM_SHIP box; a sale through the pet frees the hold 5–9 s later (live 2026-11-11).
+     * …and up to this long while a full hold is being sold and the cube's FROM_SHIP box lies there (the cube's ore
+     * goes straight into the hold, what does not fit drops as that box): till the sale ends, and after a sale that
+     * went through till the hold shows the room. A failed sale — on at once. Live 2026-11-11 a fixed 20 s lost the
+     * box both ways: the sale failed after 15 s, or the hold was recounted too late.
      */
-    static final long BOX_WAIT_SELLING_MS = 20_000;
+    static final long BOX_WAIT_SELLING_MS = 40_000;
+    private boolean waitLogged;
     private boolean moveOn;
     /** The chosen spawn's state is unknown: a short look after arriving, then choose again. */
     private boolean lookOnly;
@@ -203,18 +206,31 @@ public final class CubikonModule implements BotModule {
                 status = "Подбираю " + boxes.currentName() + " с куба";
                 return;
             }
-            // longer only while a sale is really under way and the cube's cargo box really lies there (one the
-            // config picks up): the hold is about to have room for it (live 2026-11-11: 20 s for nothing otherwise)
+            // longer only while the cube's cargo box really lies there (one the config picks up), the hold is full
+            // and a sale is under way or went through since the kill: the hold is about to have room for it
             int[] dead = deadAt;
-            boolean selling = ctx.stats().selling && boxes.cargoFull(c, w) && w.collectables().values().stream()
+            long since = ctx.now() - deadAtNanos;
+            boolean cargoBox = w.collectables().values().stream()
                     .anyMatch(b -> b.boxType() != null && b.boxType().startsWith("FROM_SHIP")
                             && Math.hypot(b.x() - dead[0], b.y() - dead[1]) <= c.collect().radius()
                             && c.collect().boxes().getOrDefault(b.boxType(), new BotConfig.BoxRule(false, 0, 0)).collect());
-            long wait = selling ? BOX_WAIT_SELLING_MS : BOX_WAIT_MS;
-            if (setting(s, "collectBoxes", true) && ctx.now() - deadAtNanos < wait * 1_000_000) {
+            boolean full = boxes.cargoFull(c, w);
+            boolean sold = ctx.stats().soldAt > deadAtNanos;
+            boolean forSale = cargoBox && full && (ctx.stats().selling || sold) && since < BOX_WAIT_SELLING_MS * 1_000_000;
+            if (setting(s, "collectBoxes", true) && (since < BOX_WAIT_MS * 1_000_000 || forSale)) {
+                if (forSale && !waitLogged) {
+                    waitLogged = true;
+                    log.info("Трюм полон — жду ящик с куба, пока питомец продаёт руду (до {} с)", BOX_WAIT_SELLING_MS / 1000);
+                }
                 ctx.nav().stop();
-                status = "Жду ящик с куба";
+                status = forSale ? "Жду ящик с куба: продаю руду" : "Жду ящик с куба";
                 return; // the box drops a moment after the kill
+            }
+            if (waitLogged) {
+                waitLogged = false;
+                if (cargoBox && full) {
+                    log.info("Ящик с куба не забрать: {} — лечу дальше", sold ? "трюм не освободился" : "продажа не прошла");
+                }
             }
             if (followLead(c, w, h)) {
                 return;
