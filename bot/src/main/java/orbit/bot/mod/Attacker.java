@@ -371,6 +371,9 @@ public final class Attacker {
     private Double kiteAngle;
     private boolean kiteTold;
     private double[] standAt;
+    /** The circle's side lately turned, and how long a turn for something only worse waits after it. */
+    private long sideTurnedAt = Long.MIN_VALUE / 2;
+    static final long SIDE_HOLD_NS = 3_000_000_000L;
 
     /** NPC kinds' top speed seen (units per second): {@link BotConfig.FightMove#AUTO} goes by it. */
     private static final java.util.Map<String, Double> KIND_SPEED = new java.util.concurrent.ConcurrentHashMap<>();
@@ -556,8 +559,13 @@ public final class Attacker {
             }
             boolean aheadBlocked = ahead <= Threats.BLOCKED;
             boolean backBlocked = back <= Threats.BLOCKED;
-            if (aheadBlocked && !backBlocked || !backBlocked && back - ahead > 300) {
+            // a turn for something only worse: not again before SIDE_HOLD_NS (live 2026-11-13: it turned every 2 s,
+            // to and fro); a way that is not allowed turns it at once
+            long now = ctx.now();
+            boolean better = !backBlocked && back - ahead > 300 && now - sideTurnedAt > SIDE_HOLD_NS;
+            if (aheadBlocked && !backBlocked || better) {
                 circleDir = -circleDir;
+                sideTurnedAt = now;
                 log.info("Кружу в другую сторону: там {}", aheadBlocked ? "нельзя" : "другие NPC или враги");
             }
         }
