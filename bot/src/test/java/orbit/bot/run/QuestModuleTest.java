@@ -321,4 +321,43 @@ class QuestModuleTest {
         q.put("locator", false);
         assertEquals(0, m.petLocator());
     }
+
+    @Test
+    void salvageGoesToTheNearestMapOfAnyOfTheQuestsNpcs() {
+        // 310023 (ru1 2026-11-12): kill Sibelon (x-4 only), Saimon (x-3, x-4), then their cargo — from 2-2 the nearest
+        // is 2-3 (Saimon), not 2-4 (Sibelon, the first condition)
+        Sim sim = new Sim(BotConfig.empty(), MapCatalog.bundled().byName("2-2").id(), 5_000, 5_000);
+        orbit.protocol.gen.ShipInitializationCommand si = new orbit.protocol.gen.ShipInitializationCommand();
+        si.userId = 1;
+        si.mapId = MapCatalog.bundled().byName("2-2").id();
+        si.factionId = 2;
+        si.x = 5_000;
+        si.y = 5_000;
+        si.speed = 400;
+        si.hitPoints = 100_000;
+        si.hitMax = 100_000;
+        sim.world.apply(si, sim.now);
+        orbit.protocol.gen.QuestDefinitionModule d = QuestGiverVisitTest.Giver.definition(310023);
+        d.types.getFirst().type = 3;
+        var sibelon = d.rootCase.modifier.getFirst();
+        sibelon.condition.matches = List.of("5"); // Sibelon
+        sibelon.condition.state.completed = true;
+        var saimon = QuestGiverVisitTest.Giver.definition(310024).rootCase.modifier.getFirst();
+        saimon.condition.id = 31002302;
+        saimon.condition.matches = List.of("6");
+        saimon.condition.state.completed = true;
+        var cargo = QuestGiverVisitTest.Giver.definition(310025).rootCase.modifier.getFirst();
+        cargo.condition.id = 31002303;
+        cargo.condition.displayType = 23;
+        cargo.condition.type = 23;
+        cargo.condition.matches = List.of("0", "0", "0", "0", "12");
+        d.rootCase.modifier = List.of(sibelon, saimon, cargo);
+        orbit.protocol.gen.QuestInitializationCommand init = new orbit.protocol.gen.QuestInitializationCommand();
+        init.quest = d;
+        sim.world.apply(init, sim.now);
+        QuestModule m = new QuestModule(sim.ctx, NpcMaps.shared(), orbit.world.maps.OreMaps.inMemory());
+        m.visited(sim.now);
+        m.tick();
+        assertEquals("2-3", MapCatalog.bundled().info(m.workingMap()).name());
+    }
 }

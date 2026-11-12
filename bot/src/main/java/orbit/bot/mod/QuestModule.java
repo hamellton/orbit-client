@@ -439,15 +439,28 @@ public final class QuestModule implements BotModule {
         } else {
             quest.leaves().stream().filter(o -> QuestTargets.killing(o) || QuestTargets.damaging(o)).forEach(sources::add);
         }
+        // the nearest map of any of them (live 2026-11-12 on ru1: 310023's first kill condition, Sibelon, sent the ship to
+        // 2-4 though its Saimon live on 2-3 too)
+        Map<Integer, Set<String>> where = new LinkedHashMap<>();
+        Map<Integer, Set<String>> wantOn = new LinkedHashMap<>();
+        Map<Integer, Integer> npcOn = new LinkedHashMap<>();
         for (Quests.Condition src : sources) {
-            Map<Integer, Set<String>> where = new LinkedHashMap<>(QuestTargets.where(src, npcMaps));
-            where.keySet().removeIf(m -> notThere.getOrDefault(m, Set.of()).contains(c.id()));
-            Integer best = nearest(where.keySet(), w.hero());
-            if (best != null) {
-                List<Integer> ids = QuestTargets.npcIds(src);
-                return new Work(quest.id(), c.id(), Kind.SALVAGE, best, Set.copyOf(where.get(best)), Double.NaN,
-                        Double.NaN, -1, QuestTargets.wanted(src), ids.isEmpty() ? 0 : ids.getFirst());
-            }
+            List<Integer> ids = QuestTargets.npcIds(src);
+            QuestTargets.where(src, npcMaps).forEach((m, names) -> {
+                if (notThere.getOrDefault(m, Set.of()).contains(c.id())) {
+                    return;
+                }
+                where.computeIfAbsent(m, k -> new TreeSet<>()).addAll(names);
+                wantOn.computeIfAbsent(m, k -> new TreeSet<>()).addAll(QuestTargets.wanted(src));
+                if (!ids.isEmpty()) {
+                    npcOn.putIfAbsent(m, ids.getFirst());
+                }
+            });
+        }
+        Integer best = nearest(where.keySet(), w.hero());
+        if (best != null) {
+            return new Work(quest.id(), c.id(), Kind.SALVAGE, best, Set.copyOf(where.get(best)), Double.NaN, Double.NaN,
+                    -1, Set.copyOf(wantOn.get(best)), npcOn.getOrDefault(best, 0));
         }
         if (!sources.isEmpty()) {
             return null;
