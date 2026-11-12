@@ -108,6 +108,7 @@ public final class LogPanel extends JPanel {
     private final JLabel status = new JLabel();
     private final JTextArea detail = new JTextArea();
     private final JScrollPane detailScroll;
+    private final JPanel detailBox;
     private final JToggleButton follow = new JToggleButton("⇣ Следить", true);
     private final ConcurrentLinkedQueue<LogEntry> incoming = new ConcurrentLinkedQueue<>();
     private final List<String> knownAccounts = new ArrayList<>();
@@ -175,13 +176,33 @@ public final class LogPanel extends JPanel {
         detail.setFont(font(12f));
         detail.setBorder(BorderFactory.createEmptyBorder(6, 12, 6, 12));
         detailScroll = new JScrollPane(detail);
-        detailScroll.setBorder(BorderFactory.createMatteBorder(1, 0, 0, 0, Theme.BORDER));
-        detailScroll.setPreferredSize(new Dimension(100, 74));
-        detailScroll.setVisible(false);
+        detailScroll.setBorder(BorderFactory.createEmptyBorder());
+        // the row's details with a plain way out: ✕, or Esc
+        JButton close = new JButton("✕  Закрыть");
+        close.putClientProperty("JButton.buttonType", "roundRect");
+        close.setFont(font(11.5f));
+        close.setFocusable(false);
+        close.setToolTipText("Закрыть подробности (Esc)");
+        close.addActionListener(e -> list.clearSelection());
+        JPanel closeBox = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 6));
+        closeBox.setBackground(Theme.SURFACE);
+        closeBox.add(close);
+        JPanel closeColumn = new JPanel(new BorderLayout());
+        closeColumn.setBackground(Theme.SURFACE);
+        closeColumn.add(closeBox, BorderLayout.NORTH);
+        detailBox = new JPanel(new BorderLayout());
+        detailBox.setBackground(Theme.SURFACE);
+        detailBox.setBorder(BorderFactory.createMatteBorder(1, 0, 0, 0, Theme.BORDER));
+        detailBox.add(detailScroll, BorderLayout.CENTER);
+        detailBox.add(closeColumn, BorderLayout.EAST);
+        detailBox.setPreferredSize(new Dimension(100, 74));
+        detailBox.setVisible(false);
+        getInputMap(WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "orbit.closeDetail");
+        getActionMap().put("orbit.closeDetail", action(list::clearSelection));
 
         JPanel south = new JPanel(new BorderLayout());
         south.setOpaque(false);
-        south.add(detailScroll, BorderLayout.CENTER);
+        south.add(detailBox, BorderLayout.CENTER);
         status.setForeground(Theme.DIM);
         status.setFont(font(11f));
         status.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createMatteBorder(1, 0, 0, 0, Theme.BORDER),
@@ -804,14 +825,14 @@ public final class LogPanel extends JPanel {
         if (!hidden.isEmpty()) {
             s.append("   ·   скрыто разделов: ").append(hidden.size());
         }
-        s.append("   ·   выделите строку — подробности ниже, ⌘C — копировать");
+        s.append("   ·   щелчок по строке — подробности ниже (✕ или Esc — закрыть), ⌘C — копировать");
         status.setText(s.toString());
     }
 
     private void showDetail() {
         List<LogEntry> picked = list.getSelectedValuesList();
         if (picked.size() != 1) {
-            detailScroll.setVisible(false);
+            detailBox.setVisible(false);
             revalidate();
             return;
         }
@@ -838,9 +859,9 @@ public final class LogPanel extends JPanel {
         }
         detail.setText(s.toString());
         detail.setCaretPosition(0);
-        detailScroll.setPreferredSize(new Dimension(100, e.details().isEmpty() ? 58 : 140));
-        if (!detailScroll.isVisible()) {
-            detailScroll.setVisible(true);
+        detailBox.setPreferredSize(new Dimension(100, e.details().isEmpty() ? 58 : 140));
+        if (!detailBox.isVisible()) {
+            detailBox.setVisible(true);
         }
         revalidate();
     }
