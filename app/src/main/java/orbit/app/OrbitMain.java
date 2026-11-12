@@ -564,6 +564,21 @@ public final class OrbitMain {
                 c.close();
             }
         }));
+        // one summary line an hour on the clock, while the account runs
+        Thread.ofPlatform().name("hourly-" + accountName).daemon().start(() -> {
+            if (logContext != null) {
+                org.slf4j.MDC.setContextMap(logContext);
+            }
+            HourlyReport hourly = HourlyReport.of(feed);
+            while (!closed.get()) {
+                try {
+                    Thread.sleep(1_000);
+                } catch (InterruptedException e) {
+                    return;
+                }
+                hourly.tick(System.currentTimeMillis(), feed.sessionStartNanos() != 0 && !feed.loggedOut());
+            }
+        });
         Thread sessions = Thread.ofPlatform().name("sessions-" + accountName).start(() -> {
             if (logContext != null) {
                 org.slf4j.MDC.setContextMap(logContext);

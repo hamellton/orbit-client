@@ -206,11 +206,15 @@ public final class MainWindow {
     }
 
     private static final String OVERVIEW_TIMERS = "orbit.overviewTimers";
+    private static final String OVERVIEW_LOG = "orbit.overviewLog";
 
     /** An overview that is replaced: its refreshes stop. */
     static void disposeOverview(Component overview) {
         if (overview instanceof JComponent c && c.getClientProperty(OVERVIEW_TIMERS) instanceof List<?> timers) {
             timers.forEach(t -> ((Timer) t).stop());
+        }
+        if (overview instanceof JComponent c && c.getClientProperty(OVERVIEW_LOG) instanceof LogPanel log) {
+            log.dispose();
         }
     }
 
@@ -271,7 +275,15 @@ public final class MainWindow {
         JPanel page = new JPanel(new BorderLayout());
         page.putClientProperty(OVERVIEW_TIMERS, timers);
         page.add(choose, BorderLayout.NORTH);
-        page.add(grid, BorderLayout.CENTER);
+        // every account's log under the maps, with a choice of account
+        LogPanel log = new LogPanel(orbit.app.log.LogStore.shared(), null, false);
+        page.putClientProperty(OVERVIEW_LOG, log);
+        javax.swing.JSplitPane split = new javax.swing.JSplitPane(javax.swing.JSplitPane.VERTICAL_SPLIT, grid, log);
+        split.setResizeWeight(0.62);
+        split.setOneTouchExpandable(true);
+        split.setBorder(BorderFactory.createEmptyBorder());
+        split.setContinuousLayout(true);
+        page.add(split, BorderLayout.CENTER);
         return page;
     }
 

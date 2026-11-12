@@ -1,27 +1,19 @@
 package orbit.app.gui;
 
+import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.UnsynchronizedAppenderBase;
 import ch.qos.logback.core.encoder.Encoder;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayDeque;
-import java.util.List;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.function.Consumer;
+import orbit.app.log.LogEntry;
+import orbit.app.log.LogStore;
 
 /**
- * Keeps the last log lines (already formatted, secrets masked by the pattern's converters) for the
- * log panel. Works without a window too: the lines just stay in the buffer.
+ * Hands every log line to {@link LogStore} for the window's log (the message and the stack trace formatted by the
+ * encoder, so secrets are masked by its converters). Works without a window too: the rows just stay in the store.
+ * The encoder's pattern: {@code %msg%n%ex} — the first line is the message, the rest the details.
  */
 public class GuiLogAppender extends UnsynchronizedAppenderBase<ILoggingEvent> {
-
-    static final int MAX_LINES = 2_000;
-    /** A log line and the account it was logged for ({@code null} = none). */
-    record Line(String account, String text) {
-    }
-
-    private static final ArrayDeque<Line> LINES = new ArrayDeque<>();
-    private static final List<Consumer<Line>> LISTENERS = new CopyOnWriteArrayList<>();
 
     private Encoder<ILoggingEvent> encoder;
 
@@ -40,39 +32,19 @@ public class GuiLogAppender extends UnsynchronizedAppenderBase<ILoggingEvent> {
 
     @Override
     protected void append(ILoggingEvent event) {
-        Line line = new Line(event.getMDCPropertyMap().get("account"), new String(encoder.encode(event), StandardCharsets.UTF_8));
-        synchronized (LINES) {
-            LINES.addLast(line);
-            while (LINES.size() > MAX_LINES) {
-                LINES.removeFirst();
-            }
+        String all = new String(encoder.encode(event), StandardCharsets.UTF_8).stripTrailing();
+        String message = all;
+        String details = "";
+        int nl = all.indexOf('\n');
+        if (nl >= 0) {
+            message = all.substring(0, nl).stripTrailing();
+            details = all.substring(nl + 1);
         }
-        for (Consumer<Line> l : LISTENERS) {
-            l.accept(line);
-        }
-    }
-
-    /** The lines logged before {@link #subscribe}, and how to stop listening. */
-    record Subscription(List<String> backlog, Runnable cancel) {
-    }
-
-    /**
-     * Lines logged so far and every new one.
-     *
-     * @param account only this account's lines and those of no account; {@code null} = all
-     * @param strict  only this account's lines, not those of no account (the manager's tabs)
-     */
-    static Subscription subscribe(String account, boolean strict, Consumer<String> listener) {
-        java.util.function.Predicate<Line> mine = l -> account == null || account.equals(l.account())
-                || (!strict && l.account() == null);
-        Consumer<Line> each = l -> {
-            if (mine.test(l)) {
-                listener.accept(l.text());
-            }
-        };
-        synchronized (LINES) {
-            LISTENERS.add(each);
-            return new Subscription(LINES.stream().filter(mine).map(Line::text).toList(), () -> LISTENERS.remove(each));
-        }
+        Level l = event.getLevel();
+        LogEntry.Level level = l.isGreaterOrEqual(Level.ERROR) ? LogEntry.Level.ERROR
+                : l.isGreaterOrEqual(Level.WARN) ? LogEntry.Level.WARN : LogEntry.Level.INFO;
+        String account = event.getMDCPropertyMap().get("account");
+        LogStore.shared().add(account == null || account.isEmpty() ? null : account, level, event.getLoggerName(),
+                message, details, event.getTimeStamp());
     }
 }

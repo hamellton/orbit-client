@@ -34,7 +34,6 @@ import orbit.app.WorldFeed;
 final class AccountView extends JPanel {
 
     private static final int REFRESH_MS = 100;
-    private static final int MAX_LOG_CHARS = 200_000;
     /** From this width the cards stand in a column beside the map. */
     static final int WIDE = 980;
     /** The side column grows up to this. */
@@ -66,7 +65,7 @@ final class AccountView extends JPanel {
         body.add(sideScroll);
 
         JSplitPane split = new JSplitPane(JSplitPane.VERTICAL_SPLIT, body, log(tab.feed(), tab.managed() != null, onDispose));
-        split.setResizeWeight(0.82);
+        split.setResizeWeight(0.7);
         split.setOneTouchExpandable(true);
         split.setBorder(BorderFactory.createEmptyBorder());
         split.setContinuousLayout(true);
@@ -365,28 +364,8 @@ final class AccountView extends JPanel {
 
     /** @param strict only the account's own lines (the manager: each account its own log, nothing else) */
     private static JComponent log(WorldFeed feed, boolean strict, List<Runnable> onDispose) {
-        JTextArea log = new JTextArea();
-        log.setEditable(false);
-        log.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
-        log.setBackground(new Color(0x0f1218));
-        log.setForeground(new Color(0xc9d1dc));
-        log.setBorder(BorderFactory.createEmptyBorder(6, 10, 6, 10));
-        ((DefaultCaret) log.getCaret()).setUpdatePolicy(DefaultCaret.ALWAYS_UPDATE);
-        JScrollPane scroll = new JScrollPane(log);
-        scroll.setBorder(BorderFactory.createMatteBorder(1, 0, 0, 0, MainWindow.LINE));
-        scroll.setPreferredSize(new Dimension(1000, 150));
-        scroll.setMinimumSize(new Dimension(100, 0));
-        Consumer<String> append = line -> {
-            log.append(line);
-            int excess = log.getDocument().getLength() - MAX_LOG_CHARS;
-            if (excess > 0) {
-                log.replaceRange("", 0, excess);
-            }
-        };
-        GuiLogAppender.Subscription sub = GuiLogAppender.subscribe(feed.account(), strict,
-                line -> SwingUtilities.invokeLater(() -> append.accept(line)));
-        sub.backlog().forEach(append);
-        onDispose.add(sub.cancel());
-        return scroll;
+        LogPanel panel = new LogPanel(orbit.app.log.LogStore.shared(), feed.account(), strict);
+        onDispose.add(panel::dispose);
+        return panel;
     }
 }

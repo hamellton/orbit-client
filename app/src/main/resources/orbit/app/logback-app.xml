@@ -9,8 +9,15 @@
     </encoder>
   </appender>
 
-  <appender name="FILE" class="ch.qos.logback.core.FileAppender">
+  <!-- a file a day (and a new one past 20 MB), the old ones packed in logs/archive and kept 14 days -->
+  <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
     <file>logs/orbit.log</file>
+    <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+      <fileNamePattern>logs/archive/orbit.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+      <maxFileSize>20MB</maxFileSize>
+      <maxHistory>14</maxHistory>
+      <totalSizeCap>1GB</totalSizeCap>
+    </rollingPolicy>
     <encoder>
       <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] %X{account} %logger{20} %msg%n%ex</pattern>
     </encoder>
@@ -24,8 +31,14 @@
       <defaultValue>none</defaultValue>
     </discriminator>
     <sift>
-      <appender name="FILE-${account}" class="ch.qos.logback.core.FileAppender">
+      <appender name="FILE-${account}" class="ch.qos.logback.core.rolling.RollingFileAppender">
         <file>logs/orbit-${account}.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+          <fileNamePattern>logs/archive/orbit-${account}.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+          <maxFileSize>20MB</maxFileSize>
+          <maxHistory>14</maxHistory>
+          <totalSizeCap>500MB</totalSizeCap>
+        </rollingPolicy>
         <encoder>
           <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] %logger{20} %msg%n%ex</pattern>
         </encoder>
@@ -33,9 +46,33 @@
     </sift>
   </appender>
 
+  <!-- the journal of each account (logs/journal-<account>.log): starts, stops, deaths, quests, sales, hourly
+       summaries, problems; a month of it is kept -->
+  <appender name="JOURNAL" class="ch.qos.logback.classic.sift.SiftingAppender">
+    <filter class="orbit.app.gui.AccountLogFilter"/>
+    <filter class="orbit.app.log.JournalFilter"/>
+    <discriminator>
+      <key>account</key>
+      <defaultValue>none</defaultValue>
+    </discriminator>
+    <sift>
+      <appender name="JOURNAL-${account}" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>logs/journal-${account}.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+          <fileNamePattern>logs/archive/journal-${account}.%d{yyyy-MM}.log</fileNamePattern>
+          <maxHistory>6</maxHistory>
+        </rollingPolicy>
+        <encoder>
+          <pattern>%d{yyyy-MM-dd HH:mm:ss} %-5level %msg%n</pattern>
+        </encoder>
+      </appender>
+    </sift>
+  </appender>
+
+  <!-- the window's log: the message, then the stack trace (split by GuiLogAppender) -->
   <appender name="GUI" class="orbit.app.gui.GuiLogAppender">
     <encoder>
-      <pattern>%d{HH:mm:ss} %msg%n%ex</pattern>
+      <pattern>%msg%n%ex</pattern>
     </encoder>
   </appender>
 
@@ -48,6 +85,7 @@
     <appender-ref ref="CONSOLE"/>
     <appender-ref ref="FILE"/>
     <appender-ref ref="ACCOUNT"/>
+    <appender-ref ref="JOURNAL"/>
     <appender-ref ref="GUI"/>
   </root>
 </configuration>
