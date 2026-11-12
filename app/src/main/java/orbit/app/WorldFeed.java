@@ -165,6 +165,9 @@ public final class WorldFeed {
         if (learnNpcMaps && p instanceof orbit.protocol.gen.ShipCreateCommand c && c.npc) {
             orbit.world.maps.NpcMaps.shared().learn(world.snapshot(nanos).hero().mapId(), c.userName);
         }
+        if (learnNpcMaps && p instanceof orbit.protocol.gen.AddOreCommand o && o.oreType != null) {
+            orbit.world.maps.OreMaps.shared().learn(world.snapshot(nanos).hero().mapId(), o.oreType.typeValue);
+        }
         packets.incrementAndGet();
         WorldSnapshot.Hero before = world.snapshot(nanos).hero();
         int heroBefore = before.id();

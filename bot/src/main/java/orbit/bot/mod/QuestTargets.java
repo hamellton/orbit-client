@@ -26,6 +26,33 @@ public final class QuestTargets {
         return c.type() == Quests.KILL_NPC || c.type() == Quests.KILL_NPCS;
     }
 
+    /** Damage to NPCs: done by killing them. */
+    public static boolean damaging(Quests.Condition c) {
+        return c.type() == Quests.DAMAGE_NPCS;
+    }
+
+    /**
+     * The client's old ore number of a condition ({@code InGameCatalog}: 1 prometium … 15 palladium, 42 osmium) as the
+     * map's ore type ({@code OreTypeModule}: 0 prometium … 8 palladium, 28 osmium); {@code -1} unknown, and 0 («any
+     * ore» of a sale) stays {@code -2}.
+     */
+    public static int oreType(int oldId) {
+        return switch (oldId) {
+            case 0 -> -2;
+            case 1 -> 0;
+            case 2 -> 1;
+            case 3 -> 2;
+            case 4 -> 3;
+            case 11 -> 4;
+            case 12 -> 5;
+            case 13 -> 6;
+            case 14 -> 7;
+            case 15 -> 8;
+            case 42 -> 28;
+            default -> -1;
+        };
+    }
+
     public static boolean travelling(Quests.Condition c) {
         return c.type() == Quests.VISIT_MAP || c.type() == Quests.MAP || c.type() == Quests.ON_MAP
                 || c.type() == Quests.COORDINATES;
@@ -44,7 +71,7 @@ public final class QuestTargets {
         List<Integer> out = new ArrayList<>();
         if (c.type() == Quests.KILL_NPC) {
             out.add(c.match(0));
-        } else if (c.type() == Quests.KILL_NPCS) {
+        } else if (c.type() == Quests.KILL_NPCS || c.type() == Quests.DAMAGE_NPCS) {
             int n = c.match(0);
             for (int i = 1; i <= n && i < c.matches().size(); i++) {
                 out.add(c.match(i));

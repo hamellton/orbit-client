@@ -40,7 +40,7 @@ class QuestModuleTest {
         take(sim, 122001, 2, 6, 35_000, "12");
         sim.npc(500, "-=[ Streuner ]=-", 10_200, 6_000);
         sim.npc(501, "-=[ Protegit ]=-", 10_600, 6_200);
-        QuestModule m = new QuestModule(sim.ctx, NpcMaps.shared());
+        QuestModule m = new QuestModule(sim.ctx, NpcMaps.shared(), orbit.world.maps.OreMaps.inMemory());
         m.visited(sim.now);
         sim.run(m::tick, 3_000);
         assertEquals(map, m.workingMap());
@@ -51,7 +51,7 @@ class QuestModuleTest {
     @Test
     void onlyQuestsOfKillsOfKnownNpcsOrMapsAreDoable() {
         Sim sim = new Sim(BotConfig.empty(), MapCatalog.bundled().byName("3-1").id(), 5_000, 5_000);
-        QuestModule m = new QuestModule(sim.ctx, NpcMaps.shared());
+        QuestModule m = new QuestModule(sim.ctx, NpcMaps.shared(), orbit.world.maps.OreMaps.inMemory());
         take(sim, 101, 3, 6, 4, "12"); // Protegit
         take(sim, 102, 2, 28, 15, "0", "0", "0"); // kill players
         take(sim, 103, 6, 79, 2, "0", "51"); // a galaxy gate
@@ -68,9 +68,91 @@ class QuestModuleTest {
     @Test
     void theFirstTickGoesToTheQuestGiver() {
         Sim sim = new Sim(BotConfig.empty(), MapCatalog.bundled().byName("3-8").id(), 5_000, 5_000);
-        QuestModule m = new QuestModule(sim.ctx, NpcMaps.shared());
+        QuestModule m = new QuestModule(sim.ctx, NpcMaps.shared(), orbit.world.maps.OreMaps.inMemory());
         m.tick();
         assertTrue(m.status().startsWith("Квесты:"), m.status());
         assertEquals(0, m.workingMap(), "the visit flies itself");
+    }
+
+    @Test
+    void damageToNpcsIsDoneByKillingThem() {
+        int map = MapCatalog.bundled().byName("3-6").id();
+        Sim sim = new Sim(BotConfig.empty(), map, 10_000, 6_000);
+        sim.lasers("ammunition_laser_ucb-100");
+        take(sim, 201, 3, 29, 100_000, "1", "12", "1", "0");
+        sim.npc(501, "-=[ Protegit ]=-", 10_600, 6_200);
+        QuestModule m = new QuestModule(sim.ctx, NpcMaps.shared(), orbit.world.maps.OreMaps.inMemory());
+        m.visited(sim.now);
+        sim.run(m::tick, 3_000);
+        assertEquals(501, sim.world.snapshot(sim.now).hero().selectedId());
+        assertTrue(m.status().startsWith("Квест 201: урон по Protegit"), m.status());
+    }
+
+    @Test
+    void bonusBoxesAreCollectedWhereTheShipIs() {
+        Sim sim = new Sim(BotConfig.empty(), MapCatalog.bundled().byName("3-2").id(), 5_000, 5_000);
+        take(sim, 202, 3, 55, 10);
+        orbit.protocol.gen.AddBoxCommand box = new orbit.protocol.gen.AddBoxCommand();
+        box.hash = "b1";
+        box.boxType = "BONUS_BOX";
+        box.x = 5_400;
+        box.y = 5_100;
+        sim.world.apply(box, sim.now);
+        QuestModule m = new QuestModule(sim.ctx, NpcMaps.shared(), orbit.world.maps.OreMaps.inMemory());
+        m.visited(sim.now);
+        sim.run(m::tick, 6_000);
+        assertTrue(sim.sent.stream().anyMatch(p -> p instanceof orbit.protocol.gen.CollectBoxRequest r && "b1".equals(r.itemHash)),
+                "the bonus box picked up: " + m.status());
+    }
+
+    @Test
+    void oreIsCollectedAndThenSoldWhenAQuestSaysSo() {
+        int map = MapCatalog.bundled().byName("3-2").id();
+        Sim sim = new Sim(BotConfig.empty(), map, 5_000, 5_000);
+        orbit.world.maps.OreMaps ores = orbit.world.maps.OreMaps.inMemory();
+        take(sim, 203, 3, 5, 20, "1"); // collect 20 prometium (the client's old number 1 = ore type 0)
+        orbit.protocol.gen.AddOreCommand ore = new orbit.protocol.gen.AddOreCommand();
+        ore.hash = "o1";
+        ore.oreType = new orbit.protocol.gen.OreTypeModule();
+        ore.oreType.typeValue = 0;
+        ore.x = 5_300;
+        ore.y = 5_000;
+        sim.world.apply(ore, sim.now);
+        QuestModule m = new QuestModule(sim.ctx, NpcMaps.shared(), ores);
+        m.visited(sim.now);
+        sim.run(m::tick, 6_000);
+        assertTrue(sim.sent.stream().anyMatch(p -> p.getClass().getSimpleName().contains("Collect")
+                || p.getClass().getSimpleName().contains("Harvest")), "the prometium picked: " + m.status());
+
+        // a sale quest with prometium aboard: the cargo plan sells it although the hold is not full
+        Sim sell = new Sim(BotConfig.empty(), map, 5_000, 5_000);
+        take(sell, 204, 3, 52, 100, "1");
+        orbit.protocol.gen.AttributeOreCountUpdateCommand aboard = new orbit.protocol.gen.AttributeOreCountUpdateCommand();
+        orbit.protocol.gen.OreCountModule pr = new orbit.protocol.gen.OreCountModule();
+        pr.oreType = new orbit.protocol.gen.OreTypeModule();
+        pr.oreType.typeValue = 0;
+        pr.count = 250;
+        aboard.oreCountList = List.of(pr);
+        sell.world.apply(aboard, sell.now);
+        QuestModule s = new QuestModule(sell.ctx, NpcMaps.shared(), orbit.world.maps.OreMaps.inMemory());
+        s.visited(sell.now);
+        s.tick();
+        CargoPlan plan = s.cargoPlan(sell.config);
+        assertEquals(List.of(0), plan.ores());
+        assertTrue(plan.always());
+        assertEquals(BotConfig.Collect.CARGO_BASE, plan.mode());
+    }
+
+    @Test
+    void kindsSwitchedOffAreNotTaken() {
+        com.fasterxml.jackson.databind.node.ObjectNode q = com.fasterxml.jackson.databind.node.JsonNodeFactory.instance.objectNode();
+        q.putArray("do").add("MAP");
+        Sim sim = new Sim(BotConfig.empty().withModuleSettings("quests", q), MapCatalog.bundled().byName("3-1").id(), 5_000, 5_000);
+        QuestModule m = new QuestModule(sim.ctx, NpcMaps.shared(), orbit.world.maps.OreMaps.inMemory());
+        take(sim, 301, 3, 6, 4, "12");
+        take(sim, 302, 2, 34, 1, String.valueOf(MapCatalog.bundled().byName("3-3").id()));
+        var active = sim.world.snapshot(sim.now).quests().active();
+        assertFalse(m.doable(active.get(301)), "killing switched off");
+        assertTrue(m.doable(active.get(302)));
     }
 }

@@ -25,7 +25,7 @@ class SectionsTest {
         MapCatalog maps = MapCatalog.bundled();
         return List.of(new GeneralSection(maps), new KillSection(maps), new CollectSection(), new PetSection(),
                 new SafetySection(), new ZonesSection(maps), new CubikonSection(), new GateSection(), new BuySection(),
-                new GroupSection(), new PalladiumSection());
+                new GroupSection(), new PalladiumSection(), new QuestsSection());
     }
 
     static BotConfig roundTrip(BotConfig c) {
@@ -119,5 +119,21 @@ class SectionsTest {
         assertEquals("Пн-Пт", Days.text(Days.parse("пн-пт")));
         assertEquals("Сб, Вс", Days.text(Days.parse("Сб, Вс")));
         assertThrows(IllegalArgumentException.class, () -> Days.parse("Пн-Xx"));
+    }
+
+    @Test
+    void theQuestsTabKeepsItsChoices() {
+        com.fasterxml.jackson.databind.node.ObjectNode q = com.fasterxml.jackson.databind.node.JsonNodeFactory.instance.objectNode();
+        q.putArray("types").add("DAILY").add("MISSION");
+        q.putArray("do").add("KILL").add("MAP");
+        q.put("revisitMinutes", 120);
+        BotConfig c = BotConfig.empty().withModule(BotConfig.Module.QUESTS).withModuleSettings("quests", q);
+        BotConfig out = roundTrip(c);
+        var m = out.modules().get("quests");
+        org.junit.jupiter.api.Assertions.assertEquals("[\"DAILY\",\"MISSION\"]", m.path("types").toString());
+        org.junit.jupiter.api.Assertions.assertEquals("[\"KILL\",\"MAP\"]", m.path("do").toString());
+        org.junit.jupiter.api.Assertions.assertEquals(120, m.path("revisitMinutes").asInt());
+        // a config of another module gets no quests section
+        org.junit.jupiter.api.Assertions.assertFalse(roundTrip(BotConfig.empty()).modules().containsKey("quests"));
     }
 }

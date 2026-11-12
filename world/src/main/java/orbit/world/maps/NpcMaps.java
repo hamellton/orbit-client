@@ -107,8 +107,8 @@ public final class NpcMaps {
         }
     }
 
-    /** For tests: nothing on disk. */
-    static NpcMaps inMemory() {
+    /** For tests: nothing on disk, nothing bundled. */
+    public static NpcMaps inMemory() {
         return new NpcMaps(null);
     }
 }
