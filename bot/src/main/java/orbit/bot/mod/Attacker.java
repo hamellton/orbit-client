@@ -68,6 +68,8 @@ public final class Attacker {
     /** A fight is judged after this long, and such a kind skipped this long. */
     static final long JUDGE_NS = 15_000_000_000L;
     static final long TOO_STRONG_NS = 10 * 60_000_000_000L;
+    static final long TOO_STRONG_MAX_NS = 60 * 60_000_000_000L;
+    private static final java.util.Map<String, Integer> TOO_STRONG_TIMES = new java.util.concurrent.ConcurrentHashMap<>();
     /** The kill must come this much sooner than the repair. */
     static final double WIN_MARGIN = 1.3;
     private double judgeTarget0 = -1;
@@ -110,11 +112,14 @@ public final class Attacker {
         if (toKill <= toRepair * WIN_MARGIN) {
             return false;
         }
-        TOO_STRONG.put(t.name(), now + TOO_STRONG_NS);
+        // again too strong: twice as long each time, up to an hour (live 2026-11-13: Boss Kristallon tried every 10 min)
+        int times = TOO_STRONG_TIMES.merge(t.name(), 1, Integer::sum);
+        long skip = Math.min(TOO_STRONG_MAX_NS, TOO_STRONG_NS << Math.min(6, times - 1));
+        TOO_STRONG.put(t.name(), now + skip);
         endReason = "не тяну";
         log.warn("{}: не тяну — добить за ~{} с, а на ремонт через ~{} с; таких пропускаю {} мин", t.name(),
                 toKill == Double.MAX_VALUE ? "∞" : String.valueOf(Math.round(toKill)), Math.round(toRepair),
-                TOO_STRONG_NS / 60_000_000_000L);
+                skip / 60_000_000_000L);
         if (h.attackTargetId() == t.id()) {
             ctx.actions().stopAttack();
         }
