@@ -143,7 +143,7 @@ class ManagerWindowTest {
         assertEquals("pilot-a", w.model.getValueAt(0, 2));
         assertEquals("int1", w.model.getValueAt(0, 3));
         assertEquals("SOCKS5 10.0.0.9:1080 (логин u)", w.model.getValueAt(0, 4));
-        assertEquals("напрямую", w.model.getValueAt(1, 4));
+        assertEquals("напрямую — IP этого компьютера", w.model.getValueAt(1, 4));
         assertEquals("ru1", w.model.getValueAt(1, 3));
         for (int r = 0; r < 2; r++) {
             for (int c = 0; c < w.model.getColumnCount(); c++) {

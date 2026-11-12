@@ -258,6 +258,7 @@ public final class ManagerWindow {
         if (n != null) {
             refresh();
             select(n);
+            warnIfShared(n);
         }
     }
 
@@ -265,6 +266,7 @@ public final class ManagerWindow {
         String n = needSelected();
         if (n != null && AccountDialog.show(frame, vault, n, account(n).phase() != ManagedAccount.Phase.STOPPED) != null) {
             refresh();
+            warnIfShared(n);
         }
     }
 
@@ -286,6 +288,7 @@ public final class ManagerWindow {
             vault.save();
             var file = AccountSettings.DEFAULT_FILE;
             AccountSettings.load(file).with(n, null).save(file);
+            orbit.app.IpHistory.shared().remove(n);
         } catch (VaultException | java.io.IOException e) {
             JOptionPane.showMessageDialog(frame, "Не удалось: " + e.getMessage(), "Аккаунты", JOptionPane.ERROR_MESSAGE);
         }
@@ -322,7 +325,12 @@ public final class ManagerWindow {
             @Override
             protected String doInBackground() {
                 try (ProxyRoute route = ProxyRoute.of(spec)) {
-                    String text = route.check().describe();
+                    ProxyRoute.Check c = route.check();
+                    String text = c.describe();
+                    String before = orbit.app.IpHistory.shared().record(n, c.ip(), c.country());
+                    if (before != null) {
+                        text += ". Страна сменилась: в прошлый раз была " + before + ".";
+                    }
                     good = true;
                     return text;
                 } catch (java.io.IOException | RuntimeException e) {
@@ -548,6 +556,7 @@ public final class ManagerWindow {
         } catch (java.io.IOException e) {
             settings = new AccountSettings(null);
         }
+        links = links(names);
         List<Object[]> rows = new ArrayList<>();
         for (String n : names) {
             rows.add(row(n, settings));
@@ -587,6 +596,47 @@ public final class ManagerWindow {
                 : "Двойной щелчок — вкладка или настройки аккаунта");
     }
 
+    /** What links each account to others by its address, as of the last {@link #refresh}. */
+    private Map<String, orbit.app.ProxySharing.Links> links = Map.of();
+
+    private Map<String, orbit.app.ProxySharing.Links> links(List<String> names) {
+        Map<String, ProxySpec> proxies = new LinkedHashMap<>();
+        for (String n : names) {
+            try {
+                proxies.put(n, vault.get(n).proxySpec());
+            } catch (IllegalArgumentException e) {
+                proxies.put(n, null);
+            }
+        }
+        Map<String, String> ips = new java.util.HashMap<>();
+        orbit.app.IpHistory.shared().all().forEach((k, v) -> ips.put(k, v.ip()));
+        return orbit.app.ProxySharing.of(proxies, ips);
+    }
+
+    /** After an account was saved: its proxy is another account's too — the game links such accounts. */
+    private void warnIfShared(String n) {
+        var l = links(new ArrayList<>(vault.accounts().keySet())).get(n);
+        if (l == null || !l.any()) {
+            return;
+        }
+        boolean direct;
+        try {
+            direct = vault.get(n).proxySpec().direct();
+        } catch (IllegalArgumentException e) {
+            return;
+        }
+        String text = !l.sameProxy().isEmpty()
+                ? (direct ? "«" + n + "» без прокси, как и " + names(l.sameProxy()) + ": у них один IP — этого компьютера."
+                        : "Этот прокси уже стоит у " + names(l.sameProxy()) + ": у аккаунтов будет один IP.")
+                : "Через этот прокси в прошлый раз был тот же IP, что у " + names(l.sameIp()) + ".";
+        JOptionPane.showMessageDialog(frame, Theme.wrapped(text + " Игра может связать такие аккаунты.", 420),
+                "«" + n + "»: общий адрес", JOptionPane.WARNING_MESSAGE);
+    }
+
+    private static String names(List<String> names) {
+        return String.join(", ", names.stream().map(x -> "«" + x + "»").toList());
+    }
+
     /** Alerts already shown, by account: each one once. */
     private final Map<String, Long> alertsShown = new java.util.HashMap<>();
 
@@ -601,10 +651,12 @@ public final class ManagerWindow {
             return;
         }
         Toolkit.getDefaultToolkit().beep();
-        JOptionPane pane = new JOptionPane(Theme.wrapped("«" + a.name() + "» остановлен: " + a.feed().alertText()
-                + ". Повторов входа не будет. Проверьте аккаунт, прежде чем запускать снова.", 420),
-                JOptionPane.WARNING_MESSAGE);
-        javax.swing.JDialog d = pane.createDialog(frame, "Признак беды — «" + a.name() + "»");
+        boolean stopped = a.feed().alertStopped();
+        String text = stopped ? "«" + a.name() + "» остановлен: " + a.feed().alertText()
+                + ". Повторов входа не будет. Проверьте аккаунт, прежде чем запускать снова."
+                : "«" + a.name() + "»: " + a.feed().alertText() + ". Бот работает дальше.";
+        JOptionPane pane = new JOptionPane(Theme.wrapped(text, 420), JOptionPane.WARNING_MESSAGE);
+        javax.swing.JDialog d = pane.createDialog(frame, (stopped ? "Признак беды" : "Внимание") + " — «" + a.name() + "»");
         d.setModal(false);
         d.setVisible(true);
     }
@@ -616,7 +668,7 @@ public final class ManagerWindow {
         String proxy;
         try {
             ProxySpec spec = acc.proxySpec();
-            proxy = spec.direct() ? "напрямую" : spec.describe();
+            proxy = orbit.app.ProxySharing.describe(spec, orbit.app.IpHistory.shared().get(n), links.get(n));
         } catch (IllegalArgumentException e) {
             proxy = "ошибка: " + e.getMessage();
         }

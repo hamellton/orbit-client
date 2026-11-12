@@ -26,11 +26,14 @@ public final class ProxyRoute implements AutoCloseable {
     static final String CHECK_HOST = "www.darkorbit.com";
     /** Answers with the caller's public address as plain text. */
     static final String IP_URL = "https://api.ipify.org";
+    /** Answers with the caller's public address and its country ({@code {"ip":…,"country":"DE",…}}). */
+    static final String GEO_URL = "https://ipinfo.io/json";
     private static final int CHECK_TIMEOUT_MS = 15_000;
 
     private final ProxyConnector connector;
     private final LocalProxy local;
     private volatile String externalIp;
+    private volatile String country;
 
     private ProxyRoute(ProxyConnector connector, LocalProxy local) {
         this.connector = connector;
@@ -74,16 +77,27 @@ public final class ProxyRoute implements AutoCloseable {
         return externalIp;
     }
 
-    /** {@code без прокси}, {@code SOCKS5 1.2.3.4:1080 · IP 5.6.7.8} — for the window. */
+    /** The country code ({@code DE}) of {@link #externalIp} at the last check, or {@code null}. */
+    public String country() {
+        return country;
+    }
+
+    /** {@code без прокси}, {@code SOCKS5 1.2.3.4:1080 · IP 5.6.7.8 (DE)} — for the window. */
     public String describe() {
         String d = connector.spec().describe();
-        return externalIp == null ? d : d + " · IP " + externalIp;
+        return externalIp == null ? d : d + " · IP " + externalIp + (country != null ? " (" + country + ")" : "");
     }
 
     /** What a proxy check found. */
-    public record Check(ProxySpec spec, long millis, String ip) {
+    public record Check(ProxySpec spec, long millis, String ip, String country) {
+
+        public Check(ProxySpec spec, long millis, String ip) {
+            this(spec, millis, ip, null);
+        }
+
         public String describe() {
-            return spec.describe() + " работает" + (ip != null ? " · IP " + ip : "") + " · " + millis + " мс";
+            return spec.describe() + " работает" + (ip != null ? " · IP " + ip : "") + (country != null ? " (" + country + ")" : "")
+                    + " · " + millis + " мс";
         }
     }
 
@@ -147,11 +161,45 @@ public final class ProxyRoute implements AutoCloseable {
                     "через прокси сайт недоступен: " + ProxyConnector.reason(e), e);
         }
         long millis = (System.nanoTime() - start) / 1_000_000;
-        String ip = lookupIp();
+        String[] geo = lookupGeo();
+        String ip = geo != null ? geo[0] : lookupIp();
+        String land = geo != null ? geo[1] : null;
         if (ip != null) {
             externalIp = ip;
+            country = land;
         }
-        return new Check(connector.spec(), millis, ip);
+        return new Check(connector.spec(), millis, ip, land);
+    }
+
+    /** {ip, country} through the proxy, or {@code null} when the service does not answer. */
+    private String[] lookupGeo() {
+        try {
+            HttpClient http = HttpClient.newBuilder().proxy(selector()).connectTimeout(Duration.ofSeconds(10)).build();
+            HttpResponse<String> r = http.send(HttpRequest.newBuilder(URI.create(GEO_URL)).timeout(Duration.ofSeconds(10))
+                    .header("Accept", "application/json").GET().build(), HttpResponse.BodyHandlers.ofString());
+            return r.statusCode() == 200 ? parseGeo(r.body()) : null;
+        } catch (IOException e) {
+            log.debug("Страну IP через прокси не узнать: {}", e.getMessage());
+            return null;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return null;
+        }
+    }
+
+    /** {@code {"ip":"5.6.7.8","country":"DE",…}} → {ip, country}; {@code null} when it is not that. */
+    static String[] parseGeo(String body) {
+        try {
+            com.fasterxml.jackson.databind.JsonNode n = new com.fasterxml.jackson.databind.ObjectMapper().readTree(body);
+            String ip = n.path("ip").asText("");
+            String land = n.path("country").asText("");
+            if (!ip.matches("[0-9a-fA-F.:]{3,45}")) {
+                return null;
+            }
+            return new String[] {ip, land.matches("[A-Z]{2}") ? land : null};
+        } catch (IOException | RuntimeException e) {
+            return null;
+        }
     }
 
     static void tlsHandshake(Socket tunnel) throws IOException {

@@ -226,12 +226,26 @@ public final class WorldFeed {
 
     private volatile String alert;
     private volatile long alertAt;
+    private volatile boolean alertStopped;
 
     /** A sign of trouble that stopped the account (plan 5в.7г): the window shows it once. */
     public void alert(String why) {
+        alertStopped = true;
         alert = why;
         alertAt = System.nanoTime();
         state = "Остановлен: " + why;
+    }
+
+    /** A warning the window shows once; the account goes on (plan 5в.5: the proxy's country changed). */
+    public void warn(String why) {
+        alertStopped = false;
+        alert = why;
+        alertAt = System.nanoTime();
+    }
+
+    /** The last alert stopped the account ({@link #alert}), not only warned ({@link #warn}). */
+    public boolean alertStopped() {
+        return alertStopped;
     }
 
     /** The last alert, or {@code null}. */

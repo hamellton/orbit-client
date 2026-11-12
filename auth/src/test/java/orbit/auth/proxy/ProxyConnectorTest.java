@@ -231,4 +231,13 @@ class ProxyConnectorTest {
             assertTrue(e.retryable());
         }
     }
+
+    @Test
+    void theIpServiceAnswerGivesTheAddressAndTheCountry() {
+        String[] g = ProxyRoute.parseGeo("{\"ip\":\"5.6.7.8\",\"city\":\"Berlin\",\"country\":\"DE\"}");
+        org.junit.jupiter.api.Assertions.assertArrayEquals(new String[] {"5.6.7.8", "DE"}, g);
+        org.junit.jupiter.api.Assertions.assertNull(ProxyRoute.parseGeo("<html>blocked</html>"));
+        org.junit.jupiter.api.Assertions.assertArrayEquals(new String[] {"5.6.7.8", null},
+                ProxyRoute.parseGeo("{\"ip\":\"5.6.7.8\"}"));
+    }
 }

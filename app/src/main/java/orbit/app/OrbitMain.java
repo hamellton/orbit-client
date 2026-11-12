@@ -302,6 +302,7 @@ public final class OrbitMain {
             @Override
             public GameSession fresh() throws AuthException {
                 route.verify(); // a dead proxy means no login, never a direct one
+                noteIp(account, route, feed);
                 return login.login();
             }
 
@@ -311,6 +312,23 @@ public final class OrbitMain {
             }
         };
         return new Rig(feed, auth, source, listener, route);
+    }
+
+    /**
+     * Remembers the IP and country the proxy showed before a login; a country other than last time is told in the log
+     * and the window (plan 5в.5: an account's IP must not jump between countries). The login goes on.
+     */
+    static void noteIp(String account, ProxyRoute route, WorldFeed feed) {
+        if (route.direct() || route.externalIp() == null) {
+            return;
+        }
+        String before = IpHistory.shared().record(account, route.externalIp(), route.country());
+        if (before != null) {
+            String why = "страна IP сменилась: была " + before + ", теперь " + route.country() + " (IP " + route.externalIp()
+                    + ") — проверьте прокси";
+            log.warn("Прокси: {}", why);
+            feed.warn(why);
+        }
     }
 
     /**
