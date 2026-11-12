@@ -96,7 +96,10 @@ public final class Safety {
         heal(w, s, now, hp, attacked);
         if (!repairing) {
             double limit = attacked || fighting ? s.repairHpMin() : s.repairHpNoNpc();
-            if (hp < limit) {
+            // «repaired» already (a target not above the start, as the palladium profile: below 15 %, up to 0 %):
+            // no trip — it would end at once, every tick (live 2026-11-12 on int1: 447 «repairs», the ship
+            // stopped each 100 ms)
+            if (hp < limit && !repaired(h, s, hp)) {
                 repairing = true;
                 ctx.stats().repairs.incrementAndGet();
                 repairMap = h.mapId();
@@ -106,8 +109,7 @@ public final class Safety {
                 return false;
             }
         }
-        double shield = h.health().shieldPercent();
-        if (hp >= s.repairHpMax() && (shield < 0 || shield >= s.repairToShield() || h.health().shieldMax() <= 0)) {
+        if (repaired(h, s, hp)) {
             repairing = false;
             log.info("Отремонтирован: HP {}%", pct(hp));
             return false;
@@ -136,6 +138,12 @@ public final class Safety {
             }
         }
         return true;
+    }
+
+    /** HP at {@code repairHpMax} and the shield at {@code repairToShield} (or no shield): nothing to repair. */
+    private static boolean repaired(WorldSnapshot.Hero h, BotConfig.Safety s, double hp) {
+        double shield = h.health().shieldPercent();
+        return hp >= s.repairHpMax() && (shield < 0 || shield >= s.repairToShield() || h.health().shieldMax() <= 0);
     }
 
     /** The map to come back to after a repair elsewhere (0 if not repairing). */

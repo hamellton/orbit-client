@@ -125,4 +125,20 @@ class HealingTest {
         }
         assertTrue(used(sim, "ability_solace"));
     }
+
+    @Test
+    void aRepairTargetBelowTheStartIsNoTrip() {
+        // the palladium profile: go repair below 15 % with no NPC, repair up to 0 % — DarkBot never leaves then
+        BotConfig c = BotConfig.empty().withSafety(new BotConfig.Safety(0, 0, 0.15, 0, null,
+                new BotConfig.Heal(0.6, -1, -1), 10, "PORTAL", 0, 0));
+        Sim sim = new Sim(c, 1, 5_000, 5_000);
+        hp(sim, 10_000);
+        Safety s = new Safety(sim.ctx);
+        for (int t = 0; t < 50; t++) {
+            assertTrue(!s.tick(false), "the module keeps working");
+            sim.now += 100 * Sim.MS;
+        }
+        assertEquals(0, sim.ctx.stats().repairs.get());
+        assertTrue(!s.repairing());
+    }
 }
