@@ -9,9 +9,8 @@ import orbit.world.maps.MapCatalog;
 
 /**
  * Where the ship is safe to repair (low HP), to wait or to log out (the user, 2026-11-12): a base on the map — the
- * own company's or a shared one (5-2's), never another company's — and the
- * portals the ship can really jump through: the server shows them on the map (when it sent the map's gates) and none
- * refused a jump this run ({@link Stats#closedPortals}). A portal with no way back (5-2 → 5-3) is a place to stand,
+ * own company's or a shared one (5-2's), never another company's — and the portals the ship can really jump
+ * through: none refused a jump this run ({@link Stats#closedPortals}). A portal with no way back (5-2 → 5-3) is a place to stand,
  * not to jump; a base or a portal with a way back comes first, so on 5-2 the ship runs to the shared base.
  */
 public final class SafePlaces {
@@ -23,8 +22,6 @@ public final class SafePlaces {
     static final Set<Integer> BASE_PARTS = Set.of(46, 47, 50, 51, 52, 53, 54);
     /** Close enough to a base's HQ: inside its no-fight zone (radius 900, live on 1-1 and 3-4). */
     static final double AT_BASE = 450;
-    /** A server's gate this close to a known portal is that portal. */
-    static final double SAME_GATE = 400;
 
     private SafePlaces() {
     }
@@ -66,21 +63,18 @@ public final class SafePlaces {
     }
 
     /**
-     * The map's portals the ship may use: its company's or anyone's, shown by the server (if it sent any gates)
-     * and not refused this run.
+     * The map's portals the ship may use: its company's or anyone's, not refused this run.
      */
     static List<MapCatalog.Portal> usablePortals(WorldSnapshot w, MapCatalog maps, Set<String> closed) {
         WorldSnapshot.Hero h = w.hero();
         List<MapCatalog.Portal> out = new ArrayList<>();
         for (MapCatalog.Portal p : maps.portals(h.mapId())) {
+            // the server sends a map's gates as the ship comes near (live 5-2 2026-11-12), so a gate not sent
+            // yet is no sign of a missing portal: only a refused jump is
             if (p.faction() != 0 && p.faction() != h.factionId() || closed.contains(key(h.mapId(), p))) {
                 continue;
             }
-            boolean shown = w.portals().isEmpty() || w.portals().values().stream()
-                    .anyMatch(g -> Math.hypot(g.x() - p.x(), g.y() - p.y()) <= SAME_GATE);
-            if (shown) {
-                out.add(p);
-            }
+            out.add(p);
         }
         return out;
     }
