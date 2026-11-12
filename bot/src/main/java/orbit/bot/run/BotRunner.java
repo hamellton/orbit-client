@@ -341,7 +341,8 @@ public final class BotRunner {
                     module.pause(); // targets near him are left: the module chooses again away from him
                 }
             }
-            String who = offenders.escape(w);
+            // a target nearly dead is finished first, while the hull allows (live 2026-11-13: Impulse II left at 7 %)
+            String who = finishing(w) ? null : offenders.escape(w);
             if (who != null) {
                 if (!avoiding && module != null) {
                     module.pause();
@@ -457,6 +458,21 @@ public final class BotRunner {
             log.info("Пауза снята — продолжаю");
         }
         return false;
+    }
+
+    /** Below this share of its hull and shield the target is finished before stepping away from others. */
+    static final double FINISH_BELOW = 0.3;
+    /** …while the ship has at least this share of its hull. */
+    static final double FINISH_HULL = 0.4;
+
+    private static boolean finishing(WorldSnapshot w) {
+        WorldSnapshot.Hero h = w.hero();
+        WorldSnapshot.Ship t = w.ships().get(h.attackTargetId());
+        if (t == null || !t.npc() || !t.health().known() || h.health().hpPercent() < FINISH_HULL) {
+            return false;
+        }
+        double max = t.health().hpMax() + Math.max(0, t.health().shieldMax());
+        return max > 0 && (t.health().hp() + Math.max(0, t.health().shield())) / max < FINISH_BELOW;
     }
 
     private void travel(int map) {
