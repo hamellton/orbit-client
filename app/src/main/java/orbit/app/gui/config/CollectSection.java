@@ -40,9 +40,21 @@ final class CollectSection implements Section {
         table.setFillsViewportHeight(true);
         JButton add = new JButton("Добавить");
         add.addActionListener(e -> {
-            String type = JOptionPane.showInputDialog(table, "Тип ящика, напр. BONUS_BOX:");
-            if (type != null && !type.isBlank()) {
-                boxes.add(type.strip());
+            // the known boxes not in the list yet (the user's list, 2026-11-12), or any other type typed in
+            javax.swing.JComboBox<String> pick = new javax.swing.JComboBox<>();
+            pick.setEditable(true);
+            for (orbit.config.BoxCatalog.Box b : orbit.config.BoxCatalog.all()) {
+                if (b.collectable() && !boxes.has(b.type())) {
+                    pick.addItem(label(b));
+                }
+            }
+            int ok = JOptionPane.showConfirmDialog(table, new Object[] {"Ящик из списка или свой тип (напр. BONUS_BOX):", pick},
+                    "Добавить ящик", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+            Object chosen = pick.getEditor().getItem();
+            if (ok == JOptionPane.OK_OPTION && chosen != null && !String.valueOf(chosen).isBlank()) {
+                String type = String.valueOf(chosen).strip();
+                int dash = type.indexOf(" — ");
+                boxes.add(dash > 0 ? type.substring(0, dash) : type);
             }
         });
         JButton remove = new JButton("Удалить");
@@ -126,9 +138,15 @@ final class CollectSection implements Section {
                 ignoreContested.isSelected(), CARGO[cargo.getSelectedIndex()], Form.intOf(cargoFullAt), ores));
     }
 
+    /** {@code PIRATE_BOOTY — пиратский бути-ящик (зелёный), 5500 мс} for the picker. */
+    static String label(orbit.config.BoxCatalog.Box b) {
+        return b.type() + " — " + b.name() + (b.waitMs() > 0 ? ", " + b.waitMs() + " мс" : "");
+    }
+
+    /** Rows {type, collect, wait, priority}; shown with the box's name after its type. */
     private static final class Boxes extends AbstractTableModel {
 
-        private static final String[] COLUMNS = {"Ящик", "Собирать", "Ожидание, мс", "Приоритет"};
+        private static final String[] COLUMNS = {"Ящик", "Название", "Собирать", "Ожидание, мс", "Приоритет"};
         private final List<Object[]> rows = new ArrayList<>();
 
         void load(Map<String, BotConfig.BoxRule> m) {
@@ -148,9 +166,17 @@ final class CollectSection implements Section {
             return out;
         }
 
+        /** A new box: collected, with the wait DarkBot users set for it (palladium 750 ms, booty 5 500 ms). */
         void add(String type) {
-            rows.add(new Object[] {type, true, 0, 0});
+            if (has(type)) {
+                return;
+            }
+            rows.add(new Object[] {type, orbit.config.BoxCatalog.collectable(type), orbit.config.BoxCatalog.waitMs(type), 0});
             fireTableRowsInserted(rows.size() - 1, rows.size() - 1);
+        }
+
+        boolean has(String type) {
+            return rows.stream().anyMatch(r -> type.equals(r[0]));
         }
 
         void remove(int r) {
@@ -175,22 +201,30 @@ final class CollectSection implements Section {
 
         @Override
         public Class<?> getColumnClass(int c) {
-            return c == 0 ? String.class : c == 1 ? Boolean.class : Integer.class;
+            return c <= 1 ? String.class : c == 2 ? Boolean.class : Integer.class;
         }
 
         @Override
         public boolean isCellEditable(int r, int c) {
-            return true;
+            return c != 1;
         }
 
         @Override
         public Object getValueAt(int r, int c) {
-            return rows.get(r)[c];
+            if (c == 1) {
+                String type = String.valueOf(rows.get(r)[0]);
+                orbit.config.BoxCatalog.Box b = orbit.config.BoxCatalog.of(type);
+                return b == null ? orbit.config.LootNames.of(type) : b.collectable() ? b.name() : b.name() + " — не собирается";
+            }
+            return rows.get(r)[c == 0 ? 0 : c - 1];
         }
 
         @Override
         public void setValueAt(Object v, int r, int c) {
-            rows.get(r)[c] = v;
+            if (c == 1) {
+                return;
+            }
+            rows.get(r)[c == 0 ? 0 : c - 1] = v;
             fireTableCellUpdated(r, c);
         }
     }

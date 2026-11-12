@@ -360,4 +360,20 @@ class QuestModuleTest {
         m.tick();
         assertEquals("2-3", MapCatalog.bundled().info(m.workingMap()).name());
     }
+
+    @Test
+    void aMineIsNeverPickedUpEvenWhenTheConfigSaysSo() {
+        BotConfig c = BotConfig.empty().withCollect(new BotConfig.Collect(java.util.Map.of(
+                "mine_3", new BotConfig.BoxRule(true, 0, 0)), 2_000, false, false, BotConfig.Collect.CARGO_NONE, 0, null));
+        Sim sim = new Sim(c, MapCatalog.bundled().byName("2-2").id(), 5_000, 5_000);
+        orbit.protocol.gen.AddBoxCommand mine = new orbit.protocol.gen.AddBoxCommand();
+        mine.hash = "m3";
+        mine.boxType = "mine_3";
+        mine.x = 5_300;
+        mine.y = 5_000;
+        sim.world.apply(mine, sim.now);
+        orbit.bot.mod.KillModule k = new orbit.bot.mod.KillModule(sim.ctx, false, true);
+        sim.run(k::tick, 5_000);
+        assertTrue(sim.sent.stream().noneMatch(p -> p instanceof orbit.protocol.gen.CollectBoxRequest), "not a box");
+    }
 }

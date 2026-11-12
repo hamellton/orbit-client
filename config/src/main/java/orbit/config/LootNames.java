@@ -71,6 +71,9 @@ public final class LootNames {
             }
         }
         String known = BOXES.get(key);
+        if (known == null && BoxCatalog.of(key) != null) {
+            known = BoxCatalog.of(key).name();
+        }
         return known != null ? known : key.toLowerCase(Locale.ROOT).replace('_', ' ');
     }
 }

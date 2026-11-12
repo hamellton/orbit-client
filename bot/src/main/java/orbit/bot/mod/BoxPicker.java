@@ -149,7 +149,8 @@ public final class BoxPicker {
                 .filter(b -> !ignored.containsKey(b.hash()))
                 .filter(b -> {
                     BotConfig.BoxRule r = c.collect().boxes().get(key(b));
-                    return r != null && r.collect();
+                    // mines and fireworks show among the resources but are no boxes (the user's list, 2026-11-12)
+                    return r != null && r.collect() && orbit.config.BoxCatalog.collectable(key(b));
                 })
                 // not in the config's avoided zone (DarkBot's «avoided zones»)
                 .filter(b -> !Zones.avoided(c, w.hero().mapId(), b.x(), b.y(), ctx.maps()))
