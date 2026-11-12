@@ -114,6 +114,60 @@ public final class Attacker {
     public void clear() {
         targetId = 0;
         shotAt = false;
+        seenAt = 0;
+    }
+
+    /** The target's last position and time, and its speed from them (units per second, smoothed). */
+    private double seenX;
+    private double seenY;
+    private long seenAt;
+    private double vx;
+    private double vy;
+
+    /** How far ahead the chase aims: at least this (the client's reaction), more the farther the target is. */
+    static final double LEAD_MIN_S = 0.4;
+    static final double LEAD_MAX_S = 1.2;
+    /** A fleeing target is followed to this share of the radius, so it does not slip out again at once. */
+    static final double CHASE_INSIDE = 0.7;
+
+    /** Learns the target's velocity from where it was last tick (the server says where it goes, not how fast). */
+    private void track(WorldSnapshot.Ship t, long now) {
+        if (seenAt != 0 && now > seenAt) {
+            double dt = (now - seenAt) / 1e9;
+            if (dt > 0.05 && dt < 2) {
+                double nx = (t.x() - seenX) / dt;
+                double ny = (t.y() - seenY) / dt;
+                vx = vx * 0.5 + nx * 0.5;
+                vy = vy * 0.5 + ny * 0.5;
+            }
+        }
+        if (!t.moving()) {
+            vx = 0;
+            vy = 0;
+        }
+        seenX = t.x();
+        seenY = t.y();
+        seenAt = now;
+    }
+
+    /**
+     * Where the target will be a moment from now (DarkBot's idea: its location some hundred milliseconds ahead), never
+     * beyond where it flies to.
+     */
+    private double[] ahead(WorldSnapshot.Ship t, WorldSnapshot.Hero h, double radius) {
+        if (!t.moving() || Math.hypot(vx, vy) < 1) {
+            return new double[] {t.x(), t.y()};
+        }
+        double dist = t.distanceTo(h.x(), h.y());
+        double lead = Math.min(LEAD_MAX_S, LEAD_MIN_S + Math.max(0, dist - radius) / Math.max(200, h.speed()));
+        double px = t.x() + vx * lead;
+        double py = t.y() + vy * lead;
+        double toDest = Math.hypot(t.targetX() - t.x(), t.targetY() - t.y());
+        if (Math.hypot(px - t.x(), py - t.y()) > toDest) {
+            px = t.targetX();
+            py = t.targetY();
+        }
+        return new double[] {px, py};
     }
 
     /**
@@ -156,21 +210,25 @@ public final class Attacker {
         double dist = t.distanceTo(h.x(), h.y());
         BotConfig.NpcRule rule = Targets.rule(c, t, h.mapId());
         boolean follow = rule != null && rule.has(BotConfig.NpcFlag.AGGRESSIVE_FOLLOW);
+        track(t, now);
         boolean chasing = move && dist > radius + CHASE_GAP && (follow || c.general().runModeChase());
         boolean onTheWay = move && dist > radius + APPROACH && h.attackers().isEmpty();
         ctx.ship().want(chasing ? c.general().run() : onTheWay ? c.general().travel() : c.general().offensive());
         if (move && dist > radius + 60 && now >= nextApproach) {
-            // following: aim at where it flies, not where it is
-            double tx = follow && t.moving() ? t.targetX() : t.x();
-            double ty = follow && t.moving() ? t.targetY() : t.y();
-            double d = Math.max(1, Math.hypot(tx - h.x(), ty - h.y()));
-            double k = Math.max(0, (d - radius) / d);
-            ctx.nav().moveTo(h.x() + (tx - h.x()) * k, h.y() + (ty - h.y()) * k, false);
-            nextApproach = now + (follow ? ctx.pause(400, 800) : ctx.pause(700, 1_200));
+            // a fleeing target: aim where it will be and go well inside the radius, re-aiming often (live 2026-11-12:
+            // Boss Kristallon ran, the ship stopped at the radius of where it had been and never fired); the
+            // «aggressive follow» flag aims at where it flies
+            boolean fleeing = t.moving();
+            double[] at = follow && fleeing ? new double[] {t.targetX(), t.targetY()} : ahead(t, h, radius);
+            double keep = fleeing ? radius * CHASE_INSIDE : radius;
+            double d = Math.max(1, Math.hypot(at[0] - h.x(), at[1] - h.y()));
+            double k = Math.max(0, (d - keep) / d);
+            ctx.nav().moveTo(h.x() + (at[0] - h.x()) * k, h.y() + (at[1] - h.y()) * k, false);
+            nextApproach = now + (fleeing ? ctx.pause(300, 500) : ctx.pause(700, 1_200));
         } else if (move && c.loot().circle() && (rule == null || !rule.has(BotConfig.NpcFlag.NO_CIRCLE))
                 && now >= nextApproach) {
             circle(h, t, radius);
-            nextApproach = now + ctx.pause(900, 1_500);
+            nextApproach = now + (t.moving() ? ctx.pause(400, 700) : ctx.pause(900, 1_500));
         }
         if (move) {
             ctx.nav().tick();
@@ -285,10 +343,12 @@ public final class Attacker {
             log.info("Кружу вокруг {} ({}, радиус {})", t.name(), circleDir > 0 ? "по часовой" : "против часовой",
                     (int) radius);
         }
-        double angle = Math.atan2(h.y() - t.y(), h.x() - t.x())
+        // round where it will be: a moving target is not left behind while circling
+        double[] c = ahead(t, h, radius);
+        double angle = Math.atan2(h.y() - c[1], h.x() - c[0])
                 + circleDir * CIRCLE_STEP * (0.8 + 0.4 * ctx.random().nextDouble());
-        double r = radius * (0.92 + 0.1 * ctx.random().nextDouble());
-        ctx.nav().moveTo(t.x() + Math.cos(angle) * r, t.y() + Math.sin(angle) * r, false);
+        double r = radius * (t.moving() ? 0.8 : 0.92 + 0.1 * ctx.random().nextDouble());
+        ctx.nav().moveTo(c[0] + Math.cos(angle) * r, c[1] + Math.sin(angle) * r, false);
     }
 
     /** Rockets are launched this close at most (a little beyond the laser radius). */

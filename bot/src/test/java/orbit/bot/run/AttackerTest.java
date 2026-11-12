@@ -252,4 +252,36 @@ class AttackerTest {
         assertEquals(0, a.targetId(), "dropped");
         assertTrue(a.gaveUp(77));
     }
+
+    @Test
+    void aFleeingTargetIsKeptInRange() {
+        // live 2026-11-12: Boss Kristallon ran, the ship stopped at the radius of where it had been, fell behind and
+        // never fired; it flies 400, the NPC 300 away from it in a straight line
+        Sim sim = new Sim(config(true, null, Set.of()), 1, 10_000, 6_000);
+        sim.lasers("ammunition_laser_lcb-10");
+        sim.npc(77, "-=[ Target ]=-", 10_450, 6_000);
+        orbit.protocol.gen.MoveCommand mv = new orbit.protocol.gen.MoveCommand();
+        mv.userId = 77;
+        mv.x = 10_450 + 6_000;
+        mv.y = 6_000;
+        mv.timeToTarget = 20_000; // 300 a second
+        sim.world.apply(mv, sim.now);
+        Attacker a = new Attacker(sim.ctx);
+        a.target(sim.world.snapshot(sim.now).ships().get(77));
+        int inRange = 0;
+        int ticks = 0;
+        for (long t = 0; t < 18_000; t += 100) {
+            a.tick(true);
+            sim.now += 100 * Sim.MS;
+            if (t > 3_000) { // after catching up
+                var w = sim.world.snapshot(sim.now);
+                var npc = w.ships().get(77);
+                ticks++;
+                if (npc.distanceTo(w.hero().x(), w.hero().y()) <= 500) {
+                    inRange++;
+                }
+            }
+        }
+        assertTrue(inRange > ticks * 0.8, "in range " + inRange + " of " + ticks + " ticks");
+    }
 }
