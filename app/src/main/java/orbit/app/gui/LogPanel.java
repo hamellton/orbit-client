@@ -114,7 +114,8 @@ public final class LogPanel extends JPanel {
     private final Runnable unsubscribe;
     private final Timer drain;
     private final Timer ageing;
-    private JToggleButton allChip;
+    private JLabel chipsState;
+    private JButton showAll;
     private final Map<Mode, JToggleButton> modeButtons = new EnumMap<>(Mode.class);
     private long seenSeq;
     private boolean adjusting;
@@ -229,7 +230,10 @@ public final class LogPanel extends JPanel {
                 case ALL -> "Всё";
                 case PROBLEMS -> "Проблемы";
             }, m == mode);
-            b.putClientProperty("JButton.buttonType", "tab");
+            // the chosen one filled, the others plain: no doubt which is on
+            b.putClientProperty("JButton.buttonType", "roundRect");
+            b.putClientProperty("FlatLaf.style", "selectedBackground: #0e5a7c; selectedForeground: #ffffff;"
+                    + " background: #18202b; foreground: #8b96a8; font: bold");
             b.setToolTipText(switch (m) {
                 case JOURNAL -> "Главное: старт и стоп, смерти, квесты, продажи, переходы, сводка за час, проблемы";
                 case ALL -> "Все строки; одинаковые подряд свёрнуты в одну (×N)";
@@ -332,8 +336,25 @@ public final class LogPanel extends JPanel {
         // the subjects on a row of their own, one line whatever the width (scrolled sideways when narrow)
         JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 3));
         row.setBackground(Theme.SURFACE);
-        allChip = chip(null);
-        row.add(allChip);
+        JLabel title = new JLabel("Разделы:");
+        title.setForeground(Theme.TEXT);
+        title.setFont(font(11.5f).deriveFont(Font.BOLD));
+        row.add(title);
+        chipsState = new JLabel();
+        chipsState.setFont(font(11f));
+        row.add(chipsState);
+        showAll = new JButton("Показать все");
+        showAll.putClientProperty("JButton.buttonType", "roundRect");
+        showAll.setFont(font(11f));
+        showAll.setFocusable(false);
+        showAll.setToolTipText("Вернуть все скрытые разделы");
+        showAll.addActionListener(e -> {
+            hidden.clear();
+            syncChips();
+            rebuild();
+        });
+        row.add(showAll);
+        row.add(separator());
         for (LogCategory c : LogCategory.values()) {
             JToggleButton b = chip(c);
             chips.put(c, b);
@@ -361,42 +382,151 @@ public final class LogPanel extends JPanel {
     }
 
     private JToggleButton chip(LogCategory c) {
-        JToggleButton b = new JToggleButton(c == null ? "Все разделы" : c.label(), c == null || !hidden.contains(c));
-        b.putClientProperty("JButton.buttonType", "roundRect");
-        b.putClientProperty("JComponent.minimumHeight", 22);
-        b.setFont(font(11.5f));
-        b.setFocusable(false);
-        b.setMargin(new java.awt.Insets(1, 8, 1, 8));
-        if (c == null) {
-            b.setToolTipText("Показать все разделы");
-            b.addActionListener(e -> {
-                hidden.clear();
-                b.setSelected(true);
-                syncChips();
-                rebuild();
-            });
-        } else {
-            b.setIcon(new Dot(c.color()));
-            b.setToolTipText("«" + c.label() + "»: щелчок — показать/скрыть, двойной — только этот раздел");
-            b.addActionListener(e -> {
-                if (b.isSelected()) {
-                    hidden.remove(c);
-                } else {
-                    hidden.add(c);
+        Chip b = new Chip(c);
+        b.setSelected(!hidden.contains(c));
+        b.addActionListener(e -> {
+            if (b.isSelected()) {
+                hidden.remove(c);
+            } else {
+                hidden.add(c);
+            }
+            syncChips();
+            rebuild();
+        });
+        b.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                if (e.getClickCount() == 2) {
+                    only(c);
                 }
-                syncChips();
-                rebuild();
-            });
-            b.addMouseListener(new MouseAdapter() {
-                @Override
-                public void mouseClicked(MouseEvent e) {
-                    if (e.getClickCount() == 2) {
-                        only(c);
-                    }
-                }
-            });
-        }
+            }
+        });
         return b;
+    }
+
+    /**
+     * A subject's switch, unmistakable either way: shown — filled with its colour, a tick, bright words; hidden —
+     * empty, a dashed dim edge, a hollow dot, the words struck through.
+     */
+    private static final class Chip extends JToggleButton {
+
+        private final LogCategory category;
+        private int count;
+        private boolean hover;
+
+        Chip(LogCategory category) {
+            this.category = category;
+            setFocusable(false);
+            setContentAreaFilled(false);
+            setBorderPainted(false);
+            setOpaque(false);
+            setFont(font(11.5f));
+            setCursor(java.awt.Cursor.getPredefinedCursor(java.awt.Cursor.HAND_CURSOR));
+            addMouseListener(new MouseAdapter() {
+                @Override
+                public void mouseEntered(MouseEvent e) {
+                    hover = true;
+                    repaint();
+                }
+
+                @Override
+                public void mouseExited(MouseEvent e) {
+                    hover = false;
+                    repaint();
+                }
+            });
+            addItemListener(e -> tip());
+            tip();
+        }
+
+        void setCount(int n) {
+            if (n != count) {
+                count = n;
+                revalidate();
+                repaint();
+            }
+        }
+
+        private void tip() {
+            setToolTipText("«" + category.label() + "» " + (isSelected() ? "показан — щелчок скроет" : "скрыт — щелчок покажет")
+                    + "; двойной щелчок — только этот раздел");
+        }
+
+        private String countText() {
+            return count > 0 ? String.valueOf(count) : "";
+        }
+
+        @Override
+        public Dimension getPreferredSize() {
+            FontMetrics fm = getFontMetrics(getFont());
+            FontMetrics bm = getFontMetrics(getFont().deriveFont(Font.BOLD));
+            int w = 10 + 12 + 6 + bm.stringWidth(category.label()) + 10;
+            if (count > 0) {
+                w += fm.stringWidth(countText()) + 8;
+            }
+            return new Dimension(w, 24);
+        }
+
+        @Override
+        protected void paintComponent(Graphics g0) {
+            Graphics2D g = (Graphics2D) g0.create();
+            g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+            boolean on = isSelected();
+            Color c = category.color();
+            int w = getWidth() - 1;
+            int h = getHeight() - 1;
+            int arc = h;
+            if (on) {
+                g.setColor(new Color(c.getRed(), c.getGreen(), c.getBlue(), hover ? 85 : 60));
+                g.fillRoundRect(0, 0, w, h, arc, arc);
+                g.setColor(c);
+                g.setStroke(new java.awt.BasicStroke(1.4f));
+                g.drawRoundRect(0, 0, w, h, arc, arc);
+            } else {
+                if (hover) {
+                    g.setColor(new Color(255, 255, 255, 14));
+                    g.fillRoundRect(0, 0, w, h, arc, arc);
+                }
+                g.setColor(new Color(0x3a4558));
+                g.setStroke(new java.awt.BasicStroke(1f, java.awt.BasicStroke.CAP_ROUND, java.awt.BasicStroke.JOIN_ROUND,
+                        1f, new float[] {3f, 3f}, 0f));
+                g.drawRoundRect(0, 0, w, h, arc, arc);
+            }
+            // the mark: a tick in a coloured disc, or a hollow ring
+            int cx = 10;
+            int cy = h / 2 - 5;
+            if (on) {
+                g.setColor(c);
+                g.fillOval(cx, cy, 11, 11);
+                g.setColor(new Color(0x0b0f17));
+                g.setStroke(new java.awt.BasicStroke(1.8f, java.awt.BasicStroke.CAP_ROUND, java.awt.BasicStroke.JOIN_ROUND));
+                g.drawPolyline(new int[] {cx + 3, cx + 5, cx + 8}, new int[] {cy + 6, cy + 8, cy + 3}, 3);
+            } else {
+                g.setColor(new Color(0x5b6678));
+                g.setStroke(new java.awt.BasicStroke(1.3f));
+                g.drawOval(cx, cy, 10, 10);
+            }
+            int x = cx + 12 + 6;
+            int base = h / 2 + 5;
+            Font f = on ? getFont().deriveFont(Font.BOLD) : getFont();
+            g.setFont(f);
+            FontMetrics fm = g.getFontMetrics();
+            String label = category.label();
+            g.setColor(on ? Theme.TEXT : new Color(0x6b7688));
+            g.drawString(label, x, base);
+            int lw = fm.stringWidth(label);
+            if (!on) {
+                g.setStroke(new java.awt.BasicStroke(1f));
+                g.drawLine(x, base - fm.getAscent() / 2 + 1, x + lw, base - fm.getAscent() / 2 + 1);
+            }
+            if (count > 0) {
+                g.setFont(getFont());
+                g.setColor(on ? new Color(0xc7d0dc) : new Color(0x5b6678));
+                g.drawString(countText(), x + lw + 8, base);
+            }
+            g.dispose();
+        }
     }
 
     private void only(LogCategory c) {
@@ -411,15 +541,18 @@ public final class LogPanel extends JPanel {
     }
 
     private void syncChips() {
-        if (allChip != null) {
-            allChip.setSelected(hidden.isEmpty());
-        }
         chips.forEach((c, b) -> {
             b.setSelected(!hidden.contains(c));
-            int n = counts.getOrDefault(c, 0);
-            b.setText(n > 0 ? c.label() + "  " + n : c.label());
-            b.setForeground(hidden.contains(c) ? Theme.DIM : Theme.TEXT);
+            ((Chip) b).setCount(counts.getOrDefault(c, 0));
         });
+        if (chipsState != null) {
+            int n = hidden.size();
+            chipsState.setText(n == 0 ? "показаны все"
+                    : n == LogCategory.values().length ? "все скрыты"
+                    : "показано " + (LogCategory.values().length - n) + " из " + LogCategory.values().length);
+            chipsState.setForeground(n == 0 ? Theme.DIM : new Color(0xfbbf24));
+            showAll.setVisible(n > 0);
+        }
     }
 
     private JPopupMenu moreMenu() {
@@ -988,28 +1121,6 @@ public final class LogPanel extends JPanel {
         void trim(int n) {
             rows.subList(0, n).clear();
             fireIntervalRemoved(this, 0, n - 1);
-        }
-    }
-
-    /** A small coloured dot for the subject chips. */
-    private record Dot(Color color) implements javax.swing.Icon {
-        @Override
-        public void paintIcon(Component c, Graphics g0, int x, int y) {
-            Graphics2D g = (Graphics2D) g0.create();
-            g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-            g.setColor(color);
-            g.fillOval(x, y + 1, 8, 8);
-            g.dispose();
-        }
-
-        @Override
-        public int getIconWidth() {
-            return 8;
-        }
-
-        @Override
-        public int getIconHeight() {
-            return 10;
         }
     }
 
