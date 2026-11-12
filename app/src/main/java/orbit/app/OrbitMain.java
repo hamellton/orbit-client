@@ -630,6 +630,12 @@ public final class OrbitMain {
                     conn.close();
                     game.join(10_000);
                     current.set(null);
+                    if (conn.trouble() != null) {
+                        // a kick, a login from elsewhere, a typed server line: no retries, the user looks first
+                        log.error("Аккаунт остановлен: {}. Повторов входа не будет — проверьте аккаунт", conn.trouble());
+                        feed.alert(conn.trouble());
+                        break;
+                    }
                     int wantHangar = run.runner().hangarRequest();
                     if (wantHangar != 0 && !closed.get() && lastHost.get() != null) {
                         // the module asked for another ship (two-ship palladium): switch it on the site, log in again

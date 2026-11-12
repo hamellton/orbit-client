@@ -552,6 +552,9 @@ public final class ManagerWindow {
         for (String n : names) {
             rows.add(row(n, settings));
         }
+        for (String n : names) {
+            alertIfNew(account(n));
+        }
         boolean sameNames = names.equals(model.names);
         model.names = names;
         model.rows = rows;
@@ -582,6 +585,28 @@ public final class ManagerWindow {
     private void updateHint() {
         hint.setText(model.names.isEmpty() ? "Нет аккаунтов — «Добавить…»"
                 : "Двойной щелчок — вкладка или настройки аккаунта");
+    }
+
+    /** Alerts already shown, by account: each one once. */
+    private final Map<String, Long> alertsShown = new java.util.HashMap<>();
+
+    /** A sign of trouble stopped the account: a dialog that does not block the window, and a beep. */
+    private void alertIfNew(ManagedAccount a) {
+        long at = a.feed().alertAt();
+        if (at == 0 || alertsShown.getOrDefault(a.name(), 0L) == at) {
+            return;
+        }
+        alertsShown.put(a.name(), at);
+        if (java.awt.GraphicsEnvironment.isHeadless() || !frame.isDisplayable()) {
+            return;
+        }
+        Toolkit.getDefaultToolkit().beep();
+        JOptionPane pane = new JOptionPane(Theme.wrapped("«" + a.name() + "» остановлен: " + a.feed().alertText()
+                + ". Повторов входа не будет. Проверьте аккаунт, прежде чем запускать снова.", 420),
+                JOptionPane.WARNING_MESSAGE);
+        javax.swing.JDialog d = pane.createDialog(frame, "Признак беды — «" + a.name() + "»");
+        d.setModal(false);
+        d.setVisible(true);
     }
 
     private Object[] row(String n, AccountSettings settings) {

@@ -311,6 +311,39 @@ class GameConnectionTest {
         }
     }
 
+    @Test
+    void troubleSignsAreTold() {
+        assertEquals("Сервер выкинул из игры (KIK)", GameConnection.troubleOf("0|KIK"));
+        assertEquals("В аккаунт вошли с другого места (ERR 3)", GameConnection.troubleOf("0|ERR|3"));
+        assertEquals("Сервер написал: «Please stop botting»", GameConnection.troubleOf("0|A|STD|Please stop botting"));
+        // the usual lines: localized keys, rewards, a failed login (the client retries it), the logout
+        assertEquals(null, GameConnection.troubleOf("0|A|STM|msg_pet_activated"));
+        assertEquals(null, GameConnection.troubleOf("0|LM|ST|CRE|100|2000"));
+        assertEquals(null, GameConnection.troubleOf("0|ERR|1"));
+        assertEquals(null, GameConnection.troubleOf("0|l"));
+    }
+
+    @Test
+    void aKickStopsTheConnectionWithoutAReconnect() throws Exception {
+        try (FakeGameServer gs = new FakeGameServer()) {
+            gs.afterLogin = send -> {
+                LegacyModule kick = new LegacyModule();
+                kick.message = "0|KIK";
+                send.accept(kick);
+            };
+            Source src = new Source(gs.port(), 0);
+            Listener l = new Listener();
+            GameConnection c = new GameConnection(src, l, fast(), StartupSequence.minimal(READY));
+            Thread t = Thread.ofVirtual().start(c::run);
+            t.join(5000);
+            assertTrue(!t.isAlive(), "the connection ends");
+            assertEquals("Сервер выкинул из игры (KIK)", c.trouble());
+            assertTrue(l.states.getLast().startsWith("STOPPED"), l.states.toString());
+            assertEquals(1, gs.gameConnections.get(), "no reconnect");
+            assertEquals(1, src.logins.get());
+        }
+    }
+
     private static void await(BooleanSupplier cond, int seconds) throws InterruptedException {
         long deadline = System.currentTimeMillis() + seconds * 1000L;
         while (!cond.getAsBoolean()) {

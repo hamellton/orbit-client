@@ -224,6 +224,26 @@ public final class WorldFeed {
         world.applyOutgoing(p, nanos);
     }
 
+    private volatile String alert;
+    private volatile long alertAt;
+
+    /** A sign of trouble that stopped the account (plan 5в.7г): the window shows it once. */
+    public void alert(String why) {
+        alert = why;
+        alertAt = System.nanoTime();
+        state = "Остановлен: " + why;
+    }
+
+    /** The last alert, or {@code null}. */
+    public String alertText() {
+        return alert;
+    }
+
+    /** When the last alert came ({@link System#nanoTime}), 0 if none: tells a new one from one shown. */
+    public long alertAt() {
+        return alertAt;
+    }
+
     public void setState(String state) {
         this.state = state;
     }

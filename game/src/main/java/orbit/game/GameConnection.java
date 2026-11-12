@@ -98,6 +98,49 @@ public final class GameConnection implements AutoCloseable {
         };
     }
 
+    /**
+     * A sign of trouble from the server (a kick, a login from elsewhere, a typed message): the account stops, no
+     * reconnect (plan 5в.7г).
+     */
+    private static final class Trouble extends IOException {
+        private static final long serialVersionUID = 1L;
+
+        Trouble(String message) {
+            super(message);
+        }
+    }
+
+    private volatile String trouble;
+
+    /** Why the server's sign of trouble ended this connection for good, or {@code null}. */
+    public String trouble() {
+        return trouble;
+    }
+
+    /**
+     * The client's legacy commands that mean trouble ({@code ServerCommands}, {@code ConnectionManager}): {@code KIK}
+     * (kicked), {@code ERR|3} double login and {@code ERR|41} logged in twice (the client disconnects and shows
+     * «doubleloggedin»), and {@code A|STD|<text>} — a server line in plain text, not a key of the client's
+     * dictionary (never seen in hours of recordings; that is how a person writes). {@code null} when none.
+     */
+    static String troubleOf(String message) {
+        if (message == null) {
+            return null;
+        }
+        String[] a = message.split("\\|", -1);
+        if (a.length < 2) {
+            return null;
+        }
+        return switch (a[1]) {
+            case "KIK" -> "Сервер выкинул из игры (KIK)";
+            case "ERR" -> a.length > 2 && ("3".equals(a[2]) || "41".equals(a[2]))
+                    ? "В аккаунт вошли с другого места (ERR " + a[2] + ")" : null;
+            case "A" -> a.length > 3 && "STD".equals(a[2])
+                    ? "Сервер написал: «" + String.join("|", java.util.Arrays.copyOfRange(a, 3, a.length)) + "»" : null;
+            default -> null;
+        };
+    }
+
     private static final class LoginRejected extends IOException {
         private static final long serialVersionUID = 1L;
 
@@ -280,6 +323,8 @@ public final class GameConnection implements AutoCloseable {
                         session = null;
                     }
                     sleep(Duration.ofMillis(Math.max(0, relogin.delayMillis())));
+                } catch (Trouble e) {
+                    throw e;
                 } catch (IOException | ProtocolException e) {
                     if (closed.get()) {
                         break;
@@ -297,6 +342,11 @@ public final class GameConnection implements AutoCloseable {
                     sleep(wait);
                 }
             }
+        } catch (Trouble e) {
+            trouble = e.getMessage();
+            log.error("Признак беды: {} — аккаунт останавливаю, без переподключения", e.getMessage());
+            listener.onState(GameListener.State.STOPPED, e.getMessage());
+            return;
         } catch (ProtocolOutdatedException e) {
             log.error("{}: {}", e.getMessage(), e.details());
             listener.onState(GameListener.State.STOPPED, e.getMessage());
@@ -435,6 +485,9 @@ public final class GameConnection implements AutoCloseable {
                         connectedBefore = true;
                         startupThread = Thread.ofVirtual().name("startup").start(withLogContext(() -> runStartup(ctx)));
                         keepAlive = Thread.ofVirtual().name("keepalive").start(withLogContext(this::keepAliveLoop));
+                    } else if (p instanceof LegacyModule lm && troubleOf(lm.message) != null) {
+                        listener.onPacket(p);
+                        throw new Trouble(troubleOf(lm.message));
                     } else if (p instanceof LegacyModule lm && LOGOUT.equals(lm.message)) {
                         // the logout we asked for: the server ends the session, nothing to reconnect
                         listener.onPacket(p);
