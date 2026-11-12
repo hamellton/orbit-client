@@ -470,7 +470,21 @@ SAFETY в нужном кубам объёме → KILL для кубов → 5�
         брать (`types`), что делать (`do`: KILL, DAMAGE, BOX, ORE, SELL, MAP), как часто к квестодателю
         (`revisitMinutes`). Не сделано: «собрать предметы» (`COLLECT_LOOT` — неизвестно, из чего выпадает: нужна
         запись такого квеста), проверка вживую;
-      - [ ] 4. потом: Battle Pass / Season Pass (награды), Diminishing, Galaxy Trek.
+      - [x] 4. пропуска и события (2026-11-12, факты клиента: `SeasonPassUI*`, `BattlePassUI*`, `SpaceSearchUIMediator`,
+        `DiminishingQuestUIWindowProxy`; «Galaxy Trek» = Space Search — `title_space_search` в flashres):
+        - миссии Season Pass, Battle Pass, Galaxy Trek и принятый убывающий квест — в общем списке квестов (у квеста
+          `source`), брать их не нужно, модуль делает их как обычные;
+        - Season Pass «Забрать всё» (`SeasonPassRewardClaimAllRequest(0)`), когда есть награда достигнутого уровня на
+          своей дорожке (уровень — как клиент: очки по `[0]+pointsCost`; золотая — если `goldPass`);
+        - бесплатный перевыбор миссии сезона, которую бот не умеет (`SeasonPassRefreshRequest(id, 0)`, пока
+          `dailyLeft`/`weeklyLeft` > 0) — решение пользователя; за уридий — никогда;
+        - Battle Pass «Забрать» (`BattlePassCollectRequest`) — только если пропуск куплен (`purchased`);
+        - Galaxy Trek: награды за секторы (`SpaceSearchRequest(3, range)`, `unlock && !received`); поиск (action 1)
+          тратит FTL-ключи — никогда (пользователь);
+        - убывающий квест: «Принять» (`DiminishingQuestAcceptQuestRequest`), если бот его умеет;
+        - никогда сам: покупка уровней сезона, перевыбор за уридий, пропуска, обмен ключей Battle Pass (пользователь сам);
+        - галочки во вкладке «Квесты» (`season`, `seasonReroll`, `battlepass`, `trek`, `diminishing`, вкл.);
+          проверить вживую.
       - [x] где живут NPC (пользователь 2026-11-12, в `reference/maps/npc-maps.json` вместе с тем, что бот видел сам):
         Devolarium — x-3; Saimon и Mordon — x-3 и x-4; Sibelon — только x-4; Lordakia — x-2 … x-5; их боссы — на тех
         же картах; Sibelonit и Boss Sibelonit — x-5; на 4-5 есть Uber-версии и боссы этих NPC, но боссов проще бить не

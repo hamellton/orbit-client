@@ -447,4 +447,77 @@ class QuestModuleTest {
         m.tick();
         assertEquals("5-2", MapCatalog.bundled().info(m.workingMap()).name());
     }
+
+    @Test
+    void thePassesFreeButtonsAndNeverAPaidOne() {
+        int map = MapCatalog.bundled().byName("3-6").id();
+        Sim sim = new Sim(BotConfig.empty(), map, 10_000, 6_000);
+        // Season Pass: level 2 reached (0 + 90 of 90, then 50 of 90), level 0's free reward unclaimed, gold not bought
+        orbit.protocol.gen.SeasonPassStatusCommand st = new orbit.protocol.gen.SeasonPassStatusCommand();
+        st.pointsCost = List.of(0, 90, 90);
+        st.uridiumCost = List.of();
+        sim.world.apply(st, sim.now);
+        orbit.protocol.gen.SeasonPointsInfoCommand pts = new orbit.protocol.gen.SeasonPointsInfoCommand();
+        pts.points = 140;
+        sim.world.apply(pts, sim.now);
+        orbit.protocol.gen.SeasonPassRewardInfoCommand ri = new orbit.protocol.gen.SeasonPassRewardInfoCommand();
+        orbit.protocol.gen.SeasonPassRewardModule free = new orbit.protocol.gen.SeasonPassRewardModule();
+        free.level = 0;
+        free.lootId = "x";
+        orbit.protocol.gen.SeasonPassRewardModule gold = new orbit.protocol.gen.SeasonPassRewardModule();
+        gold.level = 0;
+        gold.goldPass = true;
+        gold.lootId = "y";
+        ri.freeRewardItems = List.of(free);
+        ri.goldPassRewardItems = List.of(gold);
+        ri.extGoldPassRewardItems = List.of();
+        sim.world.apply(ri, sim.now);
+        assertEquals(1, sim.world.snapshot(sim.now).quests().passes().seasonClaimable(), "the free one only");
+        // a season mission the bot cannot do (kill players), daily, one free reroll left
+        orbit.protocol.gen.SeasonPassMissionInfoCommand mi = new orbit.protocol.gen.SeasonPassMissionInfoCommand();
+        mi.refreshInfo = new orbit.protocol.gen.RefreshQuestInfo();
+        mi.refreshInfo.dailyLeft = 1;
+        mi.refreshInfo.nextDailyUridium = 500;
+        orbit.protocol.gen.SeasonPassMissionModule mission = new orbit.protocol.gen.SeasonPassMissionModule();
+        mission.questDefinitionModule = QuestGiverVisitTest.Giver.definition(700011);
+        mission.questDefinitionModule.types.getFirst().type = 3;
+        mission.questDefinitionModule.rootCase.modifier.getFirst().condition.displayType = 28;
+        mission.missionStatus = new orbit.protocol.gen.SeasonPassMissionStatusModule();
+        mi.missionItems = List.of(mission);
+        sim.world.apply(mi, sim.now);
+        // Galaxy Trek: a sector reached, not received; the Battle Pass not bought, an objective waiting
+        orbit.protocol.gen.SpaceSearchSectorRewardsCommand sr = new orbit.protocol.gen.SpaceSearchSectorRewardsCommand();
+        orbit.protocol.gen.SpaceSearchSectorRewards sector = new orbit.protocol.gen.SpaceSearchSectorRewards();
+        sector.range = 10;
+        sector.count = 10;
+        sector.unlock = true;
+        sr.rewards = List.of(sector);
+        sim.world.apply(sr, sim.now);
+        orbit.protocol.gen.BattlePassUpdateStatusCommand bp = new orbit.protocol.gen.BattlePassUpdateStatusCommand();
+        bp.purchased = false;
+        bp.questsToCollectReward = List.of(500456);
+        sim.world.apply(bp, sim.now);
+        // the diminishing window offers a quest the bot can do (Protegit, here on 3-6)
+        orbit.protocol.gen.DiminishingQuestInitializationCommand di = new orbit.protocol.gen.DiminishingQuestInitializationCommand();
+        di.quest = QuestGiverVisitTest.Giver.definition(122001);
+        di.acceptabilityStatus = new orbit.protocol.gen.QuestAcceptabilityStatusModule();
+        di.acceptabilityStatus.type = 1;
+        sim.world.apply(di, sim.now);
+
+        QuestModule m = new QuestModule(sim.ctx, NpcMaps.shared(), orbit.world.maps.OreMaps.inMemory());
+        m.visited(sim.now);
+        sim.run(m::tick, 30_000);
+        assertTrue(sim.sent.stream().anyMatch(p -> p instanceof orbit.protocol.gen.SeasonPassRewardClaimAllRequest));
+        assertTrue(sim.sent.stream().anyMatch(p -> p instanceof orbit.protocol.gen.SeasonPassRefreshRequest r
+                && r.questId == 700011 && r.costType == 0), "a free reroll");
+        assertTrue(sim.sent.stream().noneMatch(p -> p instanceof orbit.protocol.gen.SeasonPassRefreshRequest r && r.costType != 0),
+                "never for uridium");
+        assertTrue(sim.sent.stream().anyMatch(p -> p instanceof orbit.protocol.gen.SpaceSearchRequest r && r.action == 3 && r.count == 10));
+        assertTrue(sim.sent.stream().noneMatch(p -> p instanceof orbit.protocol.gen.SpaceSearchRequest r && r.action == 1),
+                "no search: it spends FTL keys");
+        assertTrue(sim.sent.stream().noneMatch(p -> p instanceof orbit.protocol.gen.BattlePassCollectRequest), "not bought");
+        assertTrue(sim.sent.stream().anyMatch(p -> p instanceof orbit.protocol.gen.DiminishingQuestAcceptQuestRequest r
+                && r.questId == 122001 && r.acceptabilityStatus != null));
+        assertTrue(sim.sent.stream().noneMatch(p -> p instanceof orbit.protocol.gen.SeasonPassLevelPurchaseRequest));
+    }
 }

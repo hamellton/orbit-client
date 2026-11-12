@@ -19,9 +19,60 @@ import java.util.Map;
  */
 public record Quests(Map<Integer, Quest> active, List<Offer> offers, Map<Integer, Quest> details,
                      java.util.Set<Integer> givers, int maxQuests, int maxEventQuests, boolean onlyStarter,
-                     long offersNanos, int privileged) {
+                     long offersNanos, int privileged, Passes passes) {
 
-    public static final Quests NONE = new Quests(Map.of(), List.of(), Map.of(), java.util.Set.of(), 0, 0, false, 0, 0);
+    public static final Quests NONE = new Quests(Map.of(), List.of(), Map.of(), java.util.Set.of(), 0, 0, false, 0, 0,
+            Passes.NONE);
+
+    /** Where a taken quest comes from: the giver, or a pass window (no accepting there, they run by themselves). */
+    public static final String GIVER = "";
+    public static final String SEASON = "season";
+    public static final String BATTLEPASS_SOURCE = "battlepass";
+    public static final String TREK = "trek";
+    public static final String DIMINISHING_SOURCE = "diminishing";
+
+    /**
+     * The passes' state (client facts: {@code SeasonPassUIData}, {@code BattlePassUIData}, {@code SpaceSearchUIMediator},
+     * {@code DiminishingQuestUIWindowProxy}).
+     *
+     * @param seasonPoints   the season's points; {@code pointsCost} the points of each level
+     * @param seasonRewards  every reward of the season: level, track (0 free, 1 gold, 2 ext gold), claimed
+     * @param dailyLeft      free rerolls of daily missions left today; {@code weeklyLeft} of weekly ones
+     * @param bpPurchased    the Battle Pass is bought; {@code bpToCollect} quests whose pass reward waits
+     * @param trekSectors    Galaxy Trek's sector rewards: {range, count, unlocked 1/0, received 1/0}
+     * @param diminishing    the quest the diminishing window offers, {@code null} none; {@code diminishingStatus} its
+     *                       acceptability ({@link #NOT_ACCEPTABLE} … {@link #COMPLETED})
+     */
+    public record Passes(boolean seasonGold, boolean seasonExtGold, int seasonPoints, List<Integer> pointsCost,
+                         List<int[]> seasonRewards, int dailyLeft, int weeklyLeft, boolean bpPurchased,
+                         List<Integer> bpToCollect, List<int[]> trekSectors, Quest diminishing, int diminishingStatus) {
+
+        public static final Passes NONE = new Passes(false, false, 0, List.of(), List.of(), 0, 0, false, List.of(),
+                List.of(), null, -1);
+
+        /**
+         * The season level the client shows ({@code SeasonPassUIData}: points walked through {@code [0] + pointsCost} —
+         * below the next level's cost: that level; all passed: the number of costs).
+         */
+        public int seasonLevel() {
+            int points = seasonPoints;
+            for (int i = 0; i < pointsCost.size(); i++) {
+                int need = pointsCost.get(i);
+                if (points < need) {
+                    return i;
+                }
+                points -= need;
+            }
+            return pointsCost.size();
+        }
+
+        /** Season rewards the client would let one claim: reached, unclaimed, on a track that is owned. */
+        public long seasonClaimable() {
+            int level = seasonLevel();
+            return seasonRewards.stream().filter(r -> r[2] == 0 && r[0] <= level - 1
+                    && (r[1] == 0 || r[1] == 1 && seasonGold || r[1] == 2 && seasonGold && seasonExtGold)).count();
+        }
+    }
 
     /** {@code QuestTypeModule}. */
     public static final int STARTER = 1;
@@ -41,7 +92,16 @@ public record Quests(Map<Integer, Quest> active, List<Offer> offers, Map<Integer
     public static final int COMPLETED = 3;
 
     /** A quest: its types, its conditions (a tree as the server sends it) and rewards. */
-    public record Quest(int id, List<Integer> types, List<Condition> conditions, List<Reward> rewards, int star) {
+    public record Quest(int id, List<Integer> types, List<Condition> conditions, List<Reward> rewards, int star,
+                        String source) {
+
+        public Quest(int id, List<Integer> types, List<Condition> conditions, List<Reward> rewards, int star) {
+            this(id, types, conditions, rewards, star, GIVER);
+        }
+
+        public Quest from(String where) {
+            return new Quest(id, types, conditions, rewards, star, where);
+        }
 
         public boolean is(int type) {
             return types.contains(type);

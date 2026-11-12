@@ -44,6 +44,8 @@ final class QuestsSection implements Section {
     private final Map<String, JCheckBox> kinds = new LinkedHashMap<>();
     private final JSpinner revisit = Form.number(30, 1_440, 10);
     private final JCheckBox locator = new JCheckBox("Искать NPC квеста пеленгатором питомца");
+    /** The passes' free buttons: setting key → checkbox (on by default). */
+    private final Map<String, JCheckBox> passes = new LinkedHashMap<>();
     private final Marks marks = new Marks();
     private final javax.swing.JTable table = new javax.swing.JTable(marks);
     private final JComponent view;
@@ -70,6 +72,16 @@ final class QuestsSection implements Section {
         f.note("Пока бот бьёт NPC квеста, питомец в режиме «Пеленгатор врагов» на этого NPC, и бот летит туда, куда"
                 + " он показывает. Потом питомец возвращается к режиму из вкладки «Питомец». Питомец должен быть там"
                 + " включён; продажа через торговый модуль и камикадзе важнее пеленгатора.");
+        f.section("Пропуска и события");
+        passes.put("season", new JCheckBox("Season Pass: забирать награды уровней (золотые — если пропуск куплен)"));
+        passes.put("seasonReroll", new JCheckBox("Season Pass: бесплатно перевыбирать миссии, которые бот не умеет"));
+        passes.put("battlepass", new JCheckBox("Battle Pass: забирать награды (если пропуск куплен)"));
+        passes.put("trek", new JCheckBox("Galaxy Trek: забирать награды за секторы"));
+        passes.put("diminishing", new JCheckBox("Принимать убывающие квесты, которые бот умеет"));
+        passes.values().forEach(b -> f.row("", b));
+        f.note("Миссии Season Pass, Battle Pass и Galaxy Trek бот делает как обычные квесты — брать их не нужно."
+                + " Никогда сам: покупка уровней и перевыбор за уридий, поиск в Galaxy Trek (тратит FTL-ключи), обмен"
+                + " ключей Battle Pass.");
         f.section("Квесты по номерам");
         f.note("Все квесты, что бот видел у квестодателя или взял (local/quests-seen.json). «Первым» — взять и делать"
                 + " раньше всех; «Не делать» — не брать, а взятый не трогать (прогресс сохраняется); «Отменить» — отменить"
@@ -110,6 +122,7 @@ final class QuestsSection implements Section {
         kinds.forEach((k, b) -> b.setSelected(doing.contains(k)));
         Form.set(revisit, m.path("revisitMinutes").asInt(360));
         locator.setSelected(m.path("locator").asBoolean(false));
+        passes.forEach((k, b) -> b.setSelected(m.path(k).asBoolean(true)));
         marks.load(orbit.world.QuestCatalog.shared().all(), ints(m.path("first")), ints(m.path("skip")), ints(m.path("cancel")));
     }
 
@@ -141,6 +154,13 @@ final class QuestsSection implements Section {
         });
         m.put("revisitMinutes", Form.intOf(revisit));
         m.put("locator", locator.isSelected());
+        passes.forEach((k, b) -> {
+            if (b.isSelected()) {
+                m.remove(k); // on is the default
+            } else {
+                m.put(k, false);
+            }
+        });
         for (String key : new String[] {"first", "skip", "cancel"}) {
             ArrayNode a = m.putArray(key);
             marks.marked(key).forEach(a::add);
@@ -150,7 +170,7 @@ final class QuestsSection implements Section {
         }
         if (untouched && strings(t, List.of()).equals(DEFAULT_TYPES) && d.size() == KINDS.size()
                 && Form.intOf(revisit) == 360 && !locator.isSelected() && !m.has("first") && !m.has("skip")
-                && !m.has("cancel")) {
+                && !m.has("cancel") && passes.values().stream().allMatch(JCheckBox::isSelected)) {
             return c; // nothing set for a config of another module: do not add the section
         }
         return c.withModuleSettings(KEY, m);

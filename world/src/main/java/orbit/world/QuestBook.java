@@ -44,6 +44,19 @@ final class QuestBook {
     private long offersNanos;
     private int privileged;
     private Quests snapshot = Quests.NONE;
+    // the passes (Season Pass, Battle Pass, Galaxy Trek, the diminishing window)
+    private boolean seasonGold;
+    private boolean seasonExtGold;
+    private int seasonPoints;
+    private List<Integer> pointsCost = List.of();
+    private final Map<String, int[]> seasonRewards = new LinkedHashMap<>(); // "track:level" → {level, track, claimed}
+    private int dailyLeft;
+    private int weeklyLeft;
+    private boolean bpPurchased;
+    private List<Integer> bpToCollect = List.of();
+    private List<int[]> trekSectors = List.of();
+    private Quests.Quest diminishing;
+    private int diminishingStatus = -1;
     private boolean dirty;
 
     /** @return true when the packet was a quest packet */
@@ -98,6 +111,101 @@ final class QuestBook {
                 Quests.Quest q = quest(i.definition);
                 details.put(q.id(), q);
             }
+            case orbit.protocol.gen.SeasonPassStatusCommand st -> {
+                seasonGold = st.goldPass;
+                seasonExtGold = st.extGoldPass;
+                pointsCost = st.pointsCost == null ? List.of() : List.copyOf(st.pointsCost);
+            }
+            case orbit.protocol.gen.SeasonPointsInfoCommand pt -> seasonPoints = pt.points;
+            case orbit.protocol.gen.SeasonPassRewardInfoCommand ri -> {
+                seasonRewards.clear();
+                reward(ri.freeRewardItems, 0);
+                reward(ri.goldPassRewardItems, 1);
+                reward(ri.extGoldPassRewardItems, 2);
+            }
+            case orbit.protocol.gen.SeasonPassRewardClaimCommand rc -> {
+                int track = rc.extGoldPass ? 2 : rc.goldPass ? 1 : 0;
+                int[] r = seasonRewards.get(track + ":" + rc.level);
+                if (r != null) {
+                    r[2] = rc.claimed ? 1 : 0;
+                }
+            }
+            case orbit.protocol.gen.SeasonPassMissionInfoCommand mi -> {
+                if (mi.refreshInfo != null) {
+                    dailyLeft = mi.refreshInfo.dailyLeft;
+                    weeklyLeft = mi.refreshInfo.weeklyLeft;
+                }
+                if (mi.missionInfoType == orbit.protocol.gen.SeasonPassMissionInfoCommand.MISSIONINFOTYPE_REPLACE) {
+                    active.values().removeIf(x -> Quests.SEASON.equals(x.source()));
+                }
+                if (mi.missionItems != null) {
+                    for (orbit.protocol.gen.SeasonPassMissionModule m : mi.missionItems) {
+                        int st = m.missionStatus == null ? 0 : m.missionStatus.type;
+                        // running ones only: the gold ones need the bought pass, completed ones are done
+                        boolean running = st == orbit.protocol.gen.SeasonPassMissionStatusModule.MISSIONSTATUSTYPE_NORMAL_RUNNING
+                                || st == orbit.protocol.gen.SeasonPassMissionStatusModule.MISSIONSTATUSTYPE_GOLD_RUNNING;
+                        if (m.questDefinitionModule == null) {
+                            continue;
+                        }
+                        if (running) {
+                            Quests.Quest q = quest(m.questDefinitionModule).from(Quests.SEASON);
+                            active.put(q.id(), q);
+                        } else {
+                            active.remove(m.questDefinitionModule.id);
+                        }
+                    }
+                }
+            }
+            case orbit.protocol.gen.BattlePassInfoCommand bi -> {
+                active.values().removeIf(x -> Quests.BATTLEPASS_SOURCE.equals(x.source()));
+                if (bi.battlePassQuestModuleList != null) {
+                    for (orbit.protocol.gen.BattlePassQuestModule m : bi.battlePassQuestModuleList) {
+                        int st = m.acceptabilityStatus == null ? 0 : m.acceptabilityStatus.type;
+                        if (m.questDefinition != null && (st == Quests.RUNNING || st == Quests.ACCEPTABLE)) {
+                            Quests.Quest q = quest(m.questDefinition).from(Quests.BATTLEPASS_SOURCE);
+                            active.put(q.id(), q);
+                        }
+                    }
+                }
+                if (bi.statusCommand != null) {
+                    battlePass(bi.statusCommand);
+                }
+            }
+            case orbit.protocol.gen.BattlePassUpdateStatusCommand bs -> battlePass(bs);
+            case orbit.protocol.gen.SpaceSearchMissionListCommand ml -> {
+                active.values().removeIf(x -> Quests.TREK.equals(x.source()));
+                if (ml.missions != null) {
+                    for (orbit.protocol.gen.EventQuestDefinitionModule m : ml.missions) {
+                        if (m.module != null && !m.completed) {
+                            Quests.Quest q = quest(m.module).from(Quests.TREK);
+                            active.put(q.id(), q);
+                        }
+                    }
+                }
+            }
+            case orbit.protocol.gen.SpaceSearchSectorRewardsCommand sr -> {
+                List<int[]> out = new ArrayList<>();
+                if (sr.rewards != null) {
+                    sr.rewards.forEach(r -> out.add(new int[] {r.range, r.count, r.unlock ? 1 : 0, r.received ? 1 : 0}));
+                }
+                trekSectors = List.copyOf(out);
+            }
+            case orbit.protocol.gen.DiminishingQuestInitializationCommand di -> {
+                diminishing = di.quest == null ? null : quest(di.quest).from(Quests.DIMINISHING_SOURCE);
+                diminishingStatus = di.acceptabilityStatus == null ? Quests.NOT_ACCEPTABLE : di.acceptabilityStatus.type;
+                diminishingTaken();
+            }
+            case orbit.protocol.gen.DiminishingQuestAcceptQuestResponse dr -> {
+                diminishingStatus = dr.acceptabilityStatus == null ? diminishingStatus : dr.acceptabilityStatus.type;
+                diminishingTaken();
+            }
+            case orbit.protocol.gen.DiminishingQuestRemoveQuestCommand dq -> {
+                if (diminishing != null) {
+                    active.remove(diminishing.id());
+                }
+                diminishing = null;
+                diminishingStatus = -1;
+            }
             case QuestGiversAvailableCommand g -> {
                 givers.clear();
                 g.questGivers.forEach(m -> givers.add(m.mapObjectId));
@@ -110,6 +218,24 @@ final class QuestBook {
         return true;
     }
 
+    private void reward(List<orbit.protocol.gen.SeasonPassRewardModule> items, int track) {
+        if (items != null) {
+            items.forEach(r -> seasonRewards.put(track + ":" + r.level, new int[] {r.level, track, r.claimed ? 1 : 0}));
+        }
+    }
+
+    private void battlePass(orbit.protocol.gen.BattlePassUpdateStatusCommand bs) {
+        bpPurchased = bs.purchased;
+        bpToCollect = bs.questsToCollectReward == null ? List.of() : List.copyOf(bs.questsToCollectReward);
+    }
+
+    /** An accepted diminishing quest runs like a taken one. */
+    private void diminishingTaken() {
+        if (diminishing != null && diminishingStatus == Quests.RUNNING) {
+            active.put(diminishing.id(), diminishing);
+        }
+    }
+
     /** A new map: the quest givers there are not known yet (the taken quests stay). */
     void clearMap() {
         givers.clear();
@@ -120,7 +246,10 @@ final class QuestBook {
         if (dirty) {
             dirty = false;
             snapshot = new Quests(Map.copyOf(active), List.copyOf(offers), Map.copyOf(details), Set.copyOf(givers),
-                    maxQuests, maxEventQuests, onlyStarter, offersNanos, privileged);
+                    maxQuests, maxEventQuests, onlyStarter, offersNanos, privileged,
+                    new Quests.Passes(seasonGold, seasonExtGold, seasonPoints, pointsCost,
+                            seasonRewards.values().stream().map(int[]::clone).toList(), dailyLeft, weeklyLeft, bpPurchased,
+                            bpToCollect, trekSectors, diminishing, diminishingStatus));
         }
         return snapshot;
     }
@@ -130,7 +259,7 @@ final class QuestBook {
             Quests.Quest q = e.getValue();
             List<Quests.Condition> changed = replace(q.conditions(), conditionId, current, on, completed);
             if (changed != null) {
-                e.setValue(new Quests.Quest(q.id(), q.types(), changed, q.rewards(), q.star()));
+                e.setValue(new Quests.Quest(q.id(), q.types(), changed, q.rewards(), q.star(), q.source()));
                 return;
             }
         }

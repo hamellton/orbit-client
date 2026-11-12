@@ -139,7 +139,9 @@ class QuestsTest {
             }
         }
         Quests q = w.snapshot(last).quests();
-        assertEquals(java.util.Set.of(118015, 120024, 120032, 122001, 122005), q.active().keySet());
+        java.util.Set<Integer> fromGiver = new java.util.TreeSet<>();
+        q.active().values().stream().filter(x -> Quests.GIVER.equals(x.source())).forEach(x -> fromGiver.add(x.id()));
+        assertEquals(java.util.Set.of(118015, 120024, 120032, 122001, 122005), fromGiver, "the giver's ones; the passes' too");
         assertTrue(QuestBook.describe(q.active().get(122001)).startsWith("убить Protegit "), QuestBook.describe(q.active().get(122001)));
         assertEquals("убить игроков", QuestTexts.condition(q.active().get(118015).leaves().getFirst()));
         assertEquals(5, q.offers().size());
@@ -150,5 +152,26 @@ class QuestsTest {
         try (Stream<Path> s = Files.list(Path.of("recordings"))) {
             return s.toList();
         }
+    }
+
+    /** ru1 2026-11-11 19:06: the season's missions, its rewards and the Battle Pass objectives come at the login. */
+    @Test
+    void thePassesOfTheRecordingAreRead() throws Exception {
+        Path f = Path.of(System.getProperty("orbit.recordings", "recordings"), "session-20261111-190628-3.dorec");
+        Assumptions.assumeTrue(Files.exists(f), "запись ru1 2026-11-11 19:06 не найдена");
+        World w = new World();
+        long last = 0;
+        for (Recording.PacketRecord r : Recording.readPackets(f)) {
+            if (!r.up()) {
+                w.apply(PacketCodec.decode(r.bytes()), r.nanos());
+                last = r.nanos();
+            }
+        }
+        Quests q = w.snapshot(last).quests();
+        assertTrue(q.active().values().stream().anyMatch(x -> Quests.SEASON.equals(x.source())), "season missions");
+        assertTrue(q.active().values().stream().anyMatch(x -> Quests.BATTLEPASS_SOURCE.equals(x.source())), "battle pass");
+        assertTrue(!q.passes().seasonRewards().isEmpty(), "season rewards");
+        assertTrue(!q.passes().pointsCost().isEmpty());
+        assertTrue(q.passes().seasonLevel() >= 1);
     }
 }

@@ -75,6 +75,8 @@ public final class QuestModule implements BotModule {
     private String told = "";
     /** Map → conditions whose NPCs were not found there this session. */
     private final Map<Integer, Set<Integer>> notThere = new java.util.HashMap<>();
+    /** The passes' free buttons (Season Pass, Battle Pass, Galaxy Trek, the diminishing window). */
+    private final PassCare passes;
     private long onMapSince;
     private boolean seenWanted;
     /** The pet's enemy locator on the work's NPC since then; its points before belong to another target. */
@@ -116,6 +118,7 @@ public final class QuestModule implements BotModule {
         this.ctx = ctx;
         this.npcMaps = npcMaps;
         this.oreMaps = oreMaps;
+        this.passes = new PassCare(ctx);
     }
 
     /** Tests: as if the giver was just visited. */
@@ -188,6 +191,9 @@ public final class QuestModule implements BotModule {
             visitedAt = now;
         }
         cancelMarked(q, now);
+        if (!busy()) {
+            passes.tick(w, settings(), this::doable); // not in the middle of a fight
+        }
         Work next = choose(w);
         boolean finishedOne = activeSeen >= 0 && q.active().size() < activeSeen;
         activeSeen = q.active().size();

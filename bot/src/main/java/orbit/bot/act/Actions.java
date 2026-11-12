@@ -390,4 +390,44 @@ public final class Actions {
         r.questId = questId;
         sender.accept(r);
     }
+
+    // ---- the passes' windows (client facts: SeasonPassUIRewardsMediator, BattlePassUIWindowMediator, ...) ----
+
+    /** Season Pass «Забрать всё» (spcId 0 as the button sends): what the season's levels give and is not claimed. */
+    public void seasonClaimAll() {
+        orbit.protocol.gen.SeasonPassRewardClaimAllRequest r = new orbit.protocol.gen.SeasonPassRewardClaimAllRequest();
+        r.spcId = 0;
+        sender.accept(r);
+    }
+
+    /** A season mission rerolled with a free chance — never the uridium cost type. */
+    public void seasonFreeReroll(int questId) {
+        orbit.protocol.gen.SeasonPassRefreshRequest r = new orbit.protocol.gen.SeasonPassRefreshRequest();
+        r.questId = questId;
+        r.costType = (short) orbit.protocol.gen.SeasonPassRefreshRequest.COSTTYPE_FREE_CHANCE;
+        sender.accept(r);
+    }
+
+    /** Battle Pass «Забрать» (the bought pass's rewards of finished objectives). */
+    public void battlePassCollect() {
+        sender.accept(new orbit.protocol.gen.BattlePassCollectRequest());
+    }
+
+    /** Galaxy Trek: a sector reward reached ({@code action 3}, its range) — free; searches (action 1) are never sent. */
+    public void trekSectorReward(int range) {
+        orbit.protocol.gen.SpaceSearchRequest r = new orbit.protocol.gen.SpaceSearchRequest();
+        r.action = 3;
+        r.id = 0;
+        r.count = range;
+        sender.accept(r);
+    }
+
+    /** The diminishing quest window's «Принять» (with the default status module, as the client builds the request). */
+    public void diminishingAccept(int questId) {
+        orbit.protocol.gen.DiminishingQuestAcceptQuestRequest r = new orbit.protocol.gen.DiminishingQuestAcceptQuestRequest();
+        r.questId = questId;
+        r.acceptabilityStatus = new orbit.protocol.gen.QuestAcceptabilityStatusModule();
+        r.acceptabilityStatus.type = 0;
+        sender.accept(r);
+    }
 }
