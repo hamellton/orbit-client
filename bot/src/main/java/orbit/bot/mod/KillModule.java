@@ -70,7 +70,10 @@ public final class KillModule implements BotModule {
             // «only in the preferred zone» (DarkBot's ONLY_KILL_PREFERRED; the user's BL_RINUSK keeps to a zone)
             boolean onlyZone = c.general().onlyKillPreferred();
             WorldSnapshot.Ship t = Targets.best(c, w, range, s -> attacker.gaveUp(s.id()) || ctx.nav().inDanger(s.x(), s.y())
-                    || onlyZone && !Zones.inPreferred(c, here, s.x(), s.y()));
+                    || onlyZone && !Zones.inPreferred(c, here, s.x(), s.y())
+                    // not one in a crowd of NPCs that attack on sight (live 2026-11-13 on 2-BL: Abide I packs took
+                    // 5–9 % of the hull a second while Impulse II was fought)
+                    || Targets.crowd(w, s) >= CROWD_MAX);
             if (t != null) {
                 roamTo = null;
                 attacker.target(t);
@@ -81,6 +84,9 @@ public final class KillModule implements BotModule {
         }
         roam(w);
     }
+
+    /** A target with this many NPCs that attack on sight about it is left for a lone one. */
+    static final int CROWD_MAX = 2;
 
     private void roam(WorldSnapshot w) {
         long now = ctx.now();
