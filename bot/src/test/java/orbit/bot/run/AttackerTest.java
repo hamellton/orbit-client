@@ -207,4 +207,49 @@ class AttackerTest {
                     (cpu ? "the CPU fires by itself" : "loaded, no CPU: a salvo") + ": " + p);
         }
     }
+
+    private static void otherPlayerShoots(Sim sim, int player, int target) {
+        orbit.protocol.gen.ShipCreateCommand c = new orbit.protocol.gen.ShipCreateCommand();
+        c.userId = player;
+        c.userName = "Other";
+        c.factionId = 1;
+        c.x = 10_300;
+        c.y = 6_300;
+        sim.world.apply(c, sim.now);
+        orbit.protocol.gen.AttackLaserRunCommand run = new orbit.protocol.gen.AttackLaserRunCommand();
+        run.attackerId = player;
+        run.targetId = target;
+        sim.world.apply(run, sim.now);
+    }
+
+    @Test
+    void anNpcAnotherPlayerShootsIsNotOursUnlessItsRuleSaysSo() {
+        // the user 2026-11-12: only the first shooter's group gets the reward — except cubes and group NPCs
+        Sim sim = new Sim(config(false, null, Set.of()), 1, 10_500, 6_000);
+        sim.npc(77, "-=[ Target ]=-", 10_000, 6_000);
+        otherPlayerShoots(sim, 900, 77);
+        var w = sim.world.snapshot(sim.now);
+        assertTrue(orbit.bot.mod.Targets.best(sim.config, w, 10_000) == null, "someone else's");
+        Sim flagged = new Sim(config(false, null, Set.of("IGNORE_OWNERSHIP")), 1, 10_500, 6_000);
+        flagged.npc(77, "-=[ Target ]=-", 10_000, 6_000);
+        otherPlayerShoots(flagged, 900, 77);
+        assertEquals(77, orbit.bot.mod.Targets.best(flagged.config, flagged.world.snapshot(flagged.now), 10_000).id());
+    }
+
+    @Test
+    void aTargetGreyedByTheServerMidFightIsDropped() {
+        Sim sim = new Sim(config(false, null, Set.of()), 1, 10_500, 6_000);
+        sim.lasers("ammunition_laser_lcb-10");
+        sim.npc(77, "-=[ Target ]=-", 10_000, 6_000);
+        Attacker a = new Attacker(sim.ctx);
+        a.target(sim.world.snapshot(sim.now).ships().get(77));
+        sim.run(() -> a.tick(true), 3_000);
+        assertEquals(77, a.targetId(), "fighting");
+        orbit.protocol.gen.LegacyModule grey = new orbit.protocol.gen.LegacyModule();
+        grey.message = "0|n|LSH|77|900"; // another player (900) took it
+        sim.world.apply(grey, sim.now);
+        a.tick(true);
+        assertEquals(0, a.targetId(), "dropped");
+        assertTrue(a.gaveUp(77));
+    }
 }

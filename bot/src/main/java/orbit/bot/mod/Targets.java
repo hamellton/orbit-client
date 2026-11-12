@@ -31,6 +31,26 @@ public final class Targets {
         return !s.lockedByOther() || r.has(BotConfig.NpcFlag.IGNORE_OWNERSHIP) || r.has(BotConfig.NpcFlag.IGNORE_ATTACKED);
     }
 
+    /**
+     * Another player's NPC: the server greyed it for us ({@code LSH}), or a player who is not in our group is shooting
+     * at it. Only the first shooter (and his group) gets the kill's reward, so such an NPC is not ours — unless its
+     * rule says to fight it anyway (the Cubikon, group NPCs: damage counts there).
+     */
+    public static boolean taken(BotConfig c, WorldSnapshot w, WorldSnapshot.Ship s) {
+        BotConfig.NpcRule r = rule(c, s, w.hero().mapId());
+        if (r != null && (r.has(BotConfig.NpcFlag.IGNORE_OWNERSHIP) || r.has(BotConfig.NpcFlag.IGNORE_ATTACKED))) {
+            return false;
+        }
+        if (s.lockedByOther()) {
+            return true;
+        }
+        java.util.Set<Integer> group = new java.util.HashSet<>();
+        w.group().members().forEach(m -> group.add(m.id()));
+        int hero = w.hero().id();
+        return w.ships().values().stream().anyMatch(p -> p.kind() == WorldSnapshot.ShipKind.PLAYER && p.id() != hero
+                && !group.contains(p.id()) && p.attackTargetId() == s.id());
+    }
+
     public static double radius(BotConfig c, WorldSnapshot.Ship s, int mapId) {
         BotConfig.NpcRule r = rule(c, s, mapId);
         return r != null && r.radius() > 0 ? r.radius() : DEFAULT_RADIUS;
@@ -47,6 +67,7 @@ public final class Targets {
         WorldSnapshot.Hero h = w.hero();
         return w.ships().values().stream()
                 .filter(s -> attackable(c, s, h.mapId()))
+                .filter(s -> !taken(c, w, s))
                 .filter(s -> !skip.test(s))
                 .filter(s -> s.distanceTo(h.x(), h.y()) <= maxDistance)
                 .min(Comparator.<WorldSnapshot.Ship>comparingInt(s -> rule(c, s, h.mapId()).priority())
