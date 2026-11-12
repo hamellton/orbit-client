@@ -324,12 +324,12 @@ class QuestModuleTest {
 
     @Test
     void salvageGoesToTheNearestMapOfAnyOfTheQuestsNpcs() {
-        // 310023 (ru1 2026-11-12): kill Sibelon (x-4 only), Saimon (x-3, x-4), then their cargo — from 2-2 the nearest
-        // is 2-3 (Saimon), not 2-4 (Sibelon, the first condition)
-        Sim sim = new Sim(BotConfig.empty(), MapCatalog.bundled().byName("2-2").id(), 5_000, 5_000);
+        // 310023 (ru1 2026-11-12): kill Sibelon (x-4 only), Saimon (x-3, x-4), then their cargo — on 2-3, where it had
+        // just killed Saimon, the ship stays (it went to 2-4, Sibelon's, the first condition)
+        Sim sim = new Sim(BotConfig.empty(), MapCatalog.bundled().byName("2-3").id(), 5_000, 5_000);
         orbit.protocol.gen.ShipInitializationCommand si = new orbit.protocol.gen.ShipInitializationCommand();
         si.userId = 1;
-        si.mapId = MapCatalog.bundled().byName("2-2").id();
+        si.mapId = MapCatalog.bundled().byName("2-3").id();
         si.factionId = 2;
         si.x = 5_000;
         si.y = 5_000;
