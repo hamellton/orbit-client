@@ -15,6 +15,7 @@ public final class Modules {
         return switch (m) {
             case KILL_COLLECT -> new KillModule(ctx, true, true);
             case PALLADIUM -> new orbit.bot.mod.PalladiumModule(ctx);
+            case QUESTS -> new orbit.bot.mod.QuestModule(ctx);
             case KILL -> new KillModule(ctx, true, false);
             case COLLECT -> new KillModule(ctx, false, true);
             case CUBIKON -> new CubikonModule(ctx, ctx.dataDir() == null ? SpawnMemory.inMemory()

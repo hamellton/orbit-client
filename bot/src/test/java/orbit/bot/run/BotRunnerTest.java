@@ -119,7 +119,7 @@ class BotRunnerTest {
 
     @Test
     void unsupportedModuleStops() {
-        Sim sim = new Sim(BotConfig.empty().withModule(BotConfig.Module.QUESTS), 1, 1_000, 1_000);
+        Sim sim = new Sim(BotConfig.empty().withModule(BotConfig.Module.GALAXY_GATE), 1, 1_000, 1_000);
         BotRunner r = new BotRunner(sim.ctx, () -> false, s -> { });
         sim.run(r::tick, 500);
         assertEquals(BotRunner.State.FAILED, r.state());
