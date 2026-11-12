@@ -1,6 +1,7 @@
 package orbit.world;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.file.Files;
@@ -192,6 +193,35 @@ class LiveFactsReplayTest {
         Assumptions.assumeTrue(groups > 0, "no recording with a group");
         System.out.println("group member updates: " + updates);
         assertTrue(wrong.isEmpty(), String.join("\n", wrong));
+    }
+
+    /**
+     * The group window's «target» of a member (ru1 2026-11-09: the leader on Cubikon) reaches the model from the
+     * group's {@code TargetModule} updates with its name and bars.
+     */
+    @Test
+    void groupMembersTargetsAreKept() throws Exception {
+        int seen = 0;
+        for (Path f : recordings()) {
+            World w = new World();
+            for (PacketRecord r : Recording.readPackets(f)) {
+                if (r.up()) {
+                    continue;
+                }
+                Packet p = PacketCodec.decode(r.bytes());
+                w.apply(p, r.nanos());
+                if (p instanceof GroupMemberUpdateCommand u
+                        && u.updates.stream().anyMatch(m -> m instanceof orbit.protocol.gen.TargetModule t
+                                && t.name != null && !t.name.isEmpty())) {
+                    WorldSnapshot.Member m = w.snapshot(r.nanos()).group().members().stream()
+                            .filter(x -> x.id() == u.playerId).findFirst().orElseThrow();
+                    assertFalse(m.targetName().isEmpty(), f.getFileName() + ": " + m);
+                    seen++;
+                }
+            }
+        }
+        Assumptions.assumeTrue(seen > 0, "no recording with a member's target");
+        System.out.println("members' targets: " + seen);
     }
 
     private static List<Path> recordings() throws Exception {

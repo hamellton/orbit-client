@@ -361,8 +361,41 @@ public record WorldSnapshot(long nanos, Hero hero, Map<Integer, Ship> ships, Map
     public record Zone(String id, int type, int shape, List<Integer> coords, boolean inverted, boolean active) {
     }
 
+    /**
+     * A group member as the group packets tell him; {@code targetName}/{@code targetHealth} — what he has selected
+     * ({@code TargetModule}: the client shows it in the group window), "" and {@link Health#UNKNOWN} when nothing.
+     */
     public record Member(int id, String name, int level, int factionId, int mapId, int x, int y, Health health,
-                         boolean loggedOut, boolean cloaked) {
+                         boolean loggedOut, boolean cloaked, String targetName, Health targetHealth) {
+
+        public Member(int id, String name, int level, int factionId, int mapId, int x, int y, Health health,
+                      boolean loggedOut, boolean cloaked) {
+            this(id, name, level, factionId, mapId, x, y, health, loggedOut, cloaked, "", Health.UNKNOWN);
+        }
+
+        Member with(Health h) {
+            return new Member(id, name, level, factionId, mapId, x, y, h, loggedOut, cloaked, targetName, targetHealth);
+        }
+
+        Member withTarget(String n, Health h) {
+            return new Member(id, name, level, factionId, mapId, x, y, health, loggedOut, cloaked, n, h);
+        }
+
+        Member at(int map, int nx, int ny) {
+            return new Member(id, name, level, factionId, map, nx, ny, health, loggedOut, cloaked, targetName, targetHealth);
+        }
+
+        Member level(int l) {
+            return new Member(id, name, l, factionId, mapId, x, y, health, loggedOut, cloaked, targetName, targetHealth);
+        }
+
+        Member out(boolean o) {
+            return new Member(id, name, level, factionId, mapId, x, y, health, o, cloaked, targetName, targetHealth);
+        }
+
+        Member cloak(boolean c) {
+            return new Member(id, name, level, factionId, mapId, x, y, health, loggedOut, c, targetName, targetHealth);
+        }
     }
 
     public record Group(int id, int leaderId, List<Member> members) {

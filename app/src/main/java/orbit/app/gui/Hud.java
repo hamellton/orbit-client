@@ -735,15 +735,30 @@ final class Hud {
         };
     }
 
+    /**
+     * A group member's hull and shield: from his ship when it is in sight (the server then sends its hits, not the group's
+     * updates — live 2026-11-12 the bars stood still for a big group), else from the group's packets.
+     */
+    static Health memberHealth(WorldSnapshot w, WorldSnapshot.Member m) {
+        Ship s = w.ships().get(m.id());
+        return s != null && s.health().known() ? s.health() : m.health();
+    }
+
     private Card group(WorldSnapshot w) {
         WorldSnapshot.Group group = w.group();
         WorldSnapshot.Hero h = w.hero();
         List<WorldSnapshot.Member> others = group.members().stream().filter(m -> m.id() != h.id()).toList();
         int rowH = line + 2 * 9 + 10;
+        // what each one has selected, as the game's group window shows it
+        int targetH = line + 6;
         return new Card() {
             @Override
             public int height(int width) {
-                return pad + line + others.size() * rowH + pad - 6;
+                int hgt = pad + line;
+                for (WorldSnapshot.Member m : others) {
+                    hgt += rowH + (m.targetName().isEmpty() || m.loggedOut() ? 0 : targetH);
+                }
+                return hgt + pad - 6;
             }
 
             @Override
@@ -767,11 +782,30 @@ final class Hud {
                     g.setFont(font(Font.PLAIN, 11f));
                     g.setColor(DIM);
                     g.drawString(right, x + width - pad - fm.stringWidth(right), ry + 11);
-                    if (m.health().known()) {
-                        bar(g, x + pad, ry + 15, width - 2 * pad, 9, m.health().hp(), m.health().hpMax(), HP_BAR, true);
-                        bar(g, x + pad, ry + 26, width - 2 * pad, 9, m.health().shield(), m.health().shieldMax(), SHIELD_BAR, true);
+                    Health mh = memberHealth(w, m);
+                    if (mh.known()) {
+                        bar(g, x + pad, ry + 15, width - 2 * pad, 9, mh.hp(), mh.hpMax(), HP_BAR, true);
+                        bar(g, x + pad, ry + 26, width - 2 * pad, 9, mh.shield(), mh.shieldMax(), SHIELD_BAR, true);
                     }
                     ry += rowH;
+                    if (!m.targetName().isEmpty() && !m.loggedOut()) {
+                        // «→ target», its hull and shield side by side in one thin row
+                        int indent = pad + 10;
+                        g.setFont(font(Font.PLAIN, 11f));
+                        g.setColor(MinimapPanel.ENEMY);
+                        int nameW = Math.min((width - indent - pad) / 2, fm.stringWidth("→ " + m.targetName()) + 6);
+                        g.drawString(clip(g, "→ " + m.targetName(), nameW), x + indent, ry + 9);
+                        Health th = m.targetHealth();
+                        if (th.known()) {
+                            int bx = x + indent + nameW + 4;
+                            int bw = (x + width - pad - bx - 4) / 2;
+                            if (bw > 20) {
+                                bar(g, bx, ry + 2, bw, 8, th.hp(), th.hpMax(), HP_BAR, true);
+                                bar(g, bx + bw + 4, ry + 2, bw, 8, th.shield(), th.shieldMax(), SHIELD_BAR, true);
+                            }
+                        }
+                        ry += targetH;
+                    }
                 }
             }
         };

@@ -1088,15 +1088,20 @@ public final class World {
 
     // ---- group ----
 
+    private static Health health(HealthModule h) {
+        return new Health(h.hp, h.hpMax, h.shield, h.shieldMax, h.nanoHull, h.nanoHullMax);
+    }
+
     private void initGroup(GroupInitializationCommand p) {
         List<Member> members = new ArrayList<>();
         for (GroupMemberInitializationCommand m : p.members) {
             LocationModule loc = m.location;
             HealthModule hp = m.health;
+            orbit.protocol.gen.TargetModule t = m.target;
             members.add(new Member(m.id, m.name, m.level, m.faction != null ? m.faction.faction : 0,
                     loc != null ? loc.mapId : 0, loc != null ? loc.x : 0, loc != null ? loc.y : 0,
-                    hp != null ? new Health(hp.hp, hp.hpMax, hp.shield, hp.shieldMax, hp.nanoHull, hp.nanoHullMax)
-                            : Health.UNKNOWN, m.loggedOut, m.cloaked));
+                    hp != null ? health(hp) : Health.UNKNOWN, m.loggedOut, m.cloaked,
+                    t == null || t.name == null ? "" : t.name, t == null || t.health == null ? Health.UNKNOWN : health(t.health)));
         }
         group = new Group(p.id, p.leaderId, List.copyOf(members));
         invitations.removeIf(WorldSnapshot.Invitation::incoming); // in a group: the invitations to us are over
@@ -1169,17 +1174,13 @@ public final class World {
             }
             for (PlayerAttributeModule a : p.updates) {
                 m = switch (a) {
-                    case LocationModule l -> new Member(m.id(), m.name(), m.level(), m.factionId(), l.mapId, l.x, l.y,
-                            m.health(), m.loggedOut(), m.cloaked());
-                    case HealthModule h -> new Member(m.id(), m.name(), m.level(), m.factionId(), m.mapId(), m.x(), m.y(),
-                            new Health(h.hp, h.hpMax, h.shield, h.shieldMax, h.nanoHull, h.nanoHullMax),
-                            m.loggedOut(), m.cloaked());
-                    case LevelModule l -> new Member(m.id(), m.name(), l.level, m.factionId(), m.mapId(), m.x(), m.y(),
-                            m.health(), m.loggedOut(), m.cloaked());
-                    case MemberLoggedOutModule l -> new Member(m.id(), m.name(), m.level(), m.factionId(), m.mapId(),
-                            m.x(), m.y(), m.health(), l.loggedOut, m.cloaked());
-                    case CloakDeviceActivityModule c -> new Member(m.id(), m.name(), m.level(), m.factionId(), m.mapId(),
-                            m.x(), m.y(), m.health(), m.loggedOut(), c.active);
+                    case LocationModule l -> m.at(l.mapId, l.x, l.y);
+                    case HealthModule h -> m.with(health(h));
+                    case LevelModule l -> m.level(l.level);
+                    case MemberLoggedOutModule l -> m.out(l.loggedOut);
+                    case CloakDeviceActivityModule c -> m.cloak(c.active);
+                    case orbit.protocol.gen.TargetModule t -> m.withTarget(t.name == null ? "" : t.name,
+                            t.health == null ? Health.UNKNOWN : health(t.health));
                     default -> m;
                 };
             }
