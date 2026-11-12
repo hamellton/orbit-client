@@ -77,16 +77,32 @@ public final class QuestModule implements BotModule {
     private final Map<Integer, Set<Integer>> notThere = new java.util.HashMap<>();
     private long onMapSince;
     private boolean seenWanted;
+    /** The pet's enemy locator on the work's NPC since then; its points before belong to another target. */
+    private int locatorFor;
+    private long locatorSince;
+    private int[] emptyLead;
+    private long emptyLeadAt;
+    private boolean leadTold;
+    /** A locator point is fresh this long; reached with no NPC in sight it is left alone this long. */
+    static final long LEAD_FRESH_MS = 15_000;
+    static final long LEAD_EMPTY_MS = 60_000;
+    /** This close to the locator's point the NPC would be in sight. */
+    static final double LEAD_REACHED = 900;
 
     /**
      * One condition being done: {@code names} are the NPCs to kill or the collectables to pick ({@code BONUS_BOX},
      * {@code ore_5}); {@code ore} the ore type of a sale (-2 any).
      */
     record Work(int quest, int condition, Kind kind, int map, Set<String> names, double x, double y, int ore,
-                Set<String> want) {
+                Set<String> want, int npc) {
 
         Work(int quest, int condition, Kind kind, int map, Set<String> names, double x, double y, int ore) {
-            this(quest, condition, kind, map, names, x, y, ore, Set.of());
+            this(quest, condition, kind, map, names, x, y, ore, Set.of(), 0);
+        }
+
+        Work(int quest, int condition, Kind kind, int map, Set<String> names, double x, double y, int ore,
+             Set<String> want) {
+            this(quest, condition, kind, map, names, x, y, ore, want, 0);
         }
     }
 
@@ -126,6 +142,21 @@ public final class QuestModule implements BotModule {
         if (worker != null) {
             worker.pause();
         }
+    }
+
+    /** The work's NPC for the pet's enemy locator (the «Квесты» tab's checkbox), on the work's map only. */
+    @Override
+    public int petLocator() {
+        if (!locatorOn() || visit != null || work == null || work.npc() <= 0
+                || !(work.kind() == Kind.KILL || work.kind() == Kind.DAMAGE || work.kind() == Kind.SALVAGE)
+                || ctx.world().get().hero().mapId() != work.map()) {
+            return 0;
+        }
+        return work.npc();
+    }
+
+    boolean locatorOn() {
+        return settings().path("locator").asBoolean(false);
     }
 
     /** A sale condition with that ore aboard: sell it now, room in the hold or not. */
@@ -195,6 +226,9 @@ public final class QuestModule implements BotModule {
                 if (notFound(w, now)) {
                     return;
                 }
+                if (followLocator(w, now, progress)) {
+                    return;
+                }
                 if (worker == null) {
                     boolean kill = work.kind() == Kind.KILL || work.kind() == Kind.DAMAGE || work.kind() == Kind.SALVAGE;
                     worker = new KillModule(questContext(work), kill, true);
@@ -218,6 +252,61 @@ public final class QuestModule implements BotModule {
             default -> {
             }
         }
+    }
+
+    /**
+     * The pet's enemy locator on the work's NPC ({@link #petLocator}) shows where one is while none is in sight: fly
+     * there (as the cube module does with the Cubikon). Reached with none in sight — that point is left alone a while.
+     */
+    private boolean followLocator(WorldSnapshot w, long now, String progress) {
+        int target = petLocator();
+        if (target != locatorFor) {
+            locatorFor = target;
+            locatorSince = w.nanos();
+            emptyLead = null;
+            leadTold = false;
+        }
+        if (target == 0) {
+            if (locatorOn() && work.npc() > 0 && !ctx.config().get().pet().enabled()) {
+                tell("Квесты: пеленгатор включён, но питомец в конфиге выключен — NPC квеста ищу без него");
+            }
+            return false;
+        }
+        WorldSnapshot.Pet pet = w.pet();
+        boolean inSight = w.ships().values().stream()
+                .anyMatch(sh -> sh.npc() && work.want().contains(QuestTargets.norm(sh.name())));
+        if (inSight || busy() || !pet.active() || pet.gear() != orbit.protocol.gen.PetGearTypeModule.PETGEARTYPE_ENEMY_LOCATOR
+                || !pet.locatorWithin(w.nanos(), LEAD_FRESH_MS) || pet.locatorNanos() <= locatorSince) {
+            leadTold = false;
+            return false;
+        }
+        int[] lead = {pet.locatorX(), pet.locatorY()};
+        if (emptyLead != null && now - emptyLeadAt < LEAD_EMPTY_MS * 1_000_000
+                && Math.hypot(lead[0] - emptyLead[0], lead[1] - emptyLead[1]) < LEAD_REACHED) {
+            return false;
+        }
+        WorldSnapshot.Hero h = w.hero();
+        double dist = Math.hypot(lead[0] - h.x(), lead[1] - h.y());
+        if (dist < LEAD_REACHED) {
+            log.info("Пеленгатор: долетел до {}/{}, но {} там нет — ищу дальше сам", lead[0] / 100, lead[1] / 100,
+                    String.join(", ", work.names()));
+            emptyLead = lead;
+            emptyLeadAt = now;
+            leadTold = false;
+            return false;
+        }
+        if (!leadTold) {
+            leadTold = true;
+            log.info("Пеленгатор нашёл {} на {}/{}, в {} от нас — лечу", QuestTexts.npc(work.npc()), lead[0] / 100,
+                    lead[1] / 100, String.format("%,d", (int) dist).replace(',', ' '));
+        }
+        ctx.ship().want(ctx.config().get().general().travel());
+        if (ctx.nav().idle() || Math.hypot(ctx.nav().destination().x() - lead[0], ctx.nav().destination().y() - lead[1]) > 300) {
+            ctx.nav().moveTo(lead[0], lead[1], false);
+        }
+        ctx.nav().tick();
+        status = "Квест " + work.quest() + ": " + progress + " · лечу по пеленгатору";
+        return true;
     }
 
     /** Killing on the work's map with none of its NPCs seen for a while: that map is left out, the next one tried. */
@@ -299,8 +388,9 @@ public final class QuestModule implements BotModule {
             int map45 = ctx.maps().byName("4-5") == null ? -1 : ctx.maps().byName("4-5").id();
             Integer best = nearest(where.keySet(), h, m -> bosses && m == map45 ? BOSS_4_5_EXTRA_HOPS : 0);
             Kind k = QuestTargets.killing(c) ? Kind.KILL : Kind.DAMAGE;
+            List<Integer> ids = QuestTargets.npcIds(c);
             return best == null ? null : new Work(quest.id(), c.id(), k, best, Set.copyOf(where.get(best)), Double.NaN,
-                    Double.NaN, -1, want);
+                    Double.NaN, -1, want, ids.isEmpty() ? 0 : ids.getFirst());
         }
         if (c.type() == Quests.SALVAGE && doing.contains("SALVAGE")) {
             return salvageWork(quest, c, w);
@@ -354,8 +444,9 @@ public final class QuestModule implements BotModule {
             where.keySet().removeIf(m -> notThere.getOrDefault(m, Set.of()).contains(c.id()));
             Integer best = nearest(where.keySet(), w.hero());
             if (best != null) {
+                List<Integer> ids = QuestTargets.npcIds(src);
                 return new Work(quest.id(), c.id(), Kind.SALVAGE, best, Set.copyOf(where.get(best)), Double.NaN,
-                        Double.NaN, -1, QuestTargets.wanted(src));
+                        Double.NaN, -1, QuestTargets.wanted(src), ids.isEmpty() ? 0 : ids.getFirst());
             }
         }
         if (!sources.isEmpty()) {
@@ -477,7 +568,7 @@ public final class QuestModule implements BotModule {
             }
         }
         return names.size() == wk.names().size() ? wk : new Work(wk.quest(), wk.condition(), wk.kind(), wk.map(),
-                Set.copyOf(names), wk.x(), wk.y(), wk.ore(), wk.want());
+                Set.copyOf(names), wk.x(), wk.y(), wk.ore(), wk.want(), wk.npc());
     }
 
     static BotConfig questConfig(BotConfig c, Work wk) {

@@ -215,4 +215,26 @@ class PetCareTest {
         sim.run(pet::tick, 5_000);
         assertEquals(k, gears(sim).getLast().gearTypeToActivate.typeValue, "ready: at once, no minutes of its own");
     }
+
+    @Test
+    void aQuestsNpcTakesTheLocatorWhileItLastsThenTheConfigsModeAgain() {
+        // the «Квесты» tab's checkbox: the locator on the quest's NPC (31 = UberSaimon), the config's mode after
+        Sim sim = new Sim(config("GUARD", 0), 29, 10_000, 6_000);
+        owned(sim);
+        PetCare pet = new PetCare(sim.ctx);
+        int[] quest = {31};
+        pet.setModuleLocator(() -> quest[0]);
+        sim.run(pet::tick, 6_000);
+        launched(sim);
+        sim.run(pet::tick, 10_000);
+        List<PetGearActivationRequest> g = gears(sim);
+        assertEquals(PetGearTypeModule.PETGEARTYPE_ENEMY_LOCATOR, g.getLast().gearTypeToActivate.typeValue, g.toString());
+        assertEquals(31, g.getLast().optParam);
+        quest[0] = 13; // another quest NPC: the same mode, another target — asked again
+        sim.run(pet::tick, 10_000);
+        assertEquals(13, gears(sim).getLast().optParam, gears(sim).toString());
+        quest[0] = 0; // the quest's fight is over
+        sim.run(pet::tick, 10_000);
+        assertEquals(PetGearTypeModule.PETGEARTYPE_GUARD, gears(sim).getLast().gearTypeToActivate.typeValue);
+    }
 }

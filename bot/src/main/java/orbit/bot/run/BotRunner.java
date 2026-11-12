@@ -101,6 +101,7 @@ public final class BotRunner {
         this.flee = new Flee(ctx);
         this.groupWatch = new GroupWatch(ctx);
         this.pet = new PetCare(ctx);
+        pet.setModuleLocator(() -> module == null ? 0 : module.petLocator());
         this.cargo = new CargoCare(ctx, pet);
         this.boxCheck = new BoxCheckSolver(ctx);
         this.offenders = new Offenders(ctx);

@@ -61,4 +61,12 @@ public interface BotModule {
     default boolean busy() {
         return false;
     }
+
+    /**
+     * An NPC number the pet's enemy locator should look for now instead of the config's mode (a quest's NPC), 0 for
+     * none: the config's pet mode goes on.
+     */
+    default int petLocator() {
+        return 0;
+    }
 }

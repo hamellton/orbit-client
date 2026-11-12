@@ -275,4 +275,50 @@ class QuestModuleTest {
         m.tick();
         assertEquals("2-3", MapCatalog.bundled().info(m.workingMap()).name());
     }
+
+    @Test
+    void withTheCheckboxThePetsLocatorLeadsToTheQuestsNpc() {
+        // UberSaimon (31) on 4-5, none in sight; the locator (on it) shows one far away: fly there
+        int map45 = MapCatalog.bundled().byName("4-5").id();
+        com.fasterxml.jackson.databind.node.ObjectNode q = com.fasterxml.jackson.databind.node.JsonNodeFactory.instance.objectNode();
+        q.put("locator", true);
+        BotConfig c = BotConfig.empty().withModuleSettings("quests", q)
+                .withPet(new BotConfig.Pet(true, "GUARD", 13, false, 0));
+        Sim sim = new Sim(c, map45, 3_000, 3_000);
+        take(sim, 701, 3, 6, 10, "31");
+        QuestModule m = new QuestModule(sim.ctx, NpcMaps.shared(), orbit.world.maps.OreMaps.inMemory());
+        m.visited(sim.now);
+        m.tick();
+        assertEquals(31, m.petLocator(), "the locator on the quest's NPC");
+        // the pet is out, in the locator mode, and the game sends a point
+        orbit.protocol.gen.PetInitializationCommand init = new orbit.protocol.gen.PetInitializationCommand();
+        init.hasPet = true;
+        init.hasFuel = true;
+        init.petIsAlive = true;
+        sim.world.apply(init, sim.now);
+        orbit.protocol.gen.PetHeroActivationCommand a = new orbit.protocol.gen.PetHeroActivationCommand();
+        a.ownerId = 1;
+        a.petId = 500;
+        a.petName = "P";
+        a.x = 3_000;
+        a.y = 3_000;
+        sim.world.apply(a, sim.now);
+        orbit.protocol.gen.PetGearActivationRequest gear = new orbit.protocol.gen.PetGearActivationRequest();
+        gear.gearTypeToActivate = new orbit.protocol.gen.PetGearTypeModule();
+        gear.gearTypeToActivate.typeValue = 6;
+        gear.optParam = 31;
+        sim.world.applyOutgoing(gear, sim.now);
+        sim.now += 500 * Sim.MS;
+        orbit.protocol.gen.PetGearLocatorUpdate u = new orbit.protocol.gen.PetGearLocatorUpdate();
+        u.x = 15_000;
+        u.y = 9_000;
+        sim.world.apply(u, sim.now);
+        sim.run(m::tick, 2_000);
+        assertTrue(m.status().contains("по пеленгатору"), m.status());
+        var h = sim.world.snapshot(sim.now).hero();
+        assertTrue(h.targetX() > 10_000 && h.targetY() > 6_000, "towards the point: " + h.targetX() + "/" + h.targetY());
+        // off the checkbox: the config's pet mode, no locator
+        q.put("locator", false);
+        assertEquals(0, m.petLocator());
+    }
 }

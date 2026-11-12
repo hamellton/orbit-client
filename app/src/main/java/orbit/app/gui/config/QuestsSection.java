@@ -43,6 +43,7 @@ final class QuestsSection implements Section {
     private final Map<String, JCheckBox> types = new LinkedHashMap<>();
     private final Map<String, JCheckBox> kinds = new LinkedHashMap<>();
     private final JSpinner revisit = Form.number(30, 1_440, 10);
+    private final JCheckBox locator = new JCheckBox("Искать NPC квеста пеленгатором питомца");
     private final JComponent view;
 
     QuestsSection() {
@@ -63,6 +64,10 @@ final class QuestsSection implements Section {
         f.note("Берутся только квесты, все условия которых бот умеет. Не делает никогда: убить игроков или урон по"
                 + " ним, пройти врата. NPC — на ближайшей карте, где их видели; патроны, безопасность и ящики — из"
                 + " этого конфига.");
+        f.row("", locator);
+        f.note("Пока бот бьёт NPC квеста, питомец в режиме «Пеленгатор врагов» на этого NPC, и бот летит туда, куда"
+                + " он показывает. Потом питомец возвращается к режиму из вкладки «Питомец». Питомец должен быть там"
+                + " включён; продажа через торговый модуль и камикадзе важнее пеленгатора.");
         f.section("Квестодатель");
         f.row("Заглядывать снова раз в, мин", revisit);
         f.note("И после каждого сданного квеста — за следующим в цепочке; если делать нечего — раз в час.");
@@ -87,6 +92,7 @@ final class QuestsSection implements Section {
         List<String> doing = strings(m.path("do"), List.copyOf(KINDS.keySet()));
         kinds.forEach((k, b) -> b.setSelected(doing.contains(k)));
         Form.set(revisit, m.path("revisitMinutes").asInt(360));
+        locator.setSelected(m.path("locator").asBoolean(false));
     }
 
     @Override
@@ -106,8 +112,9 @@ final class QuestsSection implements Section {
             }
         });
         m.put("revisitMinutes", Form.intOf(revisit));
+        m.put("locator", locator.isSelected());
         if (untouched && strings(t, List.of()).equals(DEFAULT_TYPES) && d.size() == KINDS.size()
-                && Form.intOf(revisit) == 360) {
+                && Form.intOf(revisit) == 360 && !locator.isSelected()) {
             return c; // nothing set for a config of another module: do not add the section
         }
         return c.withModuleSettings(KEY, m);

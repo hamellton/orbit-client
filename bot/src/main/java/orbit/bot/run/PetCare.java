@@ -261,13 +261,35 @@ public final class PetCare {
         return true;
     }
 
+    /**
+     * An NPC the module wants the enemy locator on now ({@code BotModule#petLocator}: a quest's NPC), 0 none: it
+     * takes the place of the config's mode while it lasts — never of the trade pod or the kamikaze.
+     */
+    private java.util.function.IntSupplier moduleLocator = () -> 0;
+    private int askedParam;
+    private boolean noLocatorTold;
+
+    public void setModuleLocator(java.util.function.IntSupplier target) {
+        moduleLocator = target;
+    }
+
     private void gear(BotConfig.Pet cfg, WorldSnapshot.Pet pet, long now) {
+        int quest = trade || kamikazeOn ? 0 : moduleLocator.getAsInt();
+        boolean questLocator = quest > 0
+                && (pet.gears().isEmpty() || pet.gears().contains(PetGearTypeModule.PETGEARTYPE_ENEMY_LOCATOR));
+        if (quest > 0 && !questLocator && !noLocatorTold) {
+            noLocatorTold = true;
+            log.warn("Питомец: у него нет «Пеленгатора врагов» — NPC квеста ищу без него");
+        }
         int want = trade ? PetGearTypeModule.PETGEARTYPE_TRADE_POD
-                : kamikazeOn ? PetGearTypeModule.PETGEARTYPE_KAMIKAZE : gearId(cfg.gear());
-        String label = trade ? "«Торговый модуль»" : kamikazeOn ? "«Камикадзе»" : gearName(cfg.gear());
+                : kamikazeOn ? PetGearTypeModule.PETGEARTYPE_KAMIKAZE
+                : questLocator ? PetGearTypeModule.PETGEARTYPE_ENEMY_LOCATOR : gearId(cfg.gear());
+        String label = trade ? "«Торговый модуль»" : kamikazeOn ? "«Камикадзе»"
+                : questLocator ? "«Пеленгатор врагов» (квест)" : gearName(cfg.gear());
         if (want < 0) {
             return;
         }
+        int param = want == PetGearTypeModule.PETGEARTYPE_ENEMY_LOCATOR ? (questLocator ? quest : cfg.locatorTarget()) : 0;
         if (!pet.gears().isEmpty() && !pet.gears().contains(want)) {
             // once per missing mode (live 2026-11-11: the sell ship's pet, 1 939 lines in 6 minutes)
             if (missingGear != want) {
@@ -278,7 +300,7 @@ public final class PetCare {
         }
         // the server's word after our request: another mode means it was turned down or changed (Guard)
         boolean overruled = pet.gearNanos() > askedAt && pet.gear() >= 0 && pet.gear() != want;
-        if (askedGear == want && !overruled) {
+        if (askedGear == want && askedParam == param && !overruled) {
             return;
         }
         if (ms(now - askedAt) < GEAR_RETRY_MS) {
@@ -295,7 +317,7 @@ public final class PetCare {
             return;
         }
         gearAt = 0;
-        if (askedGear == want) {
+        if (askedGear == want && askedParam == param) {
             if (tries == 0 || ms(now - firstTryAt) >= GEAR_BACKOFF_MS) {
                 tries = 0;
                 firstTryAt = now;
@@ -308,7 +330,6 @@ public final class PetCare {
             tries = 0;
             firstTryAt = now;
         }
-        int param = want == PetGearTypeModule.PETGEARTYPE_ENEMY_LOCATOR ? cfg.locatorTarget() : 0;
         if (trade) {
             log.info("Питомец: прошу режим «Торговый модуль»");
         } else if (kamikazeOn) {
@@ -318,6 +339,7 @@ public final class PetCare {
         }
         ctx.actions().petGear(want, param);
         askedGear = want;
+        askedParam = param;
         askedAt = now;
     }
 
