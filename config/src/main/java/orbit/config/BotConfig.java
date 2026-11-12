@@ -567,8 +567,8 @@ public record BotConfig(
      * @param fireLauncher the bot fires the launcher itself when it is loaded (ships without the launcher CPU)
      * @param move        how to move in a fight ({@link FightMove}); {@code null} in an older file = {@code circle}
      *                    on → circle, off → stand
-     * @param runCircle   circle (and back off) in the run configuration — faster, hit less (DarkBot's
-     *                    {@code RUN_CONFIG_IN_CIRCLE}; the user's BL_RINUSK farms Impulse II so with no shield)
+     * @param runCircle   the run configuration to catch a nearly dead target (below 25 %) that got farther than
+     *                    twice the radius (DarkBot's {@code RUN_CONFIG_IN_CIRCLE})
      */
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public record Loot(String ammo, String sab, double sabBelow, int sabNpcShieldMin, String rsb,

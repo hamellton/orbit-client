@@ -49,7 +49,7 @@ final class KillSection implements Section {
     private final ItemBox rocket = new ItemBox(ROCKET_CHOICES, true);
     private final ItemBox fallback1 = new ItemBox(ItemCatalog.LASERS, true);
     private final ItemBox fallback2 = new ItemBox(ItemCatalog.LASERS, true);
-    private final JCheckBox runCircle = new JCheckBox("Кружить в конфигурации бега");
+    private final JCheckBox runCircle = new JCheckBox("Догонять добиваемую цель в конфигурации бега");
     private final javax.swing.JComboBox<String> move = new javax.swing.JComboBox<>(
             java.util.Arrays.stream(BotConfig.FightMove.values()).map(m -> m.label).toArray(String[]::new));
     private final JCheckBox fireRockets = new JCheckBox("Пускать ракеты сам (без ракетного CPU)");
@@ -150,8 +150,8 @@ final class KillSection implements Section {
                 + "Во всех режимах — подальше от других NPC (сильнее от тех, кто бьёт нас), врагов, станций,<br>"
                 + "мин и запретных зон. Своё движение у NPC — в таблице, колонка «Движение».</html>");
         groupNpcs.setToolTipText("Сначала добивать NPC рядом, а не лететь к дальним");
-        runCircle.setToolTipText("Кружить и отходить в конфигурации бега (как в DarkBot RUN_CONFIG_IN_CIRCLE): "
-                + "быстрее, по кораблю реже попадают");
+        runCircle.setToolTipText("Цель меньше 25% HP и дальше двух радиусов — догнать в конфигурации бега "
+                + "(DarkBot RUN_CONFIG_IN_CIRCLE); бой — в конфигурации атаки");
         // the settings in two top-aligned columns: ammunition | rockets and targets; one under the other when narrow
         JComponent ammoColumn = new Form()
                 .section("Патроны")

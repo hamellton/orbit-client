@@ -235,10 +235,11 @@ public final class Attacker {
         boolean chasing = move && dist > radius + CHASE_GAP && (follow || c.general().runModeChase());
         boolean onTheWay = move && dist > radius + APPROACH && h.attackers().isEmpty();
         BotConfig.FightMove mode = mode(c, rule, t, h, now);
-        // going round it (or backing off) in the run configuration: faster, hit less (DarkBot's RUN_CONFIG_IN_CIRCLE;
-        // the user farms Impulse II so with no shield)
-        boolean runCircle = c.loot().runCircle() && dist <= radius * KITE_APPROACH
-                && (mode == BotConfig.FightMove.CIRCLE || mode == BotConfig.FightMove.KITE);
+        // DarkBot's RUN_CONFIG_IN_CIRCLE: the run configuration to catch a nearly dead target that got away (below
+        // 25 % and farther than twice the radius) — not for the fight (live 2026-11-13: fought in the speed
+        // configuration, Impulse II lost 20 % in 25 s)
+        boolean runCircle = c.loot().runCircle() && dist > 2 * radius && t.health().known()
+                && t.health().hpPercent() < 0.25;
         ctx.ship().want(chasing || runCircle ? c.general().run() : onTheWay ? c.general().travel() : c.general().offensive());
         Threats threats = move ? new Threats(ctx, ctx.world().get(), c, t.id()) : null;
         fight.sample(w, t, radius, switch (mode) {
@@ -401,6 +402,10 @@ public final class Attacker {
 
     /** NPC kinds' top speed seen (units per second): {@link BotConfig.FightMove#AUTO} goes by it. */
     private static final java.util.Map<String, Double> KIND_SPEED = new java.util.concurrent.ConcurrentHashMap<>();
+    /** A kind's speed is trusted after this long watching one, or once one was watched that long. */
+    static final long SPEED_SURE_NS = 1_500_000_000L;
+    private static final java.util.Set<String> KIND_SEEN = java.util.concurrent.ConcurrentHashMap.newKeySet();
+
     /** Watched this long without moving: a standing NPC (an invoke, the behemoth). */
     static final long STILL_NS = 4_000_000_000L;
     /** Slower than this share of the ship's speed: a slow NPC, to be kept at the radius. */
@@ -425,8 +430,9 @@ public final class Attacker {
         BotConfig.FightMove m = rule != null ? rule.fightMove(c.loot().fightMove()) : c.loot().fightMove();
         if (m == BotConfig.FightMove.AUTO) {
             double top = KIND_SPEED.getOrDefault(t.name(), 0.0);
-            if (CubikonModule.isCubikon(t)) {
-                m = BotConfig.FightMove.CIRCLE;
+            boolean known = now - watchedSince > SPEED_SURE_NS || top > 0 && KIND_SEEN.contains(t.name());
+            if (CubikonModule.isCubikon(t) || !known) {
+                m = BotConfig.FightMove.CIRCLE; // the first speeds seen are rough (live 2026-11-13: flipped in 0.1 s)
             } else if (top >= SLOW_SHARE * heroTop(h)) {
                 m = BotConfig.FightMove.CIRCLE;
             } else if (top > 30) {
@@ -436,6 +442,9 @@ public final class Attacker {
             } else {
                 m = BotConfig.FightMove.CIRCLE; // not known yet
             }
+        }
+        if (now - watchedSince > SPEED_SURE_NS && t.name() != null) {
+            KIND_SEEN.add(t.name());
         }
         if (m == BotConfig.FightMove.CIRCLE && rule != null && rule.has(BotConfig.NpcFlag.NO_CIRCLE)) {
             m = BotConfig.FightMove.STAND;

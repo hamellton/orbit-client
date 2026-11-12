@@ -142,9 +142,13 @@ public final class BotRunner {
      * same module drops its plans so the new settings apply at once.
      */
     public void configChanged() {
-        if (module != null) {
+        // the same module on the same map goes on with its fight: it reads the config each tick (live 2026-11-13: a
+        // saved config dropped an Impulse II being fought)
+        int map = ctx.config().get().general().workingMap();
+        if (module != null && (ctx.config().get().module() != moduleKind || map != workingMap)) {
             module.pause();
         }
+        workingMap = map;
         if (ctx.config().get().module() != moduleKind) {
             ctx.nav().stop();
             loadModule();
@@ -160,6 +164,9 @@ public final class BotRunner {
             log.info("Модуль: {}", moduleKind);
         }
     }
+
+    /** The config's working map when it was last read. */
+    private int workingMap = Integer.MIN_VALUE;
 
     private java.util.function.BooleanSupplier linkLost = () -> false;
     private boolean offline;
