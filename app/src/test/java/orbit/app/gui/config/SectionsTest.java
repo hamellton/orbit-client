@@ -57,7 +57,7 @@ class SectionsTest {
                 .withCollect(new BotConfig.Collect(Map.of("BONUS_BOX", new BotConfig.BoxRule(true, 150, 1)), 400, true, true))
                 .withPet(new BotConfig.Pet(true, "ENEMY_LOCATOR"))
                 .withSafety(new BotConfig.Safety(0.5, 0.65, 0.05, 0.45, new BotConfig.ShipMode(2, "some_future_formation"),
-                        new BotConfig.Heal(0.6, -1, -1), 1000, "BASE", 10, 10))
+                        new BotConfig.Heal(0.6, -1, -1), 1000, "BASE", 10, 10).withJumps(0.15, true))
                 .withZones(Map.of(26, new BotConfig.Zones(null, new BotConfig.ZoneGrid(30, rows))))
                 .withModuleSettings("cubikon", Json.MAPPER.readTree("""
                         {"spots": [[7500, 3900], [13400, 3900], [13400, 7900], [7500, 7900]], "arriveDistance": 450,

@@ -660,15 +660,28 @@ public record BotConfig(
      * @param paidRevives   a revive at the portal or on the spot this many times in a row at most, then one at the
      *                      base (free) and the count starts again; 0 = no limit
      * @param paidReviveMinutes «in a row»: killed again within this many minutes after a paid revive
+     * @param escapeHp      on the repair trip, at the portal under fire: jump below this HP fraction; -1 = never
+     *                      ({@code null} in an older file = {@link #DEFAULT_ESCAPE_HP})
+     * @param oneWayJumps   jump (escaping or fleeing) also through a portal with no portal back (5-2 → 5-3,
+     *                      5-3 → 4-4): the way back is then the whole loop round the maps; {@code null} = no
      */
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public record Safety(double repairHpMin, double repairHpMax, double repairHpNoNpc, double repairToShield,
                          ShipMode repairMode, Heal heal, int maxDeaths, String revive,
-                         int waitBeforeReviveSec, int waitAfterReviveSec, int paidRevives, int paidReviveMinutes) {
+                         int waitBeforeReviveSec, int waitAfterReviveSec, int paidRevives, int paidReviveMinutes,
+                         Double escapeHp, Boolean oneWayJumps) {
 
         public static final int DEFAULT_PAID_REVIVES = 2;
         public static final int DEFAULT_PAID_REVIVE_MINUTES = 3;
+        public static final double DEFAULT_ESCAPE_HP = 0.25;
         public static final Safety DEFAULT = new Safety(0.5, 0.9, 0.5, 0, null, null, 10, "PORTAL", 10, 10);
+
+        public Safety(double repairHpMin, double repairHpMax, double repairHpNoNpc, double repairToShield,
+                      ShipMode repairMode, Heal heal, int maxDeaths, String revive,
+                      int waitBeforeReviveSec, int waitAfterReviveSec, int paidRevives, int paidReviveMinutes) {
+            this(repairHpMin, repairHpMax, repairHpNoNpc, repairToShield, repairMode, heal, maxDeaths, revive,
+                    waitBeforeReviveSec, waitAfterReviveSec, paidRevives, paidReviveMinutes, null, null);
+        }
 
         public Safety(double repairHpMin, double repairHpMax, double repairHpNoNpc, double repairToShield,
                       ShipMode repairMode, Heal heal, int maxDeaths, String revive,
@@ -681,6 +694,15 @@ public record BotConfig(
             repairMode = repairMode == null ? new ShipMode(2, null) : repairMode;
             heal = heal == null ? Heal.DEFAULT : heal;
             revive = revive == null ? "PORTAL" : revive;
+            escapeHp = escapeHp == null ? DEFAULT_ESCAPE_HP : escapeHp;
+            oneWayJumps = oneWayJumps != null && oneWayJumps;
+        }
+
+        /** The same with the portal-jump settings. */
+        public Safety withJumps(double escapeHp, boolean oneWayJumps) {
+            return new Safety(repairHpMin, repairHpMax, repairHpNoNpc, repairToShield, repairMode, heal, maxDeaths,
+                    revive, waitBeforeReviveSec, waitAfterReviveSec, paidRevives, paidReviveMinutes, escapeHp,
+                    oneWayJumps);
         }
     }
 

@@ -33,6 +33,7 @@ public final class Flee {
     private long jumpedAt = Long.MIN_VALUE / 2;
     private long waitUntil;
     private int jumpedFromMap;
+    private boolean oneWayTold;
 
     public Flee(BotContext ctx) {
         this.ctx = ctx;
@@ -75,6 +76,7 @@ public final class Flee {
                 log.info("Опасность миновала");
             }
             fleeing = false;
+            oneWayTold = false;
             return false;
         }
         if (!fleeing) {
@@ -97,7 +99,12 @@ public final class Flee {
         }
         ctx.nav().stop();
         boolean close = threat != null && (threat.distanceTo(h.x(), h.y()) < FOLLOWS || shooting(threat, h));
-        if (f.jump() && close && w.jumpingTo() == 0 && now - jumpedAt > 10_000_000_000L) {
+        boolean oneWay = !ctx.config().get().safety().oneWayJumps() && Safety.oneWay(ctx.maps(), portal, h);
+        if (f.jump() && close && oneWay && !oneWayTold) {
+            log.warn("{} у портала, но с {} обратно не вернуться — не прыгаю", threatName, portal.toName());
+            oneWayTold = true;
+        }
+        if (f.jump() && close && !oneWay && w.jumpingTo() == 0 && now - jumpedAt > 10_000_000_000L) {
             if (jumpAt == 0) {
                 jumpAt = now + ctx.pause(200, 600);
             } else if (now >= jumpAt) {
@@ -169,8 +176,12 @@ public final class Flee {
 
     /** The portal the ship reaches well before the enemy: the most head start, shortest flight on a tie. */
     private MapCatalog.Portal portal(WorldSnapshot.Hero h) {
-        return ctx.maps().portals(h.mapId()).stream()
-                .filter(p -> p.faction() == 0 || p.faction() == h.factionId())
+        java.util.List<MapCatalog.Portal> all = ctx.maps().portals(h.mapId()).stream()
+                .filter(p -> p.faction() == 0 || p.faction() == h.factionId()).toList();
+        // a portal with a way back first, unless the user lets the bot jump anywhere
+        java.util.List<MapCatalog.Portal> back = ctx.config().get().safety().oneWayJumps() ? all
+                : all.stream().filter(p -> !Safety.oneWay(ctx.maps(), p, h)).toList();
+        return (back.isEmpty() ? all : back).stream()
                 .max(Comparator.comparingDouble((MapCatalog.Portal p) ->
                         Math.hypot(p.x() - threatX, p.y() - threatY) - 1.5 * Math.hypot(p.x() - h.x(), p.y() - h.y())))
                 .orElse(null);

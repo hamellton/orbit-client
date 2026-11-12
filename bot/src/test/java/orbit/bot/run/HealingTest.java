@@ -144,8 +144,12 @@ class HealingTest {
 
     /** Under fire at the portal with little HP: a jump only where a portal leads back. */
     private static boolean jumpsAtPortal(int map, int x, int y) {
+        return jumpsAtPortal(map, x, y, BotConfig.Safety.DEFAULT_ESCAPE_HP, false);
+    }
+
+    private static boolean jumpsAtPortal(int map, int x, int y, double escapeHp, boolean oneWay) {
         BotConfig c = BotConfig.empty().withSafety(new BotConfig.Safety(0.3, 0.9, 0.3, 0, null,
-                new BotConfig.Heal(-1, -1, -1), 10, "PORTAL", 0, 0));
+                new BotConfig.Heal(-1, -1, -1), 10, "PORTAL", 0, 0).withJumps(escapeHp, oneWay));
         Sim sim = new Sim(c, map, x, y);
         Safety s = new Safety(sim.ctx);
         for (int t = 0; t < 100; t++) {
@@ -161,5 +165,12 @@ class HealingTest {
         // 5-2 → 5-3: back only by the loop 5-3 → 4-4 → … → 5-1 → 5-2 (live 2026-11-12, a quest on 5-2)
         assertTrue(!jumpsAtPortal(92, 1300, 6750), "5-2 → 5-3 has no way back");
         assertTrue(jumpsAtPortal(2, 2000, 2000), "1-2 → 1-1 and back");
+    }
+
+    @Test
+    void theEscapeJumpFollowsTheConfig() {
+        assertTrue(jumpsAtPortal(92, 1300, 6750, 0.25, true), "the user lets it jump anywhere");
+        assertTrue(!jumpsAtPortal(2, 2000, 2000, -1, false), "escape jumps off");
+        assertTrue(!jumpsAtPortal(2, 2000, 2000, 0.05, false), "HP 10 % is above 5 %");
     }
 }

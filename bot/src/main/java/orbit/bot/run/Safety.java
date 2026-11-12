@@ -23,8 +23,6 @@ public final class Safety {
     private static final Logger log = LoggerFactory.getLogger(Safety.class);
 
     static final String REPAIR_BOT = "equipment_extra_repbot_rep";
-    /** Jump away below this HP when shot at by the portal. */
-    static final double ESCAPE_HP = 0.25;
     static final double AT_PORTAL = 300;
     /** The robot starts repairing some seconds after the click: no second click before this. */
     static final long REPAIR_BOT_GAP_MS = 20_000;
@@ -129,8 +127,8 @@ public final class Safety {
             ctx.nav().tick();
             return true;
         }
-        if (attacked && hp < ESCAPE_HP && w.jumpingTo() == 0 && now - jumpedAt > 10_000_000_000L) {
-            if (oneWay(portal, h)) {
+        if (attacked && hp < s.escapeHp() && w.jumpingTo() == 0 && now - jumpedAt > 10_000_000_000L) {
+            if (!s.oneWayJumps() && oneWay(ctx.maps(), portal, h)) {
                 // 5-2 → 5-3 has no way back but the whole loop round the pirate maps (live 2026-11-12): stay in the
                 // portal's shelter and heal here
                 if (!oneWayTold) {
@@ -231,8 +229,8 @@ public final class Safety {
     }
 
     /** No portal on the far map leads back here (the pirate maps: 5-2 → 5-3, 5-3 → 4-4). */
-    private boolean oneWay(MapCatalog.Portal portal, WorldSnapshot.Hero h) {
-        return portal.toId() > 0 && ctx.maps().portals(portal.toId()).stream()
+    static boolean oneWay(MapCatalog maps, MapCatalog.Portal portal, WorldSnapshot.Hero h) {
+        return portal.toId() > 0 && maps.portals(portal.toId()).stream()
                 .noneMatch(p -> p.toId() == h.mapId() && (p.faction() == 0 || p.faction() == h.factionId()));
     }
 

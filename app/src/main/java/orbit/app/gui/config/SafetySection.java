@@ -21,6 +21,8 @@ final class SafetySection implements Section {
     private final Threshold healHp = new Threshold("Лечение при HP ниже");
     private final Threshold healShield = new Threshold("Щит (Aegis, Hammerclaw) при щите ниже");
     private final Threshold healPod = new Threshold("Ремкапсула (Aegis, Hammerclaw) при HP ниже");
+    private final Threshold escape = new Threshold("Под огнём у портала прыгать при HP ниже");
+    private final JCheckBox oneWay = new JCheckBox("Прыгать и в порталы без пути назад (5-2 → 5-3, 5-3 → 4-4)");
     private final JSpinner maxDeaths = Form.number(0, 100_000, 1);
     private final JComboBox<String> revive = new JComboBox<>(REVIVE_NAMES);
     private final JSpinner paidRevives = Form.number(0, 50, 1);
@@ -48,6 +50,9 @@ final class SafetySection implements Section {
                 .row("Без целей — при HP ниже, %", repairNoNpc)
                 .row("Ждать щит до, %", repairShield)
                 .row("Конфиг при ремонте", repairMode.view())
+                .row("", escape.view())
+                .row("", oneWay)
+                .note("Без галочки бот там не прыгает (и при бегстве): лечится у портала, обратно — только кругом через все карты.")
                 .section("Лечение на ходу")
                 .row("", healHp.view())
                 .row("", healShield.view())
@@ -97,6 +102,8 @@ final class SafetySection implements Section {
         Form.setFraction(repairNoNpc, s.repairHpNoNpc());
         Form.setFraction(repairShield, s.repairToShield());
         repairMode.set(s.repairMode());
+        escape.set(s.escapeHp());
+        oneWay.setSelected(s.oneWayJumps());
         healHp.set(s.heal().hpBelow());
         healShield.set(s.heal().shieldBelow());
         healPod.set(s.heal().hpPodBelow());
@@ -134,7 +141,7 @@ final class SafetySection implements Section {
                 Form.fraction(repairNoNpc), Form.fraction(repairShield), repairMode.get(),
                 new BotConfig.Heal(healHp.get(), healShield.get(), healPod.get()), Form.intOf(maxDeaths),
                 REVIVE[revive.getSelectedIndex()], Form.intOf(waitBefore), Form.intOf(waitAfter),
-                Form.intOf(paidRevives), Form.intOf(paidMinutes)));
+                Form.intOf(paidRevives), Form.intOf(paidMinutes), escape.get(), oneWay.isSelected()));
     }
 
     static java.util.Set<String> names(String text) {
