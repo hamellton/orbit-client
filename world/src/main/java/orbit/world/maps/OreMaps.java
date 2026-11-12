@@ -15,7 +15,8 @@ import java.util.TreeSet;
 /**
  * Which ores lie on which map ({@code OreTypeModule} numbers: 0 prometium … 8 palladium), learned while flying like
  * {@link NpcMaps}: every ore the server shows ({@code AddOreCommand}) is kept with its map in {@code local/ore-maps.json}.
- * No bundled start: a quest «collect ore» needs a map where the bot has seen that ore (or the ore in sight).
+ * A bundled start from the wikis (prometium x-1, x-2; endurium x-1 … x-4; terbium x-2 … x-4; palladium 5-3) plus
+ * what the bot sees.
  */
 public final class OreMaps {
 
@@ -30,20 +31,20 @@ public final class OreMaps {
         this.file = file;
     }
 
+    /** The bundled start ({@code reference/maps/ore-maps.json}: the wikis and the forum) and what was learned here. */
     public static synchronized OreMaps shared() {
         if (shared == null) {
             OreMaps m = new OreMaps(LEARNED);
+            try (java.io.InputStream in = OreMaps.class.getResourceAsStream("ore-maps.json")) {
+                if (in != null) {
+                    m.read(JSON.readTree(in));
+                }
+            } catch (IOException e) {
+                // the start is only a help
+            }
             try {
                 if (Files.exists(LEARNED)) {
-                    JsonNode root = JSON.readTree(LEARNED.toFile());
-                    root.fields().forEachRemaining(e -> {
-                        try {
-                            int map = Integer.parseInt(e.getKey());
-                            e.getValue().forEach(n -> m.known.computeIfAbsent(map, k -> new TreeSet<>()).add(n.asInt()));
-                        } catch (NumberFormatException ignored) {
-                            // not a map id
-                        }
-                    });
+                    m.read(JSON.readTree(LEARNED.toFile()));
                 }
             } catch (IOException e) {
                 // a broken file is rewritten with what is learned next
@@ -51,6 +52,17 @@ public final class OreMaps {
             shared = m;
         }
         return shared;
+    }
+
+    void read(JsonNode root) {
+        root.fields().forEachRemaining(e -> {
+            try {
+                int map = Integer.parseInt(e.getKey());
+                e.getValue().forEach(n -> known.computeIfAbsent(map, k -> new TreeSet<>()).add(n.asInt()));
+            } catch (NumberFormatException ignored) {
+                // not a map id (the source note)
+            }
+        });
     }
 
     /** For tests: nothing on disk. */

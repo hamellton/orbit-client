@@ -1,0 +1,57 @@
+{
+  "1": [
+    0,
+    1
+  ],
+  "2": [
+    0,
+    1,
+    2
+  ],
+  "3": [
+    1,
+    2
+  ],
+  "4": [
+    1,
+    2
+  ],
+  "5": [
+    0,
+    1
+  ],
+  "6": [
+    0,
+    1,
+    2
+  ],
+  "7": [
+    1,
+    2
+  ],
+  "8": [
+    1,
+    2
+  ],
+  "9": [
+    0,
+    1
+  ],
+  "10": [
+    0,
+    1,
+    2
+  ],
+  "11": [
+    1,
+    2
+  ],
+  "12": [
+    1,
+    2
+  ],
+  "93": [
+    8
+  ],
+  "_source": "ore types (OreTypeModule: 0 prometium, 1 endurium, 2 terbium, 8 palladium) by map id; fandom wiki «Ore»/«Lowers», German wiki, official forum 2014; 5-3 palladium — the user"
+}
