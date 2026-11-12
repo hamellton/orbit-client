@@ -20,7 +20,7 @@ import orbit.world.maps.MapCatalog;
  *   <li>outside the preferred zone while the ship is in it.</li>
  * </ul>
  */
-final class Threats {
+public final class Threats {
 
     static final double BLOCKED = -1e9;
     /** The ship keeps this far from the map's edge. */
@@ -73,7 +73,7 @@ final class Threats {
         }
     }
 
-    static boolean aggressive(String name) {
+    public static boolean aggressive(String name) {
         return name != null && AGGRESSIVE_KINDS.contains(name);
     }
 

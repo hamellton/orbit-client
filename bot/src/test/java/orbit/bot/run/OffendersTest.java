@@ -177,4 +177,26 @@ class OffendersTest {
         var h = sim.world.snapshot(sim.now).hero();
         assertTrue(Math.hypot(h.x() - 20_600, h.y() - 7_000) > 560, "out of its reach: " + h.x() + "/" + h.y());
     }
+
+    @Test
+    void steppingAwayFromAShooterDoesNotRunIntoAnotherNpc() {
+        // live 2026-11-13 on 2-BL: away from Abide I into Steadfast III and back
+        Sim sim = new Sim(config(false), 93, 20_000, 7_000);
+        sim.npc(55, "-=[ Shooter ]=-", 20_600, 7_000);
+        sim.npc(56, "-=[ Waiting ]=-", 18_900, 7_000); // straight behind the ship
+        BotRunner r = new BotRunner(sim.ctx, () -> false, s -> { });
+        orbit.protocol.gen.AttackLaserRunCommand run = new orbit.protocol.gen.AttackLaserRunCommand();
+        run.attackerId = 55;
+        run.targetId = 1;
+        sim.world.apply(run, sim.now);
+        double closest = Double.MAX_VALUE;
+        for (int t = 0; t < 80; t++) {
+            sim.run(r::tick, 100);
+            var h = sim.world.snapshot(sim.now).hero();
+            closest = Math.min(closest, Math.hypot(h.x() - 18_900, h.y() - 7_000));
+        }
+        var h = sim.world.snapshot(sim.now).hero();
+        assertTrue(Math.hypot(h.x() - 20_600, h.y() - 7_000) > 800, "out of the shooter's reach: " + h.x() + "/" + h.y());
+        assertTrue(closest > 800, "kept off the other one: " + (int) closest);
+    }
 }

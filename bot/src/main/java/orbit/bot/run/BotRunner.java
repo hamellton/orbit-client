@@ -324,6 +324,16 @@ public final class BotRunner {
             show("Бегу от " + flee.threat());
             return;
         }
+        // the repair before keeping off others: getting away from an NPC must not stop the trip to the portal (live
+        // 2026-11-13: 75 % → 23 % in 8 s while stepping out of reach, the repair never began, killed)
+        if (safety.tick(module != null && module.busy())) {
+            if (module != null) {
+                module.pause();
+            }
+            state = State.REPAIRING;
+            show("Ремонт, HP " + Safety.pct(h.health().hpPercent()) + "%");
+            return;
+        }
         if (offenders.active()) {
             if (offenders.sightings() != offendersSeen) {
                 offendersSeen = offenders.sightings();
@@ -342,14 +352,6 @@ public final class BotRunner {
                 return;
             }
             avoiding = false;
-        }
-        if (safety.tick(module != null && module.busy())) {
-            if (module != null) {
-                module.pause();
-            }
-            state = State.REPAIRING;
-            show("Ремонт, HP " + Safety.pct(h.health().hpPercent()) + "%");
-            return;
         }
         if (module == null) {
             fail("модуль " + moduleKind + " не поддерживается");

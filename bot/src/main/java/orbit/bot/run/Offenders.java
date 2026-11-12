@@ -29,7 +29,7 @@ public final class Offenders {
     /** A remembered player out of sight is still avoided where he was seen last, this long. */
     static final long LAST_SEEN_NS = 20_000_000_000L;
     /** The ship leaves a circle to this far beyond its edge. */
-    static final double OUT = 300;
+    static final double OUT = 600;
     /** The way out is chosen again this often (the player moves). */
     static final long REPLAN_NS = 2_000_000_000L;
 
@@ -311,6 +311,27 @@ public final class Offenders {
         return who;
     }
 
+    /**
+     * What a way-out point costs for the NPCs about it, not yet shooting: those that attack on sight much, the others a
+     * little (live 2026-11-13 on 2-BL: away from Abide I into Steadfast III and back, to and fro, killed).
+     */
+    static double crowd(WorldSnapshot w, double x, double y) {
+        double cost = 0;
+        for (WorldSnapshot.Ship s : w.ships().values()) {
+            if (!s.npc()) {
+                continue;
+            }
+            double d = Math.hypot(s.x() - x, s.y() - y);
+            if (d < CROWD_REACH) {
+                cost += (CROWD_REACH - d) * (orbit.bot.mod.Threats.aggressive(s.name()) ? 4 : 1);
+            }
+        }
+        return cost;
+    }
+
+    /** NPCs this close to a way-out point weigh on it. */
+    static final double CROWD_REACH = 1_200;
+
     /** The nearest point on the map beyond all circles: 32 directions round each circle the ship is in. */
     private double[] wayOut(WorldSnapshot w) {
         WorldSnapshot.Hero h = w.hero();
@@ -334,7 +355,8 @@ public final class Offenders {
                 // away from the player: the flight there must not pass closer to him than the ship is now
                 double toward = orbit.bot.nav.Navigator.distanceToSegment(c[0], c[1], h.x(), h.y(), x, y);
                 double now = Math.hypot(c[0] - h.x(), c[1] - h.y());
-                double cost = Math.hypot(x - h.x(), y - h.y()) + (clear ? 0 : 1e6) + (toward < now - 1 ? 1e5 : 0);
+                double cost = Math.hypot(x - h.x(), y - h.y()) + (clear ? 0 : 1e6) + (toward < now - 1 ? 1e5 : 0)
+                        + crowd(w, x, y);
                 if (cost < bestCost) {
                     bestCost = cost;
                     best = new double[] {x, y};
