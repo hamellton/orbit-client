@@ -183,6 +183,10 @@ public final class WorldFeed {
                 || p instanceof orbit.protocol.gen.QuestInfoCommand || p instanceof orbit.protocol.gen.QuestListCommand)) {
             orbit.world.QuestCatalog.shared().note(world.snapshot(nanos).quests()); // for the «Квесты» tab
         }
+        if (learnNpcMaps && (p instanceof orbit.protocol.gen.MapAddPOICommand
+                || p instanceof orbit.protocol.gen.AssetCreateCommand)) {
+            MapFeatures.shared().note(world.snapshot(nanos)); // obstacles and stations for the «Зоны» tab
+        }
         rememberPlayers(nanos);
         loot.flush(nanos, false);
         if (p instanceof orbit.protocol.gen.LegacyModule lm) {

@@ -33,7 +33,7 @@ public final class MinimapBackgrounds {
 
     private static final Map<Integer, Optional<BufferedImage>> CACHE = new ConcurrentHashMap<>();
     private static final Set<Integer> LOADING = ConcurrentHashMap.newKeySet();
-    private static volatile Runnable onLoaded = () -> { };
+    private static final java.util.List<Runnable> ON_LOADED = new java.util.concurrent.CopyOnWriteArrayList<>();
     private static volatile java.net.ProxySelector proxy;
 
     private MinimapBackgrounds() {
@@ -47,12 +47,12 @@ public final class MinimapBackgrounds {
     }
 
     /** Called (on a background thread) when a picture has arrived, e.g. to repaint. */
-    static void onLoaded(Runnable r) {
-        onLoaded = r;
+    public static void onLoaded(Runnable r) {
+        ON_LOADED.add(r);
     }
 
     /** The picture of the map, or {@code null} while it loads or when the game has none. */
-    static BufferedImage get(int mapId) {
+    public static BufferedImage get(int mapId) {
         if (mapId <= 0) {
             return null;
         }
@@ -63,7 +63,7 @@ public final class MinimapBackgrounds {
         if (LOADING.add(mapId)) {
             Thread.ofVirtual().name("minimap-" + mapId).start(() -> {
                 CACHE.put(mapId, Optional.ofNullable(load(mapId)));
-                onLoaded.run();
+                ON_LOADED.forEach(Runnable::run);
             });
         }
         return null;

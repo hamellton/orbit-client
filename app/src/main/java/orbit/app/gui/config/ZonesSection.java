@@ -46,6 +46,7 @@ final class ZonesSection implements Section {
         this.catalog = catalog;
         this.map = new MapBox(catalog);
         map.addActionListener(e -> canvas.repaint());
+        orbit.app.gui.MinimapBackgrounds.onLoaded(() -> javax.swing.SwingUtilities.invokeLater(canvas::repaint));
         ButtonGroup g = new ButtonGroup();
         g.add(preferred);
         g.add(avoided);
@@ -247,6 +248,109 @@ final class ZonesSection implements Section {
                     a.y + (y1 + 1) * a.height / RESOLUTION - sy);
         }
 
+        private double sx(java.awt.Rectangle a, MapCatalog.MapInfo info, double x) {
+            return a.x + x / info.width() * a.width;
+        }
+
+        private double sy(java.awt.Rectangle a, MapCatalog.MapInfo info, double y) {
+            return a.y + y / info.height() * a.height;
+        }
+
+        /** Obstacles the bot saw here: no-access and mine fields red, radiation and damage orange, the base ring blue. */
+        private void features(Graphics2D g, java.awt.Rectangle a, MapCatalog.MapInfo info) {
+            for (orbit.app.MapFeatures.Obstacle o : orbit.app.MapFeatures.shared().obstacles(info.id())) {
+                java.awt.Shape sh = shape(a, info, o);
+                if (sh == null) {
+                    continue;
+                }
+                boolean base = o.type() == orbit.app.MapFeatures.BASE_ZONE;
+                Color c = base ? new Color(80, 160, 255) : o.type() == 8 || o.type() == 3 ? new Color(245, 150, 50)
+                        : new Color(230, 70, 60);
+                if (o.inverted()) {
+                    java.awt.geom.Path2D.Double outside = new java.awt.geom.Path2D.Double(java.awt.geom.Path2D.WIND_EVEN_ODD);
+                    outside.append(a, false);
+                    outside.append(sh, false);
+                    sh = outside;
+                }
+                g.setColor(new Color(c.getRed(), c.getGreen(), c.getBlue(), base ? 28 : 60));
+                g.fill(sh);
+                g.setColor(new Color(c.getRed(), c.getGreen(), c.getBlue(), base ? 120 : 170));
+                g.setStroke(new BasicStroke(1f));
+                g.draw(sh);
+            }
+        }
+
+        private java.awt.Shape shape(java.awt.Rectangle a, MapCatalog.MapInfo info, orbit.app.MapFeatures.Obstacle o) {
+            List<Integer> c = o.coords();
+            if (o.shape() == 0) { // circle
+                if (c.size() < 3) {
+                    return null;
+                }
+                double rx = (double) c.get(2) / info.width() * a.width;
+                double ry = (double) c.get(2) / info.height() * a.height;
+                return new java.awt.geom.Ellipse2D.Double(sx(a, info, c.get(0)) - rx, sy(a, info, c.get(1)) - ry, 2 * rx, 2 * ry);
+            }
+            if (c.size() < 4) {
+                return null;
+            }
+            if (o.shape() == 2) { // rectangle: its corners
+                double minX = Double.MAX_VALUE;
+                double minY = Double.MAX_VALUE;
+                double maxX = -Double.MAX_VALUE;
+                double maxY = -Double.MAX_VALUE;
+                for (int i = 0; i + 1 < c.size(); i += 2) {
+                    minX = Math.min(minX, c.get(i));
+                    maxX = Math.max(maxX, c.get(i));
+                    minY = Math.min(minY, c.get(i + 1));
+                    maxY = Math.max(maxY, c.get(i + 1));
+                }
+                return new java.awt.geom.Rectangle2D.Double(sx(a, info, minX), sy(a, info, minY),
+                        sx(a, info, maxX) - sx(a, info, minX), sy(a, info, maxY) - sy(a, info, minY));
+            }
+            java.awt.geom.Path2D.Double poly = new java.awt.geom.Path2D.Double();
+            poly.moveTo(sx(a, info, c.get(0)), sy(a, info, c.get(1)));
+            for (int i = 2; i + 1 < c.size(); i += 2) {
+                poly.lineTo(sx(a, info, c.get(i)), sy(a, info, c.get(i + 1)));
+            }
+            poly.closePath();
+            return poly;
+        }
+
+        /** Stations: a base's HQ with a word (own / shared / other company), clan battle stations as diamonds. */
+        private void stations(Graphics2D g, java.awt.Rectangle a, MapCatalog.MapInfo info) {
+            for (orbit.app.MapFeatures.Station st : orbit.app.MapFeatures.shared().stations(info.id())) {
+                double x = sx(a, info, st.x());
+                double y = sy(a, info, st.y());
+                if (st.type() == 36) {
+                    java.awt.geom.Path2D.Double d = new java.awt.geom.Path2D.Double();
+                    d.moveTo(x, y - 6);
+                    d.lineTo(x + 6, y);
+                    d.lineTo(x, y + 6);
+                    d.lineTo(x - 6, y);
+                    d.closePath();
+                    g.setColor(new Color(240, 90, 80));
+                    g.fill(d);
+                    if (a.width >= SMALL) {
+                        g.drawString("станция" + (st.clanTag().isEmpty() ? "" : " [" + st.clanTag() + "]"), (int) x + 8, (int) y + 4);
+                    }
+                    continue;
+                }
+                boolean hq = st.type() == 46 || st.type() == 47;
+                Color c = st.faction() == 0 ? new Color(200, 200, 210) : new Color(90, 170, 255);
+                g.setColor(c);
+                int sz = hq ? 9 : 5;
+                g.fillRect((int) x - sz / 2, (int) y - sz / 2, sz, sz);
+                if (hq && a.width >= SMALL) {
+                    String[] company = {"", "MMO", "EIC", "VRU"};
+                    g.drawString(st.faction() == 0 ? "общая база" : "база " + (st.faction() < company.length
+                            ? company[st.faction()] : String.valueOf(st.faction())), (int) x + 8, (int) y + 4);
+                }
+                if (!hq && st.faction() == 0 && st.type() >= 50 && st.type() <= 52 && a.width >= SMALL) {
+                    g.drawString("станция (общая)", (int) x + 8, (int) y + 4);
+                }
+            }
+        }
+
         @Override
         protected void paintComponent(Graphics g0) {
             super.paintComponent(g0);
@@ -256,6 +360,15 @@ final class ZonesSection implements Section {
             MapCatalog.MapInfo info = catalog.info(map.mapId());
             g.setColor(new Color(28, 34, 46));
             g.fillRect(a.x, a.y, a.width, a.height);
+            // the game's own picture of the map, dimmed, then what the bot saw on it: obstacles and stations
+            java.awt.image.BufferedImage bg = orbit.app.gui.MinimapBackgrounds.get(map.mapId());
+            if (bg != null) {
+                g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+                g.drawImage(bg, a.x, a.y, a.width, a.height, null);
+                g.setColor(new Color(8, 10, 16, 120));
+                g.fillRect(a.x, a.y, a.width, a.height);
+            }
+            features(g, a, info);
             boolean[][][] layers = grids.get(map.mapId());
             if (layers != null) {
                 for (int l = 0; l < 2; l++) {
@@ -305,6 +418,7 @@ final class ZonesSection implements Section {
                     g.drawString(p.toName(), px + 8, py + 4);
                 }
             }
+            stations(g, a, info);
             for (BotConfig.SafetySpot s : spots.getOrDefault(info.id(), List.of())) {
                 int px = a.x + (int) ((double) s.x() / info.width() * a.width);
                 int py = a.y + (int) ((double) s.y() / info.height() * a.height);
