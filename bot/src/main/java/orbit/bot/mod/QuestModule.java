@@ -187,6 +187,7 @@ public final class QuestModule implements BotModule {
             visit = null;
             visitedAt = now;
         }
+        cancelMarked(q, now);
         Work next = choose(w);
         boolean finishedOne = activeSeen >= 0 && q.active().size() < activeSeen;
         activeSeen = q.active().size();
@@ -348,6 +349,46 @@ public final class QuestModule implements BotModule {
         return true;
     }
 
+    /** Quests marked «Отменить»: cancelled (the quest window's button, anywhere), one at a time, again if still there. */
+    private final Map<Integer, Long> cancelAskedAt = new java.util.HashMap<>();
+    private long nextCancelAt;
+
+    private void cancelMarked(Quests q, long now) {
+        if (now < nextCancelAt) {
+            return;
+        }
+        for (int id : ids("cancel")) {
+            if (!q.active().containsKey(id)) {
+                continue;
+            }
+            Long asked = cancelAskedAt.get(id);
+            if (asked != null && now - asked < 30_000_000_000L) {
+                continue;
+            }
+            log.info("Квест {} отменяю — отмечен «Отменить»", id);
+            ctx.actions().questCancel(id);
+            cancelAskedAt.put(id, now);
+            nextCancelAt = now + ctx.pause(2_000, 4_000);
+            return;
+        }
+    }
+
+    /** Quest numbers of a setting list ({@code first}, {@code skip}, {@code cancel}). */
+    List<Integer> ids(String key) {
+        List<Integer> out = new java.util.ArrayList<>();
+        settings().path(key).forEach(n -> {
+            if (n.canConvertToInt()) {
+                out.add(n.asInt());
+            }
+        });
+        return out;
+    }
+
+    /** Neither taken nor worked on: marked «Не делать» or «Отменить». */
+    private boolean left(int questId) {
+        return ids("skip").contains(questId) || ids("cancel").contains(questId);
+    }
+
     private static String what(Kind k) {
         return switch (k) {
             case KILL, DAMAGE -> "бью";
@@ -365,14 +406,18 @@ public final class QuestModule implements BotModule {
         }
         worker = null;
         work = null;
-        visit = new QuestGiverVisit(ctx, types(), this::doable);
+        visit = new QuestGiverVisit(ctx, types(), this::doable, java.util.Set.copyOf(ids("first")));
         told = "";
     }
 
     /** The next condition to work on: by type order, then the quest's id; the first open condition the bot can do. */
     Work choose(WorldSnapshot w) {
+        // «Первым» first, in the user's order; then by type, then by number; «Не делать»/«Отменить» never
+        List<Integer> first = ids("first");
         List<Quests.Quest> quests = w.quests().active().values().stream()
-                .sorted(Comparator.comparingInt(QuestModule::rank).thenComparingInt(Quests.Quest::id)).toList();
+                .filter(x -> !left(x.id()))
+                .sorted(Comparator.<Quests.Quest>comparingInt(x -> first.contains(x.id()) ? first.indexOf(x.id()) : first.size())
+                        .thenComparingInt(QuestModule::rank).thenComparingInt(Quests.Quest::id)).toList();
         for (Quests.Quest quest : quests) {
             for (Quests.Condition c : quest.leaves()) {
                 if (c.completed() || QuestTargets.passive(c)) {
@@ -556,6 +601,9 @@ public final class QuestModule implements BotModule {
 
     /** A quest the bot can do: each of its open required conditions is one it does, or a limit it keeps. */
     public boolean doable(Quests.Quest quest) {
+        if (left(quest.id())) {
+            return false;
+        }
         WorldSnapshot w = ctx.world().get();
         int work = 0;
         for (Quests.Condition c : quest.leaves()) {

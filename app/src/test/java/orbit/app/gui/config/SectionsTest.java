@@ -127,12 +127,16 @@ class SectionsTest {
         q.putArray("types").add("DAILY").add("MISSION");
         q.putArray("do").add("KILL").add("MAP");
         q.put("revisitMinutes", 120);
+        q.putArray("first").add(122004);
+        q.putArray("skip").add(122001);
         BotConfig c = BotConfig.empty().withModule(BotConfig.Module.QUESTS).withModuleSettings("quests", q);
         BotConfig out = roundTrip(c);
         var m = out.modules().get("quests");
         org.junit.jupiter.api.Assertions.assertEquals("[\"DAILY\",\"MISSION\"]", m.path("types").toString());
         org.junit.jupiter.api.Assertions.assertEquals("[\"KILL\",\"MAP\"]", m.path("do").toString());
         org.junit.jupiter.api.Assertions.assertEquals(120, m.path("revisitMinutes").asInt());
+        org.junit.jupiter.api.Assertions.assertEquals("[122004]", m.path("first").toString(), "marks kept");
+        org.junit.jupiter.api.Assertions.assertEquals("[122001]", m.path("skip").toString());
         // a config of another module gets no quests section
         org.junit.jupiter.api.Assertions.assertFalse(roundTrip(BotConfig.empty()).modules().containsKey("quests"));
     }

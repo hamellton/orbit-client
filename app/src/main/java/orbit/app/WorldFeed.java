@@ -172,6 +172,10 @@ public final class WorldFeed {
         WorldSnapshot.Hero before = world.snapshot(nanos).hero();
         int heroBefore = before.id();
         world.apply(p, nanos);
+        if (learnNpcMaps && (p instanceof orbit.protocol.gen.QuestInitializationCommand
+                || p instanceof orbit.protocol.gen.QuestInfoCommand || p instanceof orbit.protocol.gen.QuestListCommand)) {
+            orbit.world.QuestCatalog.shared().note(world.snapshot(nanos).quests()); // for the «Квесты» tab
+        }
         rememberPlayers(nanos);
         loot.flush(nanos, false);
         if (p instanceof orbit.protocol.gen.LegacyModule lm) {

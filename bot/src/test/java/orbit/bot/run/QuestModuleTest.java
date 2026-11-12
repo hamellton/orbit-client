@@ -376,4 +376,28 @@ class QuestModuleTest {
         sim.run(k::tick, 5_000);
         assertTrue(sim.sent.stream().noneMatch(p -> p instanceof orbit.protocol.gen.CollectBoxRequest), "not a box");
     }
+
+    @Test
+    void theUsersMarksFirstSkipAndCancel() {
+        // the user 2026-11-12: Silent Sabotage (17 500 Saboteur, 122004) opens the 100-quest chain — first; 35 000
+        // Protegit (122001) not now; a quest marked «cancel» is cancelled
+        com.fasterxml.jackson.databind.node.ObjectNode q = com.fasterxml.jackson.databind.node.JsonNodeFactory.instance.objectNode();
+        q.putArray("first").add(122004);
+        q.putArray("skip").add(122001);
+        q.putArray("cancel").add(120032);
+        int map = MapCatalog.bundled().byName("3-6").id();
+        Sim sim = new Sim(BotConfig.empty().withModuleSettings("quests", q), map, 10_000, 6_000);
+        take(sim, 122001, 2, 6, 35_000, "12"); // Protegit, right here on 3-6
+        take(sim, 122004, 2, 6, 17_500, "60"); // Saboteur, on 5-x
+        take(sim, 120032, 2, 28, 750, "0", "0", "0");
+        QuestModule m = new QuestModule(sim.ctx, NpcMaps.shared(), orbit.world.maps.OreMaps.inMemory());
+        m.visited(sim.now);
+        sim.run(m::tick, 5_000);
+        assertTrue(m.status().startsWith("Квест 122004"), "the first one, not the Protegit at hand: " + m.status());
+        assertTrue(sim.sent.stream().anyMatch(p -> p instanceof orbit.protocol.gen.QuestCancelRequest r && r.questId == 120032));
+        assertTrue(sim.sent.stream().noneMatch(p -> p instanceof orbit.protocol.gen.QuestCancelRequest r && r.questId == 122001),
+                "skipped, not cancelled");
+        var active = sim.world.snapshot(sim.now).quests().active();
+        assertFalse(m.doable(active.get(122001)), "not taken either");
+    }
 }

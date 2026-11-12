@@ -38,6 +38,8 @@ public final class QuestGiverVisit {
     private final BotContext ctx;
     private final Set<Integer> types;
     private final Predicate<Quests.Quest> doable;
+    /** Quests the user marked «Первым»: read and taken whatever their type. */
+    private final Set<Integer> always;
     private Step step = Step.TO_BASE;
     private final List<Integer> bases = new ArrayList<>();
     private int base;
@@ -58,9 +60,14 @@ public final class QuestGiverVisit {
      * @param doable whether the bot can do a quest (by its conditions)
      */
     public QuestGiverVisit(BotContext ctx, Set<Integer> types, Predicate<Quests.Quest> doable) {
+        this(ctx, types, doable, Set.of());
+    }
+
+    public QuestGiverVisit(BotContext ctx, Set<Integer> types, Predicate<Quests.Quest> doable, Set<Integer> always) {
         this.ctx = ctx;
         this.types = Set.copyOf(types);
         this.doable = doable;
+        this.always = Set.copyOf(always);
     }
 
     public Step step() {
@@ -229,9 +236,13 @@ public final class QuestGiverVisit {
         eventSlots = q.maxEventQuests();
         int level = w.hero().level();
         for (Quests.Offer o : q.offers()) {
-            if (o.status() == Quests.ACCEPTABLE && types.stream().anyMatch(o::is) && (level <= 0 || o.minLevel() <= level)
-                    && slotFor(o)) {
-                toRead.add(o.questId());
+            if (o.status() == Quests.ACCEPTABLE && (always.contains(o.questId()) || types.stream().anyMatch(o::is))
+                    && (level <= 0 || o.minLevel() <= level) && slotFor(o)) {
+                if (always.contains(o.questId())) {
+                    toRead.addFirst(o.questId()); // «Первым»: read and taken before the rest
+                } else {
+                    toRead.add(o.questId());
+                }
             }
         }
         log.info("Квестодатель: квестов {}, подходящих по типу {} (мест для миссий {}, для событий {})", q.offers().size(),
