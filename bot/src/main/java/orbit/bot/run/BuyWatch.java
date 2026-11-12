@@ -183,7 +183,8 @@ final class BuyWatch {
                         (long) b.keepUridium(), (long) o.price());
                 return;
             }
-            log.info("Покупаю бустер {} за {} уридия (осталось {})", code, (long) o.price(), clock(left));
+            log.info("Покупаю бустер {} за {} уридия (у бустера оставалось {}, уридия {})", code, (long) o.price(),
+                    clock(left), (long) uridium);
             String answer = s.buy(o.item(), 1);
             told(answer, -1, uridium);
         } catch (java.io.IOException | RuntimeException e) {
@@ -265,7 +266,7 @@ final class BuyWatch {
     }
 
     static String clock(long seconds) {
-        return seconds <= 0 ? "0" : String.format("%d:%02d:%02d", seconds / 3600, seconds / 60 % 60, seconds % 60);
+        return seconds <= 0 ? "0:00:00" : String.format("%d:%02d:%02d", seconds / 3600, seconds / 60 % 60, seconds % 60);
     }
 
     private void buy(ShopAccess s, BotConfig.BuyRule r, long left, double credits, double uridium, BotConfig.Buy b) {
