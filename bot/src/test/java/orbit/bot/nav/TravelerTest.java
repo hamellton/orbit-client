@@ -168,4 +168,15 @@ class TravelerTest {
         }
         assertEquals(Traveler.State.FAILED, t.state());
     }
+
+    @org.junit.jupiter.api.Test
+    void theOwnBlacklightMapOpensAtSeventeenTheOthersAtTwentyFour() {
+        // official «Blacklight FAQ» 2018: level 17 for the own company's BL map, 24 for the enemies'
+        orbit.world.maps.MapCatalog maps = orbit.world.maps.MapCatalog.bundled();
+        // EIC (2) on 2-8: 2-BL is its own
+        org.junit.jupiter.api.Assertions.assertFalse(Router.route(maps, 24, 5_000, 5_000, 307, 2, 17).isEmpty());
+        org.junit.jupiter.api.Assertions.assertTrue(Router.route(maps, 24, 5_000, 5_000, 307, 2, 16).isEmpty());
+        org.junit.jupiter.api.Assertions.assertTrue(Router.route(maps, 24, 5_000, 5_000, 306, 2, 20).isEmpty(), "1-BL is MMO's");
+        org.junit.jupiter.api.Assertions.assertFalse(Router.route(maps, 24, 5_000, 5_000, 306, 2, 24).isEmpty());
+    }
 }

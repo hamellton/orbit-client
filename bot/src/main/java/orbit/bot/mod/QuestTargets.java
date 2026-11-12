@@ -105,7 +105,7 @@ public final class QuestTargets {
         Map<Integer, Set<String>> out = new TreeMap<>();
         for (int map : maps.maps()) {
             for (String game : maps.on(map)) {
-                if (wanted.contains(norm(game))) {
+                if (wanted.contains(norm(game)) && !maps.forGroup(game)) {
                     out.computeIfAbsent(map, k -> new LinkedHashSet<>()).add(game);
                 }
             }

@@ -21,9 +21,21 @@ public final class Router {
     private Router() {
     }
 
-    /** The Blacklight maps 1-BL, 2-BL, 3-BL: not open below level {@link #BLACKLIGHT_LEVEL}. */
+    /**
+     * The Blacklight maps 1-BL, 2-BL, 3-BL, one per company (MMO, EIC, VRU): the own one opens at level
+     * {@link #OWN_BLACKLIGHT_LEVEL}, the others' at {@link #BLACKLIGHT_LEVEL} (official «Blacklight FAQ», 2018).
+     */
     static final java.util.Set<Integer> BLACKLIGHT = java.util.Set.of(306, 307, 308);
     static final int BLACKLIGHT_LEVEL = 24;
+    static final int OWN_BLACKLIGHT_LEVEL = 17;
+
+    /** May the pilot enter the map: a Blacklight one by the level, the own company's sooner. */
+    static boolean open(int map, int faction, int level) {
+        if (!BLACKLIGHT.contains(map)) {
+            return true;
+        }
+        return level >= (map == 305 + faction ? OWN_BLACKLIGHT_LEVEL : BLACKLIGHT_LEVEL);
+    }
 
     /** As {@link #route(MapCatalog, int, double, double, int, int, int)} for a pilot who may enter every map. */
     public static List<MapCatalog.Portal> route(MapCatalog catalog, int fromMap, double x, double y, int toMap, int faction) {
@@ -33,7 +45,7 @@ public final class Router {
     /**
      * Portals to take, one per map, from the current map to {@code toMap}; empty if there or unreachable.
      *
-     * @param level the pilot's level: below 24 the Blacklight maps are left out (they do not let him in)
+     * @param level the pilot's level: the Blacklight maps it does not open are left out (own from 17, others from 24)
      */
     public static List<MapCatalog.Portal> route(MapCatalog catalog, int fromMap, double x, double y, int toMap, int faction,
                                                 int level) {
@@ -58,7 +70,7 @@ public final class Router {
             }
             for (MapCatalog.Portal p : catalog.portals(n.map())) {
                 if (p.toId() <= 0 || (p.faction() != 0 && p.faction() != faction)
-                        || (level < BLACKLIGHT_LEVEL && BLACKLIGHT.contains(p.toId()))) {
+                        || !open(p.toId(), faction, level)) {
                     continue;
                 }
                 double cost = n.cost() + Math.hypot(p.x() - n.x(), p.y() - n.y()) + JUMP_COST;

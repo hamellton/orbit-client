@@ -114,7 +114,8 @@
   ],
   "20": [
     "-=[ StreuneR ]=-",
-    "..::{ Boss StreuneR }::.."
+    "..::{ Boss StreuneR }::..",
+    "\\\\ Purpose XXI //"
   ],
   "21": [
     "-=[ Lordakia ]=-",
@@ -228,6 +229,27 @@
     "-=[ Rabbit ]=-",
     "-=[ Saboteur ]=-"
   ],
+  "306": [
+    "\\\\ Attend IX //",
+    "\\\\ Impulse II //",
+    "\\\\ Invoke XVI //",
+    "\\\\ Mindfire Behemoth //",
+    "\\\\ Purpose XXI //"
+  ],
+  "307": [
+    "\\\\ Attend IX //",
+    "\\\\ Impulse II //",
+    "\\\\ Invoke XVI //",
+    "\\\\ Mindfire Behemoth //",
+    "\\\\ Purpose XXI //"
+  ],
+  "308": [
+    "\\\\ Attend IX //",
+    "\\\\ Impulse II //",
+    "\\\\ Invoke XVI //",
+    "\\\\ Mindfire Behemoth //",
+    "\\\\ Purpose XXI //"
+  ],
   "only": {
     "..::{ Boss Kristallon }::..": [
       19,
@@ -235,5 +257,9 @@
       27,
       29
     ]
-  }
+  },
+  "group": [
+    "\\\\ Invoke XVI //",
+    "\\\\ Mindfire Behemoth //"
+  ]
 }

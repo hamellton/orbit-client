@@ -37,4 +37,12 @@ class NpcMapsTest {
         org.junit.jupiter.api.Assertions.assertFalse(NpcMaps.shared().on(22).contains("..::{ Boss Kristallon }::.."));
         org.junit.jupiter.api.Assertions.assertTrue(NpcMaps.shared().on(29).contains("( UberKristallin )"));
     }
+
+    @org.junit.jupiter.api.Test
+    void theBlacklightMapsAndTheirGroupNpcs() {
+        NpcMaps m = NpcMaps.shared();
+        org.junit.jupiter.api.Assertions.assertTrue(m.on(307).contains("\\\\ Attend IX //"), m.on(307).toString());
+        org.junit.jupiter.api.Assertions.assertTrue(m.forGroup("\\\\ Mindfire Behemoth //"));
+        org.junit.jupiter.api.Assertions.assertFalse(m.forGroup("\\\\ Impulse II //"));
+    }
 }

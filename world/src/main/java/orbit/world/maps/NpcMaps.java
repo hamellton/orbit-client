@@ -61,7 +61,20 @@ public final class NpcMaps {
      */
     private final Map<String, Set<Integer>> only = new TreeMap<>();
 
+    /**
+     * NPCs made for a group ({@code "group"} in the bundled file): fixed in place, far too strong for one ship
+     * (official «Blacklight FAQ», 2018: Invoke XVI 36 million HP, Mindfire Behemoth 135 million, rewards to the top
+     * damage dealers). A quest to kill them is not for the bot.
+     */
+    private final Set<String> group = new TreeSet<>();
+
+    /** An NPC for a group, not for one ship. */
+    public synchronized boolean forGroup(String name) {
+        return group.contains(name);
+    }
+
     void read(JsonNode root) {
+        root.path("group").forEach(n -> group.add(n.asText()));
         root.path("only").fields().forEachRemaining(e -> {
             Set<Integer> maps = new TreeSet<>();
             e.getValue().forEach(n -> maps.add(n.asInt()));
