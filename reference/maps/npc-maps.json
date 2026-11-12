@@ -1,9 +1,192 @@
 {
-  "9": ["-=[ Recruit Streuner ]=-", "-=[ Streuner ]=-"],
-  "10": ["-=[ Lordakia ]=-", "-=[ Recruit Streuner ]=-", "-=[ Streuner ]=-", "..::{ Boss Lordakia }::..", "..::{ Boss Streuner }::.."],
-  "12": ["-=[ Lordakia ]=-", "-=[ Mordon ]=-", "-=[ Saimon ]=-", "-=[ Sibelon ]=-", "..::{ Boss Saimon }::..", "..::{ Boss Sibelon }::.."],
-  "16": ["-=[ Deadly Battleray ]=-"],
-  "18": ["-=[ Kristallin ]=-"],
-  "25": ["* Lordakium Spore *", "-=[ Lordakia ]=-", "-=[ Lordakium ]=-", "-=[ Rabbit ]=-", "-=[ Sibelonit ]=-", "..::{ Boss Sibelonit }::.."],
-  "26": ["-=[ Cubikon ]=-", "-=[ Kristallin ]=-", "-=[ Kristallon ]=-", "-=[ Plagued Kristallin ]=-", "-=[ Protegit ]=-", "-=[ Rabbit ]=-", "..::{ Boss Kristallin }::.."]
+  "2": [
+    "-=[ Lordakia ]=-",
+    "..::{ Boss Lordakia }::.."
+  ],
+  "3": [
+    "-=[ Devolarium ]=-",
+    "-=[ Lordakia ]=-",
+    "-=[ Mordon ]=-",
+    "-=[ Saimon ]=-",
+    "..::{ Boss Devolarium }::..",
+    "..::{ Boss Lordakia }::..",
+    "..::{ Boss Mordon }::..",
+    "..::{ Boss Saimon }::.."
+  ],
+  "4": [
+    "-=[ Lordakia ]=-",
+    "-=[ Mordon ]=-",
+    "-=[ Saimon ]=-",
+    "-=[ Sibelon ]=-",
+    "..::{ Boss Lordakia }::..",
+    "..::{ Boss Mordon }::..",
+    "..::{ Boss Saimon }::..",
+    "..::{ Boss Sibelon }::.."
+  ],
+  "6": [
+    "-=[ Lordakia ]=-",
+    "..::{ Boss Lordakia }::.."
+  ],
+  "7": [
+    "-=[ Devolarium ]=-",
+    "-=[ Lordakia ]=-",
+    "-=[ Mordon ]=-",
+    "-=[ Saimon ]=-",
+    "..::{ Boss Devolarium }::..",
+    "..::{ Boss Lordakia }::..",
+    "..::{ Boss Mordon }::..",
+    "..::{ Boss Saimon }::.."
+  ],
+  "8": [
+    "-=[ Lordakia ]=-",
+    "-=[ Mordon ]=-",
+    "-=[ Saimon ]=-",
+    "-=[ Sibelon ]=-",
+    "..::{ Boss Lordakia }::..",
+    "..::{ Boss Mordon }::..",
+    "..::{ Boss Saimon }::..",
+    "..::{ Boss Sibelon }::.."
+  ],
+  "9": [
+    "-=[ Recruit Streuner ]=-",
+    "-=[ Streuner ]=-"
+  ],
+  "10": [
+    "-=[ Lordakia ]=-",
+    "-=[ Recruit Streuner ]=-",
+    "-=[ Streuner ]=-",
+    "..::{ Boss Lordakia }::..",
+    "..::{ Boss Streuner }::.."
+  ],
+  "11": [
+    "-=[ Devolarium ]=-",
+    "-=[ Lordakia ]=-",
+    "-=[ Mordon ]=-",
+    "-=[ Saimon ]=-",
+    "..::{ Boss Devolarium }::..",
+    "..::{ Boss Lordakia }::..",
+    "..::{ Boss Mordon }::..",
+    "..::{ Boss Saimon }::.."
+  ],
+  "12": [
+    "-=[ Lordakia ]=-",
+    "-=[ Mordon ]=-",
+    "-=[ Saimon ]=-",
+    "-=[ Sibelon ]=-",
+    "..::{ Boss Lordakia }::..",
+    "..::{ Boss Mordon }::..",
+    "..::{ Boss Saimon }::..",
+    "..::{ Boss Sibelon }::.."
+  ],
+  "16": [
+    "-=[ Deadly Battleray ]=-"
+  ],
+  "17": [
+    "-=[ Lordakia ]=-",
+    "-=[ Sibelonit ]=-",
+    "..::{ Boss Lordakia }::..",
+    "..::{ Boss Sibelonit }::.."
+  ],
+  "18": [
+    "-=[ Kristallin ]=-"
+  ],
+  "21": [
+    "-=[ Lordakia ]=-",
+    "-=[ Sibelonit ]=-",
+    "..::{ Boss Lordakia }::..",
+    "..::{ Boss Lordakium }::...",
+    "..::{ Boss Sibelonit }::.."
+  ],
+  "22": [
+    "-=[ Cubikon ]=-",
+    "-=[ Kristallin ]=-",
+    "-=[ Kristallon ]=-",
+    "-=[ Plagued Kristallin ]=-",
+    "-=[ Protegit ]=-",
+    "..::{ Boss Kristallin }::..",
+    "..::{ Boss Kristallon }::.."
+  ],
+  "23": [
+    "-=[ Blighted Kristallon ]=-",
+    "-=[ Kristallin ]=-",
+    "-=[ Kristallon ]=-"
+  ],
+  "24": [
+    "-=[ StreuneR ]=-",
+    "..::{ Boss StreuneR }::..",
+    "\\\\ Purpose XXI //"
+  ],
+  "25": [
+    "* Lordakium Spore *",
+    "-=[ Lordakia ]=-",
+    "-=[ Lordakium ]=-",
+    "-=[ Rabbit ]=-",
+    "-=[ Sibelonit ]=-",
+    "..::{ Boss Lordakia }::..",
+    "..::{ Boss Lordakium }::...",
+    "..::{ Boss Sibelonit }::.."
+  ],
+  "26": [
+    "-=[ Cubikon ]=-",
+    "-=[ Kristallin ]=-",
+    "-=[ Kristallon ]=-",
+    "-=[ Plagued Kristallin ]=-",
+    "-=[ Protegit ]=-",
+    "-=[ Rabbit ]=-",
+    "..::{ Boss Kristallin }::.."
+  ],
+  "27": [
+    "-=[ Blighted Kristallon ]=-",
+    "-=[ Kristallin ]=-",
+    "-=[ Kristallon ]=-"
+  ],
+  "28": [
+    "-=[ StreuneR ]=-",
+    "..::{ Boss StreuneR }::..",
+    "\\\\ Purpose XXI //"
+  ],
+  "29": [
+    "( Uber Battleray )",
+    "( UberDevolarium )",
+    "( UberLordakia )",
+    "( UberMordon )",
+    "( UberSaimon )",
+    "( UberSibelon )",
+    "( UberSibelonit )",
+    "( UberStreuneR )",
+    "-=[ Deadly Battleray ]=-",
+    "..::{ Boss Devolarium }::..",
+    "..::{ Boss Kristallon }::..",
+    "..::{ Boss Lordakia }::..",
+    "..::{ Boss Mordon }::..",
+    "..::{ Boss Saimon }::..",
+    "..::{ Boss Sibelon }::..",
+    "..::{ Boss Sibelonit }::..",
+    "..::{ Boss StreuneR }::.."
+  ],
+  "91": [
+    "-=[ Annihilator ]=-",
+    "-=[ Barracuda ]=-",
+    "-=[ Interceptor ]=-",
+    "-=[ Saboteur ]=-"
+  ],
+  "92": [
+    "( Uber Interceptor )",
+    "( Uber Saboteur )",
+    "-=[ Annihilator ]=-",
+    "-=[ Barracuda ]=-",
+    "-=[ Interceptor ]=-",
+    "-=[ Saboteur ]=-",
+    "\\\\ Urge IV //"
+  ],
+  "93": [
+    "( Uber Barracuda )",
+    "( Uber Interceptor )",
+    "-=[ Annihilator ]=-",
+    "-=[ Barracuda ]=-",
+    "-=[ Battleray ]=-",
+    "-=[ Interceptor ]=-",
+    "-=[ Rabbit ]=-",
+    "-=[ Saboteur ]=-"
+  ]
 }

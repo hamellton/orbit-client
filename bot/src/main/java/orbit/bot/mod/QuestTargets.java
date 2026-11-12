@@ -81,6 +81,18 @@ public final class QuestTargets {
         return out;
     }
 
+    /** The condition's NPC names, {@link #norm normalized} ({@code bosssaimon}, {@code ubersaimon}). */
+    public static Set<String> wanted(Quests.Condition c) {
+        Set<String> out = new LinkedHashSet<>();
+        for (int id : npcIds(c)) {
+            String n = NpcCatalog.bundled().name(id);
+            if (n != null) {
+                out.add(norm(n));
+            }
+        }
+        return out;
+    }
+
     /** Map id → the game's names of the condition's NPCs seen there. */
     public static Map<Integer, Set<String>> where(Quests.Condition c, NpcMaps maps) {
         Set<String> wanted = new LinkedHashSet<>();
@@ -118,7 +130,7 @@ public final class QuestTargets {
     }
 
     /** {@code -=[ Uber Protegit ]=-} and {@code UberProtegit} alike: letters and digits only, lower case. */
-    static String norm(String name) {
+    public static String norm(String name) {
         StringBuilder s = new StringBuilder();
         for (char ch : name.toCharArray()) {
             if (Character.isLetterOrDigit(ch)) {

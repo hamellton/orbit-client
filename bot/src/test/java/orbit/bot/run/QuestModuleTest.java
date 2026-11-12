@@ -174,4 +174,53 @@ class QuestModuleTest {
         sim.world.apply(init, sim.now);
         assertFalse(m.doable(sim.world.snapshot(sim.now).quests().active().get(312003)));
     }
+
+    @Test
+    void bossesAreHuntedElsewhereThanOn45() {
+        // the user 2026-11-12: bosses live on 4-5 too, but are easier on their own maps (Boss Saimon: x-3, x-4)
+        int map45 = MapCatalog.bundled().byName("4-5").id();
+        Sim sim = new Sim(BotConfig.empty(), map45, 10_000, 6_000);
+        take(sim, 401, 3, 6, 3, "17");
+        QuestModule m = new QuestModule(sim.ctx, NpcMaps.shared(), orbit.world.maps.OreMaps.inMemory());
+        m.visited(sim.now);
+        m.tick();
+        assertTrue(m.workingMap() != map45 && m.workingMap() != 0, MapCatalog.bundled().info(m.workingMap()).name());
+        // an Uber one only lives there
+        Sim uber = new Sim(BotConfig.empty(), map45, 10_000, 6_000);
+        take(uber, 402, 3, 6, 10, "31");
+        QuestModule u = new QuestModule(uber.ctx, NpcMaps.shared(), orbit.world.maps.OreMaps.inMemory());
+        u.visited(uber.now);
+        u.tick();
+        assertEquals(map45, u.workingMap());
+    }
+
+    @Test
+    void anNpcWrittenOtherwiseInSightIsStillTheTarget() {
+        int map45 = MapCatalog.bundled().byName("4-5").id();
+        Sim sim = new Sim(BotConfig.empty(), map45, 10_000, 6_000);
+        sim.lasers("ammunition_laser_ucb-100");
+        take(sim, 403, 3, 6, 10, "31");
+        sim.npc(700, "( Uber Saimon )", 10_500, 6_100); // the table writes «( UberSaimon )»
+        QuestModule m = new QuestModule(sim.ctx, NpcMaps.shared(), orbit.world.maps.OreMaps.inMemory());
+        m.visited(sim.now);
+        sim.run(m::tick, 3_000);
+        assertEquals(700, sim.world.snapshot(sim.now).hero().selectedId());
+    }
+
+    @Test
+    void aMapWithoutTheNpcsForTenMinutesIsLeftForAnother() {
+        int map = MapCatalog.bundled().byName("3-4").id();
+        Sim sim = new Sim(BotConfig.empty(), map, 10_000, 6_000);
+        take(sim, 404, 3, 6, 15, "6"); // Saimon: x-3 and x-4
+        QuestModule m = new QuestModule(sim.ctx, NpcMaps.shared(), orbit.world.maps.OreMaps.inMemory());
+        m.visited(sim.now);
+        m.tick();
+        assertEquals(map, m.workingMap());
+        for (int t = 0; t < 10 * 60 * 10 + 20; t++) {
+            m.tick();
+            sim.now += 100 * Sim.MS;
+        }
+        assertTrue(m.workingMap() != map && m.workingMap() != 0, "another x-3/x-4 map: "
+                + MapCatalog.bundled().info(m.workingMap()).name());
+    }
 }

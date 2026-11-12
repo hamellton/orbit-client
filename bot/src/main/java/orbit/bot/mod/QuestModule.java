@@ -47,6 +47,10 @@ public final class QuestModule implements BotModule {
     /** Type order of the work: what resets soonest first. */
     static final List<Integer> ORDER = List.of(Quests.DAILY, Quests.WEEKLY, Quests.EVENT, Quests.CHALLENGE, Quests.MISSION);
     static final String BONUS_BOX = "BONUS_BOX";
+    /** On the work's map this long without one of its NPCs in sight: try another map (the table can be wrong). */
+    static final long NOT_THERE_MS = 10 * 60_000;
+    /** Bosses are easier elsewhere than on 4-5 (the user, 2026-11-12): that map counts as this many jumps more. */
+    static final int BOSS_4_5_EXTRA_HOPS = 4;
 
     enum Kind { KILL, DAMAGE, BOX, ORE, SELL, MAP }
 
@@ -61,12 +65,21 @@ public final class QuestModule implements BotModule {
     private KillModule worker;
     private String status = "Квесты";
     private String told = "";
+    /** Map → conditions whose NPCs were not found there this session. */
+    private final Map<Integer, Set<Integer>> notThere = new java.util.HashMap<>();
+    private long onMapSince;
+    private boolean seenWanted;
 
     /**
      * One condition being done: {@code names} are the NPCs to kill or the collectables to pick ({@code BONUS_BOX},
      * {@code ore_5}); {@code ore} the ore type of a sale (-2 any).
      */
-    record Work(int quest, int condition, Kind kind, int map, Set<String> names, double x, double y, int ore) {
+    record Work(int quest, int condition, Kind kind, int map, Set<String> names, double x, double y, int ore,
+                Set<String> want) {
+
+        Work(int quest, int condition, Kind kind, int map, Set<String> names, double x, double y, int ore) {
+            this(quest, condition, kind, map, names, x, y, ore, Set.of());
+        }
     }
 
     public QuestModule(BotContext ctx) {
@@ -164,11 +177,16 @@ public final class QuestModule implements BotModule {
             }
             worker = null;
             work = next;
+            onMapSince = 0;
+            seenWanted = false;
         }
         Quests.Condition c = condition(q.active().get(work.quest()), work.condition());
         String progress = QuestTexts.condition(c) + (c.target() > 0 ? " " + (long) c.current() + "/" + (long) c.target() : "");
         switch (work.kind()) {
             case KILL, DAMAGE, BOX, ORE -> {
+                if (notFound(w, now)) {
+                    return;
+                }
                 if (worker == null) {
                     boolean kill = work.kind() == Kind.KILL || work.kind() == Kind.DAMAGE;
                     worker = new KillModule(questContext(work), kill, true);
@@ -192,6 +210,32 @@ public final class QuestModule implements BotModule {
             default -> {
             }
         }
+    }
+
+    /** Killing on the work's map with none of its NPCs seen for a while: that map is left out, the next one tried. */
+    private boolean notFound(WorldSnapshot w, long now) {
+        if (work.want().isEmpty() || w.hero().mapId() != work.map()) {
+            onMapSince = 0;
+            return false;
+        }
+        if (onMapSince == 0) {
+            onMapSince = now;
+        }
+        if (w.ships().values().stream().anyMatch(sh -> sh.npc() && work.want().contains(QuestTargets.norm(sh.name())))) {
+            seenWanted = true;
+        }
+        if (seenWanted || now - onMapSince < NOT_THERE_MS * 1_000_000) {
+            return false;
+        }
+        log.warn("Квест {}: на {} за {} мин не видно {} — пробую другую карту", work.quest(),
+                ctx.maps().info(work.map()).name(), NOT_THERE_MS / 60_000, String.join(", ", work.names()));
+        notThere.computeIfAbsent(work.map(), k -> new TreeSet<>()).add(work.condition());
+        if (worker != null) {
+            worker.pause();
+        }
+        worker = null;
+        work = null;
+        return true;
     }
 
     private static String what(Kind k) {
@@ -239,11 +283,15 @@ public final class QuestModule implements BotModule {
         WorldSnapshot.Hero h = w.hero();
         Set<String> doing = kinds();
         if (QuestTargets.killing(c) && doing.contains("KILL") || QuestTargets.damaging(c) && doing.contains("DAMAGE")) {
-            Map<Integer, Set<String>> where = QuestTargets.where(c, npcMaps);
-            Integer best = nearest(where.keySet(), h);
+            Map<Integer, Set<String>> where = new LinkedHashMap<>(QuestTargets.where(c, npcMaps));
+            where.keySet().removeIf(m -> notThere.getOrDefault(m, Set.of()).contains(c.id()));
+            Set<String> want = QuestTargets.wanted(c);
+            boolean bosses = !want.isEmpty() && want.stream().allMatch(n -> n.startsWith("boss"));
+            int map45 = ctx.maps().byName("4-5") == null ? -1 : ctx.maps().byName("4-5").id();
+            Integer best = nearest(where.keySet(), h, m -> bosses && m == map45 ? BOSS_4_5_EXTRA_HOPS : 0);
             Kind k = QuestTargets.killing(c) ? Kind.KILL : Kind.DAMAGE;
             return best == null ? null : new Work(quest.id(), c.id(), k, best, Set.copyOf(where.get(best)), Double.NaN,
-                    Double.NaN, -1);
+                    Double.NaN, -1, want);
         }
         if (c.type() == Quests.COLLECT_BONUS_BOX && doing.contains("BOX")) {
             int map = ctx.config().get().general().workingMap();
@@ -300,8 +348,13 @@ public final class QuestModule implements BotModule {
         return ores.entrySet().stream().anyMatch(e -> e.getKey() != WorldSnapshot.Inventory.XENOMIT && e.getValue() >= 1);
     }
 
-    /** The map fewest jumps away (the one the ship is on first); {@code null} when none can be reached. */
     private Integer nearest(java.util.Collection<Integer> maps, WorldSnapshot.Hero h) {
+        return nearest(maps, h, m -> 0);
+    }
+
+    /** The map fewest jumps away (plus its extra), the one the ship is on first; {@code null} when none can be reached. */
+    private Integer nearest(java.util.Collection<Integer> maps, WorldSnapshot.Hero h,
+                            java.util.function.IntUnaryOperator extra) {
         Integer best = null;
         int bestHops = Integer.MAX_VALUE;
         for (int m : maps) {
@@ -316,6 +369,7 @@ public final class QuestModule implements BotModule {
                 }
                 hops = route.size();
             }
+            hops += extra.applyAsInt(m);
             if (hops < bestHops) {
                 best = m;
                 bestHops = hops;
@@ -347,9 +401,24 @@ public final class QuestModule implements BotModule {
 
     /** The config for the work: only its NPCs or collectables listed, the working map the work's map. */
     private BotContext questContext(Work wk) {
-        return new BotContext(ctx.world(), () -> questConfig(ctx.config().get(), wk), ctx.actions(), ctx.nav(),
+        return new BotContext(ctx.world(), () -> questConfig(ctx.config().get(), withSeen(wk)), ctx.actions(), ctx.nav(),
                 ctx.traveler(), ctx.maps(), ctx.random(), ctx.clock(), ctx.repair(), ctx.ship(), ctx.dataDir(), ctx.stats(),
                 ctx.ships());
+    }
+
+    /** The work's NPCs as they are named in sight, too: the table may write a name a little otherwise. */
+    private Work withSeen(Work wk) {
+        if (wk.want().isEmpty()) {
+            return wk;
+        }
+        Set<String> names = new TreeSet<>(wk.names());
+        for (WorldSnapshot.Ship sh : ctx.world().get().ships().values()) {
+            if (sh.npc() && sh.name() != null && wk.want().contains(QuestTargets.norm(sh.name()))) {
+                names.add(sh.name());
+            }
+        }
+        return names.size() == wk.names().size() ? wk : new Work(wk.quest(), wk.condition(), wk.kind(), wk.map(),
+                Set.copyOf(names), wk.x(), wk.y(), wk.ore(), wk.want());
     }
 
     static BotConfig questConfig(BotConfig c, Work wk) {
