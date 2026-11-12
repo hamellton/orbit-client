@@ -8,7 +8,8 @@ import orbit.world.WorldSnapshot;
 public final class Targets {
 
     /** Distance kept when an NPC has no rule. */
-    public static final double DEFAULT_RADIUS = 550;
+    /** An NPC with no radius of its own: the user's DarkBot profiles give almost every NPC 560. */
+    public static final double DEFAULT_RADIUS = 560;
 
     private Targets() {
     }

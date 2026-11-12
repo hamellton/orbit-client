@@ -605,7 +605,7 @@ public final class QuestModule implements BotModule {
                 BotConfig.NpcRule own = c.npc(n);
                 npcs.put(n, own != null ? new BotConfig.NpcRule(own.radius(), own.priority(), true, own.flags(), Set.of(),
                         own.ammo(), own.sab(), own.rocket(), own.launcher())
-                        : new BotConfig.NpcRule(500, 0, true, Set.of(), Set.of(), null));
+                        : new BotConfig.NpcRule(0, 0, true, Set.of(), Set.of(), null)); // 0: the default radius
             }
             out = out.withNpcs(npcs);
             if (wk.kind() == Kind.SALVAGE) {
