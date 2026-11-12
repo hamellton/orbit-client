@@ -155,4 +155,23 @@ class QuestModuleTest {
         assertFalse(m.doable(active.get(301)), "killing switched off");
         assertTrue(m.doable(active.get(302)));
     }
+
+    @Test
+    void aQuestOfMapsNoPortalLeadsToIsNotDoableEvenWithItsConditionNotRequired() {
+        // live 2026-11-12 on ru1: 312003 «on R-Zone 1 … 10», its condition not mandatory, was taken
+        Sim sim = new Sim(BotConfig.empty(), MapCatalog.bundled().byName("2-8").id(), 5_000, 5_000);
+        QuestModule m = new QuestModule(sim.ctx, NpcMaps.shared(), orbit.world.maps.OreMaps.inMemory());
+        take(sim, 312003, 3, 16, 1, "150", "151", "152");
+        sim.world.snapshot(sim.now).quests().active().get(312003);
+        orbit.protocol.gen.QuestInitializationCommand init = new orbit.protocol.gen.QuestInitializationCommand();
+        init.quest = QuestGiverVisitTest.Giver.definition(312003);
+        init.quest.types.getFirst().type = 3;
+        var c = init.quest.rootCase.modifier.getFirst().condition;
+        c.displayType = 16;
+        c.type = 16;
+        c.matches = List.of("150", "151");
+        c.mandatory = false;
+        sim.world.apply(init, sim.now);
+        assertFalse(m.doable(sim.world.snapshot(sim.now).quests().active().get(312003)));
+    }
 }

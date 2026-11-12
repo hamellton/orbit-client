@@ -220,14 +220,16 @@ public final class QuestModule implements BotModule {
                 .sorted(Comparator.comparingInt(QuestModule::rank).thenComparingInt(Quests.Quest::id)).toList();
         for (Quests.Quest quest : quests) {
             for (Quests.Condition c : quest.leaves()) {
-                if (c.completed() || !c.mandatory() || QuestTargets.passive(c)) {
+                if (c.completed() || QuestTargets.passive(c)) {
                     continue;
                 }
                 Work wk = work(quest, c, w);
                 if (wk != null) {
                     return wk;
                 }
-                break; // the quest's open condition the bot cannot do: the quest waits
+                if (c.mandatory()) {
+                    break; // the quest's open condition the bot cannot do: the quest waits
+                }
             }
         }
         return null;
@@ -325,15 +327,22 @@ public final class QuestModule implements BotModule {
     /** A quest the bot can do: each of its open required conditions is one it does, or a limit it keeps. */
     public boolean doable(Quests.Quest quest) {
         WorldSnapshot w = ctx.world().get();
+        int work = 0;
         for (Quests.Condition c : quest.leaves()) {
-            if (c.completed() || !c.mandatory() || QuestTargets.passive(c)) {
+            if (c.completed() || QuestTargets.passive(c)) {
                 continue;
             }
             if (work(quest, c, w) == null) {
-                return false;
+                if (c.mandatory()) {
+                    return false;
+                }
+                continue;
             }
+            work++;
         }
-        return !quest.leaves().isEmpty();
+        // something the bot really does (live 2026-11-12 on ru1: a quest of R-Zone maps, its only condition not
+        // required, was taken though no portal leads there)
+        return work > 0;
     }
 
     /** The config for the work: only its NPCs or collectables listed, the working map the work's map. */
