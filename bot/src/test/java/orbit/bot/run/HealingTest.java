@@ -141,4 +141,25 @@ class HealingTest {
         assertEquals(0, sim.ctx.stats().repairs.get());
         assertTrue(!s.repairing());
     }
+
+    /** Under fire at the portal with little HP: a jump only where a portal leads back. */
+    private static boolean jumpsAtPortal(int map, int x, int y) {
+        BotConfig c = BotConfig.empty().withSafety(new BotConfig.Safety(0.3, 0.9, 0.3, 0, null,
+                new BotConfig.Heal(-1, -1, -1), 10, "PORTAL", 0, 0));
+        Sim sim = new Sim(c, map, x, y);
+        Safety s = new Safety(sim.ctx);
+        for (int t = 0; t < 100; t++) {
+            hurt(sim, 10_000, 0); // HP 10 %, hit every tick
+            s.tick(true);
+            sim.now += 100 * Sim.MS;
+        }
+        return sim.sent.stream().anyMatch(p -> p instanceof orbit.protocol.gen.JumpRequest);
+    }
+
+    @Test
+    void noEscapeJumpThroughAOneWayPortal() {
+        // 5-2 → 5-3: back only by the loop 5-3 → 4-4 → … → 5-1 → 5-2 (live 2026-11-12, a quest on 5-2)
+        assertTrue(!jumpsAtPortal(92, 1300, 6750), "5-2 → 5-3 has no way back");
+        assertTrue(jumpsAtPortal(2, 2000, 2000), "1-2 → 1-1 and back");
+    }
 }

@@ -38,6 +38,7 @@ public final class Safety {
     private double healHp = -1;
     private long hpRoseAt = Long.MIN_VALUE / 2;
     private long jumpAt;
+    private boolean oneWayTold;
     private long jumpedAt = Long.MIN_VALUE / 2;
     private double lastHp = -1;
     private long hurtAt = Long.MIN_VALUE / 2;
@@ -101,6 +102,7 @@ public final class Safety {
             // stopped each 100 ms)
             if (hp < limit && !repaired(h, s, hp)) {
                 repairing = true;
+                oneWayTold = false;
                 ctx.stats().repairs.incrementAndGet();
                 repairMap = h.mapId();
                 ctx.nav().stop();
@@ -128,7 +130,15 @@ public final class Safety {
             return true;
         }
         if (attacked && hp < ESCAPE_HP && w.jumpingTo() == 0 && now - jumpedAt > 10_000_000_000L) {
-            if (jumpAt == 0) {
+            if (oneWay(portal, h)) {
+                // 5-2 → 5-3 has no way back but the whole loop round the pirate maps (live 2026-11-12): stay in the
+                // portal's shelter and heal here
+                if (!oneWayTold) {
+                    log.warn("На портале под огнём, HP {}%, но с {} обратно не вернуться — не прыгаю, лечусь здесь",
+                            pct(hp), portal.toName());
+                    oneWayTold = true;
+                }
+            } else if (jumpAt == 0) {
                 jumpAt = now + ctx.pause(200, 700);
             } else if (now >= jumpAt) {
                 log.warn("На портале под огнём, HP {}% — прыгаю", pct(hp));
@@ -218,6 +228,12 @@ public final class Safety {
             ctx.actions().useItem(REPAIR_BOT);
             healedAt = now;
         }
+    }
+
+    /** No portal on the far map leads back here (the pirate maps: 5-2 → 5-3, 5-3 → 4-4). */
+    private boolean oneWay(MapCatalog.Portal portal, WorldSnapshot.Hero h) {
+        return portal.toId() > 0 && ctx.maps().portals(portal.toId()).stream()
+                .noneMatch(p -> p.toId() == h.mapId() && (p.faction() == 0 || p.faction() == h.factionId()));
     }
 
     private MapCatalog.Portal nearestPortal(WorldSnapshot.Hero h) {
