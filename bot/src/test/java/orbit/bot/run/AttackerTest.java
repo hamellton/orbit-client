@@ -331,7 +331,7 @@ class AttackerTest {
         // Blacklight NPCs chase (the user, 2026-11-12): backing off keeps them near the radius, standing lets them in
         BotConfig kite = BotConfig.empty()
                 .withLoot(new BotConfig.Loot("ammunition_laser_lcb-10", null, 0, 0, null, true, 0, null, false, false, null,
-                        null, false, true))
+                        null, false, "KITE"))
                 .withNpcs(Map.of("-=[ Target ]=-", new BotConfig.NpcRule(500, 0, true, Set.of(), Set.of(), null)));
         Sim sim = new Sim(kite, 1, 10_500, 6_000);
         sim.lasers("ammunition_laser_lcb-10");
@@ -347,5 +347,77 @@ class AttackerTest {
         Attacker b = new Attacker(stand.ctx);
         b.target(stand.world.snapshot(stand.now).ships().get(7));
         assertTrue(closest(stand, b, 20_000) < 150, "standing, it comes in");
+    }
+
+    private static BotConfig moving(String move) {
+        return BotConfig.empty()
+                .withLoot(new BotConfig.Loot("ammunition_laser_lcb-10", null, 0, 0, null, true, 0, null, false, false, null,
+                        null, false, move))
+                .withNpcs(Map.of("-=[ Target ]=-", new BotConfig.NpcRule(500, 0, true, Set.of(), Set.of(), null),
+                        "-=[ Other ]=-", new BotConfig.NpcRule(500, 5, false, Set.of(), Set.of(), null)));
+    }
+
+    /** Another NPC shooting the ship. */
+    private static void shooter(Sim sim, int id, int x, int y) {
+        sim.npc(id, "-=[ Other ]=-", x, y);
+        orbit.protocol.gen.AttackLaserRunCommand run = new orbit.protocol.gen.AttackLaserRunCommand();
+        run.attackerId = id;
+        run.targetId = 1;
+        sim.world.apply(run, sim.now);
+    }
+
+    @Test
+    void circlingKeepsOffAnotherNpcThatShootsTheShip() {
+        // docs/FIGHT-MOVEMENT.md Д1+Д2: the circle turns away from the other NPC's radius
+        Sim sim = new Sim(moving("CIRCLE"), 1, 10_500, 6_000);
+        sim.lasers("ammunition_laser_lcb-10");
+        sim.npc(7, "-=[ Target ]=-", 10_000, 6_000);
+        shooter(sim, 8, 10_000, 5_250);
+        Attacker a = new Attacker(sim.ctx);
+        a.target(sim.world.snapshot(sim.now).ships().get(7));
+        int near = 0;
+        int ticks = 0;
+        for (long t = 0; t < 30_000; t += 100) {
+            a.tick(true);
+            sim.now += 100 * Sim.MS;
+            var h = sim.hero();
+            if (t > 2_000) {
+                ticks++;
+                if (Math.hypot(h.x() - 10_000, h.y() - 5_250) < 400) {
+                    near++;
+                }
+            }
+        }
+        assertTrue(near < ticks * 0.1, "inside the other's radius " + near + " of " + ticks + " ticks");
+    }
+
+    @Test
+    void byAStillTargetTheShipStandsOnTheSafeSide() {
+        Sim sim = new Sim(moving("STAND"), 1, 10_000, 5_400);
+        sim.lasers("ammunition_laser_lcb-10");
+        sim.npc(7, "-=[ Target ]=-", 10_000, 6_000);
+        shooter(sim, 8, 10_000, 5_000);
+        Attacker a = new Attacker(sim.ctx);
+        a.target(sim.world.snapshot(sim.now).ships().get(7));
+        for (long t = 0; t < 15_000; t += 100) {
+            a.tick(true);
+            sim.now += 100 * Sim.MS;
+        }
+        var h = sim.hero();
+        double fromTarget = Math.hypot(h.x() - 10_000, h.y() - 6_000);
+        assertTrue(fromTarget < 520, "within its radius: " + fromTarget);
+        double fromShooter = Math.hypot(h.x() - 10_000, h.y() - 5_000);
+        assertTrue(fromShooter > 700, "out of the shooter's reach (500 + 250): " + fromShooter);
+    }
+
+    @Test
+    void autoStandsByATargetThatNeverMoves() {
+        Sim sim = new Sim(moving("AUTO"), 1, 10_450, 6_000);
+        sim.lasers("ammunition_laser_lcb-10");
+        sim.npc(7, "-=[ Still ]=-", 10_000, 6_000); // a kind no other test has seen moving
+        Attacker a = new Attacker(sim.ctx);
+        a.target(sim.world.snapshot(sim.now).ships().get(7));
+        sweep(sim, a, 6_000); // circling while it is not known
+        assertTrue(sweep(sim, a, 10_000) < 25, "stands once it is seen still");
     }
 }

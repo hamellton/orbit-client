@@ -449,7 +449,18 @@ public record BotConfig(
      */
     @JsonInclude(JsonInclude.Include.NON_EMPTY)
     public record NpcRule(double radius, int priority, boolean kill, Set<String> flags, Set<Integer> maps, String ammo,
-                          boolean sab, String rocket, String launcher) {
+                          boolean sab, String rocket, String launcher, String move) {
+
+        public NpcRule(double radius, int priority, boolean kill, Set<String> flags, Set<Integer> maps, String ammo,
+                       boolean sab, String rocket, String launcher) {
+            this(radius, priority, kill, flags, maps, ammo, sab, rocket, launcher, null);
+        }
+
+        /** How to move fighting this NPC: its own choice, else {@code fallback} (the config's). */
+        public FightMove fightMove(FightMove fallback) {
+            FightMove m = FightMove.parse(move);
+            return m != null ? m : fallback;
+        }
 
         public NpcRule(double radius, int priority, boolean kill, Set<String> flags, Set<Integer> maps, String ammo,
                        boolean sab, String rocket) {
@@ -481,6 +492,33 @@ public record BotConfig(
     }
 
     /** Known NPC flags (DarkBot's NPC extras and gate flags under the same names). */
+    /** How the ship moves while it fights an NPC (docs/FIGHT-MOVEMENT.md). */
+    public enum FightMove {
+        /** by the NPC's speed, seen by the bot: fast — circle, slow — hold the distance, still — stand */
+        AUTO("Авто (по скорости NPC)"),
+        CIRCLE("Кружить вокруг цели"),
+        KITE("Держать дистанцию (отходить)"),
+        STAND("Стоять на радиусе");
+
+        public final String label;
+
+        FightMove(String label) {
+            this.label = label;
+        }
+
+        /** {@code null} for nothing or an unknown word. */
+        public static FightMove parse(String s) {
+            if (s == null || s.isBlank()) {
+                return null;
+            }
+            try {
+                return valueOf(s.strip().toUpperCase(java.util.Locale.ROOT));
+            } catch (IllegalArgumentException e) {
+                return null;
+            }
+        }
+    }
+
     public enum NpcFlag {
         /** attack even if another player shot at it */
         IGNORE_OWNERSHIP,
@@ -519,13 +557,13 @@ public record BotConfig(
      * @param fallback    ammunition to take, in order, when the wanted one has run out
      * @param launcher    rocket launcher rockets to keep selected ({@code null} = as in the game, {@link #NO_ROCKETS} = none)
      * @param fireLauncher the bot fires the launcher itself when it is loaded (ships without the launcher CPU)
-     * @param kite        keep the target at the radius and move away from it as it comes (Blacklight NPCs chase;
-     *                    the user, 2026-11-12), only where the zones let; wins over {@code circle}
+     * @param move        how to move in a fight ({@link FightMove}); {@code null} in an older file = {@code circle}
+     *                    on → circle, off → stand
      */
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public record Loot(String ammo, String sab, double sabBelow, int sabNpcShieldMin, String rsb,
                        boolean groupNpcs, int ignoreFartherThan, String rocket, boolean fireRockets, boolean circle,
-                       List<String> fallback, String launcher, boolean fireLauncher, Boolean kite) {
+                       List<String> fallback, String launcher, boolean fireLauncher, String move) {
 
         public Loot(String ammo, String sab, double sabBelow, int sabNpcShieldMin, String rsb,
                     boolean groupNpcs, int ignoreFartherThan, String rocket, boolean fireRockets, boolean circle,
@@ -546,7 +584,12 @@ public record BotConfig(
 
         public Loot {
             fallback = fallback == null ? List.of() : List.copyOf(fallback);
-            kite = kite != null && kite;
+        }
+
+        /** The config's way of moving in a fight. */
+        public FightMove fightMove() {
+            FightMove m = FightMove.parse(move);
+            return m != null ? m : circle ? FightMove.CIRCLE : FightMove.STAND;
         }
 
         public Loot(String ammo, String sab, double sabBelow, int sabNpcShieldMin, String rsb, boolean groupNpcs,

@@ -16,7 +16,9 @@ import orbit.world.maps.MapCatalog;
 final class NpcTable extends AbstractTableModel {
 
     static final String[] COLUMNS = {"NPC", "Бить", "Приоритет", "Радиус", "SAB", "Патроны", "Ракеты", "Ракетомёт", "Карты",
-            "Флаги"};
+            "Флаги", "Движение"};
+    /** The «Движение» cell for an NPC with no choice of its own: the config's «В бою». */
+    static final String CONFIG_MOVE = "как в конфиге";
     static final String NO_ROCKETS = "без ракет";
     static final String DEFAULT_AMMO = "общие";
 
@@ -31,6 +33,7 @@ final class NpcTable extends AbstractTableModel {
         boolean sab;
         String rocket;
         String launcher;
+        String move;
     }
 
     private final MapCatalog catalog;
@@ -54,6 +57,7 @@ final class NpcTable extends AbstractTableModel {
             row.sab = r.sab();
             row.rocket = r.rocket();
             row.launcher = r.launcher();
+            row.move = r.move();
             rows.add(row);
         });
         fireTableDataChanged();
@@ -70,7 +74,7 @@ final class NpcTable extends AbstractTableModel {
                 throw new IllegalArgumentException("NPC «" + name + "» в списке дважды");
             }
             out.put(name, new BotConfig.NpcRule(r.radius, r.priority, r.kill, r.flags, r.maps, r.ammo, r.sab, r.rocket,
-                    r.launcher));
+                    r.launcher, r.move));
         }
         return out;
     }
@@ -142,6 +146,10 @@ final class NpcTable extends AbstractTableModel {
             case 7 -> row.launcher == null ? DEFAULT_AMMO
                     : BotConfig.Loot.NO_ROCKETS.equals(row.launcher) ? NO_ROCKETS : orbit.config.ItemCatalog.label(row.launcher);
             case 8 -> mapsText(row.maps);
+            case 10 -> {
+                BotConfig.FightMove m = BotConfig.FightMove.parse(row.move);
+                yield m == null ? CONFIG_MOVE : m.label;
+            }
             default -> String.join(", ", row.flags);
         };
     }
@@ -159,10 +167,22 @@ final class NpcTable extends AbstractTableModel {
             case 6 -> row.rocket = rocketId(String.valueOf(v), row.rocket);
             case 7 -> row.launcher = launcherId(String.valueOf(v), row.launcher);
             case 8 -> row.maps = parseMaps(String.valueOf(v));
+            case 10 -> row.move = java.util.Arrays.stream(BotConfig.FightMove.values())
+                    .filter(m -> m.label.equals(String.valueOf(v))).map(Enum::name).findFirst().orElse(null);
             default -> row.flags = Arrays.stream(String.valueOf(v).split("[,; ]+")).map(String::strip)
                     .filter(s -> !s.isEmpty()).map(String::toUpperCase).collect(Collectors.toCollection(LinkedHashSet::new));
         }
         fireTableCellUpdated(r, c);
+    }
+
+    /** The «Движение» choices: the config's, then each way. */
+    static String[] moveChoices() {
+        List<String> out = new ArrayList<>();
+        out.add(CONFIG_MOVE);
+        for (BotConfig.FightMove m : BotConfig.FightMove.values()) {
+            out.add(m.label);
+        }
+        return out.toArray(String[]::new);
     }
 
     /** The ammunition cell editor's choice back to an item id ({@code null} = the config's default). */

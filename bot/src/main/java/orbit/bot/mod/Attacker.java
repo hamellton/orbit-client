@@ -101,6 +101,9 @@ public final class Attacker {
         circleDir = 0;
         kiteAngle = null;
         kiteTold = false;
+        standAt = null;
+        modeTold = null;
+        watchedSince = ctx.now();
         t0Cubikon = CubikonModule.isCubikon(s);
         if (t0Cubikon) {
             ctx.stats().cubeFought(s.id());
@@ -141,6 +144,10 @@ public final class Attacker {
                 double ny = (t.y() - seenY) / dt;
                 vx = vx * 0.5 + nx * 0.5;
                 vy = vy * 0.5 + ny * 0.5;
+                double sp = Math.hypot(vx, vy);
+                if (t.moving() && sp > 0 && sp < 2_000 && t.name() != null) {
+                    KIND_SPEED.merge(t.name(), sp, Math::max);
+                }
             }
         }
         if (!t.moving()) {
@@ -216,26 +223,42 @@ public final class Attacker {
         boolean chasing = move && dist > radius + CHASE_GAP && (follow || c.general().runModeChase());
         boolean onTheWay = move && dist > radius + APPROACH && h.attackers().isEmpty();
         ctx.ship().want(chasing ? c.general().run() : onTheWay ? c.general().travel() : c.general().offensive());
-        boolean kite = c.loot().kite() && (rule == null || !rule.has(BotConfig.NpcFlag.NO_CIRCLE));
-        if (move && kite && dist <= radius * KITE_APPROACH && now >= nextApproach) {
-            // hold the radius, away from it as it comes (Blacklight NPCs chase; the user, 2026-11-12)
-            kite(c, ctx.world().get(), h, t, radius);
-            nextApproach = now + ctx.pause(300, 500);
-        } else if (move && dist > radius + 60 && now >= nextApproach) {
+        BotConfig.FightMove mode = mode(c, rule, t, h, now);
+        Threats threats = move ? new Threats(ctx, ctx.world().get(), c, t.id()) : null;
+        boolean holding = mode == BotConfig.FightMove.KITE || mode == BotConfig.FightMove.STAND;
+        if (move && dist > (holding ? radius * KITE_APPROACH : radius + 60) && now >= nextApproach) {
             // a fleeing target: aim where it will be and go well inside the radius, re-aiming often (live 2026-11-12:
             // Boss Kristallon ran, the ship stopped at the radius of where it had been and never fired); the
-            // «aggressive follow» flag aims at where it flies
+            // «aggressive follow» flag aims at where it flies; one that stays: come in from its safer side
             boolean fleeing = t.moving();
             double[] at = follow && fleeing ? new double[] {t.targetX(), t.targetY()} : ahead(t, h, radius);
             double keep = fleeing ? radius * CHASE_INSIDE : radius;
-            double d = Math.max(1, Math.hypot(at[0] - h.x(), at[1] - h.y()));
-            double k = Math.max(0, (d - keep) / d);
-            ctx.nav().moveTo(h.x() + (at[0] - h.x()) * k, h.y() + (at[1] - h.y()) * k, false);
+            double[] to = fleeing ? null : safeSide(threats, at, keep, h);
+            if (to == null) {
+                double d = Math.max(1, Math.hypot(at[0] - h.x(), at[1] - h.y()));
+                double k = Math.max(0, (d - keep) / d);
+                to = new double[] {h.x() + (at[0] - h.x()) * k, h.y() + (at[1] - h.y()) * k};
+            }
+            ctx.nav().moveTo(to[0], to[1], false);
             nextApproach = now + (fleeing ? ctx.pause(300, 500) : ctx.pause(700, 1_200));
-        } else if (move && c.loot().circle() && (rule == null || !rule.has(BotConfig.NpcFlag.NO_CIRCLE))
-                && now >= nextApproach) {
-            circle(h, t, radius);
-            nextApproach = now + (t.moving() ? ctx.pause(400, 700) : ctx.pause(900, 1_500));
+        } else if (move && now >= nextApproach) {
+            switch (mode) {
+                case KITE -> {
+                    // hold the radius, away from it as it comes (Blacklight NPCs chase; the user, 2026-11-12)
+                    kite(threats, h, t, radius);
+                    nextApproach = now + ctx.pause(300, 500);
+                }
+                case STAND -> {
+                    stand(threats, h, t, radius);
+                    nextApproach = now + ctx.pause(500, 900);
+                }
+                case CIRCLE -> {
+                    circle(threats, h, t, radius);
+                    nextApproach = now + ctx.pause(250, 400);
+                }
+                default -> {
+                }
+            }
         }
         if (move) {
             ctx.nav().tick();
@@ -338,7 +361,6 @@ public final class Attacker {
     }
 
     /** Each circling click moves on this much of the circle (radians), like a player dragging the mouse round. */
-    static final double CIRCLE_STEP = Math.toRadians(35);
 
     /**
      * Within the radius: the next point a little further round the target, at the radius give or take a
@@ -346,27 +368,90 @@ public final class Attacker {
      */
     /** Farther than this share of the radius the ship flies in as usual; nearer it holds the radius. */
     static final double KITE_APPROACH = 1.5;
-    /** The ship keeps this far from the map's edge while backing off. */
-    static final double KITE_MARGIN = 500;
     private Double kiteAngle;
     private boolean kiteTold;
+    private double[] standAt;
+
+    /** NPC kinds' top speed seen (units per second): {@link BotConfig.FightMove#AUTO} goes by it. */
+    private static final java.util.Map<String, Double> KIND_SPEED = new java.util.concurrent.ConcurrentHashMap<>();
+    /** Watched this long without moving: a standing NPC (an invoke, the behemoth). */
+    static final long STILL_NS = 4_000_000_000L;
+    /** Slower than this share of the ship's speed: a slow NPC, to be kept at the radius. */
+    static final double SLOW_SHARE = 0.6;
+    private long watchedSince;
+    private BotConfig.FightMove modeTold;
+
+    /**
+     * How to move against this target: its own choice in the NPC list, else the config's; «auto» by its speed —
+     * a Cubikon or a fast one circled, a slow one kept at the radius, a standing one stood by (docs/FIGHT-MOVEMENT.md
+     * Д3; the user, 2026-11-13: the cubes as they are). {@code NO_CIRCLE} turns circling into standing.
+     */
+    private BotConfig.FightMove mode(BotConfig c, BotConfig.NpcRule rule, WorldSnapshot.Ship t, WorldSnapshot.Hero h,
+                                     long now) {
+        BotConfig.FightMove m = rule != null ? rule.fightMove(c.loot().fightMove()) : c.loot().fightMove();
+        if (m == BotConfig.FightMove.AUTO) {
+            double top = KIND_SPEED.getOrDefault(t.name(), 0.0);
+            if (CubikonModule.isCubikon(t)) {
+                m = BotConfig.FightMove.CIRCLE;
+            } else if (top >= SLOW_SHARE * Math.max(1, h.speed())) {
+                m = BotConfig.FightMove.CIRCLE;
+            } else if (top > 30) {
+                m = BotConfig.FightMove.KITE;
+            } else if (now - watchedSince > STILL_NS) {
+                m = BotConfig.FightMove.STAND;
+            } else {
+                m = BotConfig.FightMove.CIRCLE; // not known yet
+            }
+        }
+        if (m == BotConfig.FightMove.CIRCLE && rule != null && rule.has(BotConfig.NpcFlag.NO_CIRCLE)) {
+            m = BotConfig.FightMove.STAND;
+        }
+        if (m != modeTold) {
+            modeTold = m;
+            log.info("{}: {}", t.name(), switch (m) {
+                case KITE -> "держу дистанцию, отхожу (радиус " + (int) Targets.radius(c, t, h.mapId()) + ")";
+                case STAND -> "стою на радиусе в безопасной точке";
+                default -> "кружу";
+            });
+        }
+        return m;
+    }
+
+    /**
+     * The point to come in at: on the radius round the target, at most 60° off the straight way, where the threats
+     * are least (docs Д4: not through the other NPCs' radii); {@code null} when nothing is better than straight.
+     */
+    private double[] safeSide(Threats th, double[] at, double keep, WorldSnapshot.Hero h) {
+        if (th == null) {
+            return null;
+        }
+        double base = Math.atan2(h.y() - at[1], h.x() - at[0]);
+        double best = -Double.MAX_VALUE;
+        double[] to = null;
+        for (int i = -3; i <= 3; i++) {
+            double a = base + Math.toRadians(20 * i);
+            double x = at[0] + Math.cos(a) * keep;
+            double y = at[1] + Math.sin(a) * keep;
+            double sc = th.score(x, y) - Math.abs(i) * 60;
+            if (sc > best) {
+                best = sc;
+                to = new double[] {x, y};
+            }
+        }
+        return best <= Threats.BLOCKED ? null : to;
+    }
 
     /**
      * One step of holding the radius: of 24 directions a little way off, the one that leaves the target nearest the
-     * radius — never closer when it is already too close, inside the preferred zone, out of the avoided zone, clear
-     * of the danger circles (offenders, clan stations), away from other NPCs, and turning as little as may be.
-     * Nothing allowed: circling as before.
+     * radius — straight away from it while it is too close — where the threats are least ({@link Threats}), turning as
+     * little as may be. Nothing allowed: circling.
      */
-    private void kite(BotConfig c, WorldSnapshot w, WorldSnapshot.Hero h, WorldSnapshot.Ship t, double radius) {
+    private void kite(Threats th, WorldSnapshot.Hero h, WorldSnapshot.Ship t, double radius) {
         if (!kiteTold) {
             log.info("Держу дистанцию от {} (радиус {})", t.name(), (int) radius);
             kiteTold = true;
         }
         double[] at = ahead(t, h, radius);
-        orbit.world.maps.MapCatalog.MapInfo m = ctx.maps().info(h.mapId());
-        BotConfig.Zones z = c.zones().get(h.mapId());
-        BotConfig.ZoneGrid pref = z == null || z.preferred() == null || z.preferred().isEmpty() ? null : z.preferred();
-        BotConfig.ZoneGrid avoid = z == null || z.avoided() == null || z.avoided().isEmpty() ? null : z.avoided();
         double step = Math.max(350, Math.min(700, radius));
         double want = radius * 0.95;
         double now = Math.hypot(h.x() - at[0], h.y() - at[1]);
@@ -377,21 +462,13 @@ public final class Attacker {
             double a = i * Math.PI / 12;
             double x = h.x() + Math.cos(a) * step;
             double y = h.y() + Math.sin(a) * step;
-            if (x < KITE_MARGIN || y < KITE_MARGIN || x > m.width() - KITE_MARGIN || y > m.height() - KITE_MARGIN
-                    || avoid != null && avoid.contains(x, y, m.width(), m.height()) || ctx.nav().inDanger(x, y)) {
+            double safe = th.score(x, y);
+            if (safe <= Threats.BLOCKED) {
                 continue;
             }
             double d = Math.hypot(x - at[0], y - at[1]);
             // too close: as far from it as the step goes; at the radius: along it (no closer, no farther)
-            double cost = now < want ? 2 * want - d : Math.abs(d - want);
-            if (pref != null && !pref.contains(x, y, m.width(), m.height())) {
-                cost += 1_500;
-            }
-            for (WorldSnapshot.Ship o : w.ships().values()) {
-                if (o.kind() == WorldSnapshot.ShipKind.NPC && o.id() != t.id() && Math.hypot(o.x() - x, o.y() - y) < 900) {
-                    cost += 500;
-                }
-            }
+            double cost = (now < want ? 2 * want - d : Math.abs(d - want)) - safe;
             if (kiteAngle != null) {
                 cost += Math.abs(Math.atan2(Math.sin(a - kiteAngle), Math.cos(a - kiteAngle))) * 120;
             }
@@ -402,25 +479,95 @@ public final class Attacker {
             }
         }
         if (to == null) {
-            circle(h, t, radius);
+            circle(th, h, t, radius);
             return;
         }
         kiteAngle = bestAngle;
         ctx.nav().moveTo(to[0], to[1], false);
     }
 
-    private void circle(WorldSnapshot.Hero h, WorldSnapshot.Ship t, double radius) {
+    /**
+     * Standing by a still NPC (an invoke, the behemoth): of 24 points on 0.9 of the radius round it, the safest near
+     * the ship; kept until a threat comes to it (a better one by 300, or it is no longer allowed).
+     */
+    private void stand(Threats th, WorldSnapshot.Hero h, WorldSnapshot.Ship t, double radius) {
+        double best = -Double.MAX_VALUE;
+        double[] to = null;
+        for (int i = 0; i < 24; i++) {
+            double a = i * Math.PI / 12;
+            double x = t.x() + Math.cos(a) * radius * 0.9;
+            double y = t.y() + Math.sin(a) * radius * 0.9;
+            double sc = th.score(x, y) - 0.2 * Math.hypot(x - h.x(), y - h.y());
+            if (sc > best) {
+                best = sc;
+                to = new double[] {x, y};
+            }
+        }
+        if (to == null || best <= Threats.BLOCKED) {
+            return;
+        }
+        if (standAt != null && Math.hypot(standAt[0] - t.x(), standAt[1] - t.y()) <= radius) {
+            double keep = th.score(standAt[0], standAt[1]) - 0.2 * Math.hypot(standAt[0] - h.x(), standAt[1] - h.y());
+            if (keep > Threats.BLOCKED && keep >= best - 300) {
+                to = standAt;
+            }
+        }
+        standAt = to;
+        if (Math.hypot(to[0] - h.x(), to[1] - h.y()) > 120) {
+            ctx.nav().moveTo(to[0], to[1], false);
+        }
+    }
+
+    /**
+     * DarkBot's circling with the threats: round where the target will be, the angle step from both ships'
+     * speeds, the radius reached gradually, the side chosen by the 5 points ahead each way (switched when one way is
+     * blocked and the other not, or better by 300), a blocked point searched round (docs Д1).
+     */
+    private void circle(Threats th, WorldSnapshot.Hero h, WorldSnapshot.Ship t, double radius) {
         if (circleDir == 0) {
             circleDir = ctx.random().nextBoolean() ? 1 : -1;
             log.info("Кружу вокруг {} ({}, радиус {})", t.name(), circleDir > 0 ? "по часовой" : "против часовой",
                     (int) radius);
         }
-        // round where it will be: a moving target is not left behind while circling
-        double[] c = ahead(t, h, radius);
-        double angle = Math.atan2(h.y() - c[1], h.x() - c[0])
-                + circleDir * CIRCLE_STEP * (0.8 + 0.4 * ctx.random().nextDouble());
-        double r = radius * (t.moving() ? 0.8 : 0.92 + 0.1 * ctx.random().nextDouble());
-        ctx.nav().moveTo(c[0] + Math.cos(angle) * r, c[1] + Math.sin(angle) * r, false);
+        // where it will be: DarkBot looks 250 ms ahead; a target on the run needs the longer lead of the chase
+        // (live 2026-11-12: Boss Kristallon slipped out of range)
+        double[] c0 = ahead(t, h, radius);
+        double cx = c0[0];
+        double cy = c0[1];
+        double r = radius;
+        if (!t.moving() || t.health().known() && t.health().hpPercent() < 0.25) {
+            r = Math.min(r, 600);
+        }
+        if (t.moving()) {
+            r *= 0.8; // a moving one does not leave the radius while the ship goes round
+        }
+        double dist = Math.hypot(h.x() - cx, h.y() - cy);
+        double angle = Math.atan2(h.y() - cy, h.x() - cx);
+        double rr = Math.max(100, dist + Math.max(-r / 2, Math.min(r / 2, r - dist)));
+        double gap = Math.hypot(cx + Math.cos(angle) * rr - h.x(), cy + Math.sin(angle) * rr - h.y());
+        double npcSpeed = Math.max(200, Math.hypot(vx, vy));
+        double step = Math.max(0.05, Math.max(0, 0.625 * Math.max(1, h.speed()) + 0.625 * npcSpeed - gap) / rr);
+        if (th != null) {
+            double ahead = 0;
+            double back = 0;
+            for (int k = 1; k <= 5; k++) {
+                ahead += th.score(cx + Math.cos(angle + circleDir * k * step) * rr, cy + Math.sin(angle + circleDir * k * step) * rr);
+                back += th.score(cx + Math.cos(angle - circleDir * k * step) * rr, cy + Math.sin(angle - circleDir * k * step) * rr);
+            }
+            boolean aheadBlocked = ahead <= Threats.BLOCKED;
+            boolean backBlocked = back <= Threats.BLOCKED;
+            if (aheadBlocked && !backBlocked || !backBlocked && back - ahead > 300) {
+                circleDir = -circleDir;
+                log.info("Кружу в другую сторону: там {}", aheadBlocked ? "нельзя" : "другие NPC или враги");
+            }
+        }
+        double a = angle + circleDir * step;
+        double[] to = {cx + Math.cos(a) * rr, cy + Math.sin(a) * rr};
+        if (th != null) {
+            double[] ok = th.valid(cx, cy, to[0], to[1], circleDir);
+            to = ok != null ? ok : new double[] {cx + Math.cos(angle) * 500, cy + Math.sin(angle) * 500};
+        }
+        ctx.nav().moveTo(to[0], to[1], false);
     }
 
     /** Rockets are launched this close at most (a little beyond the laser radius). */

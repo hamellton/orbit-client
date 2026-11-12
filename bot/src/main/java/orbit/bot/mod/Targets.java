@@ -79,7 +79,27 @@ public final class Targets {
                 .filter(s -> !skip.test(s))
                 .filter(s -> s.distanceTo(h.x(), h.y()) <= maxDistance)
                 .min(Comparator.<WorldSnapshot.Ship>comparingInt(s -> rule(c, s, h.mapId()).priority())
+                        .thenComparingInt(s -> crowd(w, s))
                         .thenComparingDouble(s -> s.distanceTo(h.x(), h.y())))
                 .orElse(null);
+    }
+
+    /** Around a target this close, other NPCs that attack on sight or shoot the ship make a crowd. */
+    static final double CROWD = 1_200;
+
+    /**
+     * How many NPCs that attack on sight (seen so) or shoot the ship now stand by {@code s}: of two targets alike the
+     * one alone first (docs/FIGHT-MOVEMENT.md Д4).
+     */
+    static int crowd(WorldSnapshot w, WorldSnapshot.Ship s) {
+        int n = 0;
+        int hero = w.hero().id();
+        for (WorldSnapshot.Ship o : w.ships().values()) {
+            if (o.npc() && o.id() != s.id() && Math.hypot(o.x() - s.x(), o.y() - s.y()) < CROWD
+                    && (o.attackTargetId() == hero || Threats.aggressive(o.name()))) {
+                n++;
+            }
+        }
+        return n;
     }
 }

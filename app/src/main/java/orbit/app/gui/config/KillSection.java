@@ -49,8 +49,8 @@ final class KillSection implements Section {
     private final ItemBox rocket = new ItemBox(ROCKET_CHOICES, true);
     private final ItemBox fallback1 = new ItemBox(ItemCatalog.LASERS, true);
     private final ItemBox fallback2 = new ItemBox(ItemCatalog.LASERS, true);
-    private static final String[] MOVES = {"Кружить вокруг цели", "Держать дистанцию (отходить)", "Стоять на радиусе"};
-    private final javax.swing.JComboBox<String> move = new javax.swing.JComboBox<>(MOVES);
+    private final javax.swing.JComboBox<String> move = new javax.swing.JComboBox<>(
+            java.util.Arrays.stream(BotConfig.FightMove.values()).map(m -> m.label).toArray(String[]::new));
     private final JCheckBox fireRockets = new JCheckBox("Пускать ракеты сам (без ракетного CPU)");
     private final JSpinner ignoreFarther = Form.number(0, 50_000, 500);
     private final NpcTable npcs;
@@ -64,7 +64,7 @@ final class KillSection implements Section {
         table.setAutoCreateRowSorter(true);
         table.setFillsViewportHeight(true);
         // narrow columns for ticks and numbers; the names and the flags take the rest
-        int[] widths = {200, 44, 78, 62, 44, 80, 80, 80, 90, 190};
+        int[] widths = {200, 44, 78, 62, 44, 80, 80, 80, 90, 190, 110};
         for (int i = 0; i < widths.length; i++) {
             table.getColumnModel().getColumn(i).setPreferredWidth(widths[i]);
         }
@@ -78,6 +78,8 @@ final class KillSection implements Section {
         table.getColumnModel().getColumn(7).setCellEditor(new javax.swing.DefaultCellEditor(
                 new javax.swing.JComboBox<>(NpcTable.launcherChoices())));
         table.getColumnModel().getColumn(9).setCellEditor(new FlagsEditor()); // ticks from a list, not typing
+        table.getColumnModel().getColumn(10).setCellEditor(new javax.swing.DefaultCellEditor(
+                new javax.swing.JComboBox<>(NpcTable.moveChoices())));
         table.getColumnModel().getColumn(5).setCellEditor(new javax.swing.DefaultCellEditor(
                 new javax.swing.JComboBox<>(NpcTable.ammoChoices())));
         table.getTableHeader().setToolTipText("Приоритет: меньше — раньше. Карты: «3-6, 2-6» или «все».");
@@ -142,10 +144,10 @@ final class KillSection implements Section {
         useRsb.addActionListener(e -> sync());
         fireRockets.setToolTipText("С ракетным CPU бот только держит тип; тип для NPC — в списке");
         fireLauncher.setToolTipText("С CPU ракетомёта (RLLB-X) он стреляет сам; бот держит тип ракет");
-        move.setToolTipText("<html>Кружить — облёт по радиусу (не с NO_CIRCLE и не на споте куба).<br>"
-                + "Держать дистанцию — бить на своём радиусе и отходить, когда NPC догоняет (Blacklight),<br>"
-                + "только туда, где можно по зонам, мимо станций, обидчиков и других NPC.<br>"
-                + "Стоять — подлететь на радиус и стоять.</html>");
+        move.setToolTipText("<html>Авто — по скорости NPC: быстрый — кружить, медленный — держать дистанцию,<br>"
+                + "стоячий (инвок, бегемот) — стоять в безопасной точке. Кубы — кружить.<br>"
+                + "Во всех режимах — подальше от других NPC (сильнее от тех, кто бьёт нас), врагов, станций,<br>"
+                + "мин и запретных зон. Своё движение у NPC — в таблице, колонка «Движение».</html>");
         groupNpcs.setToolTipText("Сначала добивать NPC рядом, а не лететь к дальним");
         // the settings in two top-aligned columns: ammunition | rockets and targets; one under the other when narrow
         JComponent ammoColumn = new Form()
@@ -265,13 +267,19 @@ final class KillSection implements Section {
         rocket.set(l.rocket());
         fallback1.set(l.fallback().size() > 0 ? l.fallback().get(0) : null);
         fallback2.set(l.fallback().size() > 1 ? l.fallback().get(1) : null);
-        move.setSelectedIndex(l.kite() ? 1 : l.circle() ? 0 : 2);
+        move.setSelectedIndex(l.fightMove().ordinal());
         fireRockets.setSelected(l.fireRockets());
         launcher.set(l.launcher());
         fireLauncher.setSelected(l.fireLauncher());
         Form.set(ignoreFarther, l.ignoreFartherThan());
         npcs.load(c.npcs());
         sync();
+    }
+
+    /** The chosen way of moving; unchanged — as the file had it (an older file has none). */
+    private String moveName() {
+        BotConfig.FightMove chosen = BotConfig.FightMove.values()[move.getSelectedIndex()];
+        return loaded != null && chosen == loaded.fightMove() ? loaded.move() : chosen.name();
     }
 
     @Override
@@ -282,8 +290,8 @@ final class KillSection implements Section {
         BotConfig.Loot l = new BotConfig.Loot(ammo.get(), useSab.isSelected() ? sab.get() : null,
                 useSab.isSelected() ? Form.fraction(sabBelow) : loaded.sabBelow(), Form.intOf(sabNpcShield),
                 useRsb.isSelected() ? rsb.get() : null, groupNpcs.isSelected(), Form.intOf(ignoreFarther), rocket.get(),
-                fireRockets.isSelected(), move.getSelectedIndex() == 0, fallbacks(), launcher.get(), fireLauncher.isSelected(),
-                move.getSelectedIndex() == 1);
+                fireRockets.isSelected(), move.getSelectedIndex() == BotConfig.FightMove.CIRCLE.ordinal(), fallbacks(),
+                launcher.get(), fireLauncher.isSelected(), moveName());
         Map<String, BotConfig.NpcRule> list = new TreeMap<>(npcs.get());
         return c.withLoot(l).withNpcs(list);
     }
