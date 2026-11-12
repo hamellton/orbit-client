@@ -30,7 +30,7 @@ public final class Router {
     static final int OWN_BLACKLIGHT_LEVEL = 17;
 
     /** May the pilot enter the map: a Blacklight one by the level, the own company's sooner. */
-    static boolean open(int map, int faction, int level) {
+    public static boolean open(int map, int faction, int level) {
         if (!BLACKLIGHT.contains(map)) {
             return true;
         }

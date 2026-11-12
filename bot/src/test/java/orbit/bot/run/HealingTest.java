@@ -299,4 +299,23 @@ class HealingTest {
         assertTrue(s.repairing());
         assertTrue(hp > 45_000, "left at " + hp / 1_000 + " %");
     }
+
+    @Test
+    void anotherCompanysBlacklightIsNoShelterBelowLevel24() {
+        // 2-BL, level 19 (Sim's ship is VRU — 3-BL is its own; 1-BL and 2-BL are not): by the 1-BL portal, the repair
+        // goes to the 2-8 portal, far as it is
+        Sim sim = lowHp(307, 9_893, 1_000);
+        orbit.protocol.gen.AttributeLevelUpUpdateCommand lv = new orbit.protocol.gen.AttributeLevelUpUpdateCommand();
+        lv.level = 19;
+        sim.world.apply(lv, sim.now);
+        Safety s = new Safety(sim.ctx);
+        for (int t = 0; t < 20; t++) {
+            hurt(sim, 10_000, 0);
+            s.tick(true);
+            sim.now += 100 * Sim.MS;
+        }
+        var d = sim.ctx.nav().destination();
+        assertTrue(d.x() == 593 && d.y() == 5_884 || d.x() == 20_377 && d.y() == 7_996,
+                "the 2-8 portal or the own (3-BL) one, not 1-BL: " + d.x() + "/" + d.y());
+    }
 }

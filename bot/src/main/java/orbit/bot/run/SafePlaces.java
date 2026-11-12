@@ -71,7 +71,9 @@ public final class SafePlaces {
         for (MapCatalog.Portal p : maps.portals(h.mapId())) {
             // the server sends a map's gates as the ship comes near (live 5-2 2026-11-12), so a gate not sent
             // yet is no sign of a missing portal: only a refused jump is
-            if (p.faction() != 0 && p.faction() != h.factionId() || closed.contains(key(h.mapId(), p))) {
+            if (p.faction() != 0 && p.faction() != h.factionId() || closed.contains(key(h.mapId(), p))
+                    // another company's Blacklight lets in from level 24 only (live 2026-11-13: level 19 at 3-BL's portal)
+                    || !orbit.bot.nav.Router.open(p.toId(), h.factionId(), h.level() > 0 ? h.level() : Integer.MAX_VALUE)) {
                 continue;
             }
             out.add(p);
@@ -125,6 +127,7 @@ public final class SafePlaces {
         }
         return maps.portals(h.mapId()).stream()
                 .filter(p -> p.faction() == 0 || p.faction() == h.factionId())
+                .filter(p -> orbit.bot.nav.Router.open(p.toId(), h.factionId(), h.level() > 0 ? h.level() : Integer.MAX_VALUE))
                 .map(p -> new Place(p.x(), p.y(), "портал на " + p.toName(), p, false))
                 .min(near).orElse(null);
     }
