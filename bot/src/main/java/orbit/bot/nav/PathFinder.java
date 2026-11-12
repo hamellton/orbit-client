@@ -107,6 +107,8 @@ public final class PathFinder {
      * radius (the server decides), so this is a safe guess.
      */
     public static final double MINE_RADIUS = 250;
+    /** A mine this close (or on the ship): no way round, straight out. */
+    static final double MINE_CLOSE = 60;
 
     /** As {@link #of(WorldSnapshot, MapCatalog, boolean)}, with the mines as round obstacles if {@code avoidMines}. */
     public static PathFinder of(WorldSnapshot w, MapCatalog catalog, boolean throughDanger, boolean avoidMines) {
@@ -174,9 +176,14 @@ public final class PathFinder {
         if (avoidMines) {
             WorldSnapshot.Hero h = w.hero();
             for (WorldSnapshot.Mine m : w.mines().values()) {
-                // a mine dropped on the ship: fly straight out, there is no way round
-                if (Math.hypot(m.x() - h.x(), m.y() - h.y()) > MINE_RADIUS + MARGIN) {
+                double d = Math.hypot(m.x() - h.x(), m.y() - h.y());
+                if (d > MINE_RADIUS + MARGIN) {
                     list.add(circle(m.x(), m.y(), MINE_RADIUS + MARGIN));
+                } else if (d > MINE_CLOSE + 40) {
+                    // the ship already within the keep-off ring (a mine dropped by it, or the way round brushed the
+                    // ring): out freely, but never closer than it is — live 2026-11-12 on ru1 the mine was dropped
+                    // from the obstacles once the ship touched the ring, and the next route went straight over it
+                    list.add(circle(m.x(), m.y(), d - 40));
                 }
             }
         }

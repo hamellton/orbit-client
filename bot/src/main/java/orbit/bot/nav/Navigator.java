@@ -102,7 +102,10 @@ public final class Navigator {
         }
         for (WorldSnapshot.Mine m : w.mines().values()) {
             double r = PathFinder.MINE_RADIUS + PathFinder.MARGIN;
-            if (Math.hypot(m.x() - h.x(), m.y() - h.y()) > r && distanceToSegment(m.x(), m.y(), h.x(), h.y(), x, y) < r) {
+            double d = Math.hypot(m.x() - h.x(), m.y() - h.y());
+            double pass = distanceToSegment(m.x(), m.y(), h.x(), h.y(), x, y);
+            // outside the ring: the way crosses it; inside: the way leads closer to the mine than the ship is now
+            if (d > r ? pass < r : d > PathFinder.MINE_CLOSE + 40 && pass < d - 60) {
                 if (minesTold.add(m.hash())) {
                     log.info("Мина на пути у {}/{} — облетаю", m.x() / 100, m.y() / 100);
                 }

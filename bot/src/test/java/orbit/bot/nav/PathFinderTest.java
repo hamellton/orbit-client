@@ -155,6 +155,27 @@ class PathFinderTest {
     }
 
     @Test
+    void aShipInsideAMinesRingNeverFliesCloserToIt() {
+        // live 2026-11-12 on ru1 (2-6): the way round brushed the ring, the mine stopped counting, and the next route
+        // went straight over it — the mine went off
+        WorldSnapshot s = withMine(5000, 6000, 5200, 6000).snapshot(1);
+        List<double[]> path = PathFinder.of(s, orbit.world.maps.MapCatalog.bundled(), false, true)
+                .path(5000, 6000, 9000, 6000);
+        assertFalse(path.isEmpty());
+        double px = 5000;
+        double py = 6000;
+        for (double[] p : path) {
+            for (int k = 0; k <= 100; k++) {
+                double x = px + (p[0] - px) * k / 100;
+                double y = py + (p[1] - py) * k / 100;
+                assertTrue(Math.hypot(x - 5200, y - 6000) > 150, "over the mine at " + (int) x + "," + (int) y);
+            }
+            px = p[0];
+            py = p[1];
+        }
+    }
+
+    @Test
     void aMineUnderTheShipDoesNotTrapIt() {
         WorldSnapshot s = withMine(5000, 6000, 5050, 6000).snapshot(1);
         List<double[]> path = PathFinder.of(s, orbit.world.maps.MapCatalog.bundled(), false, true)
