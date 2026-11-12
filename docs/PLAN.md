@@ -469,6 +469,14 @@ SAFETY в нужном кубам объёме → KILL для кубов → 5�
         UberKristallin — 4-5;
       - [x] «Salvage» (условие 23, `SalvageCondition`: фракция, тип корабля, номер NPC, тип добычи, руда) — бить NPC
         условия (или NPC других условий квеста на убийство, или NPC конфига) и подбирать их груз `FROM_SHIP`;
+      - [x] полного официального списка «NPC → карты» в сети нет (2026-11-12): fandom-вики закрыта для автоматических
+        запросов (HTTP 402), на официальном форуме — только таблица боссов («Boss Alien FAQ», 2013, правка 2017:
+        Boss Streuner X-2, Boss Lordakia X-2, Boss Mordon X-3, Boss Saimon X-4, Boss Devolarium X-3, Boss Sibelon X-4,
+        Boss Sibelonit X-5, Boss Lordakium X-5, Boss Kristallin X-6/X-7, Boss Kristallon X-7, Boss StreuneR X-8, все
+        ещё на 4-5). Из отрывков fandom: Uber-версии (Streuner, Lordakia, Saimon, Mordon, Devolarium, Sibelon,
+        Sibelonit, Lordakium, Kristallin, Kristallon, StreuneR) — на 4-5 и во вратах Zeta, Hades, Kuiper; Cubikon и
+        Protegit — x-6. Внесено то, что подтверждено двумя источниками (вики/форум, слова пользователя, увиденное
+        ботом); при расхождении — слова пользователя (Boss Mordon и Boss Saimon — x-3 и x-4);
       - [ ] 5. (позже, не скоро) секретная карта: Uber Protegit и другие, вход и правила карты — разобрать отдельно.
 - [~] 5б.10 Палладий (`PALLADIUM`) — в точности как у пользователя в DarkBot (профиль `PALLADIUM` из сборки GE5,
       2026-11-11; «там сейчас отлично работает»). Источники — факты, не код: README профиля, настройки DmPlugin

@@ -1,7 +1,12 @@
 {
+  "1": [
+    "-=[ Recruit Streuner ]=-",
+    "-=[ Streuner ]=-"
+  ],
   "2": [
     "-=[ Lordakia ]=-",
-    "..::{ Boss Lordakia }::.."
+    "..::{ Boss Lordakia }::..",
+    "..::{ Boss Streuner }::.."
   ],
   "3": [
     "-=[ Devolarium ]=-",
@@ -23,9 +28,14 @@
     "..::{ Boss Saimon }::..",
     "..::{ Boss Sibelon }::.."
   ],
+  "5": [
+    "-=[ Recruit Streuner ]=-",
+    "-=[ Streuner ]=-"
+  ],
   "6": [
     "-=[ Lordakia ]=-",
-    "..::{ Boss Lordakia }::.."
+    "..::{ Boss Lordakia }::..",
+    "..::{ Boss Streuner }::.."
   ],
   "7": [
     "-=[ Devolarium ]=-",
@@ -83,13 +93,17 @@
   ],
   "17": [
     "-=[ Lordakia ]=-",
+    "-=[ Lordakium ]=-",
     "-=[ Sibelonit ]=-",
     "..::{ Boss Lordakia }::..",
+    "..::{ Boss Lordakium }::..",
     "..::{ Boss Sibelonit }::.."
   ],
   "18": [
+    "-=[ Cubikon ]=-",
     "-=[ Kristallin ]=-",
     "-=[ Kristallon ]=-",
+    "-=[ Protegit ]=-",
     "..::{ Boss Kristallin }::.."
   ],
   "19": [
@@ -98,10 +112,16 @@
     "..::{ Boss Kristallin }::..",
     "..::{ Boss Kristallon }::.."
   ],
+  "20": [
+    "-=[ StreuneR ]=-",
+    "..::{ Boss StreuneR }::.."
+  ],
   "21": [
     "-=[ Lordakia ]=-",
+    "-=[ Lordakium ]=-",
     "-=[ Sibelonit ]=-",
     "..::{ Boss Lordakia }::..",
+    "..::{ Boss Lordakium }::..",
     "..::{ Boss Lordakium }::...",
     "..::{ Boss Sibelonit }::.."
   ],
@@ -132,6 +152,7 @@
     "-=[ Rabbit ]=-",
     "-=[ Sibelonit ]=-",
     "..::{ Boss Lordakia }::..",
+    "..::{ Boss Lordakium }::..",
     "..::{ Boss Lordakium }::...",
     "..::{ Boss Sibelonit }::.."
   ],
@@ -160,21 +181,27 @@
     "( Uber Battleray )",
     "( UberDevolarium )",
     "( UberKristallin )",
+    "( UberKristallon )",
     "( UberLordakia )",
+    "( UberLordakium )",
     "( UberMordon )",
     "( UberSaimon )",
     "( UberSibelon )",
     "( UberSibelonit )",
     "( UberStreuneR )",
+    "( UberStreuner )",
     "-=[ Deadly Battleray ]=-",
     "..::{ Boss Devolarium }::..",
+    "..::{ Boss Kristallin }::..",
     "..::{ Boss Kristallon }::..",
     "..::{ Boss Lordakia }::..",
+    "..::{ Boss Lordakium }::..",
     "..::{ Boss Mordon }::..",
     "..::{ Boss Saimon }::..",
     "..::{ Boss Sibelon }::..",
     "..::{ Boss Sibelonit }::..",
-    "..::{ Boss StreuneR }::.."
+    "..::{ Boss StreuneR }::..",
+    "..::{ Boss Streuner }::.."
   ],
   "91": [
     "-=[ Annihilator ]=-",
