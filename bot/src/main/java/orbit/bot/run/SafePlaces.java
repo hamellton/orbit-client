@@ -86,7 +86,24 @@ public final class SafePlaces {
      * @param oneWayJumps the user lets the bot jump through one-way portals too
      */
     public static Place nearest(WorldSnapshot w, MapCatalog maps, Set<String> closed, boolean oneWayJumps) {
+        return nearest(w, maps, closed, oneWayJumps, 0);
+    }
+
+    /**
+     * The same, away from the work map ({@code workMap}, after an escape jump): the portal back to it first, so
+     * the ship repairs where it came in and goes straight back (the user, 2026-11-12: 2-BL → 2-8, not to 2-8's
+     * base).
+     */
+    public static Place nearest(WorldSnapshot w, MapCatalog maps, Set<String> closed, boolean oneWayJumps, int workMap) {
         WorldSnapshot.Hero h = w.hero();
+        if (workMap > 0 && workMap != h.mapId()) {
+            Place back = usablePortals(w, maps, closed).stream().filter(p -> p.toId() == workMap)
+                    .map(p -> new Place(p.x(), p.y(), "портал на " + p.toName(), p, true))
+                    .min(Comparator.comparingDouble(pl -> pl.distance(h))).orElse(null);
+            if (back != null) {
+                return back;
+            }
+        }
         List<Place> good = new ArrayList<>(bases(w));
         List<Place> standOnly = new ArrayList<>();
         for (MapCatalog.Portal p : usablePortals(w, maps, closed)) {

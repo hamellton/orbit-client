@@ -221,4 +221,46 @@ class HealingTest {
         assertTrue(sim.ctx.stats().closedPortals.contains("2:2000:2000"));
     }
 
+    @Test
+    void afterAnEscapeJumpTheRepairIsAtThePortalBackNotAtTheBase() {
+        // 2-BL → 2-8 under fire (live 2026-11-12): repair by the 2-BL portal and go back, not to 2-8's base
+        Sim sim = lowHp(307, 593, 5_884); // 2-BL by its 2-8 portal
+        Safety s = new Safety(sim.ctx);
+        for (int t = 0; t < 30; t++) {
+            hurt(sim, 10_000, 0);
+            s.tick(true);
+            sim.now += 100 * Sim.MS;
+        }
+        assertEquals(1, sim.sent.stream().filter(p -> p instanceof orbit.protocol.gen.JumpRequest).count());
+        // the server puts the ship on 2-8, at the portal; then it drifts towards the base
+        orbit.protocol.gen.ShipInitializationCommand si = new orbit.protocol.gen.ShipInitializationCommand();
+        si.userId = 1;
+        si.mapId = 24;
+        si.factionId = 3;
+        si.x = 9_000;
+        si.y = 4_000;
+        si.speed = 400;
+        si.hitPoints = 10_000;
+        si.hitMax = 100_000;
+        sim.world.apply(si, sim.now);
+        base(sim, 700, 46, 3, 10_500, 2_000);
+        for (int t = 0; t < 30; t++) {
+            hurt(sim, 10_000, 0);
+            s.tick(true);
+            sim.now += 100 * Sim.MS;
+        }
+        assertEquals(11_084, (int) sim.ctx.nav().destination().x(), "to the 2-BL portal, not the base");
+        assertEquals(11_084, (int) sim.ctx.nav().destination().y());
+        // at that portal, still under fire: no jump back into what it ran from
+        si.x = 11_084;
+        si.y = 11_084;
+        sim.world.apply(si, sim.now);
+        for (int t = 0; t < 100; t++) {
+            hurt(sim, 10_000, 0);
+            s.tick(true);
+            sim.now += 100 * Sim.MS;
+        }
+        assertEquals(1, sim.sent.stream().filter(p -> p instanceof orbit.protocol.gen.JumpRequest).count(),
+                "no jump back into 2-BL");
+    }
 }
