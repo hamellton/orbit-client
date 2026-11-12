@@ -83,6 +83,8 @@ public final class QuestModule implements BotModule {
     private int[] emptyLead;
     private long emptyLeadAt;
     private boolean leadTold;
+    /** A fight was on: the locator's next point is waited for (its last one is where the NPC just died). */
+    private boolean fought;
     /** A locator point is fresh this long; reached with no NPC in sight it is left alone this long. */
     static final long LEAD_FRESH_MS = 15_000;
     static final long LEAD_EMPTY_MS = 60_000;
@@ -272,10 +274,21 @@ public final class QuestModule implements BotModule {
             }
             return false;
         }
+        if (busy()) {
+            fought = true;
+            return false;
+        }
+        if (fought) {
+            // live 2026-11-12 on 4-5: a tenth of a second after each kill the old point was «reached, nothing there»
+            fought = false;
+            locatorSince = w.nanos();
+            leadTold = false;
+            return false;
+        }
         WorldSnapshot.Pet pet = w.pet();
         boolean inSight = w.ships().values().stream()
                 .anyMatch(sh -> sh.npc() && work.want().contains(QuestTargets.norm(sh.name())));
-        if (inSight || busy() || !pet.active() || pet.gear() != orbit.protocol.gen.PetGearTypeModule.PETGEARTYPE_ENEMY_LOCATOR
+        if (inSight || !pet.active() || pet.gear() != orbit.protocol.gen.PetGearTypeModule.PETGEARTYPE_ENEMY_LOCATOR
                 || !pet.locatorWithin(w.nanos(), LEAD_FRESH_MS) || pet.locatorNanos() <= locatorSince) {
             leadTold = false;
             return false;
