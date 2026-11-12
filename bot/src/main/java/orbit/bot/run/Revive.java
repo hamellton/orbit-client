@@ -101,7 +101,8 @@ public final class Revive {
         }
         String wanted = s.revive();
         if (!"BASE".equals(wanted) && s.paidRevives() > 0 && streak >= s.paidRevives()) {
-            log.info("Убит {} раз подряд после платного возрождения — сейчас на базе, потом снова как в конфиге", streak);
+            log.info("Платных возрождений подряд: {} (лимит из конфига) — сейчас на базе бесплатно, потом снова как в конфиге",
+                    streak);
             wanted = "BASE";
         }
         WorldSnapshot.RepairOption pick = choose(death, wanted);
