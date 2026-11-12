@@ -1013,6 +1013,10 @@ final class Hud {
     private void bar(Graphics2D g, int x, int y, int w, int barHeight, double now, double max, Color color, boolean percent) {
         g.setColor(BAR_TRACK);
         g.fill(new RoundRectangle2D.Double(x, y, w, barHeight, barHeight, barHeight));
+        if (max == 0 && color == SHIELD_BAR && barHeight >= 9) {
+            noShield(g, x, y, w, barHeight); // a configuration with no shield generators
+            return;
+        }
         if (max <= 0 || now < 0) {
             return;
         }
@@ -1039,6 +1043,10 @@ final class Hud {
     private void valueBar(Graphics2D g, int x, int y, int w, int barHeight, double now, double max, Color color) {
         g.setColor(BAR_TRACK);
         g.fill(new RoundRectangle2D.Double(x, y, w, barHeight, barHeight, barHeight));
+        if (max == 0 && color == SHIELD_BAR && barHeight >= 9) {
+            noShield(g, x, y, w, barHeight);
+            return;
+        }
         if (max <= 0 || now < 0) {
             return;
         }
@@ -1066,6 +1074,14 @@ final class Hud {
             }
         }
         g.setColor(Color.WHITE);
+        g.drawString(text, x + (w - fm.stringWidth(text)) / 2, y + (barHeight + fm.getAscent() - fm.getDescent()) / 2);
+    }
+
+    private void noShield(Graphics2D g, int x, int y, int w, int barHeight) {
+        g.setFont(font(Font.PLAIN, barHeight >= 13 ? 10f : 8f));
+        FontMetrics fm = g.getFontMetrics();
+        String text = "нет щита";
+        g.setColor(DIM);
         g.drawString(text, x + (w - fm.stringWidth(text)) / 2, y + (barHeight + fm.getAscent() - fm.getDescent()) / 2);
     }
 

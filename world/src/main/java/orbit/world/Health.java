@@ -35,6 +35,15 @@ public record Health(double hp, double hpMax, int shield, int shieldMax, int nan
         return new Health(hp, hpMax, newShield, newShieldMax > 0 ? newShieldMax : shieldMax, nanoHull, nanoHullMax);
     }
 
+    /**
+     * The ship's own shield as the server states it, a 0 maximum included: a configuration with no shield
+     * generators (live 2026-11-13: config 1 without shields showed 0 of config 2's full shield). In the recordings a
+     * 0 maximum always came with 0 shield.
+     */
+    Health withOwnShield(int newShield, int newShieldMax) {
+        return new Health(hp, hpMax, newShield, Math.max(0, newShieldMax), nanoHull, nanoHullMax);
+    }
+
     Health withNanoHull(int newNano, int newNanoMax) {
         return new Health(hp, hpMax, shield, shieldMax, newNano, newNanoMax > 0 ? newNanoMax : nanoHullMax);
     }

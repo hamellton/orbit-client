@@ -518,4 +518,24 @@ class WorldTest {
         w.apply(guard, 4);
         assertEquals(2, w.snapshot(5).pet().gear(), "the server's own choice wins");
     }
+
+    @Test
+    void aConfigurationWithoutShieldsHasNoShieldMaximum() {
+        // live 2026-11-13: config 1 with no shield generators showed 0 of config 2's full shield
+        World w = new World();
+        orbit.protocol.gen.ShipInitializationCommand si = new orbit.protocol.gen.ShipInitializationCommand();
+        si.userId = 1;
+        si.mapId = 1;
+        si.hitPoints = 100_000;
+        si.hitMax = 100_000;
+        si.shield = 50_000;
+        si.shieldMax = 50_000;
+        w.apply(si, 0);
+        orbit.protocol.gen.AttributeShieldUpdateCommand u = new orbit.protocol.gen.AttributeShieldUpdateCommand();
+        u.shieldNow = 0;
+        u.shieldMax = 0;
+        w.apply(u, 1);
+        assertEquals(0, w.snapshot(1).hero().health().shieldMax());
+        assertEquals(-1.0, w.snapshot(1).hero().health().shieldPercent());
+    }
 }

@@ -294,7 +294,7 @@ public final class World {
                     p.shape, List.copyOf(p.shapeCoordinates), p.inverted, p.active));
             case MapRemovePOICommand p -> zones.remove(p.poiId);
             case AttributeHitpointUpdateCommand p -> hero.health = hero.health.withHp(p.hitpointsNow, p.hitpointsMax);
-            case AttributeShieldUpdateCommand p -> hero.health = hero.health.withShield(p.shieldNow, p.shieldMax);
+            case AttributeShieldUpdateCommand p -> hero.health = hero.health.withOwnShield(p.shieldNow, p.shieldMax);
             case HitpointInfoCommand p -> hero.health = hero.health.withHp(p.hitpoints, p.hitpointsMax)
                     .withNanoHull(p.nanoHull, p.nanoHullMax);
             case AttributeShipSpeedUpdateCommand p -> setHeroSpeed(p.newSpeed, nanos, "обновление");

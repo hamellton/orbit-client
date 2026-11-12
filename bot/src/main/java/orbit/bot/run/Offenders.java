@@ -179,12 +179,9 @@ public final class Offenders {
         double r = f.avoidRadius();
         stations = stations(w, f.stationRadius());
         noteShooters(w);
-        List<Circle> all = new ArrayList<>(stations);
-        all.addAll(npcCircles);
-        if (f.avoid()) {
-            seen.values().forEach(s -> all.add(new Circle(s.name(), s.x(), s.y(), r)));
-        }
-        shown = List.copyOf(all);
+        // the window shows the players kept off (the user's own tick), not the bot's own keeping off NPCs and
+        // stations (the user, 2026-11-13: «это чисто механика самого бота»)
+        shown = !f.avoid() ? List.of() : seen.values().stream().map(s -> new Circle(s.name(), s.x(), s.y(), r)).toList();
     }
 
     /** The circles kept clear now, any thread. */
