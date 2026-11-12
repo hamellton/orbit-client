@@ -17,10 +17,10 @@ import orbit.world.maps.MapCatalog;
 public final class SafePlaces {
 
     /**
-     * A base's buildings: the HQ, the refinery, the repair dock, home or outpost ({@code AssetTypeModule}); the
-     * invisible ore trade (52) is not a place.
+     * A base's buildings: the HQ, the refinery (also the pirate maps' station: 5-2 has only its OreTrade), the
+     * repair dock, home or outpost ({@code AssetTypeModule}).
      */
-    static final Set<Integer> BASE_PARTS = Set.of(46, 47, 50, 51, 53, 54);
+    static final Set<Integer> BASE_PARTS = Set.of(46, 47, 50, 51, 52, 53, 54);
     /** Close enough to a base's HQ: inside its no-fight zone (radius 900, live on 1-1 and 3-4). */
     static final double AT_BASE = 450;
     /** A server's gate this close to a known portal is that portal. */
@@ -101,6 +101,11 @@ public final class SafePlaces {
             (back || oneWayJumps ? good : standOnly).add(place);
         }
         Comparator<Place> near = Comparator.comparingDouble(pl -> pl.distance(h));
+        // away from the company's own maps (5-2) the base first, a portal only without one (the user, 2026-11-12)
+        List<Place> bases = bases(w);
+        if (!bases.isEmpty() && maps.info(h.mapId()).homeFaction() != h.factionId()) {
+            return bases.stream().min(near).orElseThrow();
+        }
         if (!good.isEmpty()) {
             return good.stream().min(near).orElseThrow();
         }

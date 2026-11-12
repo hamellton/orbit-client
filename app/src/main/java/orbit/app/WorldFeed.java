@@ -74,6 +74,8 @@ public final class WorldFeed {
     }
 
     private final String account;
+    /** The map left by the last jump, until the ship appears on the next one. */
+    private volatile int jumpedFrom;
 
     public WorldFeed(String mode) {
         this(mode, null);
@@ -201,6 +203,15 @@ public final class WorldFeed {
             case ShipInitializationCommand si -> {
                 String where = maps.info(si.mapId).name();
                 log.info("Корабль {} на карте {} ({}/{})", si.userName, where, si.x / 100, si.y / 100);
+                // arrived by a portal: the ship stands at the portal leading back; the data may not have it
+                // (5-1 → 4-5, live 2026-11-12)
+                int from = jumpedFrom;
+                jumpedFrom = 0;
+                if (from > 0 && from != si.mapId && maps.portals(si.mapId).stream().noneMatch(pt -> pt.toId() == from)
+                        && maps.learn(si.mapId, si.x, si.y, from, 0)) {
+                    log.info("Запомнил портал: {} ({}/{}) ведёт на {} (обратный)", where, si.x / 100, si.y / 100,
+                            maps.info(from).name());
+                }
                 if (!mode.startsWith("бот")) {
                     state = "В игре: " + where;
                 }
@@ -210,6 +221,7 @@ public final class WorldFeed {
                 // through a portal the data does not know (5-2 → 5-1, live 2026-11-12): remember where it leads
                 WorldSnapshot ws = world.snapshot(now());
                 WorldSnapshot.Hero hh = ws.hero();
+                jumpedFrom = hh.mapId();
                 ws.portals().values().stream()
                         .filter(g -> Math.hypot(g.x() - hh.x(), g.y() - hh.y()) <= 600)
                         .min(java.util.Comparator.comparingDouble(g -> Math.hypot(g.x() - hh.x(), g.y() - hh.y())))

@@ -193,9 +193,9 @@ class HealingTest {
 
     @Test
     void onFiveTwoTheRepairIsAtTheSharedBaseNotAtAPortal() {
-        // the ship by the 5-3 portal, the shared station farther away: still the station (the user, 2026-11-12)
-        Sim sim = lowHp(92, 3_500, 6_750);
-        base(sim, 500, 47, 0, 10_500, 6_750); // HQ of the shared station
+        // on 5-2 the shared station, not a portal (the user, 2026-11-12)
+        Sim sim = lowHp(92, 17_500, 6_750); // nearer the 5-1 portal than the station: still the station
+        base(sim, 500, 52, 0, 9_900, 6_600); // the shared station's OreTrade (live: 99/66)
         base(sim, 501, 47, 1, 3_000, 6_000);  // another company's: never
         Safety s = new Safety(sim.ctx);
         for (int t = 0; t < 30; t++) {
@@ -203,8 +203,8 @@ class HealingTest {
             s.tick(true);
             sim.now += 100 * Sim.MS;
         }
-        assertEquals(10_500, (int) sim.ctx.nav().destination().x());
-        assertEquals(6_750, (int) sim.ctx.nav().destination().y());
+        assertEquals(9_900, (int) sim.ctx.nav().destination().x());
+        assertEquals(6_600, (int) sim.ctx.nav().destination().y());
         assertTrue(sim.sent.stream().noneMatch(p -> p instanceof orbit.protocol.gen.JumpRequest));
     }
 
@@ -221,10 +221,4 @@ class HealingTest {
         assertTrue(sim.ctx.stats().closedPortals.contains("2:2000:2000"));
     }
 
-    @Test
-    void fiveTwoIsLeftOnlyOneWay() {
-        assertTrue(SafePlaces.hardToLeave(lowHp(92, 5_000, 5_000).world.snapshot(0), orbit.world.maps.MapCatalog.bundled()));
-        assertTrue(!SafePlaces.hardToLeave(lowHp(2, 5_000, 5_000).world.snapshot(0), orbit.world.maps.MapCatalog.bundled()));
-        assertTrue(!SafePlaces.hardToLeave(lowHp(16, 5_000, 5_000).world.snapshot(0), orbit.world.maps.MapCatalog.bundled()));
-    }
 }

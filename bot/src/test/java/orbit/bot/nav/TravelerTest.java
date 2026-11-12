@@ -35,12 +35,11 @@ class TravelerTest {
         List<MapCatalog.Portal> toEnemyHome = Router.route(catalog, 9, 18800, 12500, 1, 3);
         assertEquals("1-1", toEnemyHome.getLast().toName());
         assertTrue(toEnemyHome.size() >= 4);
-        // 5-4 is entered only through the portal of one's own faction on 5-2
-        List<MapCatalog.Portal> pirates = Router.route(catalog, 92, 10000, 6000, 94, 3);
+        // 5-2's right-hand portals lead to 5-1 (live 2026-11-12; the server shows no 5-4 portals there)
+        List<MapCatalog.Portal> pirates = Router.route(catalog, 92, 17000, 6000, 91, 3);
         assertEquals(1, pirates.size());
-        assertEquals(3, pirates.getFirst().faction());
-        assertEquals(19300, pirates.getFirst().x());
-        assertEquals(5400, pirates.getFirst().y());
+        assertEquals("5-1", pirates.getFirst().toName());
+        assertTrue(Router.route(catalog, 92, 10000, 6000, 94, 3).isEmpty(), "5-4 is not reached from 5-2");
     }
 
     /** A small game server: portals, jump offers, jumps. */

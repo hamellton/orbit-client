@@ -2,6 +2,7 @@
  "source": "DarkBot StarManager (GPL), facts only",
  "repository": "https://github.com/darkbot-reloaded/DarkBot",
  "commit": "73487ac6bb9cb6061f61a32d331a645fa53c281f",
+ "corrections": "5-2: the server shows no 5-4 portals; its right-hand portals lead to 5-1 (live ru1 2026-11-12, the user)",
  "maps": [
   {
    "id": 1,
@@ -800,25 +801,22 @@
      "toId": 93
     },
     {
-     "x": 19300,
-     "y": 1400,
-     "to": "5-4",
-     "faction": 1,
-     "toId": 94
+     "x": 18200,
+     "y": 3600,
+     "to": "5-1",
+     "toId": 91
     },
     {
-     "x": 19300,
-     "y": 3400,
-     "to": "5-4",
-     "faction": 2,
-     "toId": 94
+     "x": 20000,
+     "y": 6700,
+     "to": "5-1",
+     "toId": 91
     },
     {
-     "x": 19300,
-     "y": 5400,
-     "to": "5-4",
-     "faction": 3,
-     "toId": 94
+     "x": 18200,
+     "y": 10900,
+     "to": "5-1",
+     "toId": 91
     }
    ]
   },
