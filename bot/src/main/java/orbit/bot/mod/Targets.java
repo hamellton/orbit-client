@@ -99,6 +99,29 @@ public final class Targets {
                 .orElse(null);
     }
 
+    /** A player this close to a target, and nearer to it than the ship, gets it first. */
+    static final double NEARER = 700;
+
+    /** Another player (not of the group) is within {@link #NEARER} of the NPC and nearer to it than the ship. */
+    static boolean someoneNearer(WorldSnapshot w, WorldSnapshot.Ship s) {
+        WorldSnapshot.Hero h = w.hero();
+        double mine = s.distanceTo(h.x(), h.y());
+        if (mine < NEARER) {
+            return false;
+        }
+        java.util.Set<Integer> group = new java.util.HashSet<>();
+        w.group().members().forEach(m -> group.add(m.id()));
+        for (WorldSnapshot.Ship p : w.ships().values()) {
+            if (p.kind() == WorldSnapshot.ShipKind.PLAYER && p.id() != h.id() && !group.contains(p.id())) {
+                double d = Math.hypot(p.x() - s.x(), p.y() - s.y());
+                if (d < NEARER && d < mine) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
     /** Around a target this close, other NPCs that attack on sight or shoot the ship make a crowd. */
     static final double CROWD = 1_200;
 

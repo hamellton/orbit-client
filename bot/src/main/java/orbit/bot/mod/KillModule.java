@@ -75,7 +75,10 @@ public final class KillModule implements BotModule {
                     // not one in a crowd of NPCs that attack on sight (live 2026-11-13 on 2-BL: Abide I packs took
                     // 5–9 % of the hull a second while Impulse II was fought)
                     || Targets.crowd(w, s) >= CROWD_MAX
-                    || attacker.tooStrong(s.name()));
+                    || attacker.tooStrong(s.name())
+                    // another player is by it and nearer: he gets there first (live 2026-11-13 on 2-1: 155 of 165
+                    // targets gone before the ship came)
+                    || Targets.someoneNearer(w, s));
             if (t != null) {
                 roamTo = null;
                 attacker.target(t);
