@@ -104,7 +104,7 @@ public final class PetCare {
 
     /** What the locator looks for, by the game's NPC number (13 = Cubikon): its name from the game's table. */
     public static String locatorTarget(int npc) {
-        String name = orbit.world.maps.NpcCatalog.bundled().name(npc);
+        String name = orbit.bot.mod.KillModule.npcName(npc);
         return name != null ? name : "NPC №" + npc + " (в игре нет такого номера)";
     }
 

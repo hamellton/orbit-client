@@ -147,6 +147,23 @@ public final class KillModule implements BotModule {
      * The Blacklight NPCs the client's game.xml leaves out, by AstraBot's lists (`npcId` in its NPC table, 2026-11-13):
      * the pet's locator needs their numbers.
      */
+    /** An NPC's name by the game's number: the client's table, else the Blacklight ones by AstraBot's list. */
+    public static String npcName(int id) {
+        String n = orbit.world.maps.NpcCatalog.bundled().name(id);
+        if (n != null) {
+            return n;
+        }
+        return switch (id) {
+            case 175 -> "Impulse II";
+            case 176 -> "Attend IX";
+            case 177 -> "Invoke XVI";
+            case 266 -> "Strokelight Barrage";
+            case 268 -> "Abide I";
+            case 159 -> "Barrage Seeker Rocket";
+            default -> null;
+        };
+    }
+
     static final java.util.Map<String, Integer> BLACKLIGHT_NPCS = java.util.Map.of(
             QuestTargets.norm("Impulse II"), 175, QuestTargets.norm("Attend IX"), 176,
             QuestTargets.norm("Invoke XVI"), 177, QuestTargets.norm("Strokelight Barrage"), 266,
@@ -180,7 +197,7 @@ public final class KillModule implements BotModule {
         }
         WorldSnapshot.Hero h = w.hero();
         double dist = Math.hypot(lead[0] - h.x(), lead[1] - h.y());
-        String name = orbit.world.maps.NpcCatalog.bundled().name(target);
+        String name = npcName(target);
         if (dist < LEAD_REACHED) {
             log.info("Пеленгатор: долетел до {}/{}, но {} там нет — ищу дальше", lead[0] / 100, lead[1] / 100, name);
             emptyLead = lead;
