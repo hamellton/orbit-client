@@ -49,6 +49,8 @@ final class BehemothSection implements Section {
     private final JCheckBox trainTimer = new JCheckBox("Поезд стоит у места появления, бегемота не видно — считать его убитым (таймер)");
     private final JCheckBox waitForTrain = new JCheckBox("Не улетать, пока поезд идёт к месту появления (до 3 мин)");
     private final JCheckBox avoidEnemies = new JCheckBox("Облетать видимых врагов заранее (2000), рядом враги — не вылетать с точки (до 3 мин)");
+    private final JCheckBox waitInZone = new JCheckBox("Ждать в предпочитаемой зоне конфига, дальше всего от поездов (как AstraBot)");
+    private final JCheckBox avoidTrainPaths = new JCheckBox("Летать в обход путей поездов «портал → бегемот»");
     private final JCheckBox awayFromPortals = new JCheckBox("Ждать в стороне от путей «портал → бегемот», где ходят поезда");
     private final JCheckBox freeSide = new JCheckBox("Ждать со свободной стороны: чужие у точки — встать на круге от них");
     private final JSpinner freeSideRadius = Form.number(800, 5_000, 100);
@@ -84,6 +86,10 @@ final class BehemothSection implements Section {
         trainMode.addActionListener(e -> sync());
         useCloak.addActionListener(e -> sync());
         freeSide.addActionListener(e -> sync());
+        waitInZone.setToolTipText("Как AstraBot («Moving to behe zone»): ждать в зелёной зоне вкладки «Зоны» — у края карты,"
+                + " далеко от места появления; к бегемоту — по пеленгатору или по времени. Зоны нет — точка ниже");
+        avoidTrainPaths.setToolTipText("Поезда летят кратчайшим путём от портала к месту появления; бот облетает эти полосы"
+                + " (ширина 2000), сами порталы и место появления остаются открыты");
         trainTimer.setToolTipText("3 и больше врагов 20 с в 1500 от места появления, бегемота не видно — значит, они его"
                 + " убили: бот запоминает смерть, следующий — через время появления; так работает «прилетать ровно к появлению»");
         waitForTrain.setToolTipText("Ожидание вышло, а 3 и больше врагов в 4000 от места появления — бегемот, похоже, скоро"
@@ -128,7 +134,9 @@ final class BehemothSection implements Section {
                 .note("Бот запоминает, когда бегемот появился и погиб на каждой карте, и летит туда, где он будет раньше;"
                         + " ждёт у места появления (точки — из BeheFarm, уточняются по увиденному).")
                 .section("Где ждать")
+                .row("", waitInZone)
                 .row("", awayFromPortals)
+                .row("", avoidTrainPaths)
                 .row("", trainTimer)
                 .row("", waitForTrain)
                 .row("", avoidEnemies)
@@ -252,6 +260,8 @@ final class BehemothSection implements Section {
         cloakFormation.set(cf.isBlank() ? null : cf.startsWith("drone_formation_") ? cf : formationId(cf));
         Form.set(beaconSeconds, m.path("beaconBeforeSeconds").asInt(0));
         awayFromPortals.setSelected(m.path("awayFromPortals").asBoolean(false));
+        waitInZone.setSelected(m.path("waitInZone").asBoolean(false));
+        avoidTrainPaths.setSelected(m.path("avoidTrainPaths").asBoolean(false));
         trainTimer.setSelected(m.path("trainTimer").asBoolean(false));
         waitForTrain.setSelected(m.path("waitForTrain").asBoolean(false));
         avoidEnemies.setSelected(m.path("avoidEnemies").asBoolean(false));
@@ -332,6 +342,8 @@ final class BehemothSection implements Section {
         m.put("cloakFormation", cloakFormation.get() != null ? cloakFormation.get() : "");
         m.put("beaconBeforeSeconds", Form.intOf(beaconSeconds));
         m.put("awayFromPortals", awayFromPortals.isSelected());
+        m.put("waitInZone", waitInZone.isSelected());
+        m.put("avoidTrainPaths", avoidTrainPaths.isSelected());
         m.put("trainTimer", trainTimer.isSelected());
         m.put("waitForTrain", waitForTrain.isSelected());
         m.put("avoidEnemies", avoidEnemies.isSelected());

@@ -1252,7 +1252,8 @@ public final class BehemothModule implements BotModule {
      */
     int[] standPoint(JsonNode s, WorldSnapshot w) {
         int map = w.hero().mapId();
-        int[] base = on(s, "awayFromPortals", false) ? awayFromPortals(s, map) : waitPoint(map);
+        int[] zone = on(s, "waitInZone", false) ? zonePoint(map) : null;
+        int[] base = zone != null ? zone : on(s, "awayFromPortals", false) ? awayFromPortals(s, map) : waitPoint(map);
         if (!on(s, "freeSide", false)) {
             return base;
         }
@@ -1369,6 +1370,56 @@ public final class BehemothModule implements BotModule {
         return min;
     }
 
+    private final Map<Integer, int[]> zonePoints = new HashMap<>();
+
+    /**
+     * {@code waitInZone} (AstraBot's «Moving to behe zone»: its behemoth profile waits in the config's preferred zone,
+     * far from the spawn by the map's edge — 1-BL the west strip, 2-BL the bottom edge, 3-BL the north-east corner — and
+     * goes when the behemoth is there): the cell of the preferred zone farthest from the ways portal → spawn the trains
+     * fly; {@code null} when the map has no preferred zone.
+     */
+    int[] zonePoint(int map) {
+        int[] cached = zonePoints.get(map);
+        if (cached != null) {
+            return cached;
+        }
+        BotConfig.Zones zones = ctx.config().get().zones().get(map);
+        BotConfig.ZoneGrid pref = zones == null ? null : zones.preferred();
+        if (pref == null || pref.isEmpty()) {
+            return null;
+        }
+        orbit.world.maps.MapCatalog.MapInfo info = ctx.maps().info(map);
+        int width = info.width() > 0 ? info.width() : 21_000;
+        int height = info.height() > 0 ? info.height() : 13_100;
+        int[] sp = spawnPoint(map);
+        int res = pref.resolution();
+        int[] best = null;
+        double bestAway = -1;
+        for (int cy = 0; cy < pref.rows().size(); cy++) {
+            String row = pref.rows().get(cy);
+            for (int cx = 0; cx < row.length(); cx++) {
+                if (row.charAt(cx) != '#') {
+                    continue;
+                }
+                int[] p = {(int) ((cx + 0.5) * width / res), (int) ((cy + 0.5) * height / res)};
+                if (p[0] < 300 || p[1] < 300 || p[0] > width - 300 || p[1] > height - 300) {
+                    continue;
+                }
+                double away = fromPaths(map, sp, p) + 0.1 * fromPortals(map, p);
+                if (away > bestAway) {
+                    bestAway = away;
+                    best = p;
+                }
+            }
+        }
+        if (best != null) {
+            log.info("{}: жду в предпочитаемой зоне конфига (как AstraBot) — {}/{} ({} от ближайшего пути поездов)",
+                    info.name(), best[0] / 100, best[1] / 100, (int) fromPaths(map, sp, best));
+            zonePoints.put(map, best);
+        }
+        return best;
+    }
+
     /** The distance from the point to the nearest way portal → spawn on the map. */
     private double fromPaths(int map, int[] sp, int[] p) {
         double min = Double.MAX_VALUE;
@@ -1418,6 +1469,9 @@ public final class BehemothModule implements BotModule {
             out.add(new double[] {c[1], c[2], c[3]});
         }
         JsonNode s = settings();
+        if (on(s, "avoidTrainPaths", false) && !onBehemoth && !beaconOn && maps(s).contains(h.mapId())) {
+            out.addAll(pathCircles(h.mapId()));
+        }
         if (on(s, "avoidEnemies", false) && !onBehemoth && maps(s).contains(h.mapId())) {
             // live 2026-11-13 on the VPS, 2-BL: off to the portal straight at a train coming from it — killed in 2 s,
             // the offenders' circles come only after the first shots
@@ -1429,6 +1483,36 @@ public final class BehemothModule implements BotModule {
                 }
             }
         }
+        return out;
+    }
+
+    /** {@code avoidTrainPaths}: circles of this radius strung along the ways portal → spawn. */
+    static final double PATH_WIDTH = 1_000;
+    /** The ways are left open this near a portal (the ship jumps there) and the spawn (the fight is there). */
+    static final double PATH_ENDS_OPEN = 1_800;
+    private final Map<String, List<double[]>> pathCircles = new HashMap<>();
+
+    /**
+     * {@code avoidTrainPaths} (the user, 2026-11-13: «у них самый краткий полёт от порта к бегемоту … полёт по другой
+     * траектории»): the ways portal → spawn the trains fly are kept off, but their ends — the portal to jump through
+     * and the spawn.
+     */
+    private List<double[]> pathCircles(int map) {
+        int[] sp = spawnPoint(map);
+        String key = map + ":" + sp[0] + ":" + sp[1];
+        List<double[]> cached = pathCircles.get(key);
+        if (cached != null) {
+            return cached;
+        }
+        List<double[]> out = new java.util.ArrayList<>();
+        for (orbit.world.maps.MapCatalog.Portal q : ctx.maps().portals(map)) {
+            double len = Math.hypot(sp[0] - q.x(), sp[1] - q.y());
+            for (double d = PATH_ENDS_OPEN; d <= len - PATH_ENDS_OPEN; d += PATH_WIDTH) {
+                double t = d / len;
+                out.add(new double[] {q.x() + t * (sp[0] - q.x()), q.y() + t * (sp[1] - q.y()), PATH_WIDTH});
+            }
+        }
+        pathCircles.put(key, out);
         return out;
     }
 

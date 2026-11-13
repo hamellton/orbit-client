@@ -750,4 +750,46 @@ class BehemothModuleTest {
         sim.run(m::tick, 1_000);
         assertTrue(m.workingMap() != 308, "gone: off");
     }
+
+    /** A preferred zone of one cell column on 3-BL: x 18 900–19 600, y 600–2 400 (resolution 30). */
+    static BotConfig.ZoneGrid cornerZone() {
+        java.util.List<String> rows = new java.util.ArrayList<>();
+        for (int y = 0; y < 30; y++) {
+            StringBuilder r = new StringBuilder(".".repeat(30));
+            if (y >= 2 && y <= 5) {
+                r.setCharAt(27, '#');
+            }
+            rows.add(r.toString());
+        }
+        return new BotConfig.ZoneGrid(30, rows);
+    }
+
+    @Test
+    void theShipWaitsInTheConfigsPreferredZoneAsAstraBotDoes() throws Exception {
+        // AstraBot's «Moving to behe zone»: its behemoth profile waits in the preferred zone, far from the spawn
+        BotConfig c = with(config(300), "{\"waitInZone\": true}")
+                .withZones(Map.of(308, new BotConfig.Zones(cornerZone(), null)));
+        Sim sim = new Sim(c, 308, 15_000, 6_000);
+        BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
+        m.workingMap();
+        sim.run(m::tick, 30_000);
+        var h = sim.hero();
+        assertTrue(h.x() > 18_600 && h.x() < 19_900 && h.y() > 500 && h.y() < 2_600, "in the zone: " + h);
+    }
+
+    @Test
+    void theTrainsWaysAreFlownRoundButTheirEndsLeftOpen() throws Exception {
+        // the user, 2026-11-13: «у них самый краткий полёт от порта к бегемоту … полёт по другой траектории»
+        Sim sim = new Sim(with(config(300), "{\"avoidTrainPaths\": true}"), 308, 15_000, 6_000);
+        BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
+        m.workingMap();
+        var circles = m.avoidCircles();
+        assertTrue(circles.size() > 10, "circles along the ways: " + circles.size());
+        for (var q : sim.ctx.maps().portals(308)) {
+            for (double[] c : circles) {
+                assertTrue(Math.hypot(c[0] - q.x(), c[1] - q.y()) > c[2], "the portal " + q + " is open");
+                assertTrue(Math.hypot(c[0] - 4_700, c[1] - 3_900) > c[2], "the spawn is open");
+            }
+        }
+    }
 }
