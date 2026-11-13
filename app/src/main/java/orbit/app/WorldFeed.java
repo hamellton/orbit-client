@@ -175,9 +175,14 @@ public final class WorldFeed {
         proxied = viaProxy;
     }
 
-    /** The proxy line, empty without a proxy. */
+    /** The network line: through which proxy and from which IP, or directly from which IP. */
     public String proxyInfo() {
-        return proxied ? proxy.get() : "";
+        return proxy.get();
+    }
+
+    /** True when the account goes through a proxy. */
+    public boolean proxied() {
+        return proxied;
     }
 
     /** {@code int1 · FREEMASON} once in game, {@code int1 · main} before (the account's name). */

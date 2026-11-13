@@ -193,7 +193,7 @@ final class AccountView extends JPanel {
         who.add(clock);
         JLabel proxy = new JLabel();
         proxy.setForeground(Hud.DIM);
-        proxy.setToolTipText("Прокси аккаунта; IP — по последней проверке");
+        proxy.setToolTipText("Под каким IP работает аккаунт: через прокси или напрямую; IP и страна — по проверке перед входом");
         who.add(proxy);
         bar.add(who);
 
@@ -329,7 +329,9 @@ final class AccountView extends JPanel {
             clock.setText(tab.feed().sessionStartNanos() == 0 ? ""
                     : "сессия " + Hud.clock(java.time.Duration.ofNanos(tab.feed().sessionNanos())));
             String via = tab.feed().proxyInfo();
-            proxy.setText(via.isEmpty() ? "" : "через " + via);
+            proxy.setText(via);
+            // no proxy: the computer's own IP — in a warning colour, it is the same for every such account
+            proxy.setForeground(tab.feed().proxied() ? Hud.DIM : new java.awt.Color(0xfbbf24));
             proxy.setVisible(!via.isEmpty());
         };
         refresh.run();

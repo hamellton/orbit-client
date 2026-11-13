@@ -82,9 +82,9 @@ public final class ProxyRoute implements AutoCloseable {
         return country;
     }
 
-    /** {@code без прокси}, {@code SOCKS5 1.2.3.4:1080 · IP 5.6.7.8 (DE)} — for the window. */
+    /** {@code через SOCKS5 1.2.3.4:1080 · IP 5.6.7.8 (DE)}, {@code напрямую · IP 9.9.9.9 (UA)} — for the window. */
     public String describe() {
-        String d = connector.spec().describe();
+        String d = direct() ? "напрямую, без прокси" : "через " + connector.spec().describe();
         return externalIp == null ? d : d + " · IP " + externalIp + (country != null ? " (" + country + ")" : "");
     }
 
@@ -110,6 +110,13 @@ public final class ProxyRoute implements AutoCloseable {
      */
     public void verify() throws AuthException {
         if (direct()) {
+            // no proxy: the computer's own address, only to show it (the user, 2026-11-13: «под каким IP какой акк»)
+            String[] geo = lookupGeo();
+            String ip = geo != null ? geo[0] : lookupIp();
+            if (ip != null) {
+                externalIp = ip;
+                country = geo != null ? geo[1] : null;
+            }
             return;
         }
         try {
