@@ -39,6 +39,11 @@ final class BehemothSection implements Section {
     private final JCheckBox petOnly = new JCheckBox("Питомец только у бегемота (в остальное время убран)");
     private final JCheckBox beacon = new JCheckBox("Боевой маяк питомца в бою, когда HP Link не нужен");
     private final JSpinner linkBelow = Form.percent();
+    private final JCheckBox onTime = new JCheckBox("Прилетать ровно к появлению (пока рано — ждать на своей карте)");
+    private final JSpinner reward = Form.number(0, 100_000, 500);
+    private final JCheckBox useCloak = new JCheckBox("Маскировка, пока ждём бегемота (CL04K)");
+    private final ItemBox cloakFormation = new ItemBox(ItemCatalog.FORMATIONS, true);
+    private final JSpinner beaconSeconds = Form.number(0, 120, 1);
     // a train of others by the behemoth (CARNAGE's BLCycle and behemoth modules)
     private final JCheckBox trainMode = new JCheckBox("Бить бегемота, даже когда рядом чужой поезд и бьёт нас");
     private final JSpinner trainRadius = Form.number(300, 5_000, 100);
@@ -67,6 +72,12 @@ final class BehemothSection implements Section {
         prismatic.addActionListener(e -> sync());
         jamx.addActionListener(e -> sync());
         trainMode.addActionListener(e -> sync());
+        useCloak.addActionListener(e -> sync());
+        onTime.setToolTipText("Как BLCycle в CARNAGE: вылет так, чтобы прилететь к времени появления; время перелёта бот"
+                + " узнаёт сам; карту, где появление не видели, считает на круг вперёд");
+        reward.setToolTipText("Пришло столько уридия рядом с бегемотом — убийство засчитано (как BLCycle: 5 000); 0 — нет");
+        cloakFormation.setToolTipText("Формация на время маскировки (BLCycle: Heart); не выбрана — как в «Общем»");
+        beaconSeconds.setToolTipText("За столько секунд до появления — к месту появления, питомец ставит боевой маяк; 0 — нет");
         respond.addActionListener(e -> sync());
         hunt.addActionListener(e -> sync());
         follow.addActionListener(e -> sync());
@@ -86,6 +97,8 @@ final class BehemothSection implements Section {
                 .row("Обходить", Form.inline(maps[0], maps[1], maps[2]))
                 .row("Нет бегемота — другая карта через, с", changeMap)
                 .row("Появляется снова через, мин", respawn)
+                .row("", onTime)
+                .row("Засчитывать убийство от, уридия", reward)
                 .note("Бот запоминает, когда бегемот появился и погиб на каждой карте, и летит туда, где он будет раньше;"
                         + " ждёт у места появления (точки — из BeheFarm, уточняются по увиденному).")
                 .section("Бой")
@@ -101,7 +114,13 @@ final class BehemothSection implements Section {
                 .row("", petOnly)
                 .row("HP Link, пока HP корабля ниже, %", linkBelow)
                 .row("", beacon)
+                .row("Маяк урона за, с до появления (0 — нет)", beaconSeconds)
                 .note("Энергетическая пиявка и способность корабля — галочки USE_LEECH и USE_ABILITY в строке бегемота.")
+                .section("Маскировка")
+                .row("", useCloak)
+                .row("Формация в маскировке", cloakFormation)
+                .note("Покупка маскировки — вкладка «Покупки», предмет CL04K-XL (если купленная не появилась в игре,"
+                        + " бот больше не покупает до перезапуска). Крафт пока не сделан.")
                 .section("Чужой поезд у бегемота")
                 .row("", trainMode)
                 .row("Поезд — чужие ближе к бегемоту, чем", trainRadius)
@@ -146,6 +165,7 @@ final class BehemothSection implements Section {
         respondRadius.setEnabled(respond.isSelected());
         huntRadius.setEnabled(hunt.isSelected());
         leader.setEnabled(follow.isSelected());
+        cloakFormation.setEnabled(useCloak.isSelected());
         followDistance.setEnabled(follow.isSelected());
     }
 
@@ -186,6 +206,12 @@ final class BehemothSection implements Section {
         petOnly.setSelected(m.path("petOnlyOnBehemoth").asBoolean(false));
         beacon.setSelected(m.path("usePetCombatBeacon").asBoolean(false));
         Form.setFraction(linkBelow, m.path("hpLinkPercent").asDouble(0) / 100);
+        onTime.setSelected(m.path("arriveOnTime").asBoolean(false));
+        Form.set(reward, m.path("rewardUridium").asInt(5_000));
+        useCloak.setSelected(m.path("useCloak").asBoolean(false));
+        String cf = m.path("cloakFormation").asText("");
+        cloakFormation.set(cf.isBlank() ? null : cf.startsWith("drone_formation_") ? cf : formationId(cf));
+        Form.set(beaconSeconds, m.path("beaconBeforeSeconds").asInt(0));
         trainMode.setSelected(m.path("trainMode").asBoolean(false));
         Form.set(trainRadius, m.path("trainRadius").asInt(1_500));
         Form.set(trainLimit, m.path("trainEnemyLimit").asInt(0));
@@ -252,6 +278,11 @@ final class BehemothSection implements Section {
         m.put("petOnlyOnBehemoth", petOnly.isSelected());
         m.put("usePetCombatBeacon", beacon.isSelected());
         m.put("hpLinkPercent", Math.round(Form.fraction(linkBelow) * 100));
+        m.put("arriveOnTime", onTime.isSelected());
+        m.put("rewardUridium", Form.intOf(reward));
+        m.put("useCloak", useCloak.isSelected());
+        m.put("cloakFormation", cloakFormation.get() != null ? cloakFormation.get() : "");
+        m.put("beaconBeforeSeconds", Form.intOf(beaconSeconds));
         m.put("trainMode", trainMode.isSelected());
         m.put("trainRadius", Form.intOf(trainRadius));
         m.put("trainEnemyLimit", Form.intOf(trainLimit));

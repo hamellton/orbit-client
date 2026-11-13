@@ -90,6 +90,23 @@ public final class BehemothModule implements BotModule {
     private long fightMapAt;
     private boolean trainTold;
     private String leaderTold;
+    /** Learned flights between maps, "from>to" → ms (from leaving to the wait point). */
+    private final Map<String, Long> travel = new HashMap<>();
+    private int departFrom;
+    private long departAt;
+    private boolean holdTold;
+    /** The pet's combat beacon before the spawn ({@code beaconBeforeSeconds}). */
+    private boolean beaconOn;
+    private long cloakAskedAt = Long.MIN_VALUE / 2;
+    /** The uridium reward of a kill ({@code rewardUridium}): the last balance, the last behemoth seen here. */
+    private double lastUri = -1;
+    private long behemothSeenAt;
+    private int behemothSeenMap;
+    private int[] behemothSeenAtPos;
+    private long killedAt;
+    private boolean killCounted;
+    /** Leave this long before the flight says (a turn, a slow start). */
+    static final long LEAD_MS = 5_000;
 
     public BehemothModule(BotContext ctx, SpawnMemory memory) {
         this.ctx = ctx;
@@ -110,7 +127,7 @@ public final class BehemothModule implements BotModule {
     }
 
     /** Wall-clock milliseconds on the bot's clock (a fake clock in tests). */
-    long wallMs() {
+    public long wallMs() {
         return wallBase + (ctx.now() - nanoBase) / 1_000_000;
     }
 
@@ -120,7 +137,34 @@ public final class BehemothModule implements BotModule {
         if (chosen == 0) {
             chosen = choose(h.mapId(), 0);
         }
+        if (holding(h.mapId())) {
+            return h.mapId();
+        }
+        if (chosen != h.mapId() && departFrom != h.mapId()) {
+            departFrom = h.mapId(); // the flight starts: its time is learned on arrival
+            departAt = wallMs();
+            holdTold = false;
+        }
         return chosen;
+    }
+
+    /**
+     * {@code arriveOnTime} (CARNAGE's BLCycle: «due in 129s, travel 130s, lead 0s»): the next map's behemoth is due
+     * later than the flight there takes — stay on this map (by its wait point) until it is time to go, rather than
+     * wait by the spawn in sight of everybody.
+     */
+    private boolean holding(int here) {
+        if (chosen == 0 || chosen == here || !on(settings(), "arriveOnTime", false) || !maps(settings()).contains(here)) {
+            return false;
+        }
+        long wall = wallMs();
+        long due = dueAt(chosen, wall);
+        return due > 0 && due - wall > travelMs(here, chosen) + LEAD_MS;
+    }
+
+    /** The flight between two maps: learned, else {@link #TRAVEL_MS}. */
+    long travelMs(int from, int to) {
+        return from == to ? 0 : travel.getOrDefault(from + ">" + to, TRAVEL_MS);
     }
 
     @Override
@@ -139,6 +183,9 @@ public final class BehemothModule implements BotModule {
      */
     @Override
     public int petGear() {
+        if (beaconOn && !onBehemoth) {
+            return orbit.protocol.gen.PetGearTypeModule.PETGEARTYPE_COMBAT_BEACON;
+        }
         if (!onBehemoth) {
             return attacker.fighting(BotConfig.NpcFlag.HP_LINK) ? orbit.protocol.gen.PetGearTypeModule.PETGEARTYPE_HP_LINK : -1;
         }
@@ -155,6 +202,9 @@ public final class BehemothModule implements BotModule {
     /** {@code petOnlyOnBehemoth}: out while a behemoth is in sight, in otherwise. */
     @Override
     public Boolean petOut() {
+        if (beaconOn) {
+            return true;
+        }
         if (!on(settings(), "petOnlyOnBehemoth", false)) {
             return null;
         }
@@ -205,6 +255,7 @@ public final class BehemothModule implements BotModule {
             }
             deadAt = null;
             arrivedAt = 0;
+            beaconOn = false;
             fightMap = h.mapId();
             fightMapAt = ctx.now();
             if (attacker.targetId() != b.id()) {
@@ -234,6 +285,13 @@ public final class BehemothModule implements BotModule {
             }
         }
         if (followLeader(s, w)) {
+            return;
+        }
+        if (h.mapId() != chosen && holding(h.mapId())) {
+            if (fightWhileWaiting(c, s, w)) {
+                return;
+            }
+            hold(s, h);
             return;
         }
         if (h.mapId() != chosen) {
@@ -505,6 +563,135 @@ public final class BehemothModule implements BotModule {
         return out;
     }
 
+    /** Holding on this map until it is time to fly on: by its wait point, cloaked if set. */
+    private void hold(JsonNode s, WorldSnapshot.Hero h) {
+        long wall = wallMs();
+        long leaveIn = dueAt(chosen, wall) - travelMs(h.mapId(), chosen) - LEAD_MS - wall;
+        if (!holdTold) {
+            holdTold = true;
+            log.info("Бегемот на {} через {}, перелёт {} — жду здесь, вылет через {}", ctx.maps().info(chosen).name(),
+                    clock(dueAt(chosen, wall) - wall), clock(travelMs(h.mapId(), chosen)), clock(leaveIn));
+        }
+        int[] p = waitPoint(h.mapId());
+        double dist = Math.hypot(p[0] - h.x(), p[1] - h.y());
+        BotConfig.General g = ctx.config().get().general();
+        if (dist > ARRIVE) {
+            ctx.ship().want(g.travel());
+            if (ctx.nav().idle() || Math.hypot(ctx.nav().destination().x() - p[0], ctx.nav().destination().y() - p[1]) > 50) {
+                ctx.nav().moveTo(p[0], p[1], dist < 2_500);
+            }
+            ctx.nav().tick();
+        } else {
+            ctx.ship().want(g.roam());
+            cloak(s, h);
+        }
+        status = "Жду вылета на " + ctx.maps().info(chosen).name() + ": " + clock(leaveIn);
+    }
+
+    /**
+     * {@code useCloak} (CARNAGE's BLCycle useCloak, AstraBot's cloak): cloaked while waiting — a CL04K CPU, the biggest
+     * there is; {@code cloakFormation} (BLCycle: Heart) is set first. Attacking takes the cloak off by itself.
+     */
+    private void cloak(JsonNode s, WorldSnapshot.Hero h) {
+        if (!on(s, "useCloak", false)) {
+            return;
+        }
+        String formation = formation(text(s, "cloakFormation", ""));
+        if (formation != null) {
+            ctx.ship().want(new BotConfig.ShipMode(ctx.config().get().general().roam().config(), formation));
+        }
+        long now = ctx.now();
+        if (h.cloaked() || now - cloakAskedAt < 15_000_000_000L) {
+            return;
+        }
+        WorldSnapshot w = ctx.world().get();
+        for (String id : orbit.config.ItemCatalog.CLOAKS) {
+            WorldSnapshot.Item i = w.items().get(id);
+            if (i != null && i.available() && !i.blocked() && i.counter() > 0 && i.remainingMs(now) == 0) {
+                log.info("Маскировка: {} (осталось {})", orbit.config.ItemCatalog.label(id), (long) i.counter() - 1);
+                ctx.actions().useItem(id);
+                cloakAskedAt = now;
+                return;
+            }
+        }
+        cloakAskedAt = now; // none left: the buy list («Покупки», CL04K-XL) may bring one
+    }
+
+    /**
+     * {@code beaconBeforeSeconds} (CARNAGE's DMG_BEACON «spawn beacon X s before the main NPC»): that long before the
+     * behemoth is due, the ship goes close to its spawn and the pet puts out its combat beacon there. True while that
+     * lasts (the ship there or on its way).
+     */
+    private boolean beacon(JsonNode s, WorldSnapshot.Hero h, long wall) {
+        long before = (long) number(s, "beaconBeforeSeconds", 0) * 1_000;
+        long due = dueAt(h.mapId(), wall);
+        boolean window = before > 0 && due > 0 && wall >= due - before
+                && wall <= due + (long) number(s, "changeMapSeconds", 30) * 1_000;
+        if (!window) {
+            beaconOn = false;
+            return false;
+        }
+        if (!beaconOn) {
+            beaconOn = true;
+            log.info("Бегемот через {} — ставлю боевой маяк питомца у места появления", clock(Math.max(0, due - wall)));
+        }
+        int[] sp = spawnPoint(h.mapId());
+        double dist = Math.hypot(sp[0] - h.x(), sp[1] - h.y());
+        if (dist > 400) {
+            ctx.ship().want(ctx.config().get().general().travel());
+            if (ctx.nav().idle() || Math.hypot(ctx.nav().destination().x() - sp[0], ctx.nav().destination().y() - sp[1]) > 100) {
+                ctx.nav().moveTo(sp[0], sp[1], true);
+            }
+            ctx.nav().tick();
+            status = "Лечу ставить маяк у места появления";
+            return true;
+        }
+        ctx.nav().stop();
+        ctx.ship().want(ctx.config().get().general().roam());
+        status = "Маяк у места появления, бегемот через " + clock(Math.max(0, due - wall));
+        arrivedAt = 0; // the wait counts afresh after the window
+        return true;
+    }
+
+    /** Where the behemoth appears on the map: seen, else BeheFarm's point, else the wait point. */
+    int[] spawnPoint(int map) {
+        List<SpawnMemory.Spawn> known = memory.spawns(map);
+        if (!known.isEmpty()) {
+            return new int[] {known.get(0).x(), known.get(0).y()};
+        }
+        int[] sp = SPAWN.get(map);
+        return sp != null ? sp.clone() : waitPoint(map);
+    }
+
+    /**
+     * The kill's uridium ({@code rewardUridium}, CARNAGE's BLCycle: «behemoth_uri_reward», > 5 000): the balance rises
+     * that much within a minute of a behemoth in sight — the kill is ours for sure; one that left the view without the
+     * server's word is recorded dead then (its timer starts), and its box is looked for.
+     */
+    private void credit(WorldSnapshot.Hero h, long now) {
+        double uri = h.uridium();
+        double min = number(settings(), "rewardUridium", 5_000);
+        if (lastUri >= 0 && min > 0 && uri - lastUri >= min && behemothSeenMap == h.mapId() && now - behemothSeenAt < 60_000) {
+            log.info("Бегемот засчитан: +{} уридия", String.format("%,.0f", uri - lastUri).replace(',', ' '));
+            if (killedAt < behemothSeenAt) {
+                // it left the view without the server's word: dead now
+                int[] p = behemothSeenAtPos;
+                memory.killed(h.mapId(), p[0], p[1], now);
+                deathsAt.remove(h.mapId());
+                deadAt = p;
+                deadAtNanos = ctx.now();
+                killedAt = now;
+                killCounted = false;
+                seen.clear();
+            }
+            if (!killCounted) {
+                ctx.stats().kills.incrementAndGet();
+                killCounted = true;
+            }
+        }
+        lastUri = uri;
+    }
+
     /** The box after the kill (true while busy with it). */
     private boolean afterKill(JsonNode s) {
         if (!on(s, "collectBox", true)) {
@@ -571,6 +758,9 @@ public final class BehemothModule implements BotModule {
 
     /** Flies to the map's wait point and waits; the wait over and no behemoth: the next map. */
     private void waitHere(JsonNode s, WorldSnapshot.Hero h) {
+        if (beacon(s, h, wallMs())) {
+            return;
+        }
         int[] p = waitPoint(h.mapId());
         double dist = Math.hypot(p[0] - h.x(), p[1] - h.y());
         BotConfig.General g = ctx.config().get().general();
@@ -588,6 +778,19 @@ public final class BehemothModule implements BotModule {
         ctx.ship().want(g.roam());
         long wall = wallMs();
         long change = (long) number(s, "changeMapSeconds", 30) * 1_000;
+        if (arrivedAt == 0 && departFrom != 0 && departFrom != h.mapId() && departAt > 0) {
+            long took = wall - departAt;
+            if (took > 10_000 && took < 10 * 60_000) {
+                String key = departFrom + ">" + h.mapId();
+                Long before = travel.get(key);
+                travel.put(key, before == null ? took : (before + took) / 2);
+                log.info("Перелёт {} → {}: {}", ctx.maps().info(departFrom).name(), ctx.maps().info(h.mapId()).name(),
+                        clock(took));
+            }
+            departFrom = 0;
+            departAt = 0;
+        }
+        cloak(s, h);
         if (arrivedAt == 0) {
             arrivedAt = now;
             ctx.nav().stop();
@@ -634,7 +837,7 @@ public final class BehemothModule implements BotModule {
             if (m == leaving && maps.size() > 1 || skipped(m) && maps.stream().anyMatch(x -> !skipped(x))) {
                 continue;
             }
-            long arrive = wall + (m == here ? 0 : TRAVEL_MS);
+            long arrive = wall + travelMs(here, m);
             long due = dueAt(m, wall);
             long empty = emptyAt.getOrDefault(m, 0L);
             long at;
@@ -658,11 +861,17 @@ public final class BehemothModule implements BotModule {
     }
 
     /** When the map's behemoth is due by its last death in sight, or 0 when not known (or long past). */
-    long dueAt(int map, long wall) {
+    public long dueAt(int map, long wall) {
         long respawn = respawn(map);
         long best = 0;
+        boolean roll = on(settings(), "arriveOnTime", false);
+        long grace = (long) number(settings(), "changeMapSeconds", 30) * 1_000 + 60_000;
         for (SpawnMemory.Spawn k : memory.spawns(map)) {
             long at = k.expectedAt(respawn);
+            if (roll && at > 0 && at + grace < wall && k.lastSeen() < at) {
+                // nobody watched it come (BLCycle's «unwatched rollover»): taken by others then, the next one a respawn on
+                at += respawn * ((wall - grace - at) / respawn + 1);
+            }
             if (at > 0 && at + respawn > wall && (best == 0 || at < best)) {
                 best = at;
             }
@@ -709,8 +918,12 @@ public final class BehemothModule implements BotModule {
                     emptyAt.remove(h.mapId());
                 }
                 seen.put(s.id(), new int[] {s.x(), s.y()});
+                behemothSeenAt = now;
+                behemothSeenMap = h.mapId();
+                behemothSeenAtPos = new int[] {s.x(), s.y()};
             }
         }
+        credit(h, now);
         seen.entrySet().removeIf(e -> {
             if (w.ships().containsKey(e.getKey())) {
                 return false;
@@ -723,6 +936,8 @@ public final class BehemothModule implements BotModule {
                 if (ours) {
                     ctx.stats().kills.incrementAndGet();
                 }
+                killedAt = now;
+                killCounted = ours;
                 attacker.clear();
                 memory.killed(h.mapId(), p[0], p[1], now);
                 deathsAt.remove(h.mapId());

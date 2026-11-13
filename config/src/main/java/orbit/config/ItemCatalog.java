@@ -49,7 +49,14 @@ public final class ItemCatalog {
             "sar-01", "sar-02", "cbr", "pir-100", "obr-100", "bdr1212");
 
     /** Special ammunition the shop sells that the bot uses (EMP-01 by the flag {@code USE_EMP}). */
-    public static final List<Item> SPECIAL = List.of(new Item("ammunition_specialammo_emp-01", "EMP-01"));
+    public static final List<Item> SPECIAL = List.of(new Item("ammunition_specialammo_emp-01", "EMP-01"),
+            new Item("equipment_extra_cpu_cl04k-xl", "CL04K-XL (маскировка)"),
+            new Item("equipment_extra_cpu_cl04k-m", "CL04K-M (маскировка)"),
+            new Item("equipment_extra_cpu_cl04k-xs", "CL04K-XS (маскировка)"));
+
+    /** The cloaking CPUs, the biggest first (each use is one cloak). */
+    public static final List<String> CLOAKS = List.of("equipment_extra_cpu_cl04k-xl", "equipment_extra_cpu_cl04k-m",
+            "equipment_extra_cpu_cl04k-xs");
 
     public static final List<Item> FORMATIONS;
 

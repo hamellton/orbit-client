@@ -270,6 +270,95 @@ class BehemothModuleTest {
     }
 
     @Test
+    void arrivingOnTimeWaitsOnItsOwnMapUntilTheFlightLeavesJustEnough() throws Exception {
+        // CARNAGE's BLCycle: «due in 129s, travel 130s, lead 0s»
+        Sim sim = new Sim(with(config(30), "{\"arriveOnTime\": true}"), 308, 5_700, 2_600);
+        SpawnMemory mem = SpawnMemory.inMemory();
+        long now = System.currentTimeMillis();
+        mem.killed(308, 4_700, 3_900, now - 60_000); // here: in 14 min
+        mem.killed(306, 19_400, 5_800, now - 30_000); // 1-BL: in 14.5 min
+        mem.killed(307, 6_900, 5_000, now - 11 * 60_000); // 2-BL: in 4 min — the next
+        BehemothModule m = new BehemothModule(sim.ctx, mem);
+        assertEquals(308, m.workingMap(), "4 min to go, the flight 90 s: waits here");
+        sim.run(m::tick, 10_000);
+        assertTrue(m.status().startsWith("Жду вылета на 2-BL"), m.status());
+        sim.run(m::tick, 140_000);
+        assertEquals(307, m.workingMap(), "time to go");
+    }
+
+    @Test
+    void aBehemothNobodySawComeIsTakenAsKilledAndTheNextOneIsDueARespawnOn() throws Exception {
+        Sim sim = new Sim(with(config(30), "{\"arriveOnTime\": true}"), 308, 5_700, 2_600);
+        SpawnMemory mem = SpawnMemory.inMemory();
+        long now = System.currentTimeMillis();
+        mem.killed(307, 6_900, 5_000, now - 20 * 60_000); // due 5 min ago, not watched
+        BehemothModule m = new BehemothModule(sim.ctx, mem);
+        long due = m.dueAt(307, m.wallMs());
+        assertTrue(due - m.wallMs() > 9 * 60_000 && due - m.wallMs() <= 10 * 60_000, "rolled on: " + (due - m.wallMs()));
+        Sim plain = new Sim(config(30), 308, 5_700, 2_600);
+        BehemothModule p = new BehemothModule(plain.ctx, mem);
+        assertTrue(p.dueAt(307, p.wallMs()) <= p.wallMs(), "without the setting: as before, a time already past");
+    }
+
+    static void uridium(Sim sim, double u) {
+        orbit.protocol.gen.AttributeCreditsUpdateCommand c = new orbit.protocol.gen.AttributeCreditsUpdateCommand();
+        c.credits = 1_000_000;
+        c.uridium = (int) u;
+        sim.world.apply(c, sim.now);
+    }
+
+    @Test
+    void theUridiumOfAKillCountsABehemothThatLeftTheViewAsDead() throws Exception {
+        // CARNAGE's BLCycle «behemoth_uri_reward» > 5 000
+        Sim sim = new Sim(config(300), 308, 5_700, 2_600);
+        SpawnMemory mem = SpawnMemory.inMemory();
+        BehemothModule m = new BehemothModule(sim.ctx, mem);
+        m.workingMap();
+        uridium(sim, 100_000);
+        sim.run(m::tick, 500);
+        sim.npc(77, BEHEMOTH, 9_500, 2_600); // far: its going is no proof of death
+        sim.run(m::tick, 500);
+        orbit.protocol.gen.ShipRemoveCommand gone = new orbit.protocol.gen.ShipRemoveCommand();
+        gone.userId = 77;
+        sim.world.apply(gone, sim.now);
+        sim.run(m::tick, 1_000);
+        assertTrue(mem.spawns(308).getFirst().lastKill() == 0, "out of view only");
+        uridium(sim, 105_700);
+        sim.run(m::tick, 500);
+        assertTrue(mem.spawns(308).getFirst().lastKill() > 0, "the reward came: dead");
+        assertEquals(1, sim.ctx.stats().kills.get());
+    }
+
+    @Test
+    void cloakedWhileWaitingInTheCloakFormation() throws Exception {
+        Sim sim = new Sim(with(config(300), "{\"useCloak\": true, \"cloakFormation\": \"drone_formation_f-11-he\"}"),
+                308, 5_700, 2_600);
+        sim.lasers("ammunition_laser_ucb-100", "equipment_extra_cpu_cl04k-xl");
+        BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
+        m.workingMap();
+        sim.run(m::tick, 3_000);
+        assertTrue(sim.sent.stream().anyMatch(p -> p instanceof orbit.protocol.gen.MenuActionRequest a
+                && a.menuItemId.equals("equipment_extra_cpu_cl04k-xl")), "cloaked");
+        assertEquals("drone_formation_f-11-he", sim.ctx.ship().wanted().formation(), "Heart");
+    }
+
+    @Test
+    void thePetsBeaconByTheSpawnJustBeforeTheBehemoth() throws Exception {
+        Sim sim = new Sim(with(config(300), "{\"beaconBeforeSeconds\": 10}"), 308, 5_700, 2_600);
+        SpawnMemory mem = SpawnMemory.inMemory();
+        mem.killed(308, 4_700, 3_900, System.currentTimeMillis() - 15 * 60_000 + 30_000); // due in 30 s
+        BehemothModule m = new BehemothModule(sim.ctx, mem);
+        m.workingMap();
+        sim.run(m::tick, 5_000);
+        assertEquals(-1, m.petGear(), "25 s to go: not yet");
+        sim.run(m::tick, 30_000);
+        assertEquals(orbit.protocol.gen.PetGearTypeModule.PETGEARTYPE_COMBAT_BEACON, m.petGear());
+        assertEquals(Boolean.TRUE, m.petOut());
+        var h = sim.hero();
+        assertTrue(Math.hypot(h.x() - 4_700, h.y() - 3_900) <= 450, "by the spawn: " + h);
+    }
+
+    @Test
     void anNpcShootingAtUsWhileWaitingIsFoughtBack() throws Exception {
         Sim sim = new Sim(config(300), 308, 5_700, 2_600);
         sim.lasers("ammunition_laser_ucb-100");

@@ -30,6 +30,13 @@ final class BuyWatch {
     private volatile ShopAccess shop;
     private final Set<String> told = new HashSet<>();
     private final Map<String, Long> triedAt = new HashMap<>();
+    /**
+     * Bought, waiting for the game's count to rise: item → {count before, when}. No rise within {@link #EFFECT_MS} —
+     * the item is not bought again this run (CARNAGE's log: 19 cloak purchases of 21 took the uridium and gave nothing).
+     */
+    private final Map<String, double[]> bought = new java.util.concurrent.ConcurrentHashMap<>();
+    private final Set<String> noEffect = new HashSet<>();
+    static final long EFFECT_MS = 120_000;
     private final AtomicBoolean busy = new AtomicBoolean();
     private final ExecutorService worker = Executors.newSingleThreadExecutor(r -> {
         Thread t = new Thread(r, "shop");
@@ -66,7 +73,21 @@ final class BuyWatch {
         if (w.hero().id() == 0 || w.items().isEmpty()) {
             return; // not in game or the item bar not received yet
         }
+        bought.forEach((id, p) -> {
+            WorldSnapshot.Item now2 = w.items().get(id);
+            if (now2 != null && now2.counter() > p[0]) {
+                bought.remove(id);
+            } else if (now - (long) p[1] > EFFECT_MS * 1_000_000) {
+                bought.remove(id);
+                noEffect.add(id);
+                log.warn("{}: куплено, но в игре не прибавилось — в этом запуске больше не покупаю (проверьте ангар)",
+                        ItemCatalog.label(id));
+            }
+        });
         for (BotConfig.BuyRule r : b.items()) {
+            if (noEffect.contains(r.item())) {
+                continue;
+            }
             WorldSnapshot.Item item = w.items().get(r.item());
             if (item == null) {
                 // unknown is not zero: never buy what the game has not counted
@@ -300,6 +321,7 @@ final class BuyWatch {
             long cost = (long) Math.ceil(o.price() * amount);
             log.info("Покупаю {} ×{} за {} {} (осталось {})", name, amount, cost, currency, left);
             String answer = s.buy(r.item(), amount);
+            bought.put(r.item(), new double[] {left, ctx.now()});
             told(answer, credits, uridium);
         } catch (java.io.IOException | RuntimeException e) {
             log.warn("{}: покупка не удалась — {}", name, e.getMessage());

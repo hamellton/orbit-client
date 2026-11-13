@@ -460,6 +460,12 @@ public final class OrbitMain {
                 items.putAll(ammo);
                 java.util.Map<String, Offer> out = new java.util.LinkedHashMap<>();
                 ammo.forEach((id, i) -> out.put(id, new Offer(id, i.price(), i.uridium(), i.maxAmount())));
+                // the cloaking CPU is not on the ammunition page: bought as CARNAGE's BLCycle buys it (its log: category
+                // "special", one at a time, 15 750 uridium for CL04K-XL)
+                orbit.auth.Shop.Item cloak = new orbit.auth.Shop.Item("equipment_extra_cpu_cl04k-xl", "special", "CL04K-XL",
+                        15_750, "uridium", 1);
+                items.putIfAbsent(cloak.id(), cloak);
+                out.putIfAbsent(cloak.id(), new Offer(cloak.id(), cloak.price(), true, 1));
                 return out;
             }
 
