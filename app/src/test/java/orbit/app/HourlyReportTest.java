@@ -36,7 +36,7 @@ class HourlyReportTest {
             line = r.tick(t, true);
         }
         assertEquals(at(14, 0), t);
-        assertEquals("Сводка 13:20–14:00 · в игре весь час · уридий +1 200 · NPC 45 · подобрано: палладий 540"
+        assertEquals("Сводка 13:20–14:00 · в игре все 40 мин · уридий +1 200 · NPC 45 · подобрано: палладий 540"
                 + " · ремонтов 22 · смертей 1 ⚠", line);
         // an hour mostly out of the game
         for (t += 1_000; t <= at(15, 0); t += 1_000) {
@@ -65,5 +65,15 @@ class HourlyReportTest {
             line = r.tick(t, true);
         }
         assertEquals("Сводка 13:00–14:00 · в игре весь час · уридий +300 · ремонтов 0 · смертей 0", line);
+    }
+
+    @Test
+    void resourcesInTheHoldApartFromTheBoxes() {
+        HourlyReport r = new HourlyReport(() -> HourlyReport.Totals.NONE, at(13, 0), Z);
+        HourlyReport.Totals b = new HourlyReport.Totals(0, 0, 0, 0, 3, 0, 0, 0, Map.of("скрапиум", 9),
+                Map.of("resource_collectable_scrapium", 7.0, "log_disk", 2.0));
+        String line = r.text(at(13, 0), at(14, 0), HourlyReport.Totals.NONE, b, 3_600_000);
+        assertEquals("Сводка 13:00–14:00 · в игре весь час · NPC 3 · подобрано: скрапиум 9 · Лог-диски +2"
+                + " · в трюме: скрапиум +7 · ремонтов 0 · смертей 0", line);
     }
 }

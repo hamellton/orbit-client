@@ -58,6 +58,11 @@ public final class LootNames {
         };
     }
 
+    /** The Russian name of a box or resource type ({@code SCRAPIUM} → «скрапиум»), or {@code null} when none is known. */
+    public static String known(String key) {
+        return key == null ? null : BOXES.get(key.toUpperCase(Locale.ROOT));
+    }
+
     /** «палладий» for {@code ore_8}, «бонус-бокс» for {@code BONUS_BOX}; unknown types readable as they are. */
     public static String of(String key) {
         if (key == null || key.isBlank()) {

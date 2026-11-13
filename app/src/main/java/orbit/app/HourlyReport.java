@@ -99,7 +99,8 @@ public final class HourlyReport {
             parts.add("не в игре");
             return String.join(" · ", parts);
         }
-        parts.add(minutes >= span - 1 ? "в игре весь час" : "в игре " + minutes + " из " + span + " мин");
+        parts.add(minutes < span - 1 ? "в игре " + minutes + " из " + span + " мин"
+                : span >= 59 ? "в игре весь час" : "в игре все " + span + " мин");
         add(parts, "уридий", diff(a.uridium(), b.uridium()));
         add(parts, "кредиты", diff(a.credits(), b.credits()));
         add(parts, "опыт", diff(a.experience(), b.experience()));
@@ -124,11 +125,36 @@ public final class HourlyReport {
             picked.forEach((name, n) -> p.add(name + " " + SessionSummary.num(n)));
             parts.add("подобрано: " + String.join(", ", p));
         }
-        b.items().forEach((id, v) -> add(parts, SessionSummary.itemName(id), diff(a.items().getOrDefault(id, 0.0), v)));
+        // resources gained in the hold, apart from the boxes picked up (the same ore under two names was unclear)
+        List<String> hold = new ArrayList<>();
+        b.items().forEach((id, v) -> {
+            double d = diff(a.items().getOrDefault(id, 0.0), v);
+            String res = resource(id);
+            if (res != null && d > 0) {
+                hold.add(res + " +" + SessionSummary.num(d));
+            } else if (res == null) {
+                add(parts, SessionSummary.itemName(id), d);
+            }
+        });
+        if (!hold.isEmpty()) {
+            parts.add("в трюме: " + String.join(", ", hold));
+        }
         parts.add("ремонтов " + (int) diff(a.repairs(), b.repairs()));
         int deaths = (int) diff(a.deaths(), b.deaths());
         parts.add(deaths > 0 ? "смертей " + deaths + " ⚠" : "смертей 0");
         return String.join(" · ", parts);
+    }
+
+    /** A resource's name for {@code resource_collectable_scrapium} and the like, {@code null} for other items. */
+    private static String resource(String id) {
+        for (String p : new String[] {"resource_collectable_", "resource_"}) {
+            if (id.startsWith(p)) {
+                String n = id.substring(p.length());
+                String ru = orbit.config.LootNames.known(n);
+                return ru != null ? ru : SessionSummary.itemName(id);
+            }
+        }
+        return null;
     }
 
     /** A counter that went down was started anew (a new session): all of it is this hour's. */
