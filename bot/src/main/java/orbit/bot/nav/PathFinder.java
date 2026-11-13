@@ -23,6 +23,8 @@ public final class PathFinder {
 
     /** The client's collision offset plus room for prediction error and a click spread. */
     static final double MARGIN = 20 + 60;
+    /** The way out of a zone ends this far beyond its edge. */
+    static final double EXIT_EXTRA = 80;
     /** Circles become polygons with this many corners (drawn around the circle). */
     static final int CIRCLE_CORNERS = 16;
     /** Waypoints are moved this far off the corner they come from. */
@@ -422,6 +424,17 @@ public final class PathFinder {
             if (exit == null) {
                 return List.of();
             }
+            // a little farther out the same way: an exit on the very edge put the ship back inside the next moment,
+            // and the way out was planned again and again (live 2026-11-13 on 3-BL: 10 s at a wall)
+            double ex = exit[0] - sx;
+            double ey = exit[1] - sy;
+            double len = Math.hypot(ex, ey);
+            if (len > 1) {
+                double[] farther = {exit[0] + ex / len * EXIT_EXTRA, exit[1] + ey / len * EXIT_EXTRA};
+                if (free(farther[0], farther[1])) {
+                    exit = farther;
+                }
+            }
             List<double[]> out = new ArrayList<>();
             out.add(exit);
             out.addAll(path(exit[0], exit[1], gx, gy));
@@ -610,7 +623,9 @@ public final class PathFinder {
         if (free(cx, cy)) {
             return new double[] {cx, cy};
         }
-        for (double r = 50; r < Math.max(width, height); r += 50) {
+        // fine rings near the point: the first free one is straight off the edge, not along it (a 50 step found a
+        // point beside the ship on a wall's edge and led it along the wall)
+        for (double r = 10; r < Math.max(width, height); r += r < 200 ? 10 : 50) {
             for (int i = 0; i < 32; i++) {
                 double a = 2 * Math.PI * i / 32;
                 double px = cx + r * Math.cos(a);

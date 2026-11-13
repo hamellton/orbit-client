@@ -54,6 +54,17 @@ class PathFinderTest {
     }
 
     @Test
+    void fromJustInsideAZoneTheWayOutEndsWellBeyondItsEdge() {
+        // live 2026-11-13 on 3-BL: along a wall the ship was in and out of the margin, 10 s on the spot
+        WorldSnapshot.Zone band = zone(MapAddPOICommand.SHAPETYPE_RECTANGLE, false, 1077, 1287, 14043, 2287);
+        PathFinder f = finder(band);
+        double edge = 2287 + PathFinder.MARGIN;
+        List<double[]> path = f.path(8812, edge - 10, 9000, 6000);
+        assertFalse(path.isEmpty());
+        assertTrue(path.getFirst()[1] >= edge + PathFinder.EXIT_EXTRA - 1, "out by " + (path.getFirst()[1] - edge));
+    }
+
+    @Test
     void goesAroundACircle() {
         WorldSnapshot.Zone c = zone(MapAddPOICommand.SHAPETYPE_CIRCLE, false, 10000, 6000, 1500);
         PathFinder f = finder(c);
