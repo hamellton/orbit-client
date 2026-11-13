@@ -96,8 +96,8 @@ public final class ItemCatalog {
 
     /** A readable name of an item id: the catalog label or the raw id; {@code —} for none. */
     /**
-     * A name for people (the user, 2026-11-13: the hangar showed {@code ammunition_mine_acm-01}): the kind in Russian
-     * and the game's code as written on the item — «Мина ACM-01», «Ракета R-310», «Alien CPU (common)».
+     * A name for people (the user, 2026-11-13: the hangar showed {@code ammunition_mine_acm-01}; the items in English,
+     * as the game names them): the kind and the code as written on the item — «Mine ACM-01», «Rocket R-310».
      */
     public static String friendly(String id) {
         if (id == null) {
@@ -105,8 +105,8 @@ public final class ItemCatalog {
         }
         String known = label(id);
         String[][] kinds = {
-            {"ammunition_laser_", ""}, {"ammunition_rocketlauncher_", "Ракетомёт "}, {"ammunition_rocket_", "Ракета "},
-            {"ammunition_mine_", "Мина "}, {"ammunition_specialammo_", ""}, {"drone_formation_", "Формация "},
+            {"ammunition_laser_", ""}, {"ammunition_rocketlauncher_", "Rocket launcher "}, {"ammunition_rocket_", "Rocket "},
+            {"ammunition_mine_", "Mine "}, {"ammunition_specialammo_", ""}, {"drone_formation_", "Formation "},
         };
         for (String[] k : kinds) {
             if (id.startsWith(k[0])) {

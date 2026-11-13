@@ -36,6 +36,10 @@ final class HangarWindow {
     static final List<String> ROCKETS = List.of("ammunition_rocket_", "ammunition_rocketlauncher_", "ammunition_mine_",
             "ammunition_specialammo_");
 
+    /** The ores by the game's number, in English as the game names them. */
+    static final Map<Integer, String> ORE_EN = Map.of(0, "Prometium", 1, "Endurium", 2, "Terbium", 3, "Xenomit",
+            4, "Prometid", 5, "Duranium", 6, "Promerium", 7, "Seprom", 8, "Palladium", 28, "Osmium");
+
     private HangarWindow() {
     }
 
@@ -132,17 +136,18 @@ final class HangarWindow {
         Map<String, String> out = new LinkedHashMap<>();
         new TreeMap<>(w.inventory().ores()).forEach((type, n) -> {
             if (type >= 0 && n > 0) {
-                out.put(orbit.config.LootNames.ore(type), orbit.app.SessionSummary.number(n));
+                out.put(ORE_EN.getOrDefault(type, "Ore " + type), orbit.app.SessionSummary.number(n));
             }
         });
         new TreeMap<>(w.inventory().resources()).forEach((id, n) -> {
             if (n > 0) {
-                out.put(orbit.app.SessionSummary.displayName(id), orbit.app.SessionSummary.number(n));
+                out.put(orbit.config.ItemCatalog.friendly(id.replaceFirst("^resource_(collectable_)?", "")),
+                        orbit.app.SessionSummary.number(n));
             }
         });
         new TreeMap<>(w.inventory().bootyKeys()).forEach((id, n) -> {
             if (n > 0) {
-                out.put("ключ " + id, orbit.app.SessionSummary.number(n));
+                out.put("Key " + id, orbit.app.SessionSummary.number(n));
             }
         });
         return out;
