@@ -326,7 +326,7 @@ public final class PetCare {
                 && (pet.gears().isEmpty() || pet.gears().contains(PetGearTypeModule.PETGEARTYPE_ENEMY_LOCATOR));
         if (quest > 0 && !questLocator && !noLocatorTold) {
             noLocatorTold = true;
-            log.warn("Питомец: у него нет «Пеленгатора врагов» — NPC квеста ищу без него");
+            log.warn("Питомец: у него нет «Пеленгатора врагов» — цель модуля (NPC № {}) ищу без него", quest);
         }
         int fightGear = trade || kamikazeOn ? -1 : moduleGear.getAsInt();
         boolean byFight = fightGear >= 0 && (pet.gears().isEmpty() || pet.gears().contains(fightGear));
