@@ -536,5 +536,9 @@ class BehemothModuleTest {
         sim.world.apply(run, sim.now);
         sim.run(m::tick, 3_000);
         assertEquals(40, sim.hero().selected(), m.status());
+        sim.run(m::tick, 6_000);
+        var h = sim.hero();
+        // live 2026-11-13 on the VPS: an Attend kept off at its radius took the ship off the point — now shot back in place
+        assertTrue(Math.hypot(h.x() - 5_700, h.y() - 2_600) <= 300, "still at the wait point: " + h);
     }
 }

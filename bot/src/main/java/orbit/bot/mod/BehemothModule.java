@@ -881,6 +881,9 @@ public final class BehemothModule implements BotModule {
             return false;
         }
         WorldSnapshot.Hero h = w.hero();
+        if (!all) {
+            return defendInPlace(w, h);
+        }
         int[] p = waitPoint(h.mapId());
         if (attacker.targetId() != 0) {
             WorldSnapshot.Ship t = w.ships().get(attacker.targetId());
@@ -896,21 +899,52 @@ public final class BehemothModule implements BotModule {
                 .filter(x -> !isBehemoth(x))
                 .filter(x -> Math.hypot(x.x() - p[0], x.y() - p[1]) <= LEASH)
                 .filter(x -> !attacker.gaveUp(x.id()))
-                .filter(x -> all ? Targets.attackable(c, x, h.mapId())
-                        : (x.attackTargetId() == h.id() || h.attackers().contains(x.id())) && !x.cloaked())
+                .filter(x -> Targets.attackable(c, x, h.mapId()))
                 .min(Comparator.comparingDouble(x -> x.distanceTo(h.x(), h.y())))
                 .orElse(null);
         if (t == null) {
             return false;
-        }
-        if (!all) {
-            log.info("{} стреляет по нам у точки ожидания — отвечаю", t.name());
         }
         attacker.target(t);
         attacker.tick(true);
         foughtOnTheWay = true;
         status = "Бой у точки ожидания";
         return true;
+    }
+
+    /** NPCs shoot from about this far; one farther is not shot back at. */
+    static final double DEFEND_REACH = 900;
+
+    /**
+     * {@code defenceMode}: an NPC shooting at the ship is shot back at where the ship is — it does not chase it nor
+     * keep its distance, the wait (or the way to the wait point) goes on (live 2026-11-13 on the VPS, 2-BL: Attend IX
+     * kept off at its radius took the ship off the point, the fight was left, back to the point, shot again — three
+     * times). Always false: the wait goes on in the same tick.
+     */
+    private boolean defendInPlace(WorldSnapshot w, WorldSnapshot.Hero h) {
+        if (attacker.targetId() != 0) {
+            WorldSnapshot.Ship t = w.ships().get(attacker.targetId());
+            if (t != null && t.distanceTo(h.x(), h.y()) <= DEFEND_REACH && attacker.tick(false)) {
+                foughtOnTheWay = true;
+                return false;
+            }
+            attacker.clear();
+        }
+        WorldSnapshot.Ship t = w.ships().values().stream()
+                .filter(WorldSnapshot.Ship::npc)
+                .filter(x -> !isBehemoth(x))
+                .filter(x -> !x.cloaked() && !attacker.gaveUp(x.id()))
+                .filter(x -> x.attackTargetId() == h.id() || h.attackers().contains(x.id()))
+                .filter(x -> x.distanceTo(h.x(), h.y()) <= DEFEND_REACH)
+                .min(Comparator.comparingDouble(x -> x.distanceTo(h.x(), h.y())))
+                .orElse(null);
+        if (t != null) {
+            log.info("{} стреляет по нам — отвечаю, не сходя с места", t.name());
+            attacker.target(t);
+            attacker.tick(false);
+            foughtOnTheWay = true;
+        }
+        return false;
     }
 
     /** Flies to the map's wait point and waits; the wait over and no behemoth: the next map. */
