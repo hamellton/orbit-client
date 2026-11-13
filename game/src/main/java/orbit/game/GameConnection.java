@@ -135,11 +135,29 @@ public final class GameConnection implements AutoCloseable {
             case "KIK" -> "Сервер выкинул из игры (KIK)";
             case "ERR" -> a.length > 2 && ("3".equals(a[2]) || "41".equals(a[2]))
                     ? "В аккаунт вошли с другого места (ERR " + a[2] + ")" : null;
-            case "A" -> a.length > 3 && "STD".equals(a[2])
+            case "A" -> a.length > 3 && "STD".equals(a[2]) && !restartOf(message)
                     ? "Сервер написал: «" + String.join("|", java.util.Arrays.copyOfRange(a, 3, a.length)) + "»" : null;
             default -> null;
         };
     }
+
+    /**
+     * The server's own notice of a restart ({@code A|STD|Server restarting...}, live 2026-11-13 05:30 on ru1): no
+     * person's line, the game is back in minutes — the account waits {@link #RESTART_WAIT} and logs in again.
+     */
+    static boolean restartOf(String message) {
+        if (message == null) {
+            return false;
+        }
+        String m = message.toLowerCase(java.util.Locale.ROOT);
+        return m.contains("|a|std|") && (m.contains("restart") || m.contains("shutdown") || m.contains("maintenance"));
+    }
+
+    /** After a restart notice the game is tried again this much later (and a little more, at random). */
+    static final Duration RESTART_WAIT = Duration.ofMinutes(5);
+    /** A notice this recent explains a dropped connection. */
+    private static final long RESTART_NOTICE_NS = 15 * 60_000_000_000L;
+    private volatile long restartNotice;
 
     private static final class LoginRejected extends IOException {
         private static final long serialVersionUID = 1L;
@@ -331,6 +349,17 @@ public final class GameConnection implements AutoCloseable {
                     }
                     Duration wait = settings.backoff(failures);
                     failures++;
+                    if (restartNotice != 0 && System.nanoTime() - restartNotice < RESTART_NOTICE_NS) {
+                        // the server is restarting: knocking every few seconds is no use and unlike a person
+                        restartNotice = 0;
+                        failures = 0;
+                        wait = RESTART_WAIT.plusSeconds(java.util.concurrent.ThreadLocalRandom.current().nextInt(30, 180));
+                        log.warn("Сервер перезапускается. Вход снова через {}", spoken(wait));
+                        listener.onState(GameListener.State.RECONNECTING, "Перезапуск сервера — вход в "
+                                + java.time.LocalTime.now().plus(wait).withNano(0));
+                        sleep(wait);
+                        continue;
+                    }
                     boolean refresh = e instanceof LoginRejected || failures >= settings.refreshAfter();
                     String why = e instanceof LoginRejected ? e.getMessage() : "Обрыв связи: " + e.getMessage();
                     log.warn("{}. Повтор через {} с{}", why, wait.toSeconds(), refresh ? " с новым входом на сайт" : "");
@@ -485,6 +514,13 @@ public final class GameConnection implements AutoCloseable {
                         connectedBefore = true;
                         startupThread = Thread.ofVirtual().name("startup").start(withLogContext(() -> runStartup(ctx)));
                         keepAlive = Thread.ofVirtual().name("keepalive").start(withLogContext(this::keepAliveLoop));
+                    } else if (p instanceof LegacyModule lm && restartOf(lm.message)) {
+                        listener.onPacket(p);
+                        if (restartNotice == 0 || System.nanoTime() - restartNotice > RESTART_NOTICE_NS) {
+                            log.warn("Сервер объявил перезапуск — после обрыва подожду {} мин и войду снова",
+                                    RESTART_WAIT.toMinutes());
+                        }
+                        restartNotice = System.nanoTime();
                     } else if (p instanceof LegacyModule lm && troubleOf(lm.message) != null) {
                         listener.onPacket(p);
                         throw new Trouble(troubleOf(lm.message));

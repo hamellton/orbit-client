@@ -320,6 +320,9 @@ class GameConnectionTest {
         assertEquals(null, GameConnection.troubleOf("0|A|STM|msg_pet_activated"));
         assertEquals(null, GameConnection.troubleOf("0|LM|ST|CRE|100|2000"));
         assertEquals(null, GameConnection.troubleOf("0|ERR|1"));
+        assertEquals(null, GameConnection.troubleOf("0|A|STD|Server restarting..."), "a restart, not a person");
+        assertEquals(true, GameConnection.restartOf("0|A|STD|Server restarting..."));
+        assertEquals(false, GameConnection.restartOf("0|A|STD|Please stop botting"));
         assertEquals(null, GameConnection.troubleOf("0|l"));
     }
 
