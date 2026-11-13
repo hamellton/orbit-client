@@ -316,6 +316,24 @@ class BotRunnerTest {
     }
 
     @Test
+    void loggingOutOnABlMapGoesTowardsTheCompanysX8NotBackToTheBlItCameFrom() throws Exception {
+        // live 2026-11-13 on the VPS: 1-BL ↔ 2-BL through the nearest portal without end, never logged out — here: just
+        // come to 2-BL from 1-BL, by the portal back to it
+        var cat = MapCatalog.bundled();
+        var back = cat.portals(307).stream().filter(p -> p.toId() == 306).findFirst().orElseThrow();
+        var home = orbit.bot.nav.Router.route(cat, 307, back.x(), back.y(), 28, 3, Integer.MAX_VALUE).getFirst();
+        assertTrue(home.toId() != 306, "the way to 3-8 does not go back to 1-BL: " + home.toName());
+        Sim sim = new Sim(BehemothModuleTest.config(300), 307, back.x(), back.y());
+        BotRunner r = new BotRunner(sim.ctx, () -> false, s -> { });
+        sim.run(r::tick, 2_000);
+        r.stopWhenFree("тест");
+        sim.run(r::tick, 5_000);
+        assertTrue(sim.sent.stream().noneMatch(p -> p instanceof orbit.protocol.gen.JumpRequest), "no jump back to 1-BL");
+        assertEquals(home.x(), (int) sim.ctx.nav().destination().x(), "to the portal on the way home");
+        assertEquals(home.y(), (int) sim.ctx.nav().destination().y());
+    }
+
+    @Test
     void livingLongerThanTheWindowAfterAPaidReviveStartsTheCountAgain() throws Exception {
         BotConfig c = CubikonModuleTest.config(90, false)
                 .withSafety(new BotConfig.Safety(0.5, 0.9, 0.5, 0, null, null, 0, "PORTAL", 0, 0, 2, 3));

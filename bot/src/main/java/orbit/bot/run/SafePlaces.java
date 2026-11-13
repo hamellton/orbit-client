@@ -136,6 +136,19 @@ public final class SafePlaces {
      * Every way out of the map is one-way (5-2: only to 5-3, back by the whole loop round the pirate maps; its
      * 5-4 leads nowhere else): leaving costs a long way back, so the map's work is finished first.
      */
+    /**
+     * Out of a Blacklight map to log out: the nearest usable portal to a map that is not Blacklight (the x-8), else the
+     * nearest one (live 2026-11-13 on the VPS: the nearest portal led to the next BL map and the ship went 1-BL ↔ 2-BL
+     * without end, never logging out).
+     */
+    public static Place outOfBlacklight(WorldSnapshot w, MapCatalog maps, Set<String> closed) {
+        WorldSnapshot.Hero h = w.hero();
+        return usablePortals(w, maps, closed).stream()
+                .filter(p -> !orbit.bot.nav.Router.blacklight(p.toId()))
+                .map(p -> new Place(p.x(), p.y(), "портал на " + p.toName(), p, true))
+                .min(Comparator.comparingDouble(pl -> pl.distance(h))).orElse(null);
+    }
+
     public static boolean hardToLeave(WorldSnapshot w, MapCatalog maps) {
         WorldSnapshot.Hero h = w.hero();
         boolean anyOut = false;

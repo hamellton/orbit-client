@@ -470,6 +470,34 @@ public final class BotRunner {
         show(module.status());
     }
 
+    /**
+     * Logging out on a Blacklight map: the first portal of the way to the company's x-8 (1-BL → 2-BL → 2-8 for the
+     * second company) — not just the nearest, which may lead to the next BL map and back without end (live 2026-11-13
+     * on the VPS).
+     */
+    private SafePlaces.Place wayHome(WorldSnapshot.Hero h) {
+        int x8 = switch (h.factionId()) {
+            case 1 -> 20;
+            case 2 -> 24;
+            case 3 -> 28;
+            default -> 0;
+        };
+        if (x8 == 0) {
+            return null;
+        }
+        try {
+            java.util.List<orbit.world.maps.MapCatalog.Portal> route = orbit.bot.nav.Router.route(ctx.maps(), h.mapId(),
+                    h.x(), h.y(), x8, h.factionId(), h.level() > 0 ? h.level() : Integer.MAX_VALUE);
+            if (route.isEmpty() || ctx.stats().closedPortals.contains(SafePlaces.key(h.mapId(), route.getFirst()))) {
+                return null;
+            }
+            var p = route.getFirst();
+            return new SafePlaces.Place(p.x(), p.y(), "портал на " + p.toName(), p, true);
+        } catch (RuntimeException e) {
+            return null;
+        }
+    }
+
     /** The first portal of the way to the module's map when it is another one, else {@code null}. */
     private double[] portalOnTheWay(WorldSnapshot.Hero h) {
         int map = module == null ? 0 : module.workingMap();
@@ -699,8 +727,13 @@ public final class BotRunner {
         // on a Blacklight map no logging out at its portal (NPCs reach it): through it first, out on the other side
         // (the user, 2026-11-13)
         if (!logoutHere && orbit.bot.nav.Router.blacklight(h.mapId())) {
-            SafePlaces.Place out = SafePlaces.nearest(w, ctx.maps(), ctx.stats().closedPortals,
-                    ctx.config().get().safety().oneWayJumps());
+            SafePlaces.Place out = wayHome(h);
+            if (out == null) {
+                out = SafePlaces.outOfBlacklight(w, ctx.maps(), ctx.stats().closedPortals);
+            }
+            if (out == null) {
+                out = SafePlaces.nearest(w, ctx.maps(), ctx.stats().closedPortals, ctx.config().get().safety().oneWayJumps());
+            }
             if (out != null && out.portal() != null && out.jumpable()) {
                 if (out.distance(h) > out.reach()) {
                     if (ctx.nav().idle() || ctx.nav().destination().x() != out.x()) {
