@@ -268,6 +268,7 @@ public final class PetCare {
     private java.util.function.IntSupplier moduleLocator = () -> 0;
     private int askedParam;
     private boolean noLocatorTold;
+    private int missingFightGear = -1;
 
     public void setModuleLocator(java.util.function.IntSupplier target) {
         moduleLocator = target;
@@ -290,6 +291,11 @@ public final class PetCare {
         }
         int fightGear = trade || kamikazeOn ? -1 : moduleGear.getAsInt();
         boolean byFight = fightGear >= 0 && (pet.gears().isEmpty() || pet.gears().contains(fightGear));
+        if (fightGear >= 0 && !byFight && missingFightGear != fightGear) {
+            missingFightGear = fightGear; // once: the NPC's flag asks for a mode the pet does not have
+            log.warn("Питомец: у него нет режима «HP Link» — флаг HP_LINK не действует (режимы питомца: {})",
+                    pet.gears());
+        }
         int want = trade ? PetGearTypeModule.PETGEARTYPE_TRADE_POD
                 : kamikazeOn ? PetGearTypeModule.PETGEARTYPE_KAMIKAZE
                 : byFight ? fightGear

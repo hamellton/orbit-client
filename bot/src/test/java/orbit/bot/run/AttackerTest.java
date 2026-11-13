@@ -320,6 +320,24 @@ class AttackerTest {
     }
 
     @Test
+    void aTargetOfAHigherPriorityComingInSightIsTakenAtOnce() {
+        // the user, 2026-11-13: «почему бьёт импульсов, а не сразу летит на инвока»
+        BotConfig c = BotConfig.empty().withModule(BotConfig.Module.KILL_COLLECT)
+                .withLoot(new BotConfig.Loot("ammunition_laser_lcb-10", null, 0, 0, null, true, 0, null, false, false, null))
+                .withNpcs(Map.of("-=[ Invoke ]=-", new BotConfig.NpcRule(500, -95, true, Set.of(), Set.of(), null),
+                        "-=[ Impulse ]=-", new BotConfig.NpcRule(500, 10, true, Set.of(), Set.of(), null)));
+        Sim sim = new Sim(c, 1, 10_500, 6_000);
+        sim.lasers("ammunition_laser_lcb-10");
+        sim.npc(7, "-=[ Impulse ]=-", 10_000, 6_000);
+        orbit.bot.mod.KillModule m = new orbit.bot.mod.KillModule(sim.ctx, true, false);
+        sim.run(m::tick, 1_000);
+        assertEquals(7, m.fightTarget(), "the only one there");
+        sim.npc(8, "-=[ Invoke ]=-", 11_200, 6_000);
+        sim.run(m::tick, 300);
+        assertEquals(8, m.fightTarget(), "the higher priority at once");
+    }
+
+    @Test
     void aTargetDestroyedBeforeTheAttackWasConfirmedIsAKill() {
         // live 2026-11-13 on 2-3: Lordakia died in the first volley, the reward came, the fight was «пропала из вида»
         Sim sim = new Sim(config(false, null, Set.of()), 1, 10_500, 6_000);
