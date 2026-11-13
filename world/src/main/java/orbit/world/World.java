@@ -471,7 +471,9 @@ public final class World {
         }
         int n = reconSeen.merge(kind, 1, Integer::sum);
         if (n <= 5) {
-            log.info("Разведка BL ({}): {} — {}", what, kind, content.length() > 400 ? content.substring(0, 400) + "…" : content);
+            // no tokens in the log (a payment offer's link carried one, 2026-11-13)
+            String safe = content.replaceAll("(?i)(req|sid|dosid|token|session|hash|key)([=:])[^ ,&}\\]\"]+", "$1$2***");
+            log.info("Разведка BL ({}): {} — {}", what, kind, safe.length() > 400 ? safe.substring(0, 400) + "…" : safe);
         }
     }
 
