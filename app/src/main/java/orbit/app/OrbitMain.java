@@ -1085,10 +1085,10 @@ public final class OrbitMain {
                             log.warn("Не удалить {}: {}", stopFile, e.getMessage());
                         }
                         commanded.set(true);
-                        runner.stop("по команде");
+                        runner.stopWhenFree("по команде");
                     }
                     if (stopRequested.get()) {
-                        runner.stop("по кнопке");
+                        runner.stopWhenFree("по кнопке");
                     } else if (System.currentTimeMillis() > until) {
                         runner.stopWhenFree("время вышло");
                     }

@@ -217,6 +217,8 @@ public final class BotRunner {
     static final long FREE_WAIT_NS = 5 * 60_000_000_000L;
     private String stopWhenFree;
     private long stopWhenFreeSince;
+    /** When the stop was first asked for: the fights it waits for end within {@link #FREE_WAIT_NS} of it. */
+    private long stopAskedAt;
     /** The target fought when the stop came: the stop waits for its end, not for the next one's. */
     private int stopWhenFreeTarget;
 
@@ -238,6 +240,9 @@ public final class BotRunner {
         stopWhenFreeTarget = target;
         stopWhenFree = reason;
         stopWhenFreeSince = ctx.now();
+        if (stopAskedAt == 0) {
+            stopAskedAt = stopWhenFreeSince;
+        }
         log.info("Остановка: {} — сначала заканчиваю бой", reason);
     }
 
@@ -284,6 +289,9 @@ public final class BotRunner {
             return;
         }
         stopReason = reason;
+        if (stopAskedAt == 0) {
+            stopAskedAt = ctx.now();
+        }
         log.info("Остановка: {}", reason);
         if (module != null) {
             module.pause();
@@ -684,6 +692,20 @@ public final class BotRunner {
                 stopJumpAt = now;
                 firedAtSince = 0;
                 logoutAt = 0;
+                return;
+            }
+            // nowhere to jump: standing still to log out under fire is death (live 2026-11-13 on 3-BL: an Impulse
+            // II pack, 82 % → 0 in 17 s) — back to the fight, out once nobody shoots, as long as the wait allows
+            if (now - firedAtSince > FIRED_AT_JUMP_NS && module != null && hangarRequest == 0
+                    && now - stopAskedAt < FREE_WAIT_NS) {
+                log.warn("Выхожу из игры, но меня бьют — сначала отбиваюсь");
+                String reason = stopReason;
+                state = State.WORKING;
+                firedAtSince = 0;
+                logoutAt = 0;
+                stopWhenFree = reason;
+                stopWhenFreeSince = stopAskedAt;
+                stopWhenFreeTarget = 0;
                 return;
             }
         } else {
