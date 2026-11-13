@@ -51,7 +51,7 @@ class SessionSummaryTest {
         assertTrue(lines.contains("Подобрано: палладий 2  (4/ч), бонус-бокс 1  (2/ч)"), lines.toString());
         assertTrue(SessionSummary.lines(r, new Stats(), 0.5).stream().noneMatch(l -> l.startsWith("Кубы")),
                 "no cube line without cubes");
-        assertTrue(lines.contains("Luminium: 20  (40/ч)"), lines.toString());
+        assertTrue(lines.contains("В трюме люминиум: 20  (40/ч)"), lines.toString());
         assertTrue(lines.contains("UCB-100: 101  (202/ч)"), lines.toString());
         assertTrue(lines.contains("Доп. энергия: 20  (40/ч)"), lines.toString()); // XEN is extra energy, not xenomit
     }

@@ -33,7 +33,9 @@ public final class SessionSummary {
             out.add("Ремонтов " + s.repairs.get() + "   смертей " + s.deaths.get());
         }
         for (Map.Entry<String, Double> e : r.items().entrySet()) {
-            out.add(row(itemName(e.getKey()), e.getValue(), hours));
+            String res = resource(e.getKey());
+            // the hold's ore apart from the boxes picked (one ore under two names was unclear)
+            out.add(row(res != null ? "В трюме " + res : itemName(e.getKey()), e.getValue(), hours));
         }
         return out;
     }
@@ -59,6 +61,17 @@ public final class SessionSummary {
     }
 
     /** {@code resource_collectable_luminium} → Luminium, {@code ammunition_laser_ucb-100} → UCB-100. */
+    /** A resource's name for {@code resource_collectable_scrapium} and the like, {@code null} for other items. */
+    static String resource(String id) {
+        for (String p : new String[] {"resource_collectable_", "resource_"}) {
+            if (id.startsWith(p)) {
+                String ru = orbit.config.LootNames.known(id.substring(p.length()));
+                return ru != null ? ru : itemName(id);
+            }
+        }
+        return null;
+    }
+
     static String itemName(String id) {
         return switch (id) {
             case "extra_energy" -> "Доп. энергия";

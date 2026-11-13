@@ -129,7 +129,7 @@ public final class HourlyReport {
         List<String> hold = new ArrayList<>();
         b.items().forEach((id, v) -> {
             double d = diff(a.items().getOrDefault(id, 0.0), v);
-            String res = resource(id);
+            String res = SessionSummary.resource(id);
             if (res != null && d > 0) {
                 hold.add(res + " +" + SessionSummary.num(d));
             } else if (res == null) {
@@ -143,18 +143,6 @@ public final class HourlyReport {
         int deaths = (int) diff(a.deaths(), b.deaths());
         parts.add(deaths > 0 ? "смертей " + deaths + " ⚠" : "смертей 0");
         return String.join(" · ", parts);
-    }
-
-    /** A resource's name for {@code resource_collectable_scrapium} and the like, {@code null} for other items. */
-    private static String resource(String id) {
-        for (String p : new String[] {"resource_collectable_", "resource_"}) {
-            if (id.startsWith(p)) {
-                String n = id.substring(p.length());
-                String ru = orbit.config.LootNames.known(n);
-                return ru != null ? ru : SessionSummary.itemName(id);
-            }
-        }
-        return null;
     }
 
     /** A counter that went down was started anew (a new session): all of it is this hour's. */
