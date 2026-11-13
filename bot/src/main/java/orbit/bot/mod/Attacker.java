@@ -66,7 +66,10 @@ public final class Attacker {
     /** NPC kinds the ship cannot kill before it must repair (name → until, nanos), skipped a while. */
     private static final java.util.Map<String, Long> TOO_STRONG = new java.util.concurrent.ConcurrentHashMap<>();
     /** A fight is judged after this long, and such a kind skipped this long. */
-    static final long JUDGE_NS = 15_000_000_000L;
+    static final long JUDGE_NS = 30_000_000_000L;
+    /** Kinds killed this run: none of them is «too strong», whatever a moment's judging says. */
+    private static final java.util.Set<String> KILLED_KINDS = java.util.concurrent.ConcurrentHashMap.newKeySet();
+    private String targetName;
     static final long TOO_STRONG_NS = 10 * 60_000_000_000L;
     static final long TOO_STRONG_MAX_NS = 60 * 60_000_000_000L;
     private static final java.util.Map<String, Integer> TOO_STRONG_TIMES = new java.util.concurrent.ConcurrentHashMap<>();
@@ -110,6 +113,11 @@ public final class Attacker {
         double toRepair = (hp - c.safety().repairHpMin()) / lossRate;
         double toKill = killRate <= 0 ? Double.MAX_VALUE : tp / killRate;
         if (toKill <= toRepair * WIN_MARGIN) {
+            return false;
+        }
+        // a kind killed this run is no «too strong» (live 2026-11-13 on 3-BL: Attend IX killed twice, then judged
+        // too strong in 15 s while Impulse II hit too)
+        if (KILLED_KINDS.contains(t.name())) {
             return false;
         }
         // too strong for the hull left, not for the ship: with a full hull a whole fight would be won — fight on, the
@@ -179,6 +187,7 @@ public final class Attacker {
             return;
         }
         targetId = s.id();
+        targetName = s.name();
         shotAt = false;
         circleDir = 0;
         kiteAngle = null;
@@ -307,6 +316,9 @@ public final class Attacker {
         if (t == null) {
             if (shotAt) {
                 kills++;
+                if (targetName != null) {
+                    KILLED_KINDS.add(targetName);
+                }
                 ctx.stats().kills.incrementAndGet();
                 if (t0Cubikon) {
                     ctx.stats().cubesKilled.incrementAndGet();

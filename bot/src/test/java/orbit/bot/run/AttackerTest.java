@@ -470,9 +470,9 @@ class AttackerTest {
         double target = 1_000_000;
         double hull = 100_000;
         boolean gone = false;
-        for (int t = 0; t < 250 && !gone; t++) {
+        for (int t = 0; t < 400 && !gone; t++) { // judged after 30 s
             target -= 300; // 0.3 % a second
-            hull -= 300;   // 3 % a second
+            hull -= 200;   // 2 % a second
             orbit.protocol.gen.AttackHitCommand onNpc = new orbit.protocol.gen.AttackHitCommand();
             onNpc.victimId = 7;
             onNpc.victimHitpoints = target;
