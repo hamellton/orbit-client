@@ -51,21 +51,19 @@ public final class Targets {
     }
 
     public static double radius(BotConfig c, WorldSnapshot.Ship s, int mapId) {
-        BotConfig.NpcRule r = rule(c, s, mapId);
-        if (r != null && r.radius() > 0) {
-            return r.radius(); // the user's own
-        }
+        // learned from the base (the user's own or the recommended one) — the user's own number is where it starts
         return RadiusTuner.radius(s.name(), baseRadius(c, s, mapId));
     }
 
-    /** The radius a kind left at 0 in the list is fought at: learned, else recommended, else {@link #DEFAULT_RADIUS}. */
-    public static double autoRadius(String name) {
-        double learned = RadiusTuner.learned(name);
-        if (learned > 0) {
-            return learned;
-        }
+    /**
+     * The radius a kind is fought at, for the config window: learned from the base — {@code own} when the list sets
+     * one, else the recommended one, else {@link #DEFAULT_RADIUS}.
+     */
+    public static double shownRadius(String name, double own) {
         double recommended = orbit.world.maps.NpcRadius.bundled().of(name);
-        return recommended > 0 ? recommended : DEFAULT_RADIUS;
+        double base = own > 0 ? own : recommended > 0 ? recommended : DEFAULT_RADIUS;
+        double learned = RadiusTuner.learned(name, base);
+        return learned > 0 ? learned : base;
     }
 
     /** The radius with nothing learned: the user's own, else DarkBot's recommended, else {@link #DEFAULT_RADIUS}. */
@@ -76,12 +74,6 @@ public final class Targets {
         }
         double recommended = orbit.world.maps.NpcRadius.bundled().of(s.name());
         return recommended > 0 ? recommended : DEFAULT_RADIUS;
-    }
-
-    /** The user set the NPC's radius: nothing is learned for it. */
-    static boolean ownRadius(BotConfig c, WorldSnapshot.Ship s, int mapId) {
-        BotConfig.NpcRule r = rule(c, s, mapId);
-        return r != null && r.radius() > 0;
     }
 
     /** The best target within {@code maxDistance}: lowest priority value, then nearest. */

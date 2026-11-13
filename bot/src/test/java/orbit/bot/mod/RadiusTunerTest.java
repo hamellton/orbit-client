@@ -47,4 +47,21 @@ class RadiusTunerTest {
         RadiusTuner.learn(k, 560, 590, 5, 0.1, true);
         assertEquals(590, RadiusTuner.radius(k, 560), "hardly hit: stays");
     }
+
+    @Test
+    void aNewBaseStartsAgainFromItTheLimitKept() {
+        // the user, 2026-11-13: an own radius in the list is where the learning starts, it goes on
+        RadiusTuner.testing = true;
+        String k = "-=[ Based ]=-";
+        RadiusTuner.learn(k, 560, 560, 10, 0.6, true);
+        assertEquals(590, RadiusTuner.radius(k, 560));
+        RadiusTuner.learn(k, 560, 590, 10, 0.6, false);  // the lasers no longer reach: limit 550
+        assertEquals(550, RadiusTuner.radius(k, 560));
+        assertEquals(500, RadiusTuner.radius(k, 500), "the user set 500: from there");
+        RadiusTuner.learn(k, 500, 500, 10, 0.6, true);
+        assertEquals(530, RadiusTuner.radius(k, 500));
+        RadiusTuner.learn(k, 500, 530, 10, 0.6, true);
+        assertEquals(530, RadiusTuner.radius(k, 500), "not past the limit found before");
+        assertEquals(550, RadiusTuner.radius(k, 700), "a base past the limit: the limit");
+    }
 }

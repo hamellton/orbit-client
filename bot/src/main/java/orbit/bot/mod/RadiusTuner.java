@@ -15,7 +15,9 @@ import org.slf4j.LoggerFactory;
  * The distance to fight each NPC kind at, learned from the fights (the user, 2026-11-13: «чтобы цель не била
  * корабль»): the target that hit the ship a good part of a fight is fought {@link #STEP} farther next time; once the
  * lasers stopped reaching it (it lost nothing), {@link #STEP_BACK} nearer, and that is the kind's limit. Kept in
- * {@code local/npc-radius-learned.json}; used when the config's NPC list leaves the radius at 0.
+ * {@code local/npc-radius-learned.json}. It starts from the base radius (the config's own, else the recommended one)
+ * and goes on whether the list sets one or not (the user, 2026-11-13); a new base starts it again from there, the
+ * limit found stays.
  */
 public final class RadiusTuner {
 
@@ -34,7 +36,7 @@ public final class RadiusTuner {
     private static final Map<String, double[]> SHORT = new TreeMap<>();
     private static final Path FILE = Path.of("local", "npc-radius-learned.json");
     private static final ObjectMapper JSON = new ObjectMapper();
-    private static final Map<String, double[]> KINDS = new TreeMap<>(); // name → {radius, limit}
+    private static final Map<String, double[]> KINDS = new TreeMap<>(); // name → {radius, limit, base (-1 unknown)}
     private static volatile boolean onDisk;
     /** Learning without the file (its own test); off in the other tests, so they do not change each other's radii. */
     static volatile boolean testing;
@@ -49,17 +51,32 @@ public final class RadiusTuner {
     }
 
     /** The learned radius of a kind for the config window, or a negative number when none yet. */
-    public static synchronized double learned(String name) {
-        load();
-        double[] k = name == null ? null : KINDS.get(name);
+    public static synchronized double learned(String name, double base) {
+        double[] k = entry(name, base);
         return k == null ? -1 : k[0];
     }
 
     /** The learned radius of a kind, or {@code base} when none yet. */
     static synchronized double radius(String name, double base) {
+        double[] k = entry(name, base);
+        return k == null ? base : k[0];
+    }
+
+    /** The kind's entry learned from this base; one from another base starts again at it (the limit kept). */
+    private static double[] entry(String name, double base) {
         load();
         double[] k = name == null ? null : KINDS.get(name);
-        return k == null ? base : k[0];
+        if (k == null) {
+            return null;
+        }
+        if (k[2] < 0) {
+            k[2] = base; // an older file: learned from the base in use then
+        } else if (Math.abs(k[2] - base) > 1) {
+            k[0] = Math.min(base, k[1]);
+            k[2] = base;
+            save();
+        }
+        return k;
     }
 
     /**
@@ -92,8 +109,11 @@ public final class RadiusTuner {
             seconds = sum[0];
             hitShare = sum[1] / sum[0];
         }
-        load();
-        double[] k = KINDS.computeIfAbsent(name, n -> new double[] {base, MAX});
+        double[] k = entry(name, base);
+        if (k == null) {
+            k = new double[] {base, MAX, base};
+            KINDS.put(name, k);
+        }
         if (Math.abs(k[0] - used) > 1) {
             return; // fought at another distance (the config's own): nothing to learn for this one
         }
@@ -120,7 +140,8 @@ public final class RadiusTuner {
             if (Files.exists(FILE)) {
                 JSON.readTree(FILE.toFile()).fields().forEachRemaining(e -> {
                     JsonNode n = e.getValue();
-                    KINDS.put(e.getKey(), new double[] {n.path("radius").asDouble(), n.path("limit").asDouble(MAX)});
+                    KINDS.put(e.getKey(), new double[] {n.path("radius").asDouble(), n.path("limit").asDouble(MAX),
+                            n.path("base").asDouble(-1)});
                 });
             }
         } catch (IOException e) {
@@ -137,6 +158,9 @@ public final class RadiusTuner {
             ObjectNode n = root.putObject(name);
             n.put("radius", Math.round(k[0]));
             n.put("limit", Math.round(k[1]));
+            if (k[2] >= 0) {
+                n.put("base", Math.round(k[2]));
+            }
         });
         try {
             Files.createDirectories(FILE.toAbsolutePath().getParent());

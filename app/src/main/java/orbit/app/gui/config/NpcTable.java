@@ -26,7 +26,11 @@ final class NpcTable extends AbstractTableModel {
         String name;
         boolean kill;
         int priority;
+        /** The radius shown: the one fought at (learned from the base). */
         int radius;
+        /** The file's radius (0 = the recommended one) and what was shown for it: unchanged, the file keeps its own. */
+        int ownRadius;
+        int shownAtLoad;
         Set<Integer> maps;
         Set<String> flags;
         String ammo;
@@ -50,7 +54,10 @@ final class NpcTable extends AbstractTableModel {
             row.name = name;
             row.kill = r.kill();
             row.priority = r.priority();
-            row.radius = (int) Math.round(r.radius());
+            row.ownRadius = (int) Math.round(r.radius());
+            // the number fought at, always (the user, 2026-11-13); the learning goes on from the base
+            row.radius = (int) Math.round(orbit.bot.mod.Targets.shownRadius(name, r.radius()));
+            row.shownAtLoad = row.radius;
             row.maps = new LinkedHashSet<>(r.maps());
             row.flags = new LinkedHashSet<>(r.flags());
             row.ammo = r.ammo();
@@ -73,7 +80,9 @@ final class NpcTable extends AbstractTableModel {
             if (out.containsKey(name)) {
                 throw new IllegalArgumentException("NPC «" + name + "» в списке дважды");
             }
-            out.put(name, new BotConfig.NpcRule(r.radius, r.priority, r.kill, r.flags, r.maps, r.ammo, r.sab, r.rocket,
+            // a number left as shown keeps the file's own (0 stays «recommended», the learning goes on from there)
+            int radius = r.radius == r.shownAtLoad && name.equals(r.name) ? r.ownRadius : r.radius;
+            out.put(name, new BotConfig.NpcRule(radius, r.priority, r.kill, r.flags, r.maps, r.ammo, r.sab, r.rocket,
                     r.launcher, r.move));
         }
         return out;
@@ -89,7 +98,9 @@ final class NpcTable extends AbstractTableModel {
         Row r = new Row();
         r.name = name;
         r.kill = true;
-        r.radius = 0; // the recommended one (DarkBot's list)
+        r.ownRadius = 0; // the recommended one (DarkBot's list)
+        r.radius = (int) Math.round(orbit.bot.mod.Targets.shownRadius(name, 0));
+        r.shownAtLoad = r.radius;
         r.maps = mapId == 0 ? new LinkedHashSet<>() : new LinkedHashSet<>(Set.of(mapId));
         r.flags = new LinkedHashSet<>();
         rows.add(r);
