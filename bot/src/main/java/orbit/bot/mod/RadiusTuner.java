@@ -27,6 +27,11 @@ public final class RadiusTuner {
     /** The target hitting the ship more than this share of the fight: farther next time. */
     static final double HIT_SHARE = 0.25;
     static final double MIN_SECONDS = 6;
+    /** Short fights of a kind are summed until this much time in range (live 2026-11-13 on 2-8: StreuneR dies in
+     * 5 s, hit the ship 46 % of it, never learned). */
+    static final double SUM_SECONDS = 12;
+    /** name → {seconds in range, seconds hit, radius}: short won fights not yet learned from. */
+    private static final Map<String, double[]> SHORT = new TreeMap<>();
     private static final Path FILE = Path.of("local", "npc-radius-learned.json");
     private static final ObjectMapper JSON = new ObjectMapper();
     private static final Map<String, double[]> KINDS = new TreeMap<>(); // name → {radius, limit}
@@ -59,8 +64,26 @@ public final class RadiusTuner {
      * @param reached  the target lost hull or shield while in range
      */
     static synchronized void learn(String name, double base, double used, double seconds, double hitShare, boolean reached) {
-        if (!onDisk && !testing || name == null || seconds < MIN_SECONDS) {
+        if (!onDisk && !testing || name == null || seconds <= 0) {
             return;
+        }
+        if (seconds < MIN_SECONDS) {
+            if (!reached) {
+                return; // too short to blame the range
+            }
+            double[] sum = SHORT.get(name);
+            if (sum == null || Math.abs(sum[2] - used) > 1) {
+                sum = new double[] {0, 0, used};
+                SHORT.put(name, sum);
+            }
+            sum[0] += seconds;
+            sum[1] += seconds * hitShare;
+            if (sum[0] < SUM_SECONDS) {
+                return;
+            }
+            SHORT.remove(name);
+            seconds = sum[0];
+            hitShare = sum[1] / sum[0];
         }
         load();
         double[] k = KINDS.computeIfAbsent(name, n -> new double[] {base, MAX});
@@ -119,6 +142,7 @@ public final class RadiusTuner {
     /** For tests. */
     static synchronized void forget() {
         KINDS.clear();
+        SHORT.clear();
         testing = false;
     }
 }

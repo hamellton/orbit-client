@@ -29,7 +29,22 @@ class RadiusTunerTest {
         assertEquals(580, RadiusTuner.radius(k, 560));
         RadiusTuner.learn(k, 560, 700, 10, 0.9, true);      // fought at another distance: nothing learned
         assertEquals(580, RadiusTuner.radius(k, 560));
-        RadiusTuner.learn(k, 560, 580, 3, 0.9, true);       // too short to tell
+        RadiusTuner.learn(k, 560, 580, 3, 0.9, false);      // too short to blame the range
         assertEquals(580, RadiusTuner.radius(k, 560));
+    }
+
+    @Test
+    void shortFightsAreSummed() {
+        RadiusTuner.testing = true;
+        String k = "-=[ Quick ]=-";
+        RadiusTuner.learn(k, 560, 560, 4, 0.5, true);
+        RadiusTuner.learn(k, 560, 560, 4, 0.5, true);
+        assertEquals(560, RadiusTuner.radius(k, 560), "not yet enough");
+        RadiusTuner.learn(k, 560, 560, 4, 0.4, true);
+        assertEquals(590, RadiusTuner.radius(k, 560), "12 s, hit 47 % of it");
+        RadiusTuner.learn(k, 560, 590, 5, 0.1, true);
+        RadiusTuner.learn(k, 560, 590, 5, 0.1, true);
+        RadiusTuner.learn(k, 560, 590, 5, 0.1, true);
+        assertEquals(590, RadiusTuner.radius(k, 560), "hardly hit: stays");
     }
 }
