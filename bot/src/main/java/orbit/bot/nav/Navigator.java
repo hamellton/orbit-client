@@ -332,6 +332,25 @@ public final class Navigator {
         plannedZones = zoneKey(w);
         List<double[]> route = paths.path(h.x(), h.y(), d.x(), d.y());
         if (route.isEmpty()) {
+            // the soft bars may close every way (live 2026-11-13 on the VPS, 2-BL: a train's circles, 17 stations' and
+            // the config's avoided zone — the ship stood in a corner without end): without them, then also through the
+            // server's danger zones; walls and closed zones stay
+            PathFinder relaxed = PathFinder.of(w, catalog, false, false, 0, null, preferred.apply(h.mapId()), List.of());
+            route = relaxed.path(h.x(), h.y(), d.x(), d.y());
+            if (route.isEmpty()) {
+                relaxed = PathFinder.of(w, catalog, true, false, 0, null, null, List.of());
+                route = relaxed.path(h.x(), h.y(), d.x(), d.y());
+            }
+            if (!route.isEmpty()) {
+                if (now - noWayLoggedNanos > 10_000_000_000L) {
+                    noWayLoggedNanos = now;
+                    log.warn("Нет пути к {}/{} в обход игроков, баз и запретной зоны — иду напрямик ({})", (int) d.x() / 100,
+                            (int) d.y() / 100, paths.explain(h.x(), h.y(), d.x(), d.y()));
+                }
+                paths = relaxed;
+            }
+        }
+        if (route.isEmpty()) {
             if (now - noWayLoggedNanos > 10_000_000_000L) {
                 noWayLoggedNanos = now;
                 log.warn("Нет пути к {}/{} — {}", (int) d.x() / 100, (int) d.y() / 100, paths.explain(h.x(), h.y(), d.x(), d.y()));
