@@ -363,6 +363,8 @@ public record BotConfig(
         GALAXY_GATE("gate"),
         PALLADIUM("palladium"),
         QUESTS("quests"),
+        /** Mindfire Behemoth on the BL maps, as AstraBot's module ({@code modules.behemoth}). */
+        BEHEMOTH("behemoth"),
         /** Imported from DarkBot, no counterpart yet; the source class is in {@code extra.darkbot.module}. */
         UNSUPPORTED("unsupported");
 

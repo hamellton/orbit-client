@@ -181,7 +181,39 @@ C3 — большой этап. Его делаем, только когда C1 
 
 ## Этап D. Модуль BEHEMOTH: Mindfire Behemoth
 
-Позже: нужен аккаунт 24 уровня, чтобы проверить на всех трёх BL-картах.
+**Сделано соло, как модуль «Mindfire Behemoth» AstraBot (2026-11-13)** — `BehemothModule`, вкладка «Бегемот», модуль
+«Бегемот» во «Общем». Источник настроек — раздел BEHEMOTH профиля `AstraBot - GE3/configs/behe.json` (только у этого
+бота на VPS есть профиль бегемота); точки — из исходников BeheFarmBySpearhed; таймер 15 мин — BeheFarm/BLCycle.
+
+- **Карты** (`maps`, у AstraBot firstMap…thirdMap): 1-BL, 2-BL, 3-BL. Бот запоминает, когда бегемот появился и погиб в
+  его виду (`<данные аккаунта>/behemoth-spawns.json`, как споны кубов), и летит туда, где он будет раньше (перелёт ~90 с
+  считается; карта без сведений — минута штрафа). Время возрождения бот узнаёт сам (до того 15 мин; `respawnMinutes`
+  задаёт вручную).
+- **Ожидание:** у точки рядом со спауном (BeheFarm: 1-BL 191/79, 2-BL 52/57, 3-BL 57/26; спауны 194/58, 69/50, 47/39);
+  нет бегемота `changeMapSeconds` (30 с) после прилёта или после времени появления — другая карта. Пока ждём:
+  `defenceMode` — отвечать NPC, которые стреляют по нам; `killOthers` — бить и остальных (по списку NPC).
+- **Бой:** бегемот любого «хозяина» (урон засчитывается всем), по его строке в списке NPC (у AstraBot: радиус 590,
+  приоритет -100, A-BL, Drill, Ignore Attacked, Ignore Boxes, HP Link, Use ISH, Use RSB). EMP-01 — при HP корабля ниже
+  `empPercent` (35 %), ISH-01 — ниже `ishPercent` (60 %); лимиты расхода — общие («Расход» во «Убивать»).
+- **После убийства:** ящик бегемота (`collectBox`; SOLAR_CLASH в «Сборе») в конфигурации `collectBoxConfig` (2) и
+  формации `collectBoxFormation` (Veteran), ждём его до 5 с, собираем до 20 с; потом следующая карта по таймерам.
+- **Проверить вживую** (на аккаунтах с VPS): точки ожидания и спауна, время возрождения, имя ящика, порог EMP — чей HP
+  у AstraBot `empPercent` (принято: корабля).
+
+**Не сделано из настроек AstraBot** (код закрыт — что именно они делают, видно только по названию):
+`petOnlyOnBehemoth` (питомец только у бегемота), `usePetCombatBeacon` (боевой маяк питомца), `usePrismatic` /
+`prismaticPercent` (призматический щит), «Use Energy Leech» (техника «энергетическая пиявка»), `useSpearheadJamx` /
+`jamxDistance` / `spearheadMode` / `useDrawFire` / `useNovaOnce` (способности кораблей), `attackRandom`,
+`chaseEnemy` / `chaseDistance`, `useRoamConfigOnLowHp`, `changeMapAfterDeath`, `useInfectionMine`, `buyCloak`,
+`ignoreDisruptor`, `waitSecondsAfterJump`, `BLACKLIST`, `readMapInfo` / `channelID`.
+
+**Дальше (пользователь 2026-11-13), по порядку:**
+1. Фарм бегемота, когда рядом чужой поезд фармит его и бьёт нас — как в CARNAGE (`docs/REFERENCE-BOTS.md`, раздел
+   «Бегемот при чужих поездах»: BLCycle `behemothPolicy = IGNORE_ATTACKED_USE_COUNT`, `avoidEnemyOrbit`, прилёт к самому
+   спауну, маскировка, HP Link). Сразу после проверки обычного фарма.
+2. В группе: идти за лидером (`followLeader`, `leaderId`, `followSpeed` у AstraBot) — в будущем.
+
+Ниже — первоначальный набросок.
 
 - **Точки.** На каждой BL-карте одна точка появления (пользователь). Бот её запоминает, как споны кубов.
 - **Таймер.** Время возрождения на каждой карте.

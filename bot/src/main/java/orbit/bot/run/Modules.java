@@ -20,6 +20,9 @@ public final class Modules {
             case COLLECT -> new KillModule(ctx, false, true);
             case CUBIKON -> new CubikonModule(ctx, ctx.dataDir() == null ? SpawnMemory.inMemory()
                     : SpawnMemory.open(ctx.dataDir().resolve(SpawnMemory.DEFAULT_FILE.getFileName())));
+            case BEHEMOTH -> new orbit.bot.mod.BehemothModule(ctx, (ctx.dataDir() == null ? SpawnMemory.inMemory()
+                    : SpawnMemory.open(ctx.dataDir().resolve(orbit.bot.mod.BehemothModule.DEFAULT_FILE.getFileName())))
+                    .named("бегемота", "Бегемот"));
             default -> null;
         };
     }

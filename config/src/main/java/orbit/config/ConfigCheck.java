@@ -54,6 +54,12 @@ public final class ConfigCheck {
                     out.add(error("Cubikon в списке NPC отмечен «не бить»"));
                 }
             }
+            case BEHEMOTH -> {
+                BotConfig.NpcRule b = c.npcs().get("\\\\ Mindfire Behemoth //");
+                if (b != null && !b.kill()) {
+                    out.add(error("Mindfire Behemoth в списке NPC отмечен «не бить»"));
+                }
+            }
             case GALAXY_GATE -> {
                 if (!c.modules().containsKey(BotConfig.Module.GALAXY_GATE.key())) {
                     out.add(error("не указаны врата"));

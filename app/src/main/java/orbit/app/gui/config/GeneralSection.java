@@ -14,7 +14,7 @@ import orbit.world.maps.MapCatalog;
 final class GeneralSection implements Section {
 
     static final String[] MODULE_NAMES = {"Убийство и сбор", "Убийство NPC", "Сбор ящиков", "Кубиконы", "Врата (GG)",
-            "Палладий", "Квесты", "Не поддерживается"};
+            "Палладий", "Квесты", "Бегемот", "Не поддерживается"};
 
     private final JComboBox<String> module = new JComboBox<>(MODULE_NAMES);
     private final MapBox map;

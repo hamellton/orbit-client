@@ -123,6 +123,16 @@ public final class SpawnMemory {
         return m;
     }
 
+    /** What the log calls the NPC: «куба» / «Куб» by default, «бегемота» / «Бегемот» for the behemoth module. */
+    private String of = "куба";
+    private String it = "Куб";
+
+    public SpawnMemory named(String of, String it) {
+        this.of = of;
+        this.it = it;
+        return this;
+    }
+
     public synchronized List<Spawn> spawns(int mapId) {
         return List.copyOf(maps.getOrDefault(mapId, List.of()));
     }
@@ -133,7 +143,7 @@ public final class SpawnMemory {
         int i = find(list, x, y);
         if (i < 0) {
             list.add(new Spawn(x, y, 1, nowMs, 0, List.of()));
-            log.info("Новый спаун куба: {}/{}", x / 100, y / 100);
+            log.info("Новый спаун {}: {}/{}", of, x / 100, y / 100);
         } else {
             Spawn s = list.get(i);
             List<Long> samples = new ArrayList<>(s.respawnMs());
@@ -142,7 +152,7 @@ public final class SpawnMemory {
                 while (samples.size() > SAMPLES) {
                     samples.removeFirst();
                 }
-                log.info("Куб вернулся на {}/{} через {} мин", s.x() / 100, s.y() / 100, (nowMs - s.lastKill()) / 60_000);
+                log.info("{} вернулся на {}/{} через {} мин", it, s.x() / 100, s.y() / 100, (nowMs - s.lastKill()) / 60_000);
             }
             list.set(i, new Spawn(s.x(), s.y(), s.seen() + 1, nowMs, s.lastKill(), samples));
         }

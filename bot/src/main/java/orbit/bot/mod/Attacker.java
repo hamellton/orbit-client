@@ -209,16 +209,35 @@ public final class Attacker {
     }
 
     /**
+     * A module's own use of EMP-01 and ISH-01 over the NPC list's flags (the behemoth module: AstraBot's useEmp /
+     * empPercent, useIsh / ishPercent): each below its hull fraction ({@code -1} = EMP at once, ISH never).
+     */
+    public record AbilityPlan(boolean emp, double empBelow, boolean ish, double ishBelow) {
+    }
+
+    private AbilityPlan plan;
+
+    /** {@code null}: the NPC list's flags again. */
+    public void setAbilityPlan(AbilityPlan p) {
+        plan = p;
+    }
+
+    /**
      * The NPC list's abilities (AstraBot's «Use EMP», «Use ISH»): EMP-01 once a fight when in range and shooting, ISH-01
      * while the hull is below the threshold; only when the game shows the item ready.
      */
     private void abilities(BotConfig c, BotConfig.NpcRule rule, WorldSnapshot w, WorldSnapshot.Hero h, double dist,
                            double radius, long now) {
-        if (rule == null || dist > radius + 100 || !shotAt) {
+        if (rule == null && plan == null || dist > radius + 100 || !shotAt) {
             return;
         }
         BotConfig.FightOptions fo = c.loot().fight();
-        if (rule.has(BotConfig.NpcFlag.USE_EMP) && may(w, h, EMP, fo.empSpend(), empUses, empAt, now)) {
+        double hp = h.health().hpPercent();
+        boolean emp = plan != null ? plan.emp() && (plan.empBelow() < 0 || hp >= 0 && hp < plan.empBelow())
+                : rule.has(BotConfig.NpcFlag.USE_EMP);
+        double ishBelow = plan != null ? (plan.ish() ? plan.ishBelow() : -1)
+                : rule.has(BotConfig.NpcFlag.USE_ISH) ? fo.ishBelow() : -1;
+        if (emp && may(w, h, EMP, fo.empSpend(), empUses, empAt, now)) {
             log.info("EMP-01 по {} (за сутки {})", w.ships().get(targetId) != null ? w.ships().get(targetId).name() : "цели",
                     AbilityUse.today(h.id(), EMP, System.currentTimeMillis()) + 1);
             ctx.actions().useItem(EMP);
@@ -226,8 +245,7 @@ public final class Attacker {
             empUses++;
             empAt = now;
         }
-        double hp = h.health().hpPercent();
-        if (rule.has(BotConfig.NpcFlag.USE_ISH) && hp >= 0 && hp < fo.ishBelow()
+        if (ishBelow > 0 && hp >= 0 && hp < ishBelow
                 && may(w, h, ISH, fo.ishSpend(), ishUses, ishAt, now)) {
             log.info("ISH-01: HP {}% (за сутки {})", Math.round(hp * 100),
                     AbilityUse.today(h.id(), ISH, System.currentTimeMillis()) + 1);
