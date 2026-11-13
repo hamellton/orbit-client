@@ -46,6 +46,10 @@ Status: Stage 2 done; stage 3 in progress (login, game connection, vault, client
 - `game` — game connection (`GameConnection`), client-like `StartupSequence` (cold start vs map change,
   checked against recordings by `StartupSequenceTest`), `ClientProfile` (UI state replayed from a
   recording: `client-profile` → `local/client-profile.json`), `game-check` live tool.
+- `bot` — the bot: `BotRunner` (safety, revive, pet, buying, travel to the module's map) and the modules
+  (`orbit.bot.mod`: `KillModule` kill & collect, `CubikonModule`, `BehemothModule` Mindfire Behemoth on the BL maps as
+  AstraBot's module — timers in `SpawnMemory`, `PalladiumModule`, `QuestModule`; fights by `Attacker`). Behemoth stage,
+  what is not done and what comes next (farming among trains like CARNAGE, groups): `docs/BLACKLIGHT.md`, stage D.
 - `app` — the bot application `orbit`; without arguments the account manager (`ManagerWindow`: master
   password in `VaultDialog`, accounts add/edit/remove with proxy check, start/stop each or all through
   `AccountRunner`, a tab per started account). Otherwise modes (FlatLaf window that fits any size: per account a header with a
