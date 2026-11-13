@@ -1123,7 +1123,7 @@ public final class BehemothModule implements BotModule {
      */
     int[] standPoint(JsonNode s, WorldSnapshot w) {
         int map = w.hero().mapId();
-        int[] base = waitPoint(map);
+        int[] base = on(s, "awayFromPortals", false) ? awayFromPortals(s, map) : waitPoint(map);
         if (!on(s, "freeSide", false)) {
             return base;
         }
@@ -1159,9 +1159,11 @@ public final class BehemothModule implements BotModule {
         }
         BotConfig.Zones zones = ctx.config().get().zones().get(map);
         BotConfig.ZoneGrid avoided = zones == null ? null : zones.avoided();
+        boolean paths = on(s, "awayFromPortals", false);
         for (int[] p : candidates) {
             if (p[0] < 500 || p[1] < 500 || p[0] > width - 500 || p[1] > height - 500
-                    || p != base && avoided != null && avoided.contains(p[0], p[1], width, height)) {
+                    || p != base && avoided != null && avoided.contains(p[0], p[1], width, height)
+                    || p != base && paths && fromPaths(map, sp, p) < PATH_KEEP) {
                 continue;
             }
             double score = freeness(p, enemies);
@@ -1179,6 +1181,72 @@ public final class BehemothModule implements BotModule {
         }
         side = current;
         return current;
+    }
+
+    /** Trains come from a portal to the spawn and go on to another: a free side keeps this far from those ways. */
+    static final double PATH_KEEP = 1_000;
+    private final Map<String, int[]> pathPoints = new HashMap<>();
+
+    /**
+     * {@code awayFromPortals} (the user, 2026-11-13: «точку недалеко от бегемота, но не со стороны порта, чтобы поезд
+     * не задел»; CARNAGE's BLCycle: trains go 1-BL → 2-BL → 3-BL, each map from one portal to the spawn and on to the
+     * next): the point on the ring of {@code freeSideRadius} round the spawn farthest from the ways portal → spawn of
+     * every portal on the map (the base's too: the revived come that way). BeheFarm's 1-BL point lay on such a way.
+     */
+    int[] awayFromPortals(JsonNode s, int map) {
+        int[] sp = spawnPoint(map);
+        int r = (int) number(s, "freeSideRadius", 2_000);
+        String key = map + ":" + sp[0] + ":" + sp[1] + ":" + r;
+        int[] cached = pathPoints.get(key);
+        if (cached != null) {
+            return cached;
+        }
+        orbit.world.maps.MapCatalog.MapInfo info = ctx.maps().info(map);
+        int width = info.width() > 0 ? info.width() : 21_000;
+        int height = info.height() > 0 ? info.height() : 13_100;
+        BotConfig.Zones zones = ctx.config().get().zones().get(map);
+        BotConfig.ZoneGrid avoided = zones == null ? null : zones.avoided();
+        int[] best = null;
+        double bestAway = -1;
+        for (int i = 0; i < 72; i++) {
+            double a = 2 * Math.PI * i / 72;
+            int[] p = {(int) (sp[0] + r * Math.cos(a)), (int) (sp[1] + r * Math.sin(a))};
+            if (p[0] < 600 || p[1] < 600 || p[0] > width - 600 || p[1] > height - 600
+                    || avoided != null && avoided.contains(p[0], p[1], width, height)) {
+                continue;
+            }
+            // on the ring most points are as far from the ways as the spawn is: the farther from the portals wins
+            double away = fromPaths(map, sp, p) + 0.1 * fromPortals(map, p);
+            if (away > bestAway) {
+                bestAway = away;
+                best = p;
+            }
+        }
+        if (best == null) {
+            best = waitPoint(map);
+        } else {
+            log.info("{}: жду в стороне от путей порталов к месту появления — {}/{} ({} от ближайшего пути)",
+                    info.name(), best[0] / 100, best[1] / 100, (int) fromPaths(map, sp, best));
+        }
+        pathPoints.put(key, best);
+        return best;
+    }
+
+    private double fromPortals(int map, int[] p) {
+        double min = Double.MAX_VALUE;
+        for (orbit.world.maps.MapCatalog.Portal q : ctx.maps().portals(map)) {
+            min = Math.min(min, Math.hypot(p[0] - q.x(), p[1] - q.y()));
+        }
+        return min;
+    }
+
+    /** The distance from the point to the nearest way portal → spawn on the map. */
+    private double fromPaths(int map, int[] sp, int[] p) {
+        double min = Double.MAX_VALUE;
+        for (orbit.world.maps.MapCatalog.Portal q : ctx.maps().portals(map)) {
+            min = Math.min(min, orbit.bot.nav.Navigator.distanceToSegment(p[0], p[1], q.x(), q.y(), sp[0], sp[1]));
+        }
+        return min;
     }
 
     /** The distance from the point to the nearest of the enemies. */

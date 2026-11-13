@@ -46,6 +46,7 @@ final class BehemothSection implements Section {
     private final ItemBox cloakFormation = new ItemBox(ItemCatalog.FORMATIONS, true);
     private final JSpinner beaconSeconds = Form.number(0, 120, 1);
     // where to wait (the user, 2026-11-13: trains camp the spawn and BeheFarm's wait points)
+    private final JCheckBox awayFromPortals = new JCheckBox("Ждать в стороне от путей «портал → бегемот», где ходят поезда");
     private final JCheckBox freeSide = new JCheckBox("Ждать со свободной стороны: чужие у точки — встать на круге от них");
     private final JSpinner freeSideRadius = Form.number(800, 5_000, 100);
     private final JCheckBox avoidSpawn = new JCheckBox("Пока ждём — облетать место появления, радиус");
@@ -80,6 +81,8 @@ final class BehemothSection implements Section {
         trainMode.addActionListener(e -> sync());
         useCloak.addActionListener(e -> sync());
         freeSide.addActionListener(e -> sync());
+        awayFromPortals.setToolTipText("Точка на круге вокруг места появления, дальше всего от линий от каждого портала"
+                + " карты к месту появления: поезда идут из портала к бегемоту и дальше в следующий портал");
         avoidSpawn.addActionListener(e -> sync());
         freeSide.setToolTipText("Видны враги у точки ожидания — бот встаёт на круге вокруг места появления там, где до"
                 + " ближайшего врага дальше всего; врагов нет — обычная точка");
@@ -118,6 +121,7 @@ final class BehemothSection implements Section {
                 .note("Бот запоминает, когда бегемот появился и погиб на каждой карте, и летит туда, где он будет раньше;"
                         + " ждёт у места появления (точки — из BeheFarm, уточняются по увиденному).")
                 .section("Где ждать")
+                .row("", awayFromPortals)
                 .row("", freeSide)
                 .row("Круг вокруг места появления", freeSideRadius)
                 .row("", Form.inline(avoidSpawn, avoidSpawnRadius))
@@ -188,7 +192,7 @@ final class BehemothSection implements Section {
         huntRadius.setEnabled(hunt.isSelected());
         leader.setEnabled(follow.isSelected());
         cloakFormation.setEnabled(useCloak.isSelected());
-        freeSideRadius.setEnabled(freeSide.isSelected());
+        freeSideRadius.setEnabled(freeSide.isSelected() || awayFromPortals.isSelected());
         avoidSpawnRadius.setEnabled(avoidSpawn.isSelected());
         followDistance.setEnabled(follow.isSelected());
     }
@@ -237,6 +241,7 @@ final class BehemothSection implements Section {
         String cf = m.path("cloakFormation").asText("");
         cloakFormation.set(cf.isBlank() ? null : cf.startsWith("drone_formation_") ? cf : formationId(cf));
         Form.set(beaconSeconds, m.path("beaconBeforeSeconds").asInt(0));
+        awayFromPortals.setSelected(m.path("awayFromPortals").asBoolean(false));
         freeSide.setSelected(m.path("freeSide").asBoolean(false));
         Form.set(freeSideRadius, m.path("freeSideRadius").asInt(2_000));
         avoidSpawn.setSelected(m.path("avoidSpawn").asBoolean(false));
@@ -313,6 +318,7 @@ final class BehemothSection implements Section {
         m.put("useCloak", useCloak.isSelected());
         m.put("cloakFormation", cloakFormation.get() != null ? cloakFormation.get() : "");
         m.put("beaconBeforeSeconds", Form.intOf(beaconSeconds));
+        m.put("awayFromPortals", awayFromPortals.isSelected());
         m.put("freeSide", freeSide.isSelected());
         m.put("freeSideRadius", Form.intOf(freeSideRadius));
         m.put("avoidSpawn", avoidSpawn.isSelected());

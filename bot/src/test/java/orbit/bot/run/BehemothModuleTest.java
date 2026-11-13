@@ -631,4 +631,38 @@ class BehemothModuleTest {
         var h = sim.hero();
         assertTrue(Math.hypot(h.x() - 5_700, h.y() - 2_600) <= 300, "still at the wait point: " + h);
     }
+
+    @Test
+    void theShipWaitsAwayFromTheWaysPortalToSpawnTheTrainsFly() throws Exception {
+        // the user, 2026-11-13: «точку недалеко от бегемота, но не со стороны порта, чтобы поезд не задел»
+        Sim sim = new Sim(with(config(300), "{\"awayFromPortals\": true, \"freeSideRadius\": 2000}"), 308, 4_000, 6_000);
+        BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
+        m.workingMap();
+        sim.run(m::tick, 30_000);
+        var h = sim.hero();
+        // 3-BL: the spawn 47/39, portals 15/122, 194/118, 140/31 — the free corner is to the north-west
+        assertTrue(h.x() < 4_700 && h.y() < 3_900, "north-west of the spawn: " + h);
+        assertTrue(Math.abs(Math.hypot(h.x() - 4_700, h.y() - 3_900) - 2_000) < 400, "on the ring: " + h);
+        for (var q : sim.ctx.maps().portals(308)) {
+            double d = orbit.bot.nav.Navigator.distanceToSegment(h.x(), h.y(), q.x(), q.y(), 4_700, 3_900);
+            assertTrue(d > 1_500, "away from the way from " + q + ": " + (int) d);
+        }
+    }
+
+    @Test
+    void theFreeSideKeepsOffTheTrainsWays() throws Exception {
+        Sim sim = new Sim(with(config(300), "{\"awayFromPortals\": true, \"freeSide\": true}"), 308, 4_000, 6_000);
+        BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
+        m.workingMap();
+        sim.run(m::tick, 30_000);
+        var at = sim.hero();
+        enemy(sim, 900, "Train", at.x(), at.y());
+        sim.run(m::tick, 30_000);
+        var h = sim.hero();
+        assertTrue(Math.hypot(h.x() - at.x(), h.y() - at.y()) > 1_500, "off the enemy: " + h);
+        for (var q : sim.ctx.maps().portals(308)) {
+            double d = orbit.bot.nav.Navigator.distanceToSegment(h.x(), h.y(), q.x(), q.y(), 4_700, 3_900);
+            assertTrue(d >= 900, "still off the way from " + q + ": " + (int) d);
+        }
+    }
 }
