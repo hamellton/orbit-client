@@ -76,6 +76,19 @@ public final class Targets {
         return recommended > 0 ? recommended : DEFAULT_RADIUS;
     }
 
+    /**
+     * A train by the NPC: {@code players} or more players who are not of the ship's group within {@code radius} of it
+     * (AstraBot «avoidTrain»: a group farming it — it would be theirs, and they would turn on the ship).
+     */
+    public static boolean train(WorldSnapshot w, WorldSnapshot.Ship s, int players, int radius) {
+        java.util.Set<Integer> group = new java.util.HashSet<>();
+        w.group().members().forEach(m -> group.add(m.id()));
+        int hero = w.hero().id();
+        long n = w.ships().values().stream().filter(p -> p.kind() == WorldSnapshot.ShipKind.PLAYER && p.id() != hero
+                && !group.contains(p.id()) && p.distanceTo(s.x(), s.y()) <= radius).count();
+        return n >= players;
+    }
+
     /** The best target within {@code maxDistance}: lowest priority value, then nearest. */
     public static WorldSnapshot.Ship best(BotConfig c, WorldSnapshot w, double maxDistance) {
         return best(c, w, maxDistance, s -> false);

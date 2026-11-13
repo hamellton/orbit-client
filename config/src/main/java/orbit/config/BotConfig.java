@@ -457,7 +457,13 @@ public record BotConfig(
      */
     @JsonInclude(JsonInclude.Include.NON_EMPTY)
     public record NpcRule(double radius, int priority, boolean kill, Set<String> flags, Set<Integer> maps, String ammo,
-                          boolean sab, String rocket, String launcher, String move) {
+                          boolean sab, String rocket, String launcher, String move, String formation) {
+
+        /** @param formation the drone formation fighting it ({@code drone_formation_…}), {@code null} = the config's */
+        public NpcRule(double radius, int priority, boolean kill, Set<String> flags, Set<Integer> maps, String ammo,
+                       boolean sab, String rocket, String launcher, String move) {
+            this(radius, priority, kill, flags, maps, ammo, sab, rocket, launcher, move, null);
+        }
 
         public NpcRule(double radius, int priority, boolean kill, Set<String> flags, Set<Integer> maps, String ammo,
                        boolean sab, String rocket, String launcher) {
@@ -496,6 +502,25 @@ public record BotConfig(
 
         public boolean appliesOn(int mapId) {
             return maps.isEmpty() || maps.contains(mapId);
+        }
+    }
+
+    /**
+     * What the NPC list's flags and the kill tab add to a fight (AstraBot's «Invoke XVI» profile, 2026-11-13).
+     *
+     * @param ishBelow     ISH-01 (flag {@code USE_ISH}) when the hull is below this share
+     * @param avoidTrains  leave a target with a train by it: {@code trainPlayers} or more players not of the group
+     *                     within {@code trainRadius} (AstraBot «avoidTrain»)
+     */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public record FightOptions(double ishBelow, boolean avoidTrains, int trainPlayers, int trainRadius) {
+
+        public static final FightOptions DEFAULT = new FightOptions(0.6, false, 3, 1500);
+
+        public FightOptions {
+            ishBelow = ishBelow <= 0 || ishBelow > 1 ? 0.6 : ishBelow;
+            trainPlayers = trainPlayers <= 0 ? 3 : trainPlayers;
+            trainRadius = trainRadius <= 0 ? 1500 : trainRadius;
         }
     }
 
@@ -545,7 +570,13 @@ public record BotConfig(
         /** a moment for the pet's kamikaze (gates) */
         KAMIKAZE,
         /** do not fly round it */
-        NO_CIRCLE
+        NO_CIRCLE,
+        /** EMP-01 once a fight with it, in range (AstraBot «Use EMP»: other players lose their lock on it) */
+        USE_EMP,
+        /** ISH-01 fighting it when the hull is below the config's threshold (AstraBot «Use ISH») */
+        USE_ISH,
+        /** the pet in HP Link while it is fought (AstraBot «HP Link») */
+        HP_LINK
     }
 
     /**
@@ -578,10 +609,23 @@ public record BotConfig(
     public record Loot(String ammo, String sab, double sabBelow, int sabNpcShieldMin, String rsb,
                        boolean groupNpcs, int ignoreFartherThan, String rocket, boolean fireRockets, boolean circle,
                        List<String> fallback, String launcher, boolean fireLauncher, String move, Boolean runCircle,
-                       Boolean skipCrowded, Integer smartCircle) {
+                       Boolean skipCrowded, Integer smartCircle, FightOptions options) {
 
         /** DarkBot's usual «smart circling iterations». */
         public static final int SMART_CIRCLE = 5;
+
+        public Loot(String ammo, String sab, double sabBelow, int sabNpcShieldMin, String rsb,
+                    boolean groupNpcs, int ignoreFartherThan, String rocket, boolean fireRockets, boolean circle,
+                    List<String> fallback, String launcher, boolean fireLauncher, String move, Boolean runCircle,
+                    Boolean skipCrowded, Integer smartCircle) {
+            this(ammo, sab, sabBelow, sabNpcShieldMin, rsb, groupNpcs, ignoreFartherThan, rocket, fireRockets, circle,
+                    fallback, launcher, fireLauncher, move, runCircle, skipCrowded, smartCircle, null);
+        }
+
+        /** The fight options of the list's flags (ISH threshold, trains), the usual ones when none. */
+        public FightOptions fight() {
+            return options == null ? FightOptions.DEFAULT : options;
+        }
 
         public Loot(String ammo, String sab, double sabBelow, int sabNpcShieldMin, String rsb,
                     boolean groupNpcs, int ignoreFartherThan, String rocket, boolean fireRockets, boolean circle,

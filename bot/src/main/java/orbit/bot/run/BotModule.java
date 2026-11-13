@@ -57,6 +57,11 @@ public interface BotModule {
         return true;
     }
 
+    /** A pet mode ({@code PetGearTypeModule} number) the module wants now over the config's, -1 for none. */
+    default int petGear() {
+        return -1;
+    }
+
     /** The NPC the module fights now, 0 for none. */
     default int fightTarget() {
         return 0;

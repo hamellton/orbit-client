@@ -36,9 +36,12 @@ final class FlagsEditor extends AbstractCellEditor implements TableCellEditor {
             case NO_CIRCLE -> "не кружить вокруг";
             case KAMIKAZE -> "камикадзе питомца рядом с ним";
             case PASSIVE -> "не стреляет первым — пока не работает";
-            case IGNORE_BOXES -> "не собирать его ящики — пока не работает";
+            case IGNORE_BOXES -> "не собирать его ящики (30 с у места, где он погиб)";
             case ATTACK_SECOND -> "второй целью в группе — пока не работает";
-            case PET_LOCATOR -> "искать локатором — пока не работает (цель — во вкладке «Питомец»)";
+            case PET_LOCATOR -> "искать пеленгатором питомца, когда его не видно";
+            case USE_EMP -> "EMP-01 раз за бой, когда он в радиусе (чужие теряют прицел)";
+            case USE_ISH -> "ISH-01, когда HP корабля ниже порога (вкладка «Убивать»)";
+            case HP_LINK -> "питомец в режиме HP Link, пока бьём его";
         };
     }
 

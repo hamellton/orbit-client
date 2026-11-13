@@ -56,6 +56,10 @@ final class KillSection implements Section {
     private final JCheckBox fireRockets = new JCheckBox("Пускать ракеты сам (без ракетного CPU)");
     private final JSpinner ignoreFarther = Form.number(0, 50_000, 500);
     private final JSpinner smartCircle = Form.number(0, 20, 1);
+    private final JCheckBox avoidTrains = new JCheckBox("Обходить чужие поезда");
+    private final JSpinner trainPlayers = Form.number(2, 20, 1);
+    private final JSpinner trainRadius = Form.number(300, 5_000, 100);
+    private final JSpinner ishBelow = Form.number(5, 95, 5);
     private final NpcTable npcs;
     private final JTable table;
     private final JComponent view;
@@ -67,7 +71,7 @@ final class KillSection implements Section {
         table.setAutoCreateRowSorter(true);
         table.setFillsViewportHeight(true);
         // narrow columns for ticks and numbers; the names and the flags take the rest
-        int[] widths = {200, 44, 78, 62, 44, 80, 80, 80, 90, 190, 110};
+        int[] widths = {200, 44, 78, 62, 44, 80, 80, 80, 90, 190, 110, 120};
         for (int i = 0; i < widths.length; i++) {
             table.getColumnModel().getColumn(i).setPreferredWidth(widths[i]);
         }
@@ -83,6 +87,8 @@ final class KillSection implements Section {
         table.getColumnModel().getColumn(9).setCellEditor(new FlagsEditor()); // ticks from a list, not typing
         table.getColumnModel().getColumn(10).setCellEditor(new javax.swing.DefaultCellEditor(
                 new javax.swing.JComboBox<>(NpcTable.moveChoices())));
+        table.getColumnModel().getColumn(11).setCellEditor(new javax.swing.DefaultCellEditor(
+                new javax.swing.JComboBox<>(NpcTable.formationChoices())));
         table.getColumnModel().getColumn(5).setCellEditor(new javax.swing.DefaultCellEditor(
                 new javax.swing.JComboBox<>(NpcTable.ammoChoices())));
         table.getTableHeader().setToolTipText("Приоритет: меньше — раньше. Радиус — с которого бот бьёт сейчас: его "
@@ -152,6 +158,9 @@ final class KillSection implements Section {
                 + "стоячий (инвок, бегемот) — стоять в безопасной точке. Кубы — кружить.<br>"
                 + "Во всех режимах — подальше от других NPC (сильнее от тех, кто бьёт нас), врагов, станций,<br>"
                 + "мин и запретных зон. Своё движение у NPC — в таблице, колонка «Движение».</html>");
+        avoidTrains.setToolTipText("<html>Не брать цель, у которой собралась чужая группа (поезд):<br>"
+                + "столько игроков не из нашей группы в этом радиусе от цели (как «avoidTrain» в AstraBot)</html>");
+        ishBelow.setToolTipText("ISH-01 у NPC с флагом USE_ISH, когда HP корабля ниже этого");
         smartCircle.setToolTipText("<html>Сколько точек вперёд и назад по кругу сравнивать, чтобы сменить сторону "
                 + "кружения<br>(DarkBot «Smart circling iterations», 3–5; 0 — не менять сторону)</html>");
         skipCrowded.setToolTipText("<html>Пропускать цель, рядом с которой ещё два и больше NPC, что нападают сами<br>"
@@ -183,6 +192,9 @@ final class KillSection implements Section {
                 .row("", groupNpcs)
                 .row("Не видеть дальше", ignoreFarther)
                 .row("Смотреть вперёд при кружении", smartCircle)
+                .row("", avoidTrains)
+                .row("Поезд — игроков от", Form.inline(trainPlayers, new javax.swing.JLabel("в радиусе"), trainRadius))
+                .row("ISH-01 при HP ниже", Form.inline(ishBelow, new javax.swing.JLabel("%")))
                 .build(false);
         JPanel settings = new JPanel(new Columns());
         settings.add(ammoColumn);
@@ -288,6 +300,11 @@ final class KillSection implements Section {
         fireLauncher.setSelected(l.fireLauncher());
         Form.set(ignoreFarther, l.ignoreFartherThan());
         Form.set(smartCircle, l.circleIterations());
+        BotConfig.FightOptions fo = l.fight();
+        avoidTrains.setSelected(fo.avoidTrains());
+        Form.set(trainPlayers, fo.trainPlayers());
+        Form.set(trainRadius, fo.trainRadius());
+        Form.set(ishBelow, (int) Math.round(fo.ishBelow() * 100));
         npcs.load(c.npcs());
         sync();
     }
@@ -296,6 +313,13 @@ final class KillSection implements Section {
     private String moveName() {
         BotConfig.FightMove chosen = BotConfig.FightMove.values()[move.getSelectedIndex()];
         return loaded != null && chosen == loaded.fightMove() ? loaded.move() : chosen.name();
+    }
+
+    /** The fight options as set; {@code null} (left out of the file) while they are the usual ones and the file had none. */
+    private BotConfig.FightOptions fightOptions() {
+        BotConfig.FightOptions o = new BotConfig.FightOptions(Form.intOf(ishBelow) / 100.0, avoidTrains.isSelected(),
+                Form.intOf(trainPlayers), Form.intOf(trainRadius));
+        return o.equals(BotConfig.FightOptions.DEFAULT) && (loaded == null || loaded.options() == null) ? null : o;
     }
 
     @Override
@@ -312,7 +336,8 @@ final class KillSection implements Section {
                 skipCrowded.isSelected() ? Boolean.TRUE : loaded != null && loaded.skipCrowded() != null ? Boolean.FALSE : null,
                 // unchanged from the usual one and not in the file: kept out of it
                 loaded != null && loaded.smartCircle() == null && Form.intOf(smartCircle) == BotConfig.Loot.SMART_CIRCLE
-                        ? null : Integer.valueOf(Form.intOf(smartCircle)));
+                        ? null : Integer.valueOf(Form.intOf(smartCircle)),
+                fightOptions());
         Map<String, BotConfig.NpcRule> list = new TreeMap<>(npcs.get());
         return c.withLoot(l).withNpcs(list);
     }

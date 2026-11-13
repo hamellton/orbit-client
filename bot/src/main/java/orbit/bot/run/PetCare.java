@@ -273,6 +273,13 @@ public final class PetCare {
         moduleLocator = target;
     }
 
+    /** A mode the module wants over the config's (HP Link while fighting an NPC flagged so), -1 for none. */
+    private volatile java.util.function.IntSupplier moduleGear = () -> -1;
+
+    public void setModuleGear(java.util.function.IntSupplier gear) {
+        moduleGear = gear;
+    }
+
     private void gear(BotConfig.Pet cfg, WorldSnapshot.Pet pet, long now) {
         int quest = trade || kamikazeOn ? 0 : moduleLocator.getAsInt();
         boolean questLocator = quest > 0
@@ -281,10 +288,14 @@ public final class PetCare {
             noLocatorTold = true;
             log.warn("Питомец: у него нет «Пеленгатора врагов» — NPC квеста ищу без него");
         }
+        int fightGear = trade || kamikazeOn ? -1 : moduleGear.getAsInt();
+        boolean byFight = fightGear >= 0 && (pet.gears().isEmpty() || pet.gears().contains(fightGear));
         int want = trade ? PetGearTypeModule.PETGEARTYPE_TRADE_POD
                 : kamikazeOn ? PetGearTypeModule.PETGEARTYPE_KAMIKAZE
+                : byFight ? fightGear
                 : questLocator ? PetGearTypeModule.PETGEARTYPE_ENEMY_LOCATOR : gearId(cfg.gear());
         String label = trade ? "«Торговый модуль»" : kamikazeOn ? "«Камикадзе»"
+                : byFight ? "«HP Link» (бой)"
                 : questLocator ? "«Пеленгатор врагов» (для модуля)" : gearName(cfg.gear());
         if (want < 0) {
             return;

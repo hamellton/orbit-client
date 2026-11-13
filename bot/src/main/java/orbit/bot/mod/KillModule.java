@@ -50,6 +50,12 @@ public final class KillModule implements BotModule {
         return attacker.targetId();
     }
 
+    /** HP Link while an NPC flagged so is fought (AstraBot «HP Link»). */
+    @Override
+    public int petGear() {
+        return attacker.fighting(BotConfig.NpcFlag.HP_LINK) ? orbit.protocol.gen.PetGearTypeModule.PETGEARTYPE_HP_LINK : -1;
+    }
+
     @Override
     public void pause() {
         attacker.clear();
@@ -64,6 +70,11 @@ public final class KillModule implements BotModule {
         if (attacker.targetId() != 0 && attacker.tick(true)) {
             status = "Бой";
             return;
+        }
+        // the boxes of an NPC flagged IGNORE_BOXES are left a while where it died
+        Attacker.Kill k = attacker.lastKill();
+        if (k != null && k.leaveBoxes()) {
+            boxes.leaveAround(k.x(), k.y(), k.nanos() + LEAVE_BOXES_NS);
         }
         // no fight: any box in sight (DarkBot's collector); its radius only counts next to a target
         if (collect && boxes.tickAnywhere()) {
@@ -84,7 +95,10 @@ public final class KillModule implements BotModule {
                     || attacker.tooStrong(s.name())
                     // another player is by it and nearer: he gets there first (live 2026-11-13 on 2-1: 155 of 165
                     // targets gone before the ship came)
-                    || Targets.someoneNearer(w, s));
+                    || Targets.someoneNearer(w, s)
+                    // a train by it: the config's «обходить чужие поезда» (AstraBot avoidTrain)
+                    || c.loot().fight().avoidTrains() && Targets.train(w, s, c.loot().fight().trainPlayers(),
+                            c.loot().fight().trainRadius()));
             if (t != null) {
                 roamTo = null;
                 attacker.target(t);
@@ -123,10 +137,20 @@ public final class KillModule implements BotModule {
     /** The game's NPC number of a name the list keeps (its letters and digits), 0 when unknown. */
     static int npcNumber(String name) {
         String n = QuestTargets.norm(name);
-        return orbit.world.maps.NpcCatalog.bundled().all().stream()
+        int id = orbit.world.maps.NpcCatalog.bundled().all().stream()
                 .filter(npc -> QuestTargets.norm(npc.name()).equals(n))
                 .mapToInt(orbit.world.maps.NpcCatalog.Npc::id).findFirst().orElse(0);
+        return id != 0 ? id : BLACKLIGHT_NPCS.getOrDefault(n, 0);
     }
+
+    /**
+     * The Blacklight NPCs the client's game.xml leaves out, by AstraBot's lists (`npcId` in its NPC table, 2026-11-13):
+     * the pet's locator needs their numbers.
+     */
+    static final java.util.Map<String, Integer> BLACKLIGHT_NPCS = java.util.Map.of(
+            QuestTargets.norm("Impulse II"), 175, QuestTargets.norm("Attend IX"), 176,
+            QuestTargets.norm("Invoke XVI"), 177, QuestTargets.norm("Strokelight Barrage"), 266,
+            QuestTargets.norm("Abide I"), 268, QuestTargets.norm("Barrage Seeker Rocket"), 159);
 
     /** A locator's point is fresh this long; reached with nothing there, it is left this long. */
     static final long LEAD_FRESH_MS = 5_000;
@@ -176,6 +200,9 @@ public final class KillModule implements BotModule {
         status = "Лечу к " + name + " по пеленгатору";
         return true;
     }
+
+    /** The boxes where an NPC flagged {@code IGNORE_BOXES} died are left this long. */
+    static final long LEAVE_BOXES_NS = 30_000_000_000L;
 
     /** A target with this many NPCs that attack on sight about it is left for a lone one. */
     static final int CROWD_MAX = 2;

@@ -244,6 +244,81 @@ class AttackerTest {
         assertEquals(77, orbit.bot.mod.Targets.best(flagged.config, flagged.world.snapshot(flagged.now), 10_000).id());
     }
 
+    private static BotConfig invoke(java.util.Set<String> flags, String formation) {
+        return BotConfig.empty()
+                .withLoot(new BotConfig.Loot("ammunition_laser_lcb-10", null, 0, 0, null, true, 0, null, false, false, null))
+                .withNpcs(Map.of("-=[ Target ]=-", new BotConfig.NpcRule(500, 0, true, flags, Set.of(), null, false, null,
+                        null, null, formation)));
+    }
+
+    private static long used(Sim sim, String id) {
+        return sim.sent.stream().filter(p -> p instanceof orbit.protocol.gen.MenuActionRequest m && id.equals(m.menuItemId)).count();
+    }
+
+    @Test
+    void empOnceAFightAndIshWhenTheHullIsLow() {
+        // AstraBot's «Invoke XVI»: Use EMP, Use ISH (the user, 2026-11-13)
+        Sim sim = new Sim(invoke(Set.of("USE_EMP", "USE_ISH"), null), 1, 10_500, 6_000);
+        sim.lasers("ammunition_laser_lcb-10", "ammunition_specialammo_emp-01", "equipment_extra_cpu_ish-01");
+        sim.npc(7, "-=[ Target ]=-", 10_000, 6_000);
+        Attacker a = new Attacker(sim.ctx);
+        a.target(sim.world.snapshot(sim.now).ships().get(7));
+        sim.run(() -> a.tick(true), 4_000);
+        assertEquals(1, used(sim, "ammunition_specialammo_emp-01"), "EMP once");
+        assertEquals(0, used(sim, "equipment_extra_cpu_ish-01"), "no ISH at full hull");
+        orbit.protocol.gen.AttackHitCommand hit = new orbit.protocol.gen.AttackHitCommand();
+        hit.attackerId = 7;
+        hit.victimId = 1;
+        hit.victimHitpoints = sim.world.snapshot(sim.now).hero().health().hpMax() * 0.4;
+        sim.world.apply(hit, sim.now);
+        sim.run(() -> a.tick(true), 1_000);
+        assertEquals(1, used(sim, "equipment_extra_cpu_ish-01"), "ISH below 60 %");
+        assertEquals(1, used(sim, "ammunition_specialammo_emp-01"), "still one EMP");
+    }
+
+    @Test
+    void anNpcsOwnFormationIsWantedFightingIt() {
+        Sim sim = new Sim(invoke(Set.of(), "drone_formation_f-3d-dr"), 1, 10_500, 6_000);
+        sim.lasers("ammunition_laser_lcb-10");
+        sim.npc(7, "-=[ Target ]=-", 10_000, 6_000);
+        Attacker a = new Attacker(sim.ctx);
+        a.target(sim.world.snapshot(sim.now).ships().get(7));
+        sim.run(() -> a.tick(true), 500);
+        assertEquals("drone_formation_f-3d-dr", sim.ctx.ship().wanted().formation());
+    }
+
+    @Test
+    void aTrainByTheTargetIsSeen() {
+        // AstraBot «avoidTrain»: 3 players not of the group within 1 500 of it
+        Sim sim = new Sim(config(false, null, Set.of()), 1, 10_500, 6_000);
+        sim.npc(77, "-=[ Target ]=-", 10_000, 6_000);
+        for (int i = 0; i < 3; i++) {
+            orbit.protocol.gen.ShipCreateCommand c = new orbit.protocol.gen.ShipCreateCommand();
+            c.userId = 900 + i;
+            c.userName = "Train" + i;
+            c.factionId = 1;
+            c.x = 10_400 + i * 100;
+            c.y = 6_600;
+            sim.world.apply(c, sim.now);
+        }
+        var w = sim.world.snapshot(sim.now);
+        assertTrue(orbit.bot.mod.Targets.train(w, w.ships().get(77), 3, 1_500));
+        assertTrue(!orbit.bot.mod.Targets.train(w, w.ships().get(77), 4, 1_500), "three are no four");
+        assertTrue(!orbit.bot.mod.Targets.train(w, w.ships().get(77), 3, 300), "not that near");
+    }
+
+    @Test
+    void thePetIsInHpLinkWhileAFlaggedNpcIsFought() {
+        // AstraBot's «HP Link» on Invoke XVI
+        Sim sim = new Sim(invoke(Set.of("HP_LINK"), null).withModule(BotConfig.Module.KILL_COLLECT), 1, 10_500, 6_000);
+        sim.lasers("ammunition_laser_lcb-10");
+        sim.npc(7, "-=[ Target ]=-", 10_000, 6_000);
+        orbit.bot.mod.KillModule m = new orbit.bot.mod.KillModule(sim.ctx, true, false);
+        assertEquals(-1, m.petGear(), "no fight: the config's mode");
+        sim.run(m::tick, 1_000);
+        assertEquals(orbit.protocol.gen.PetGearTypeModule.PETGEARTYPE_HP_LINK, m.petGear());
+    }
+
     @Test
     void aTargetDestroyedBeforeTheAttackWasConfirmedIsAKill() {
         // live 2026-11-13 on 2-3: Lordakia died in the first volley, the reward came, the fight was «пропала из вида»

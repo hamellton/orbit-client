@@ -12,5 +12,7 @@ class KillModuleLocatorTest {
         assertEquals(23, KillModule.npcNumber("..::{ Boss Kristallon }::.."));
         assertEquals(10, KillModule.npcNumber("-=[ Kristallon ]=-"));
         assertEquals(0, KillModule.npcNumber("-=[ Nobody ]=-"));
+        assertEquals(177, KillModule.npcNumber("\\\\ Invoke XVI //"), "the Blacklight ones by AstraBot's list");
+        assertEquals(175, KillModule.npcNumber("\\\\ Impulse II //"));
     }
 }

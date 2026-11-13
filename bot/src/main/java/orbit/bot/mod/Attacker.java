@@ -182,12 +182,66 @@ public final class Attacker {
         return kills;
     }
 
+    /** The last NPC killed: where, when, whether its boxes are left ({@code IGNORE_BOXES}). */
+    public record Kill(String name, double x, double y, long nanos, boolean leaveBoxes) {
+    }
+
+    private volatile Kill lastKill;
+    /** The list's rule of the target now ({@code null} when none). */
+    private volatile BotConfig.NpcRule targetRule;
+    private boolean empUsed;
+    private long ishAt = Long.MIN_VALUE / 2;
+    static final String EMP = "ammunition_specialammo_emp-01";
+    static final String ISH = "equipment_extra_cpu_ish-01";
+    static final long ISH_GAP_NS = 5_000_000_000L;
+
+    public Kill lastKill() {
+        return lastKill;
+    }
+
+    /** True while the target is one whose rule has the flag. */
+    public boolean fighting(BotConfig.NpcFlag flag) {
+        BotConfig.NpcRule r = targetRule;
+        return targetId != 0 && r != null && r.has(flag);
+    }
+
+    /**
+     * The NPC list's abilities (AstraBot's «Use EMP», «Use ISH»): EMP-01 once a fight when in range and shooting, ISH-01
+     * while the hull is below the threshold; only when the game shows the item ready.
+     */
+    private void abilities(BotConfig c, BotConfig.NpcRule rule, WorldSnapshot w, WorldSnapshot.Hero h, double dist,
+                           double radius, long now) {
+        targetRule = rule;
+        if (rule == null || dist > radius + 100 || !shotAt) {
+            return;
+        }
+        if (rule.has(BotConfig.NpcFlag.USE_EMP) && !empUsed && ready(w, EMP, now)) {
+            log.info("EMP-01 по {}", w.ships().get(targetId) != null ? w.ships().get(targetId).name() : "цели");
+            ctx.actions().useItem(EMP);
+            empUsed = true;
+        }
+        double hp = h.health().hpPercent();
+        if (rule.has(BotConfig.NpcFlag.USE_ISH) && hp >= 0 && hp < c.loot().fight().ishBelow() && now - ishAt > ISH_GAP_NS
+                && ready(w, ISH, now)) {
+            log.info("ISH-01: HP {}%", Math.round(hp * 100));
+            ctx.actions().useItem(ISH);
+            ishAt = now;
+        }
+    }
+
+    private static boolean ready(WorldSnapshot w, String id, long now) {
+        WorldSnapshot.Item i = w.items().get(id);
+        return i != null && i.available() && !i.blocked() && i.remainingMs(now) == 0
+                && (i.maxCounter() <= 0 || i.counter() > 0);
+    }
+
     public void target(WorldSnapshot.Ship s) {
         if (s.id() == targetId) {
             return;
         }
         targetId = s.id();
         targetName = s.name();
+        empUsed = false;
         shotAt = false;
         circleDir = 0;
         kiteAngle = null;
@@ -221,6 +275,7 @@ public final class Attacker {
             fight.end(endReason, ctx.now());
         }
         targetId = 0;
+        targetRule = null;
         shotAt = false;
         seenAt = 0;
     }
@@ -319,6 +374,8 @@ public final class Attacker {
                 if (targetName != null) {
                     KILLED_KINDS.add(targetName);
                 }
+                lastKill = new Kill(targetName, seenX, seenY, ctx.now(), targetRule != null
+                        && targetRule.has(BotConfig.NpcFlag.IGNORE_BOXES));
                 ctx.stats().kills.incrementAndGet();
                 if (t0Cubikon) {
                     ctx.stats().cubesKilled.incrementAndGet();
@@ -358,7 +415,12 @@ public final class Attacker {
         // configuration, Impulse II lost 20 % in 25 s)
         boolean runCircle = c.loot().runCircle() && dist > 2 * radius && t.health().known()
                 && t.health().hpPercent() < 0.25;
-        ctx.ship().want(chasing || runCircle ? c.general().run() : onTheWay ? c.general().travel() : c.general().offensive());
+        BotConfig.ShipMode fightMode = c.general().offensive();
+        if (rule != null && rule.formation() != null && !rule.formation().isBlank() && fightMode != null) {
+            // the NPC's own formation (AstraBot: Invoke XVI in Drill), the config's configuration
+            fightMode = new BotConfig.ShipMode(fightMode.config(), rule.formation());
+        }
+        ctx.ship().want(chasing || runCircle ? c.general().run() : onTheWay ? c.general().travel() : fightMode);
         Threats threats = move ? new Threats(ctx, ctx.world().get(), c, t.id()) : null;
         double baseRadius = Targets.baseRadius(c, t, h.mapId());
         learnedFarther = radius > baseRadius + 1;
@@ -423,6 +485,7 @@ public final class Attacker {
         if (h.attackTargetId() == targetId) {
             shotAt = true;
         }
+        abilities(c, rule, w, h, dist, radius, now);
         // close enough to shoot: it must lose something soon, whether the attack started or not (without
         // ammunition the game never starts it)
         if (cannotWin(c, t, h, now)) {
@@ -980,6 +1043,11 @@ public final class Attacker {
         if (l.sab() != null && r != null && r.sab() && shield >= 0 && shield < l.sabBelow()
                 && t.health().shield() >= l.sabNpcShieldMin() && t.health().shield() > 0) {
             return l.sab();
+        }
+        // RSB when it is ready (the config's «RSB»; AstraBot «Use RSB»): one salvo, then the usual ammunition while it
+        // reloads (its cooldown is the item's timer)
+        if (l.rsb() != null && ready(w, l.rsb(), w.nanos()) && w.items().get(l.rsb()).counter() >= MIN_AMMO) {
+            return l.rsb();
         }
         return r != null && r.ammo() != null ? r.ammo() : l.ammo();
     }
