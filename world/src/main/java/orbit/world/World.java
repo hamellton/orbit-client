@@ -288,7 +288,7 @@ public final class World {
                     new Portal(p.gateId, p.x, p.y, p.factionId, p.designId, p.isVisibleOnMinimap));
             case AssetCreateCommand p -> assets.put(p.assetId, new Asset(p.assetId,
                     p.type != null ? p.type.typeValue : -1, p.userName, p.posX, p.posY, p.factionId, p.clanId,
-                    p.clanTag, p.invisible));
+                    p.clanTag, p.invisible, p.clanRelation != null ? p.clanRelation.type : 0));
             case AssetRemoveCommand p -> assets.remove(p.uid);
             case MapAddPOICommand p -> zones.put(p.poiId, new Zone(p.poiId, p.poiType != null ? p.poiType.typeValue : -1,
                     p.shape, List.copyOf(p.shapeCoordinates), p.inverted, p.active));

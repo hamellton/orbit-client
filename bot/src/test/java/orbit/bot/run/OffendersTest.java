@@ -125,7 +125,13 @@ class OffendersTest {
     }
 
     private static void station(Sim sim, int id, int faction, int x, int y) {
+        station(sim, id, faction, x, y, 0);
+    }
+
+    private static void station(Sim sim, int id, int faction, int x, int y, int relation) {
         orbit.protocol.gen.AssetCreateCommand a = new orbit.protocol.gen.AssetCreateCommand();
+        a.clanRelation = new orbit.protocol.gen.ClanRelationModule();
+        a.clanRelation.type = (short) relation;
         a.assetId = id;
         a.type = new orbit.protocol.gen.AssetTypeModule();
         a.type.typeValue = (short) Offenders.BATTLESTATION;
@@ -158,6 +164,17 @@ class OffendersTest {
         BotRunner r2 = new BotRunner(own.ctx, () -> false, s -> { });
         own.run(r2::tick, 8_000);
         assertTrue(harvested(own, 0).contains("under"), "the own company's station is no danger");
+    }
+
+    @Test
+    void anAlliedClansStationOfAnotherCompanyIsNoDanger() {
+        // live 2026-11-13 on 3-BL: «Detea Ay» of an EIC clan, shown friendly to the VRU ship, was kept off
+        Sim sim = new Sim(config(false), 93, 20_000, 7_000);
+        station(sim, 900, 1, 21_000, 7_000, orbit.protocol.gen.ClanRelationModule.TYPE_ALLIED);
+        ore(sim, "under", 20_600, 7_000);
+        BotRunner r = new BotRunner(sim.ctx, () -> false, s -> { });
+        sim.run(r::tick, 8_000);
+        assertTrue(harvested(sim, 0).contains("under"), "an allied clan's station is no danger");
     }
 
     @Test

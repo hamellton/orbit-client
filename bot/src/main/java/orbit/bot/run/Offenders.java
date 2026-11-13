@@ -122,8 +122,10 @@ public final class Offenders {
         WorldSnapshot.Hero h = w.hero();
         List<Circle> out = new ArrayList<>();
         for (WorldSnapshot.Asset a : w.assets().values()) {
+            // an allied clan's or one with a pact is friendly though of another company (live 2026-11-13 on 3-BL:
+            // «Detea Ay» shown friendly in the client, the ship kept off it)
             if (a.type() == BATTLESTATION && a.factionId() != 0 && a.factionId() != h.factionId()
-                    && (h.clanId() == 0 || a.clanId() != h.clanId())) {
+                    && (h.clanId() == 0 || a.clanId() != h.clanId()) && !a.friendlyClan()) {
                 String tag = a.clanTag() == null || a.clanTag().isBlank() ? "" : " [" + a.clanTag() + "]";
                 out.add(new Circle("станция" + tag, a.x(), a.y(), radius));
             }

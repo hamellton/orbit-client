@@ -345,9 +345,24 @@ public record WorldSnapshot(long nanos, Hero hero, Map<Integer, Ship> ships, Map
     public record Portal(int id, int x, int y, int factionId, int designId, boolean visibleOnMinimap) {
     }
 
-    /** Station, turret, healing pod, battle station… ({@code AssetTypeModule} type). */
+    /**
+     * Station, turret, healing pod, battle station… ({@code AssetTypeModule} type).
+     *
+     * @param clanRelation the owner clan to the hero's ({@code ClanRelationModule}: 0 none, 1 allied, 2 non-aggression
+     *                     pact, 3 at war)
+     */
     public record Asset(int id, int type, String name, int x, int y, int factionId, int clanId, String clanTag,
-                        boolean invisible) {
+                        boolean invisible, int clanRelation) {
+
+        public Asset(int id, int type, String name, int x, int y, int factionId, int clanId, String clanTag,
+                     boolean invisible) {
+            this(id, type, name, x, y, factionId, clanId, clanTag, invisible, 0);
+        }
+
+        /** The client shows it friendly: the owner clan is allied or has a non-aggression pact with the hero's. */
+        public boolean friendlyClan() {
+            return clanRelation == 1 || clanRelation == 2;
+        }
     }
 
     /**
