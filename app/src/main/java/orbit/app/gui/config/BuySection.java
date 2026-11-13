@@ -35,6 +35,7 @@ final class BuySection implements Section {
         List<ItemCatalog.Item> all = new ArrayList<>(ItemCatalog.LASERS);
         all.addAll(ItemCatalog.ROCKETS);
         all.addAll(ItemCatalog.LAUNCHER);
+        all.addAll(ItemCatalog.SPECIAL); // EMP-01 for the flag USE_EMP (ISH-01 is not sold)
         return all;
     }
 

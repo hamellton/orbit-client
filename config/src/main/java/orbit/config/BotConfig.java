@@ -511,16 +511,54 @@ public record BotConfig(
      * @param ishBelow     ISH-01 (flag {@code USE_ISH}) when the hull is below this share
      * @param avoidTrains  leave a target with a train by it: {@code trainPlayers} or more players not of the group
      *                     within {@code trainRadius} (AstraBot «avoidTrain»)
+     * @param emp          how much EMP-01 may be spent (flag {@code USE_EMP}); {@code null} = the usual
+     * @param ish          how much ISH-01 may be spent (flag {@code USE_ISH}); {@code null} = the usual
      */
     @JsonInclude(JsonInclude.Include.NON_NULL)
-    public record FightOptions(double ishBelow, boolean avoidTrains, int trainPlayers, int trainRadius) {
+    public record FightOptions(double ishBelow, boolean avoidTrains, int trainPlayers, int trainRadius, Spend emp,
+                               Spend ish) {
 
-        public static final FightOptions DEFAULT = new FightOptions(0.6, false, 3, 1500);
+        public static final FightOptions DEFAULT = new FightOptions(0.6, false, 3, 1500, null, null);
+
+        public FightOptions(double ishBelow, boolean avoidTrains, int trainPlayers, int trainRadius) {
+            this(ishBelow, avoidTrains, trainPlayers, trainRadius, null, null);
+        }
 
         public FightOptions {
             ishBelow = ishBelow <= 0 || ishBelow > 1 ? 0.6 : ishBelow;
             trainPlayers = trainPlayers <= 0 ? 3 : trainPlayers;
             trainRadius = trainRadius <= 0 ? 1500 : trainRadius;
+        }
+
+        public Spend empSpend() {
+            return emp == null ? Spend.EMP : emp;
+        }
+
+        public Spend ishSpend() {
+            return ish == null ? Spend.ISH : ish;
+        }
+    }
+
+    /**
+     * How much of an ability item the bot may spend (the user, 2026-11-13: limits for EMP-01 and ISH-01).
+     *
+     * @param perFight at most this many times a fight, 0 = no limit
+     * @param gapSeconds at least this long between two uses
+     * @param perHour  at most this many an hour, 0 = no limit
+     * @param perDay   at most this many in 24 hours, 0 = no limit
+     * @param keep     never spend the last this many on the account
+     */
+    public record Spend(int perFight, int gapSeconds, int perHour, int perDay, int keep) {
+
+        public static final Spend EMP = new Spend(1, 5, 0, 0, 0);
+        public static final Spend ISH = new Spend(0, 5, 0, 0, 0);
+
+        public Spend {
+            perFight = Math.max(0, perFight);
+            gapSeconds = Math.max(1, gapSeconds);
+            perHour = Math.max(0, perHour);
+            perDay = Math.max(0, perDay);
+            keep = Math.max(0, keep);
         }
     }
 

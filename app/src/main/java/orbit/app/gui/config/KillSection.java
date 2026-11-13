@@ -60,6 +60,15 @@ final class KillSection implements Section {
     private final JSpinner trainPlayers = Form.number(2, 20, 1);
     private final JSpinner trainRadius = Form.number(300, 5_000, 100);
     private final JSpinner ishBelow = Form.number(5, 95, 5);
+    // how much EMP-01 and ISH-01 may be spent (0 = no limit)
+    private final JSpinner empPerFight = Form.number(0, 10, 1);
+    private final JSpinner empPerHour = Form.number(0, 1_000, 1);
+    private final JSpinner empPerDay = Form.number(0, 10_000, 5);
+    private final JSpinner empKeep = Form.number(0, 100_000, 5);
+    private final JSpinner ishGap = Form.number(1, 600, 1);
+    private final JSpinner ishPerHour = Form.number(0, 1_000, 1);
+    private final JSpinner ishPerDay = Form.number(0, 10_000, 5);
+    private final JSpinner ishKeep = Form.number(0, 100_000, 5);
     private final NpcTable npcs;
     private final JTable table;
     private final JComponent view;
@@ -195,6 +204,13 @@ final class KillSection implements Section {
                 .row("", avoidTrains)
                 .row("Поезд — игроков от", Form.inline(trainPlayers, new javax.swing.JLabel("в радиусе"), trainRadius))
                 .row("ISH-01 при HP ниже", Form.inline(ishBelow, new javax.swing.JLabel("%")))
+                .section("Расход EMP-01 и ISH-01 (0 — без лимита)")
+                .row("EMP-01 за бой", Form.inline(empPerFight, new javax.swing.JLabel("в час"), empPerHour,
+                        new javax.swing.JLabel("в сутки"), empPerDay))
+                .row("EMP-01 запас", Form.inline(empKeep, new javax.swing.JLabel("шт. не трогать")))
+                .row("ISH-01 пауза", Form.inline(ishGap, new javax.swing.JLabel("с, в час"), ishPerHour,
+                        new javax.swing.JLabel("в сутки"), ishPerDay))
+                .row("ISH-01 запас", Form.inline(ishKeep, new javax.swing.JLabel("шт. не трогать")))
                 .build(false);
         JPanel settings = new JPanel(new Columns());
         settings.add(ammoColumn);
@@ -305,6 +321,16 @@ final class KillSection implements Section {
         Form.set(trainPlayers, fo.trainPlayers());
         Form.set(trainRadius, fo.trainRadius());
         Form.set(ishBelow, (int) Math.round(fo.ishBelow() * 100));
+        BotConfig.Spend emp = fo.empSpend();
+        Form.set(empPerFight, emp.perFight());
+        Form.set(empPerHour, emp.perHour());
+        Form.set(empPerDay, emp.perDay());
+        Form.set(empKeep, emp.keep());
+        BotConfig.Spend ish = fo.ishSpend();
+        Form.set(ishGap, ish.gapSeconds());
+        Form.set(ishPerHour, ish.perHour());
+        Form.set(ishPerDay, ish.perDay());
+        Form.set(ishKeep, ish.keep());
         npcs.load(c.npcs());
         sync();
     }
@@ -317,8 +343,13 @@ final class KillSection implements Section {
 
     /** The fight options as set; {@code null} (left out of the file) while they are the usual ones and the file had none. */
     private BotConfig.FightOptions fightOptions() {
+        BotConfig.Spend emp = new BotConfig.Spend(Form.intOf(empPerFight), BotConfig.Spend.EMP.gapSeconds(),
+                Form.intOf(empPerHour), Form.intOf(empPerDay), Form.intOf(empKeep));
+        BotConfig.Spend ish = new BotConfig.Spend(BotConfig.Spend.ISH.perFight(), Form.intOf(ishGap),
+                Form.intOf(ishPerHour), Form.intOf(ishPerDay), Form.intOf(ishKeep));
         BotConfig.FightOptions o = new BotConfig.FightOptions(Form.intOf(ishBelow) / 100.0, avoidTrains.isSelected(),
-                Form.intOf(trainPlayers), Form.intOf(trainRadius));
+                Form.intOf(trainPlayers), Form.intOf(trainRadius), emp.equals(BotConfig.Spend.EMP) ? null : emp,
+                ish.equals(BotConfig.Spend.ISH) ? null : ish);
         return o.equals(BotConfig.FightOptions.DEFAULT) && (loaded == null || loaded.options() == null) ? null : o;
     }
 

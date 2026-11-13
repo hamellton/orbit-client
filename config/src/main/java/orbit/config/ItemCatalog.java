@@ -48,6 +48,9 @@ public final class ItemCatalog {
     public static final List<Item> LAUNCHER = ammo("ammunition_rocketlauncher_", "eco-10", "hstrm-01", "ubr-100",
             "sar-01", "sar-02", "cbr", "pir-100", "obr-100", "bdr1212");
 
+    /** Special ammunition the shop sells that the bot uses (EMP-01 by the flag {@code USE_EMP}). */
+    public static final List<Item> SPECIAL = List.of(new Item("ammunition_specialammo_emp-01", "EMP-01"));
+
     public static final List<Item> FORMATIONS;
 
     /** Pet modes ({@code PetGearTypeModule}) the configs use. */
@@ -145,7 +148,7 @@ public final class ItemCatalog {
         if (id == null) {
             return "—";
         }
-        for (List<Item> list : List.of(LASERS, ROCKETS, LAUNCHER, FORMATIONS, PET_GEARS)) {
+        for (List<Item> list : List.of(LASERS, ROCKETS, LAUNCHER, SPECIAL, FORMATIONS, PET_GEARS)) {
             for (Item i : list) {
                 if (i.id().equals(id)) {
                     return i.label();

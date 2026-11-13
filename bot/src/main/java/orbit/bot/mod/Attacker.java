@@ -189,11 +189,14 @@ public final class Attacker {
     private volatile Kill lastKill;
     /** The list's rule of the target now ({@code null} when none). */
     private volatile BotConfig.NpcRule targetRule;
-    private boolean empUsed;
+    private int empUses;
+    private int ishUses;
+    private long empAt = Long.MIN_VALUE / 2;
     private long ishAt = Long.MIN_VALUE / 2;
+    /** The limit last told for each item (once until it changes). */
+    private final java.util.Map<String, String> limitTold = new java.util.HashMap<>();
     static final String EMP = "ammunition_specialammo_emp-01";
     static final String ISH = "equipment_extra_cpu_ish-01";
-    static final long ISH_GAP_NS = 5_000_000_000L;
 
     public Kill lastKill() {
         return lastKill;
@@ -214,18 +217,50 @@ public final class Attacker {
         if (rule == null || dist > radius + 100 || !shotAt) {
             return;
         }
-        if (rule.has(BotConfig.NpcFlag.USE_EMP) && !empUsed && ready(w, EMP, now)) {
-            log.info("EMP-01 по {}", w.ships().get(targetId) != null ? w.ships().get(targetId).name() : "цели");
+        BotConfig.FightOptions fo = c.loot().fight();
+        if (rule.has(BotConfig.NpcFlag.USE_EMP) && may(w, h, EMP, fo.empSpend(), empUses, empAt, now)) {
+            log.info("EMP-01 по {} (за сутки {})", w.ships().get(targetId) != null ? w.ships().get(targetId).name() : "цели",
+                    AbilityUse.today(h.id(), EMP, System.currentTimeMillis()) + 1);
             ctx.actions().useItem(EMP);
-            empUsed = true;
+            AbilityUse.used(h.id(), EMP, System.currentTimeMillis());
+            empUses++;
+            empAt = now;
         }
         double hp = h.health().hpPercent();
-        if (rule.has(BotConfig.NpcFlag.USE_ISH) && hp >= 0 && hp < c.loot().fight().ishBelow() && now - ishAt > ISH_GAP_NS
-                && ready(w, ISH, now)) {
-            log.info("ISH-01: HP {}%", Math.round(hp * 100));
+        if (rule.has(BotConfig.NpcFlag.USE_ISH) && hp >= 0 && hp < fo.ishBelow()
+                && may(w, h, ISH, fo.ishSpend(), ishUses, ishAt, now)) {
+            log.info("ISH-01: HP {}% (за сутки {})", Math.round(hp * 100),
+                    AbilityUse.today(h.id(), ISH, System.currentTimeMillis()) + 1);
             ctx.actions().useItem(ISH);
+            AbilityUse.used(h.id(), ISH, System.currentTimeMillis());
+            ishUses++;
             ishAt = now;
         }
+    }
+
+    /**
+     * The item may be used now: ready in the game, the fight's count, the pause, the hour's and the day's limits and
+     * the stock kept (the config's «Расход»); a limit reached is told once.
+     */
+    private boolean may(WorldSnapshot w, WorldSnapshot.Hero h, String id, BotConfig.Spend s, int usesThisFight,
+                        long lastAt, long now) {
+        if (s.perFight() > 0 && usesThisFight >= s.perFight() || now - lastAt < s.gapSeconds() * 1_000_000_000L
+                || !ready(w, id, now)) {
+            return false;
+        }
+        WorldSnapshot.Item i = w.items().get(id);
+        String why = s.keep() > 0 && i.counter() <= s.keep()
+                ? "осталось " + (long) i.counter() + " — это запас (" + s.keep() + ")"
+                : AbilityUse.limited(h.id(), id, s, System.currentTimeMillis());
+        if (why != null) {
+            if (!why.equals(limitTold.get(id))) {
+                limitTold.put(id, why);
+                log.info("{}: не применяю — {}", orbit.config.ItemCatalog.friendly(id), why);
+            }
+            return false;
+        }
+        limitTold.remove(id);
+        return true;
     }
 
     private static boolean ready(WorldSnapshot w, String id, long now) {
@@ -240,7 +275,8 @@ public final class Attacker {
         }
         targetId = s.id();
         targetName = s.name();
-        empUsed = false;
+        empUses = 0;
+        ishUses = 0;
         shotAt = false;
         circleDir = 0;
         kiteAngle = null;
