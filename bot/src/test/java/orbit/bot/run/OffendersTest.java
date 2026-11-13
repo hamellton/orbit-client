@@ -167,6 +167,25 @@ class OffendersTest {
     }
 
     @Test
+    void aBoxInsideANoAccessZoneIsNotFlownTo() {
+        // live 2026-11-13 on 3-BL: a box in the wall, the ship stood at the wall 100 s
+        Sim sim = new Sim(config(false), 93, 20_000, 7_000);
+        orbit.protocol.gen.MapAddPOICommand poi = new orbit.protocol.gen.MapAddPOICommand();
+        poi.poiId = "wall";
+        poi.poiType = new orbit.protocol.gen.POITypeModule();
+        poi.poiType.typeValue = (short) orbit.protocol.gen.POITypeModule.POITYPE_NO_ACCESS;
+        poi.shape = (short) orbit.protocol.gen.MapAddPOICommand.SHAPETYPE_CIRCLE;
+        poi.shapeCoordinates = java.util.List.of(20_000, 7_300, 200);
+        poi.active = true;
+        sim.world.apply(poi, sim.now);
+        ore(sim, "in-wall", 20_000, 7_300);
+        ore(sim, "open", 20_000, 6_800);
+        BotRunner r = new BotRunner(sim.ctx, () -> false, s -> { });
+        sim.run(r::tick, 8_000);
+        assertEquals(java.util.List.of("open"), harvested(sim, 0).stream().distinct().toList());
+    }
+
+    @Test
     void anAlliedClansStationOfAnotherCompanyIsNoDanger() {
         // live 2026-11-13 on 3-BL: «Detea Ay» of an EIC clan, shown friendly to the VRU ship, was kept off
         Sim sim = new Sim(config(false), 93, 20_000, 7_000);

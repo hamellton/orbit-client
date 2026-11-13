@@ -22,6 +22,9 @@ public final class BoxPicker {
     private String hash;
     /** Clicks on one box before it is left alone for two minutes. */
     static final int MAX_TRIES = 4;
+    /** One box is given up after this long, whatever holds the ship off it. */
+    static final long MAX_BOX_NS = 15_000_000_000L;
+    private long startedAt;
     /** Before clicking a box again at least this long (a box without a wait of its own). */
     static final long MIN_STAY_MS = 700;
     /** The config's name of the box being taken ({@code ore_8}, {@code BONUS_BOX}). */
@@ -110,6 +113,7 @@ public final class BoxPicker {
             }
             hash = box.hash();
             current = key(box);
+            startedAt = now;
             collectAt = 0;
             collectedAt = 0;
             tries = 0;
@@ -117,6 +121,15 @@ public final class BoxPicker {
             ctx.nav().moveTo(box.x(), box.y(), true);
         }
         WorldSnapshot.Collectable box = w.collectables().get(hash);
+        if (box != null && now - startedAt > MAX_BOX_NS) {
+            // live 2026-11-13 on 3-BL: a box by a no-access wall, the ship jittering at the nearest free point never
+            // came still, so no click counted — it stood 100 s
+            log.info("Не могу подобрать {} — бросаю", orbit.config.LootNames.of(current));
+            ignored.put(hash, now);
+            hash = null;
+            ctx.nav().stop();
+            return false;
+        }
         ctx.nav().tick();
         if (box != null && ctx.nav().idle() && !h.moving()) {
             // DarkBot's collector: click at once (a human moment), then stay the box's wait (collect.boxes waitMs,
@@ -152,6 +165,8 @@ public final class BoxPicker {
                     // mines and fireworks show among the resources but are no boxes (the user's list, 2026-11-12)
                     return r != null && r.collect() && orbit.config.BoxCatalog.collectable(key(b));
                 })
+                // not inside a no-access zone (the ship cannot get there)
+                .filter(b -> !orbit.world.maps.ZoneGeometry.blocked(w, b.x(), b.y()))
                 // not in the config's avoided zone (DarkBot's «avoided zones»)
                 .filter(b -> !Zones.avoided(c, w.hero().mapId(), b.x(), b.y(), ctx.maps()))
                 // a full hold (the config does something about it): no more boxes that fill it
