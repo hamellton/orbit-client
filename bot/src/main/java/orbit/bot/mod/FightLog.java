@@ -66,6 +66,7 @@ public final class FightLog {
         hitBy.clear();
         inRangeNs = 0;
         targetHitNs = 0;
+        shootingNs = 0;
         tune = false;
     }
 
@@ -83,6 +84,10 @@ public final class FightLog {
     private boolean tune;
     private long inRangeNs;
     private long targetHitNs;
+    /** In range with the ship's lasers on the target (the attack may not have run: then the range is not to blame). */
+    private long shootingNs;
+    /** Below this share of the time in range with the lasers on, a target that lost nothing says nothing of the range. */
+    static final double SHOOTING_SHARE = 0.5;
 
     /** The radius the fight was fought at and the one with nothing learned; {@code tune} — it may be learned. */
     void radius(double usedRadius, double baseRadius, boolean mayTune) {
@@ -101,6 +106,9 @@ public final class FightLog {
             inRangeNs += dt;
             if (t.attackTargetId() == h.id()) {
                 targetHitNs += dt;
+            }
+            if (h.attackTargetId() == t.id()) {
+                shootingNs += dt;
             }
         }
         lastSample = now;
@@ -139,8 +147,12 @@ public final class FightLog {
         target = null;
         if (tune && inRangeNs > 0) {
             boolean reached = targetHp0 < 0 || targetHp1 < 0 || targetHp1 < targetHp0 - 0.01 || "убит".equals(outcome);
-            RadiusTuner.learn(who, base, used, inRangeNs / 1e9, (double) targetHitNs / inRangeNs,
-                    reached && !"не теряет HP".equals(outcome));
+            boolean lostNothing = !reached || "не теряет HP".equals(outcome);
+            // live 2026-11-13 on 2-6: Kristallon at 632, in range all 31 s, lost nothing — the attack had not run,
+            // the radius was cut for it
+            if (!lostNothing || (double) shootingNs / inRangeNs >= SHOOTING_SHARE) {
+                RadiusTuner.learn(who, base, used, inRangeNs / 1e9, (double) targetHitNs / inRangeNs, !lostNothing);
+            }
         }
         if (!enabled || samples == 0) {
             return;
