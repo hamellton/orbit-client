@@ -84,7 +84,27 @@ final class KillSection implements Section {
                 new javax.swing.JComboBox<>(NpcTable.moveChoices())));
         table.getColumnModel().getColumn(5).setCellEditor(new javax.swing.DefaultCellEditor(
                 new javax.swing.JComboBox<>(NpcTable.ammoChoices())));
-        table.getTableHeader().setToolTipText("Приоритет: меньше — раньше. Карты: «3-6, 2-6» или «все».");
+        table.getTableHeader().setToolTipText("Приоритет: меньше — раньше. Радиус 0 — авто (подобранный ботом, иначе "
+                + "рекомендованный). Карты: «3-6, 2-6» или «все».");
+        // a radius left at 0: the one the bot fights at, greyed (the user, 2026-11-13: «радиусы показываются как 0»)
+        table.getColumnModel().getColumn(3).setCellRenderer(new javax.swing.table.DefaultTableCellRenderer() {
+            @Override
+            public java.awt.Component getTableCellRendererComponent(JTable t, Object value, boolean selected,
+                                                                    boolean focus, int row, int column) {
+                java.awt.Component c = super.getTableCellRendererComponent(t, value, selected, focus, row, column);
+                setHorizontalAlignment(RIGHT);
+                if (value instanceof Integer r && r == 0) {
+                    String name = String.valueOf(t.getModel().getValueAt(t.convertRowIndexToModel(row), 0));
+                    setText(Math.round(orbit.bot.mod.Targets.autoRadius(name)) + " авто");
+                    if (!selected) {
+                        c.setForeground(javax.swing.UIManager.getColor("Label.disabledForeground"));
+                    }
+                } else if (!selected) {
+                    c.setForeground(t.getForeground());
+                }
+                return c;
+            }
+        });
 
         JTextField search = new JTextField(16);
         search.putClientProperty("JTextField.placeholderText", "поиск NPC");

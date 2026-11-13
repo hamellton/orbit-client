@@ -58,6 +58,16 @@ public final class Targets {
         return RadiusTuner.radius(s.name(), baseRadius(c, s, mapId));
     }
 
+    /** The radius a kind left at 0 in the list is fought at: learned, else recommended, else {@link #DEFAULT_RADIUS}. */
+    public static double autoRadius(String name) {
+        double learned = RadiusTuner.learned(name);
+        if (learned > 0) {
+            return learned;
+        }
+        double recommended = orbit.world.maps.NpcRadius.bundled().of(name);
+        return recommended > 0 ? recommended : DEFAULT_RADIUS;
+    }
+
     /** The radius with nothing learned: the user's own, else DarkBot's recommended, else {@link #DEFAULT_RADIUS}. */
     static double baseRadius(BotConfig c, WorldSnapshot.Ship s, int mapId) {
         BotConfig.NpcRule r = rule(c, s, mapId);

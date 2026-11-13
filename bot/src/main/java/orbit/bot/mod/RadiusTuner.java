@@ -48,6 +48,13 @@ public final class RadiusTuner {
         onDisk = true;
     }
 
+    /** The learned radius of a kind for the config window, or a negative number when none yet. */
+    public static synchronized double learned(String name) {
+        load();
+        double[] k = name == null ? null : KINDS.get(name);
+        return k == null ? -1 : k[0];
+    }
+
     /** The learned radius of a kind, or {@code base} when none yet. */
     static synchronized double radius(String name, double base) {
         load();
