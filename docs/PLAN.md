@@ -516,10 +516,11 @@ SAFETY в нужном кубам объёме → KILL для кубов → 5�
         Sibelonit, Lordakium, Kristallin, Kristallon, StreuneR) — на 4-5 и во вратах Zeta, Hades, Kuiper; Cubikon и
         Protegit — x-6. Внесено то, что подтверждено двумя источниками (вики/форум, слова пользователя, увиденное
         ботом); при расхождении — слова пользователя (Boss Mordon и Boss Saimon — x-3 и x-4);
-      - [ ] проверить вживую: Boss Mordon и Boss Saimon — на x-3 и x-4 (пользователь, сам не уверен) или по форуму
+      - [x] проверить вживую: Boss Mordon и Boss Saimon — на x-3 и x-4 (пользователь, сам не уверен) или по форуму
         Boss Mordon только x-3, Boss Saimon только x-4; по журналу («на … за 10 мин не видно …») и по выученной таблице;
         вживую 2026-11-13 на ru1: на 2-3 есть оба (Boss Saimon — 86 боёв, Boss Mordon — 75), то есть форум
-        про Saimon «только x-4» неверен; x-4 ещё не проверена (пользователь не велел трогать четвёртые и пятые карты);
+        про Saimon «только x-4» неверен; на 2-4 (40 мин): Boss Saimon есть, Boss Mordon не встретился —
+        Boss Saimon на x-3 и x-4, Boss Mordon только на x-3;
       - [x] Blacklight (официальный «Blacklight FAQ», 2018-12-05; порталы — `portals.json`): три карты 1-BL (MMO),
         2-BL (EIC), 3-BL (VRU), вход с x-8 своей фирмы и между BL-картами; своя BL-карта с 17-го уровня, чужие —
         с 24-го (раньше бот пускал на все BL только с 24-го). NPC: Impulse II, Attend IX, Invoke XVI, Mindfire Behemoth
