@@ -7,7 +7,7 @@ Status: Stage 2 done; stage 3 in progress (login, game connection, vault, client
 `STAGE3.md` = website login, client startup sequence, world model).
 
 ## Rules
-- Never use AstraBot code or binaries. `reference/astra-config.json` is only a reference of user-visible options.
+- AstraBot and other bots copied from the friend's VPS lie in `vps-copy/` (not in git, with `vps.txt`); they may be studied.
 - DarkBot (GPL): take facts and logic, do not copy code wholesale.
 - Do not touch binaries in `../DO-files/lib` and `../DO-files/plugins`.
 - UI, logs, README in Russian; code and comments in English.
