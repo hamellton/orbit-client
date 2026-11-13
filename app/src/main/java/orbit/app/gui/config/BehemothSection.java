@@ -39,6 +39,25 @@ final class BehemothSection implements Section {
     private final JCheckBox petOnly = new JCheckBox("Питомец только у бегемота (в остальное время убран)");
     private final JCheckBox beacon = new JCheckBox("Боевой маяк питомца в бою, когда HP Link не нужен");
     private final JSpinner linkBelow = Form.percent();
+    // a train of others by the behemoth (CARNAGE's BLCycle and behemoth modules)
+    private final JCheckBox trainMode = new JCheckBox("Бить бегемота, даже когда рядом чужой поезд и бьёт нас");
+    private final JSpinner trainRadius = Form.number(300, 5_000, 100);
+    private final JSpinner trainLimit = Form.number(0, 50, 1);
+    private final JCheckBox avoidOrbit = new JCheckBox("Стоять с другой стороны бегемота от чужих (не лезть в их кольцо)");
+    private final JSpinner deathsPerSpawn = Form.number(0, 20, 1);
+    // players (CARNAGE's PvpHelper / DefenseMode, AstraBot's defenceMode, chaseEnemy, BLACKLIST)
+    private final JCheckBox respond = new JCheckBox("Отвечать игрокам, которые стреляют по нам, ближе чем");
+    private final JSpinner respondRadius = Form.number(200, 3_000, 50);
+    private final JCheckBox defendGroup = new JCheckBox("Защищать свою группу: бить тех, кто бьёт её");
+    private final JCheckBox hunt = new JCheckBox("Атаковать всех врагов ближе, чем");
+    private final JSpinner huntRadius = Form.number(300, 5_000, 100);
+    private final javax.swing.JTextField blacklist = new javax.swing.JTextField(24);
+    private final JComboBox<String> focus = new JComboBox<>(new String[] {"Сначала бегемот", "Сначала враги"});
+    private final ItemBox pvpAmmo = new ItemBox(ItemCatalog.LASERS, true);
+    // the group (AstraBot's followLeader / leaderId)
+    private final JCheckBox follow = new JCheckBox("Идти за лидером группы");
+    private final javax.swing.JTextField leader = new javax.swing.JTextField(18);
+    private final JSpinner followDistance = Form.number(100, 2_000, 50);
     private final JComponent view;
 
     BehemothSection() {
@@ -47,6 +66,18 @@ final class BehemothSection implements Section {
         ish.addActionListener(e -> sync());
         prismatic.addActionListener(e -> sync());
         jamx.addActionListener(e -> sync());
+        trainMode.addActionListener(e -> sync());
+        respond.addActionListener(e -> sync());
+        hunt.addActionListener(e -> sync());
+        follow.addActionListener(e -> sync());
+        trainRadius.setToolTipText("Чужие игроки ближе этого к бегемоту считаются поездом");
+        trainLimit.setToolTipText("Больше стольких врагов у бегемота — уйти на другую карту; 0 — не уходить (как BLCycle)");
+        deathsPerSpawn.setToolTipText("Погиб у бегемота столько раз — эту карту пропустить до следующего бегемота; 0 — нет");
+        blacklist.setToolTipText("Имена игроков через запятую — их бить всегда, когда видны (как BLACKLIST в AstraBot)");
+        focus.setToolTipText("Сначала бегемот — игроков только пока его нет; сначала враги — даже когда бегемот рядом");
+        pvpAmmo.setToolTipText("Патроны по игрокам; не выбраны — те, что стоят в игре");
+        leader.setToolTipText("Имя или номер лидера в группе; пусто — лидер группы");
+        followDistance.setToolTipText("Держаться не дальше этого от лидера");
         linkBelow.setToolTipText("HP Link (флаг в строке бегемота) — пока HP корабля ниже этого; 0 % — всегда");
         changeMap.setToolTipText("Сколько ждать на карте после прилёта (или после времени появления), потом — другая карта");
         respawn.setToolTipText("Через сколько минут бегемот появляется снова; 0 — бот узнаёт сам (до этого 15 мин)");
@@ -71,6 +102,28 @@ final class BehemothSection implements Section {
                 .row("HP Link, пока HP корабля ниже, %", linkBelow)
                 .row("", beacon)
                 .note("Энергетическая пиявка и способность корабля — галочки USE_LEECH и USE_ABILITY в строке бегемота.")
+                .section("Чужой поезд у бегемота")
+                .row("", trainMode)
+                .row("Поезд — чужие ближе к бегемоту, чем", trainRadius)
+                .row("Уйти, если врагов больше (0 — нет)", trainLimit)
+                .row("", avoidOrbit)
+                .row("Погиб столько раз — другая карта (0 — нет)", deathsPerSpawn)
+                .note("Как в CARNAGE: от их атак не убегаем, бьём бегемота дальше; урон засчитывается всем, кто бил."
+                        + " Против частых смертей — «Стоп после смертей от одного игрока» во вкладке «Безопасность».")
+                .section("Игроки")
+                .row("", Form.inline(respond, respondRadius))
+                .row("", defendGroup)
+                .row("", Form.inline(hunt, huntRadius))
+                .row("Чёрный список", blacklist)
+                .row("Кого бить первым", focus)
+                .row("Патроны по игрокам", pvpAmmo)
+                .note("Всё выключено — игроков бот не трогает. Свои по клану, союзники и группа не враги.")
+                .section("Группа")
+                .row("", follow)
+                .row("Лидер", leader)
+                .row("Держаться от лидера, не дальше", followDistance)
+                .note("За лидером: на его карту, рядом с ним, бьёт того игрока, которого бьёт он. Бегемота бьёт сам."
+                        + " Приглашения в группу — вкладка «Группа».")
                 .section("Ящик")
                 .row("", collect)
                 .row("Конфигурация", collectConfig)
@@ -85,6 +138,15 @@ final class BehemothSection implements Section {
         ishBelow.setEnabled(ish.isSelected());
         prismaticBelow.setEnabled(prismatic.isSelected());
         jamxDistance.setEnabled(jamx.isSelected());
+        boolean t = trainMode.isSelected();
+        trainRadius.setEnabled(t);
+        trainLimit.setEnabled(t);
+        avoidOrbit.setEnabled(t);
+        deathsPerSpawn.setEnabled(t);
+        respondRadius.setEnabled(respond.isSelected());
+        huntRadius.setEnabled(hunt.isSelected());
+        leader.setEnabled(follow.isSelected());
+        followDistance.setEnabled(follow.isSelected());
     }
 
     @Override
@@ -124,6 +186,25 @@ final class BehemothSection implements Section {
         petOnly.setSelected(m.path("petOnlyOnBehemoth").asBoolean(false));
         beacon.setSelected(m.path("usePetCombatBeacon").asBoolean(false));
         Form.setFraction(linkBelow, m.path("hpLinkPercent").asDouble(0) / 100);
+        trainMode.setSelected(m.path("trainMode").asBoolean(false));
+        Form.set(trainRadius, m.path("trainRadius").asInt(1_500));
+        Form.set(trainLimit, m.path("trainEnemyLimit").asInt(0));
+        avoidOrbit.setSelected(m.path("avoidEnemyOrbit").asBoolean(true));
+        Form.set(deathsPerSpawn, m.path("deathsPerSpawn").asInt(0));
+        respond.setSelected(m.path("respondPlayers").asBoolean(false));
+        Form.set(respondRadius, m.path("respondRadius").asInt(500));
+        defendGroup.setSelected(m.path("defendGroup").asBoolean(false));
+        hunt.setSelected(m.path("huntEnemies").asBoolean(false));
+        Form.set(huntRadius, m.path("huntRadius").asInt(1_500));
+        java.util.List<String> names = new java.util.ArrayList<>();
+        m.path("blacklist").forEach(n -> names.add(n.asText()));
+        blacklist.setText(String.join(", ", names));
+        focus.setSelectedIndex("ENEMY".equals(m.path("enemyFocus").asText("BEHEMOTH")) ? 1 : 0);
+        String pa = m.path("pvpAmmo").asText("");
+        pvpAmmo.set(pa.isBlank() ? null : pa);
+        follow.setSelected(m.path("followLeader").asBoolean(false));
+        leader.setText(m.path("leader").asText(""));
+        Form.set(followDistance, m.path("followDistance").asInt(400));
         sync();
     }
 
@@ -171,6 +252,27 @@ final class BehemothSection implements Section {
         m.put("petOnlyOnBehemoth", petOnly.isSelected());
         m.put("usePetCombatBeacon", beacon.isSelected());
         m.put("hpLinkPercent", Math.round(Form.fraction(linkBelow) * 100));
+        m.put("trainMode", trainMode.isSelected());
+        m.put("trainRadius", Form.intOf(trainRadius));
+        m.put("trainEnemyLimit", Form.intOf(trainLimit));
+        m.put("avoidEnemyOrbit", avoidOrbit.isSelected());
+        m.put("deathsPerSpawn", Form.intOf(deathsPerSpawn));
+        m.put("respondPlayers", respond.isSelected());
+        m.put("respondRadius", Form.intOf(respondRadius));
+        m.put("defendGroup", defendGroup.isSelected());
+        m.put("huntEnemies", hunt.isSelected());
+        m.put("huntRadius", Form.intOf(huntRadius));
+        ArrayNode bl = m.putArray("blacklist");
+        for (String n : blacklist.getText().split(",")) {
+            if (!n.isBlank()) {
+                bl.add(n.strip());
+            }
+        }
+        m.put("enemyFocus", focus.getSelectedIndex() == 1 ? "ENEMY" : "BEHEMOTH");
+        m.put("pvpAmmo", pvpAmmo.get() != null ? pvpAmmo.get() : "");
+        m.put("followLeader", follow.isSelected());
+        m.put("leader", leader.getText().strip());
+        m.put("followDistance", Form.intOf(followDistance));
         return c.withModuleSettings(KEY, m);
     }
 }

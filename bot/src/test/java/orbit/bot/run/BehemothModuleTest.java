@@ -116,6 +116,159 @@ class BehemothModuleTest {
         assertEquals(orbit.protocol.gen.PetGearTypeModule.PETGEARTYPE_HP_LINK, m.petGear(), "below 65 %: HP Link");
     }
 
+    /** A player of another faction (ours is 3). */
+    static void enemy(Sim sim, int id, String name, int x, int y) {
+        orbit.protocol.gen.ShipCreateCommand c = new orbit.protocol.gen.ShipCreateCommand();
+        c.userId = id;
+        c.userName = name;
+        c.factionId = 1;
+        c.x = x;
+        c.y = y;
+        sim.world.apply(c, sim.now);
+    }
+
+    static void shoots(Sim sim, int attacker, int target) {
+        orbit.protocol.gen.AttackLaserRunCommand run = new orbit.protocol.gen.AttackLaserRunCommand();
+        run.attackerId = attacker;
+        run.targetId = target;
+        sim.world.apply(run, sim.now);
+    }
+
+    static BotConfig with(BotConfig c, String json) throws Exception {
+        var s = c.moduleSettings("behemoth");
+        Json.MAPPER.readTree(json).properties().forEach(e -> s.set(e.getKey(), e.getValue()));
+        return c.withModuleSettings("behemoth", s);
+    }
+
+    @Test
+    void aTrainByTheBehemothIsNotRunFromAndTheShipStandsOnTheFarSide() throws Exception {
+        // CARNAGE's BLCycle: their attacks ignored, avoidEnemyOrbit (the user, 2026-11-13)
+        Sim sim = new Sim(with(config(300), "{\"trainMode\": true, \"avoidEnemyOrbit\": true}"), 308, 8_000, 5_700);
+        sim.lasers("ammunition_laser_a-bl");
+        BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
+        m.workingMap();
+        sim.npc(77, BEHEMOTH, 8_000, 5_000);
+        for (int i = 0; i < 3; i++) {
+            enemy(sim, 900 + i, "Train" + i, 7_000, 4_900 + i * 100);
+            shoots(sim, 900 + i, 1);
+        }
+        sim.run(m::tick, 20_000);
+        var h = sim.hero();
+        assertEquals(77, h.selected(), m.status());
+        assertTrue(h.x() > 8_300, "east of the behemoth, away from the train in the west: " + h);
+        assertTrue(m.status().contains("другой стороны"), m.status());
+    }
+
+    @Test
+    void moreEnemiesThanTheLimitSendTheShipToAnotherMap() throws Exception {
+        Sim sim = new Sim(with(config(300), "{\"trainMode\": true, \"trainEnemyLimit\": 2}"), 308, 8_000, 5_700);
+        BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
+        m.workingMap();
+        sim.npc(77, BEHEMOTH, 8_000, 5_000);
+        for (int i = 0; i < 3; i++) {
+            enemy(sim, 900 + i, "Train" + i, 7_500, 5_000 + i * 100);
+        }
+        sim.run(m::tick, 2_000);
+        assertTrue(m.workingMap() != 308, "three against a limit of two: another map, " + m.workingMap());
+    }
+
+    @Test
+    void diesTooOftenByTheBehemothThenAnotherMap() throws Exception {
+        // CARNAGE's DEATH_COUNT
+        Sim sim = new Sim(with(config(300), "{\"trainMode\": true, \"deathsPerSpawn\": 2}"), 308, 8_000, 5_700);
+        sim.lasers("ammunition_laser_a-bl");
+        BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
+        m.workingMap();
+        sim.npc(77, BEHEMOTH, 8_000, 5_000);
+        sim.run(m::tick, 2_000);
+        sim.ctx.stats().deaths.incrementAndGet();
+        m.observe();
+        assertEquals(308, m.workingMap(), "one death: on");
+        sim.run(m::tick, 2_000);
+        sim.ctx.stats().deaths.incrementAndGet();
+        m.observe();
+        assertTrue(m.workingMap() != 308, "two: the map is skipped, " + m.workingMap());
+    }
+
+    @Test
+    void playersAreLeftAloneUnlessTheConfigSaysAndThenAShooterIsAnswered() throws Exception {
+        Sim off = new Sim(config(300), 308, 5_700, 2_600);
+        BehemothModule quiet = new BehemothModule(off.ctx, SpawnMemory.inMemory());
+        quiet.workingMap();
+        enemy(off, 900, "Shooter", 6_000, 2_700);
+        shoots(off, 900, 1);
+        off.run(quiet::tick, 4_000);
+        assertTrue(off.sent.stream().noneMatch(p -> p instanceof ShipSelectRequest s && s.targetId == 900), "off: left alone");
+
+        Sim sim = new Sim(with(config(300), "{\"respondPlayers\": true, \"respondRadius\": 600}"), 308, 5_700, 2_600);
+        sim.lasers("ammunition_laser_ucb-100");
+        BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
+        m.workingMap();
+        enemy(sim, 900, "Shooter", 6_000, 2_700);
+        enemy(sim, 901, "Passer", 5_900, 2_500);
+        shoots(sim, 900, 1);
+        sim.run(m::tick, 4_000);
+        assertEquals(900, sim.hero().selected(), m.status());
+    }
+
+    @Test
+    void huntingWaitsForTheBehemothUnlessEnemiesComeFirst() throws Exception {
+        String hunt = "{\"huntEnemies\": true, \"huntRadius\": 1500}";
+        Sim sim = new Sim(with(config(300), hunt), 308, 8_000, 5_700);
+        sim.lasers("ammunition_laser_a-bl");
+        BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
+        m.workingMap();
+        sim.npc(77, BEHEMOTH, 8_000, 5_000);
+        enemy(sim, 900, "Enemy", 8_300, 5_800);
+        sim.run(m::tick, 5_000);
+        assertEquals(77, sim.hero().selected(), "the behemoth first");
+
+        Sim first = new Sim(with(config(300), "{\"huntEnemies\": true, \"enemyFocus\": \"ENEMY\"}"), 308, 8_000, 5_700);
+        BehemothModule e = new BehemothModule(first.ctx, SpawnMemory.inMemory());
+        e.workingMap();
+        first.npc(77, BEHEMOTH, 8_000, 5_000);
+        enemy(first, 900, "Enemy", 8_300, 5_800);
+        first.run(e::tick, 5_000);
+        assertEquals(900, first.hero().selected(), "enemies first");
+    }
+
+    static void groupWithLeader(Sim sim, int leaderMap, int lx, int ly) {
+        orbit.protocol.gen.GroupInitializationCommand g = new orbit.protocol.gen.GroupInitializationCommand();
+        g.id = 9;
+        g.leaderId = 50;
+        for (int id : new int[] {1, 50}) {
+            orbit.protocol.gen.GroupMemberInitializationCommand mm = new orbit.protocol.gen.GroupMemberInitializationCommand();
+            mm.id = id;
+            mm.name = id == 1 ? "me" : "Boss";
+            mm.location = new orbit.protocol.gen.LocationModule();
+            mm.location.mapId = id == 1 ? 308 : leaderMap;
+            mm.location.x = id == 1 ? 5_700 : lx;
+            mm.location.y = id == 1 ? 2_600 : ly;
+            g.members.add(mm);
+        }
+        sim.world.apply(g, sim.now);
+    }
+
+    @Test
+    void followsTheGroupLeaderToHisMapAndStaysCloseOnOurs() throws Exception {
+        // AstraBot's followLeader / leaderId
+        Sim sim = new Sim(with(config(300), "{\"followLeader\": true, \"leader\": \"\", \"followDistance\": 400}"), 308, 5_700, 2_600);
+        BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
+        groupWithLeader(sim, 307, 6_000, 6_000);
+        m.workingMap();
+        sim.run(m::tick, 500);
+        assertEquals(307, m.workingMap(), "the leader is on 2-BL");
+
+        Sim here = new Sim(with(config(300), "{\"followLeader\": true, \"leader\": \"Boss\"}"), 308, 5_700, 2_600);
+        BehemothModule f = new BehemothModule(here.ctx, SpawnMemory.inMemory());
+        groupWithLeader(here, 308, 9_000, 6_000);
+        f.workingMap();
+        here.run(f::tick, 20_000);
+        var h = here.hero();
+        assertTrue(Math.hypot(h.x() - 9_000, h.y() - 6_000) <= 450, "by the leader: " + h);
+        assertTrue(f.status().contains("за лидером"), f.status());
+    }
+
     @Test
     void anNpcShootingAtUsWhileWaitingIsFoughtBack() throws Exception {
         Sim sim = new Sim(config(300), 308, 5_700, 2_600);

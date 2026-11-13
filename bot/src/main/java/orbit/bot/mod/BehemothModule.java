@@ -79,6 +79,17 @@ public final class BehemothModule implements BotModule {
     private long deadAtNanos;
     private long checkAt;
     private String status = "Бегемот";
+    /** Fights with players: defence, the group's, enemies, the black list (all off unless the config says). */
+    private final PlayerFight players;
+    /** Maps skipped until then (wall ms): too many deaths there, or too many enemies by the behemoth. */
+    private final Map<Integer, Long> skipUntil = new HashMap<>();
+    /** Deaths by the behemoth of a map since its last death in sight. */
+    private final Map<Integer, Integer> deathsAt = new HashMap<>();
+    private int lastDeaths = -1;
+    private int fightMap;
+    private long fightMapAt;
+    private boolean trainTold;
+    private String leaderTold;
 
     public BehemothModule(BotContext ctx, SpawnMemory memory) {
         this.ctx = ctx;
@@ -86,6 +97,7 @@ public final class BehemothModule implements BotModule {
         this.attacker = new Attacker(ctx);
         this.boxes = new BoxPicker(ctx);
         this.nanoBase = ctx.now();
+        this.players = new PlayerFight(ctx);
     }
 
     private JsonNode settings() {
@@ -113,12 +125,12 @@ public final class BehemothModule implements BotModule {
 
     @Override
     public boolean busy() {
-        return attacker.targetId() != 0 && onBehemoth;
+        return attacker.targetId() != 0 && onBehemoth || players.targetId() != 0;
     }
 
     @Override
     public int fightTarget() {
-        return attacker.targetId();
+        return players.targetId() != 0 ? players.targetId() : attacker.targetId();
     }
 
     /**
@@ -152,6 +164,7 @@ public final class BehemothModule implements BotModule {
     @Override
     public void pause() {
         attacker.clear();
+        players.clear();
         boxes.clear();
         arrivedAt = 0;
     }
@@ -159,6 +172,7 @@ public final class BehemothModule implements BotModule {
     @Override
     public void observe() {
         watch(ctx.world().get());
+        countDeaths();
     }
 
     @Override
@@ -173,7 +187,17 @@ public final class BehemothModule implements BotModule {
                 on(s, "usePrismatic", false) ? percent(s, "prismaticPercent", 50) : -1,
                 on(s, "useSpearheadJamx", false) ? number(s, "jamxDistance", 750) : -1));
 
+        countDeaths();
         WorldSnapshot.Ship b = findBehemoth(c, w);
+        if (fightPlayers(c, s, w, b)) {
+            return;
+        }
+        if (b != null && skipped(h.mapId())) {
+            b = null; // given up here until it comes again: on to another map
+            if (chosen == h.mapId()) {
+                chosen = choose(h.mapId(), h.mapId());
+            }
+        }
         if (b != null) {
             if (!onBehemoth) {
                 log.info("Бегемот на карте — к нему ({} от нас, HP {})", (int) b.distanceTo(h.x(), h.y()), hp(b));
@@ -181,8 +205,13 @@ public final class BehemothModule implements BotModule {
             }
             deadAt = null;
             arrivedAt = 0;
+            fightMap = h.mapId();
+            fightMapAt = ctx.now();
             if (attacker.targetId() != b.id()) {
                 attacker.target(b);
+            }
+            if (train(c, s, w, b)) {
+                return;
             }
             attacker.tick(true);
             status = "Бой: бегемот, HP " + hp(b);
@@ -204,6 +233,9 @@ public final class BehemothModule implements BotModule {
                 return; // the runner flies there
             }
         }
+        if (followLeader(s, w)) {
+            return;
+        }
         if (h.mapId() != chosen) {
             return; // the runner flies there first
         }
@@ -211,6 +243,266 @@ public final class BehemothModule implements BotModule {
             return;
         }
         waitHere(s, h);
+    }
+
+    /** The map is given up until its behemoth comes again. */
+    private boolean skipped(int map) {
+        Long until = skipUntil.get(map);
+        return until != null && until > wallMs();
+    }
+
+    private void skip(int map, String why) {
+        long until = wallMs() + respawn(map);
+        skipUntil.put(map, until);
+        deathsAt.remove(map);
+        log.info("{}: {} — пропускаю карту до следующего бегемота ({})", ctx.maps().info(map).name(), why,
+                clock(until - wallMs()));
+    }
+
+    /**
+     * Deaths by the behemoth (the fight was there a moment before): {@code trainMode} with {@code deathsPerSpawn} — so
+     * many there and the map is skipped until its next behemoth (CARNAGE's DEATH_COUNT, orbithelper's deathCount).
+     */
+    private void countDeaths() {
+        int d = ctx.stats().deaths.get();
+        if (lastDeaths >= 0 && d > lastDeaths && fightMap != 0 && ctx.now() - fightMapAt < 90_000_000_000L) {
+            JsonNode s = settings();
+            int n = deathsAt.merge(fightMap, d - lastDeaths, Integer::sum);
+            int limit = (int) number(s, "deathsPerSpawn", 0);
+            if (on(s, "trainMode", false) && limit > 0) {
+                if (n >= limit) {
+                    skip(fightMap, "погиб у бегемота " + n + " раз");
+                    if (chosen == fightMap) {
+                        chosen = choose(fightMap, fightMap);
+                    }
+                } else {
+                    log.info("Погиб у бегемота на {}: {} из {}", ctx.maps().info(fightMap).name(), n, limit);
+                }
+            }
+            fightMap = 0;
+        }
+        lastDeaths = d;
+    }
+
+    /**
+     * A train of others by the behemoth ({@code trainMode}; CARNAGE's BLCycle: their attacks do not make us run,
+     * {@code behemothPolicy = IGNORE_ATTACKED_USE_COUNT}): more enemies than {@code trainEnemyLimit} within
+     * {@code trainRadius} of it — another map; with {@code avoidEnemyOrbit} the ship stands on the far side of the
+     * behemoth from them, at its radius, and shoots from there instead of circling through their ring. True when it
+     * took over the tick.
+     */
+    private boolean train(BotConfig c, JsonNode s, WorldSnapshot w, WorldSnapshot.Ship b) {
+        if (!on(s, "trainMode", false)) {
+            return false;
+        }
+        WorldSnapshot.Hero h = w.hero();
+        double radius = number(s, "trainRadius", 1_500);
+        java.util.Set<Integer> group = PlayerFight.group(w);
+        List<String> black = names(s, "blacklist");
+        List<WorldSnapshot.Ship> enemies = w.ships().values().stream()
+                .filter(x -> PlayerFight.enemy(x, h, group, black))
+                .filter(x -> Math.hypot(x.x() - b.x(), x.y() - b.y()) <= radius)
+                .toList();
+        int limit = (int) number(s, "trainEnemyLimit", 0);
+        if (limit > 0 && enemies.size() > limit) {
+            attacker.clear();
+            skip(h.mapId(), "у бегемота врагов " + enemies.size() + " (больше " + limit + ")");
+            chosen = choose(h.mapId(), h.mapId());
+            onBehemoth = false;
+            return true;
+        }
+        if (enemies.isEmpty()) {
+            trainTold = false;
+            return false;
+        }
+        if (!trainTold) {
+            trainTold = true;
+            log.info("У бегемота чужие: {} — бью дальше{}", enemies.size(),
+                    on(s, "avoidEnemyOrbit", true) ? ", стою с другой стороны от них" : "");
+        }
+        if (!on(s, "avoidEnemyOrbit", true)) {
+            return false;
+        }
+        double ex = enemies.stream().mapToInt(WorldSnapshot.Ship::x).average().orElse(b.x());
+        double ey = enemies.stream().mapToInt(WorldSnapshot.Ship::y).average().orElse(b.y());
+        double dx = b.x() - ex;
+        double dy = b.y() - ey;
+        double len = Math.hypot(dx, dy);
+        if (len < 1) {
+            dx = h.x() - b.x();
+            dy = h.y() - b.y();
+            len = Math.max(1, Math.hypot(dx, dy));
+        }
+        double r = Targets.radius(c, b, h.mapId());
+        double px = b.x() + dx / len * r;
+        double py = b.y() + dy / len * r;
+        if (Math.hypot(px - h.x(), py - h.y()) > 150) {
+            if (ctx.nav().idle() || Math.hypot(ctx.nav().destination().x() - px, ctx.nav().destination().y() - py) > 120) {
+                ctx.nav().moveTo(px, py, true);
+            }
+            ctx.nav().tick();
+        }
+        attacker.tick(false);
+        status = "Бой: бегемот, HP " + hp(b) + "; чужих " + enemies.size() + " — стою с другой стороны";
+        return true;
+    }
+
+    /**
+     * Players to fight (all off by default): those shooting at us within {@code respondRadius} ({@code respondPlayers},
+     * CARNAGE's PvpHelper / DefenseMode respondAttacks), those shooting at our group within {@code huntRadius}
+     * ({@code defendGroup}, DefenseMode helpAttack), the black list in sight ({@code blacklist}, AstraBot's BLACKLIST),
+     * any enemy within {@code huntRadius} ({@code huntEnemies}, AstraBot's chaseEnemy / chaseDistance, the CITA
+     * follower's ATTACK_PLAYER). By the behemoth: only with {@code enemyFocus = ENEMY} (CARNAGE FOCUS_ENEMY_FIRST),
+     * otherwise its fight comes first (BLCycle: their attacks are ignored).
+     */
+    private boolean fightPlayers(BotConfig c, JsonNode s, WorldSnapshot w, WorldSnapshot.Ship b) {
+        boolean respond = on(s, "respondPlayers", false);
+        boolean defend = on(s, "defendGroup", false);
+        boolean hunt = on(s, "huntEnemies", false);
+        List<String> black = names(s, "blacklist");
+        if (!respond && !defend && !hunt && black.isEmpty()) {
+            players.clear();
+            return false;
+        }
+        boolean enemyFirst = "ENEMY".equals(text(s, "enemyFocus", "BEHEMOTH"));
+        if (b != null && !enemyFirst && !skipped(w.hero().mapId())) {
+            players.clear();
+            return false; // the behemoth first
+        }
+        String ammo = text(s, "pvpAmmo", "");
+        ammo = ammo.isBlank() ? null : ammo;
+        if (players.targetId() != 0) {
+            if (players.tick(ammo)) {
+                attacker.clear();
+                status = "Бой с игроком " + players.targetName();
+                return true;
+            }
+        }
+        WorldSnapshot.Hero h = w.hero();
+        java.util.Set<Integer> group = PlayerFight.group(w);
+        double respondR = number(s, "respondRadius", 500);
+        double huntR = number(s, "huntRadius", 1_500);
+        WorldSnapshot.Ship pick = null;
+        String why = null;
+        List<WorldSnapshot.Ship> enemies = w.ships().values().stream()
+                .filter(x -> PlayerFight.enemy(x, h, group, black))
+                .sorted(Comparator.comparingDouble(x -> x.distanceTo(h.x(), h.y())))
+                .toList();
+        for (WorldSnapshot.Ship e : enemies) {
+            double d = e.distanceTo(h.x(), h.y());
+            if (respond && d <= respondR && (e.attackTargetId() == h.id() || h.attackers().contains(e.id()))) {
+                pick = e;
+                why = "стреляет по нам — отвечаю";
+                break;
+            }
+        }
+        for (int i = 0; pick == null && i < enemies.size(); i++) {
+            WorldSnapshot.Ship e = enemies.get(i);
+            double d = e.distanceTo(h.x(), h.y());
+            if (defend && d <= huntR && e.attackTargetId() != 0 && group.contains(e.attackTargetId())) {
+                pick = e;
+                why = "бьёт нашу группу — защищаю";
+            } else if (!black.isEmpty() && e.name() != null && black.contains(e.name()) && d <= huntR) {
+                pick = e;
+                why = "в чёрном списке";
+            } else if (hunt && d <= huntR) {
+                pick = e;
+                why = "враг рядом — атакую";
+            }
+        }
+        if (pick == null) {
+            return false;
+        }
+        attacker.clear();
+        players.target(pick, why);
+        players.tick(ammo);
+        status = "Бой с игроком " + pick.name();
+        return true;
+    }
+
+    /**
+     * {@code followLeader} (AstraBot's followLeader / leaderId, the CITA follower's GROUP_MASTER): the leader is a
+     * member of our group by {@code leader} (name or id; empty — the group's leader). On another map — there; on ours
+     * and no behemoth — close to him ({@code followDistance}), on what he fights if it is an enemy player in sight. No
+     * leader in the group — on our own. True when it took over the tick.
+     */
+    private boolean followLeader(JsonNode s, WorldSnapshot w) {
+        if (!on(s, "followLeader", false)) {
+            return false;
+        }
+        WorldSnapshot.Hero h = w.hero();
+        String who = text(s, "leader", "").strip();
+        WorldSnapshot.Member leader = null;
+        for (WorldSnapshot.Member m : w.group().members()) {
+            if (m.id() == h.id()) {
+                continue;
+            }
+            boolean byName = !who.isEmpty() && (who.equalsIgnoreCase(m.name()) || who.equals(String.valueOf(m.id())));
+            boolean byGroup = who.isEmpty() && m.id() == w.group().leaderId();
+            if (byName || byGroup) {
+                leader = m;
+            }
+        }
+        if (leader == null || leader.loggedOut()) {
+            String told = who.isEmpty() ? "у группы нет лидера" : who + " нет в группе";
+            if (!told.equals(leaderTold)) {
+                leaderTold = told;
+                log.info("За лидером: {} — работаю сам", told);
+            }
+            return false;
+        }
+        if (!leader.name().equals(leaderTold)) {
+            leaderTold = leader.name();
+            log.info("Иду за лидером {}", leader.name());
+        }
+        if (leader.mapId() != 0 && leader.mapId() != h.mapId()) {
+            chosen = leader.mapId();
+            status = "За лидером на " + ctx.maps().info(leader.mapId()).name();
+            return true; // the runner flies there
+        }
+        chosen = h.mapId();
+        WorldSnapshot.Ship ship = w.ships().get(leader.id());
+        double lx = ship != null ? ship.x() : leader.x();
+        double ly = ship != null ? ship.y() : leader.y();
+        String target = leader.targetName();
+        if (target != null && !target.isBlank()) {
+            java.util.Set<Integer> group = PlayerFight.group(w);
+            WorldSnapshot.Ship t = w.ships().values().stream()
+                    .filter(x -> target.equals(x.name()) && PlayerFight.enemy(x, h, group, names(s, "blacklist")))
+                    .findFirst().orElse(null);
+            if (t != null) {
+                attacker.clear();
+                players.target(t, "его бьёт лидер");
+                String ammo = text(s, "pvpAmmo", "");
+                players.tick(ammo.isBlank() ? null : ammo);
+                status = "С лидером бью игрока " + t.name();
+                return true;
+            }
+        }
+        double keep = number(s, "followDistance", 400);
+        double dist = Math.hypot(lx - h.x(), ly - h.y());
+        ctx.ship().want(ctx.config().get().general().roam());
+        if (dist > keep) {
+            if (ctx.nav().idle() || Math.hypot(ctx.nav().destination().x() - lx, ctx.nav().destination().y() - ly) > keep / 2) {
+                ctx.nav().moveTo(lx, ly, dist < 2_500);
+            }
+            ctx.nav().tick();
+        }
+        status = "Иду за лидером " + leader.name();
+        return true;
+    }
+
+    /** A list of names in the settings. */
+    private static List<String> names(JsonNode s, String key) {
+        List<String> out = new ArrayList<>();
+        if (s != null && s.path(key).isArray()) {
+            for (JsonNode n : s.path(key)) {
+                if (!n.asText("").isBlank()) {
+                    out.add(n.asText().strip());
+                }
+            }
+        }
+        return out;
     }
 
     /** The box after the kill (true while busy with it). */
@@ -339,7 +631,7 @@ public final class BehemothModule implements BotModule {
         int best = 0;
         long bestAt = Long.MAX_VALUE;
         for (int m : maps) {
-            if (m == leaving && maps.size() > 1) {
+            if (m == leaving && maps.size() > 1 || skipped(m) && maps.stream().anyMatch(x -> !skipped(x))) {
                 continue;
             }
             long arrive = wall + (m == here ? 0 : TRAVEL_MS);
@@ -433,6 +725,7 @@ public final class BehemothModule implements BotModule {
                 }
                 attacker.clear();
                 memory.killed(h.mapId(), p[0], p[1], now);
+                deathsAt.remove(h.mapId());
                 deadAt = p;
                 deadAtNanos = ctx.now();
                 ctx.nav().stop();
