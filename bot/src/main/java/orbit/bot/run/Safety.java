@@ -86,6 +86,14 @@ public final class Safety {
     }
 
     public boolean tick(boolean fighting) {
+        return tick(fighting, false);
+    }
+
+    /**
+     * @param almostDead the target is nearly dead: no early leaving for the fast loss, the usual threshold stays (live
+     *                   2026-11-13 on 3-BL: Attend IX left at 1 % for an early repair at 53 %)
+     */
+    public boolean tick(boolean fighting, boolean almostDead) {
         WorldSnapshot w = ctx.world().get();
         WorldSnapshot.Hero h = w.hero();
         BotConfig.Safety s = ctx.config().get().safety();
@@ -107,7 +115,7 @@ public final class Safety {
             double limit = attacked || fighting ? s.repairHpMin() : s.repairHpNoNpc();
             // losing hull fast: leave the more early, so as to reach the portal (live 2026-11-13: 25 % → 5 % on the
             // 7 s way to it, killed)
-            double early = attacked ? Math.min(EARLY_MAX, hpLossPerSecond(now) * EARLY_SECONDS) : 0;
+            double early = attacked && !almostDead ? Math.min(EARLY_MAX, hpLossPerSecond(now) * EARLY_SECONDS) : 0;
             if (early > 0.02 && hp >= limit && hp < limit + early) {
                 log.info("Теряю {}% HP в секунду — ухожу на ремонт раньше", pct(hpLossPerSecond(now)));
             }

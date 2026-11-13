@@ -411,7 +411,7 @@ public final class BotRunner {
         }
         // the repair before keeping off others: getting away from an NPC must not stop the trip to the portal (live
         // 2026-11-13: 75 % → 23 % in 8 s while stepping out of reach, the repair never began, killed)
-        if (safety.tick(module != null && module.busy())) {
+        if (safety.tick(module != null && module.busy(), almostDead(w))) {
             if (module != null) {
                 module.pause();
             }
@@ -549,6 +549,18 @@ public final class BotRunner {
     static final double FINISH_BELOW = 0.3;
     /** …while the ship has at least this share of its hull. */
     static final double FINISH_HULL = 0.4;
+
+    /** The target shot has less than this left: the early repair waits for its end. */
+    static final double ALMOST_DEAD = 0.1;
+
+    private static boolean almostDead(WorldSnapshot w) {
+        WorldSnapshot.Ship t = w.ships().get(w.hero().attackTargetId());
+        if (t == null || !t.npc() || !t.health().known()) {
+            return false;
+        }
+        double max = t.health().hpMax() + Math.max(0, t.health().shieldMax());
+        return max > 0 && (t.health().hp() + Math.max(0, t.health().shield())) / max < ALMOST_DEAD;
+    }
 
     private static boolean finishing(WorldSnapshot w) {
         WorldSnapshot.Hero h = w.hero();
