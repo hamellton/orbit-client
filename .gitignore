@@ -26,3 +26,7 @@ creds.txt
 *.creds
 reference/client/_download/
 __pycache__/
+
+# A friend's VPS: credentials and the folder copied from it (never commit)
+vps.txt
+vps-copy/
