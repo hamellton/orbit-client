@@ -37,6 +37,38 @@ public final class Threats {
 
     /** NPC kinds seen shooting the ship first (it was not shooting them): they attack on sight. */
     private static final Set<String> AGGRESSIVE_KINDS = ConcurrentHashMap.newKeySet();
+    /**
+     * Kept across runs (live 2026-11-13 on 3-BL: after each restart Attend IX and Steadfast III counted as quiet until
+     * they shot again, and the circle flew by them).
+     */
+    private static final java.nio.file.Path FILE = java.nio.file.Path.of("local", "npc-aggressive.json");
+    private static volatile boolean onDisk;
+
+    /** The app keeps the kinds learned; tests do not. */
+    public static synchronized void keepOnDisk() {
+        onDisk = true;
+        try {
+            if (java.nio.file.Files.exists(FILE)) {
+                new com.fasterxml.jackson.databind.ObjectMapper().readTree(FILE.toFile())
+                        .forEach(n -> AGGRESSIVE_KINDS.add(n.asText()));
+            }
+        } catch (java.io.IOException e) {
+            // learned again
+        }
+    }
+
+    private static void save() {
+        if (!onDisk) {
+            return;
+        }
+        try {
+            java.nio.file.Files.createDirectories(FILE.toAbsolutePath().getParent());
+            new com.fasterxml.jackson.databind.ObjectMapper().writerWithDefaultPrettyPrinter()
+                    .writeValue(FILE.toFile(), new java.util.TreeSet<>(AGGRESSIVE_KINDS));
+        } catch (java.io.IOException e) {
+            // kept for this run
+        }
+    }
 
     private final BotContext ctx;
     private final WorldSnapshot w;
@@ -67,8 +99,9 @@ public final class Threats {
     static void learn(WorldSnapshot w) {
         WorldSnapshot.Hero h = w.hero();
         for (WorldSnapshot.Ship s : w.ships().values()) {
-            if (s.npc() && s.attackTargetId() == h.id() && h.attackTargetId() != s.id() && s.name() != null) {
-                AGGRESSIVE_KINDS.add(s.name());
+            if (s.npc() && s.attackTargetId() == h.id() && h.attackTargetId() != s.id() && s.name() != null
+                    && AGGRESSIVE_KINDS.add(s.name())) {
+                save();
             }
         }
     }
