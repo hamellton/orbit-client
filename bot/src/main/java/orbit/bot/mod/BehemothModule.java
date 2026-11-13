@@ -121,6 +121,14 @@ public final class BehemothModule implements BotModule {
     private int[] behemothSeenAtPos;
     private long killedAt;
     private boolean killCounted;
+    /** The behemoth's number for the pet's enemy locator (AstraBot's NPC list: Mindfire Behemoth 178). */
+    public static final int BEHEMOTH_NPC = 178;
+    /** A locator answer this fresh counts; one sooner than this after coming to the map is still about the last map. */
+    static final long LOCATOR_FRESH_MS = 6_000;
+    static final long LOCATOR_SETTLE_MS = 5_000;
+    private long mapEnteredNanos;
+    private String locatorTold = "";
+    private long noneHandled;
     /** Leave this long before the flight says (a turn, a slow start). */
     static final long LEAD_MS = 5_000;
 
@@ -238,10 +246,20 @@ public final class BehemothModule implements BotModule {
         return on(s, "usePetCombatBeacon", false) ? orbit.protocol.gen.PetGearTypeModule.PETGEARTYPE_COMBAT_BEACON : -1;
     }
 
+    /**
+     * {@code useLocator} (the user, 2026-11-13: «если на карте есть бегемот, то он будет в выборе пеленгатора»): the pet's
+     * enemy locator on the behemoth while there is none in sight — a point: it is on this map, fly to it; «nothing»: it
+     * is not, on to the next map at once instead of waiting.
+     */
+    @Override
+    public int petLocator() {
+        return on(settings(), "useLocator", false) && !onBehemoth ? BEHEMOTH_NPC : 0;
+    }
+
     /** {@code petOnlyOnBehemoth}: out while a behemoth is in sight, in otherwise. */
     @Override
     public Boolean petOut() {
-        if (beaconOn) {
+        if (beaconOn || on(settings(), "useLocator", false)) {
             return true;
         }
         if (!on(settings(), "petOnlyOnBehemoth", false)) {
@@ -335,6 +353,9 @@ public final class BehemothModule implements BotModule {
         }
         if (h.mapId() != chosen) {
             return; // the runner flies there first
+        }
+        if (locate(s, w)) {
+            return;
         }
         if (fightWhileWaiting(c, s, w)) {
             return;
@@ -735,6 +756,59 @@ public final class BehemothModule implements BotModule {
         lastUri = uri;
     }
 
+    /** The locator's word on this map (see {@link #petLocator}); true when it took over the tick. */
+    private boolean locate(JsonNode s, WorldSnapshot w) {
+        if (!on(s, "useLocator", false)) {
+            return false;
+        }
+        WorldSnapshot.Pet pet = w.pet();
+        WorldSnapshot.Hero h = w.hero();
+        long now = ctx.now();
+        long settled = mapEnteredNanos + LOCATOR_SETTLE_MS * 1_000_000;
+        if (!pet.active()) {
+            return false;
+        }
+        if (pet.locatorWithin(now, LOCATOR_FRESH_MS) && pet.locatorNanos() > settled) {
+            int x = pet.locatorX();
+            int y = pet.locatorY();
+            double dist = Math.hypot(x - h.x(), y - h.y());
+            if (dist < 900) {
+                return false; // close: it comes into sight
+            }
+            String told = "point:" + h.mapId();
+            if (!told.equals(locatorTold)) {
+                locatorTold = told;
+                log.info("Пеленгатор: бегемот на {} у {}/{}, в {} от нас — лечу", ctx.maps().info(h.mapId()).name(),
+                        x / 100, y / 100, (int) dist);
+            }
+            ctx.ship().want(ctx.config().get().general().travel());
+            if (ctx.nav().idle() || Math.hypot(ctx.nav().destination().x() - x, ctx.nav().destination().y() - y) > 300) {
+                ctx.nav().moveTo(x, y, false);
+            }
+            ctx.nav().tick();
+            arrivedAt = 0;
+            status = "Лечу к бегемоту по пеленгатору: " + x / 100 + "/" + y / 100;
+            return true;
+        }
+        if (pet.locatorNoneWithin(now, LOCATOR_FRESH_MS) && pet.locatorNoneNanos() > settled
+                && pet.locatorNoneNanos() != noneHandled) {
+            noneHandled = pet.locatorNoneNanos();
+            long wall = wallMs();
+            emptyAt.put(h.mapId(), wall);
+            int next = choose(h.mapId(), h.mapId());
+            log.info("Пеленгатор: бегемота на {} нет — {}", ctx.maps().info(h.mapId()).name(),
+                    next == h.mapId() ? "жду здесь" : "лечу на " + ctx.maps().info(next).name());
+            locatorTold = "";
+            if (next != h.mapId()) {
+                chosen = next;
+                arrivedAt = 0;
+                waitMap = 0;
+                return true;
+            }
+        }
+        return false;
+    }
+
     /** The box after the kill (true while busy with it). */
     private boolean afterKill(JsonNode s) {
         if (!on(s, "collectBox", true)) {
@@ -962,6 +1036,7 @@ public final class BehemothModule implements BotModule {
             seen.clear();
             seenMap = h.mapId();
             waitMap = 0; // another map: a wait here later starts afresh
+            mapEnteredNanos = ctx.now();
         }
         for (WorldSnapshot.Ship s : w.ships().values()) {
             if (s.npc() && isBehemoth(s)) {

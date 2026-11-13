@@ -257,7 +257,7 @@ public final class World {
                     if (pet.locatorNanos() != 0) {
                         log.info("Пеленгатор: цель не найдена (игра прислала точку {}/{} — это «ничего»)", p.x, p.y);
                     }
-                    pet = petLocator(0, 0, 0);
+                    pet = petLocator(0, 0, 0, nanos);
                 } else {
                     pet = petLocator(p.x, p.y, nanos);
                 }
@@ -448,11 +448,47 @@ public final class World {
                     resources.put(p.item.lootId, p.item.amount);
                 }
             }
-            case LegacyModule p -> legacy(p.message, nanos);
-            default -> {
-                // not part of the world model
+            case LegacyModule p -> {
+                recon("текст", p.message.length() > 12 ? p.message.substring(0, p.message.indexOf('|', 4) > 0
+                        ? Math.min(p.message.length(), p.message.indexOf('|', p.message.indexOf('|', 2) + 1) + 1) : 12)
+                        : p.message, p.message);
+                legacy(p.message, nanos);
+            }
+            default -> recon("пакет", packet.getClass().getSimpleName(), fields(packet));
+        }
+    }
+
+    /**
+     * Temporary recon on the Blacklight maps (the user, 2026-11-13: the bot cannot tell that a train killed the
+     * behemoth while it was elsewhere — what does the server say about it?): the first few of each packet the model
+     * does not take, and of each kind of text message, go to the log with their fields.
+     */
+    private final Map<String, Integer> reconSeen = new HashMap<>();
+
+    private void recon(String what, String kind, String content) {
+        if (hero.mapId < 306 || hero.mapId > 308) {
+            return;
+        }
+        int n = reconSeen.merge(kind, 1, Integer::sum);
+        if (n <= 5) {
+            log.info("Разведка BL ({}): {} — {}", what, kind, content.length() > 400 ? content.substring(0, 400) + "…" : content);
+        }
+    }
+
+    private static String fields(Object p) {
+        StringBuilder sb = new StringBuilder();
+        for (java.lang.reflect.Field f : p.getClass().getFields()) {
+            if (java.lang.reflect.Modifier.isStatic(f.getModifiers())) {
+                continue;
+            }
+            try {
+                Object v = f.get(p);
+                sb.append(f.getName()).append('=').append(v instanceof Object[] a ? java.util.Arrays.toString(a) : v).append(' ');
+            } catch (IllegalAccessException e) {
+                // skipped
             }
         }
+        return sb.toString().strip();
     }
 
     /** Applies a packet the bot sent at {@code nanos}; only the hero's movement matters. */
@@ -1042,24 +1078,28 @@ public final class World {
                                   int gear) {
         return new WorldSnapshot.Pet(owned, alive, hasFuel, active, id, name, level, health, fuel, fuelMax, heat, heatMax,
                 gear, pet.gearNanos(), pet.gears(), pet.repairCost(), pet.comboRepair(), pet.locatorX(), pet.locatorY(),
-                pet.locatorNanos());
+                pet.locatorNanos(), pet.locatorNoneNanos());
     }
 
     /** Locator points within this of the map's corner mean «nothing found». */
     static final int LOCATOR_CORNER = 500;
 
     private WorldSnapshot.Pet petLocator(int x, int y, long nanos) {
+        return petLocator(x, y, nanos, pet.locatorNoneNanos());
+    }
+
+    private WorldSnapshot.Pet petLocator(int x, int y, long nanos, long noneNanos) {
         WorldSnapshot.Pet p = pet;
         return new WorldSnapshot.Pet(p.owned(), p.alive(), p.hasFuel(), p.active(), p.id(), p.name(), p.level(),
                 p.health(), p.fuel(), p.fuelMax(), p.heat(), p.heatMax(), p.gear(), p.gearNanos(), p.gears(),
-                p.repairCost(), p.comboRepair(), x, y, nanos);
+                p.repairCost(), p.comboRepair(), x, y, nanos, noneNanos);
     }
 
     private WorldSnapshot.Pet petWith(long gearNanos, java.util.Set<Integer> gears, int repairCost, boolean comboRepair) {
         WorldSnapshot.Pet p = pet;
         return new WorldSnapshot.Pet(p.owned(), p.alive(), p.hasFuel(), p.active(), p.id(), p.name(), p.level(),
                 p.health(), p.fuel(), p.fuelMax(), p.heat(), p.heatMax(), p.gear(), gearNanos, gears, repairCost, comboRepair,
-                p.locatorX(), p.locatorY(), p.locatorNanos());
+                p.locatorX(), p.locatorY(), p.locatorNanos(), p.locatorNoneNanos());
     }
 
     private WorldSnapshot.Pet withPetHealth(Health h) {

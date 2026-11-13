@@ -41,6 +41,7 @@ final class BehemothSection implements Section {
     private final JSpinner linkBelow = Form.percent();
     private final JCheckBox onTime = new JCheckBox("Прилетать ровно к появлению (пока рано — ждать на своей карте)");
     private final JSpinner reward = Form.number(0, 100_000, 500);
+    private final JCheckBox useLocator = new JCheckBox("Искать бегемота пеленгатором питомца");
     private final JCheckBox useCloak = new JCheckBox("Маскировка, пока ждём бегемота (CL04K)");
     private final ItemBox cloakFormation = new ItemBox(ItemCatalog.FORMATIONS, true);
     private final JSpinner beaconSeconds = Form.number(0, 120, 1);
@@ -99,6 +100,9 @@ final class BehemothSection implements Section {
                 .row("Появляется снова через, мин", respawn)
                 .row("", onTime)
                 .row("Засчитывать убийство от, уридия", reward)
+                .row("", useLocator)
+                .note("Пеленгатор (нужен модуль у питомца): есть бегемот на карте — летит к нему; «нет» — сразу на"
+                        + " другую карту, не ждёт. Питомец тогда выпущен всё время.")
                 .note("Бот запоминает, когда бегемот появился и погиб на каждой карте, и летит туда, где он будет раньше;"
                         + " ждёт у места появления (точки — из BeheFarm, уточняются по увиденному).")
                 .section("Бой")
@@ -207,6 +211,7 @@ final class BehemothSection implements Section {
         beacon.setSelected(m.path("usePetCombatBeacon").asBoolean(false));
         Form.setFraction(linkBelow, m.path("hpLinkPercent").asDouble(0) / 100);
         onTime.setSelected(m.path("arriveOnTime").asBoolean(false));
+        useLocator.setSelected(m.path("useLocator").asBoolean(false));
         Form.set(reward, m.path("rewardUridium").asInt(5_000));
         useCloak.setSelected(m.path("useCloak").asBoolean(false));
         String cf = m.path("cloakFormation").asText("");
@@ -279,6 +284,7 @@ final class BehemothSection implements Section {
         m.put("usePetCombatBeacon", beacon.isSelected());
         m.put("hpLinkPercent", Math.round(Form.fraction(linkBelow) * 100));
         m.put("arriveOnTime", onTime.isSelected());
+        m.put("useLocator", useLocator.isSelected());
         m.put("rewardUridium", Form.intOf(reward));
         m.put("useCloak", useCloak.isSelected());
         m.put("cloakFormation", cloakFormation.get() != null ? cloakFormation.get() : "");

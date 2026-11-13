@@ -415,6 +415,62 @@ class BehemothModuleTest {
         assertEquals(308, m.workingMap(), "3-8 → 3-BL is one jump");
     }
 
+    /** A pet out with the enemy locator. */
+    static void locatorPet(Sim sim) {
+        orbit.protocol.gen.PetInitializationCommand init = new orbit.protocol.gen.PetInitializationCommand();
+        init.hasPet = true;
+        init.hasFuel = true;
+        init.petIsAlive = true;
+        sim.world.apply(init, sim.now);
+        orbit.protocol.gen.PetHeroActivationCommand a = new orbit.protocol.gen.PetHeroActivationCommand();
+        a.ownerId = 1;
+        a.petId = 500;
+        a.petName = "P";
+        a.x = sim.hero().x();
+        a.y = sim.hero().y();
+        sim.world.apply(a, sim.now);
+        orbit.protocol.gen.PetGearAddCommand add = new orbit.protocol.gen.PetGearAddCommand();
+        add.gearType = new orbit.protocol.gen.PetGearTypeModule();
+        add.gearType.typeValue = (short) orbit.protocol.gen.PetGearTypeModule.PETGEARTYPE_ENEMY_LOCATOR;
+        add.enabled = true;
+        sim.world.apply(add, sim.now);
+    }
+
+    static void locator(Sim sim, int x, int y) {
+        orbit.protocol.gen.PetGearLocatorUpdate u = new orbit.protocol.gen.PetGearLocatorUpdate();
+        u.x = x;
+        u.y = y;
+        sim.world.apply(u, sim.now);
+    }
+
+    @Test
+    void theLocatorSayingNothingSendsTheShipOnAtOnce() throws Exception {
+        // the user, 2026-11-13: the train killed the behemoth while we were dead — the locator tells it is gone
+        Sim sim = new Sim(with(config(30), "{\"useLocator\": true}"), 308, 5_700, 2_600);
+        BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
+        assertEquals(BehemothModule.BEHEMOTH_NPC, m.petLocator());
+        locatorPet(sim);
+        m.workingMap();
+        sim.run(m::tick, 6_000);
+        assertEquals(308, m.workingMap());
+        locator(sim, -1, -1);
+        sim.run(m::tick, 500);
+        assertTrue(m.workingMap() != 308, "nothing on 3-BL: on at once, not after 30 s");
+    }
+
+    @Test
+    void theLocatorsPointIsFlownTo() throws Exception {
+        Sim sim = new Sim(with(config(300), "{\"useLocator\": true}"), 308, 5_700, 2_600);
+        BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
+        locatorPet(sim);
+        m.workingMap();
+        sim.run(m::tick, 6_000);
+        locator(sim, 15_000, 9_000);
+        sim.run(m::tick, 1_000);
+        assertTrue(m.status().contains("по пеленгатору"), m.status());
+        assertEquals(15_000, (int) sim.ctx.nav().destination().x());
+    }
+
     @Test
     void anNpcShootingAtUsWhileWaitingIsFoughtBack() throws Exception {
         Sim sim = new Sim(config(300), 308, 5_700, 2_600);
