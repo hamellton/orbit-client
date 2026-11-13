@@ -196,6 +196,9 @@ public final class Attacker {
         seenAt = 0;
     }
 
+    /** A target out of sight is flown after this long before it is let go (unless it was being shot: then it died). */
+    static final long LOST_GRACE_NS = 3_000_000_000L;
+
     /** The target's last position and time, and its speed from them (units per second, smoothed). */
     private double seenX;
     private double seenY;
@@ -264,6 +267,15 @@ public final class Attacker {
         WorldSnapshot w = ctx.world().get();
         WorldSnapshot.Hero h = w.hero();
         WorldSnapshot.Ship t = w.ships().get(targetId);
+        if (t == null && !shotAt && seenAt != 0 && ctx.now() - seenAt < LOST_GRACE_NS) {
+            // out of sight for a moment (the server shows ships near the ship only; live 2026-11-13 on 2-2: 181 of
+            // 213 targets dropped at ~1 300, picked again a second later): on to where it was
+            if (ctx.nav().idle() || Math.hypot(ctx.nav().destination().x() - seenX, ctx.nav().destination().y() - seenY) > 200) {
+                ctx.nav().moveTo(seenX, seenY, false);
+            }
+            ctx.nav().tick();
+            return true;
+        }
         if (t == null) {
             if (shotAt) {
                 kills++;
