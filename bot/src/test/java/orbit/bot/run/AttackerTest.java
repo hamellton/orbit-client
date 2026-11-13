@@ -339,7 +339,7 @@ class AttackerTest {
         Attacker a = new Attacker(sim.ctx);
         a.target(sim.world.snapshot(sim.now).ships().get(7));
         double kept = closest(sim, a, 20_000);
-        assertTrue(kept > 450, "kept near the radius: " + kept);
+        assertTrue(kept > 400, "kept near the radius (backing off at 0.85 of it): " + kept);
 
         Sim stand = new Sim(config(false, null, Set.of()), 1, 10_500, 6_000);
         stand.lasers("ammunition_laser_lcb-10");

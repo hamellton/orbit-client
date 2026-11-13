@@ -472,6 +472,8 @@ public final class Attacker {
      */
     /** Farther than this share of the radius the ship flies in as usual; nearer it holds the radius. */
     static final double KITE_APPROACH = 1.5;
+    /** Backing off, the target is kept at this share of the radius. */
+    static final double KITE_KEEP = 0.85;
     private Double kiteAngle;
     private boolean kiteTold;
     private double[] standAt;
@@ -589,7 +591,9 @@ public final class Attacker {
         }
         double[] at = ahead(t, h, radius);
         double step = Math.max(350, Math.min(700, radius));
-        double want = radius * 0.95;
+        // a little inside the radius: backing off at its very edge left Kristallon out of range a third of the fight
+        // (live 2026-11-13 on 2-6: 69 s against 37 s circling on 2-7)
+        double want = radius * KITE_KEEP;
         double now = Math.hypot(h.x() - at[0], h.y() - at[1]);
         double best = Double.MAX_VALUE;
         double[] to = null;
