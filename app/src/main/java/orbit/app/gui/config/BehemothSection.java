@@ -48,6 +48,7 @@ final class BehemothSection implements Section {
     // where to wait (the user, 2026-11-13: trains camp the spawn and BeheFarm's wait points)
     private final JCheckBox trainTimer = new JCheckBox("Поезд стоит у места появления, бегемота не видно — считать его убитым (таймер)");
     private final JCheckBox waitForTrain = new JCheckBox("Не улетать, пока поезд идёт к месту появления (до 3 мин)");
+    private final JCheckBox avoidEnemies = new JCheckBox("Облетать видимых врагов заранее (2000), рядом враги — не вылетать с точки (до 3 мин)");
     private final JCheckBox awayFromPortals = new JCheckBox("Ждать в стороне от путей «портал → бегемот», где ходят поезда");
     private final JCheckBox freeSide = new JCheckBox("Ждать со свободной стороны: чужие у точки — встать на круге от них");
     private final JSpinner freeSideRadius = Form.number(800, 5_000, 100);
@@ -130,6 +131,7 @@ final class BehemothSection implements Section {
                 .row("", awayFromPortals)
                 .row("", trainTimer)
                 .row("", waitForTrain)
+                .row("", avoidEnemies)
                 .row("", freeSide)
                 .row("Круг вокруг места появления", freeSideRadius)
                 .row("", Form.inline(avoidSpawn, avoidSpawnRadius))
@@ -252,6 +254,7 @@ final class BehemothSection implements Section {
         awayFromPortals.setSelected(m.path("awayFromPortals").asBoolean(false));
         trainTimer.setSelected(m.path("trainTimer").asBoolean(false));
         waitForTrain.setSelected(m.path("waitForTrain").asBoolean(false));
+        avoidEnemies.setSelected(m.path("avoidEnemies").asBoolean(false));
         freeSide.setSelected(m.path("freeSide").asBoolean(false));
         Form.set(freeSideRadius, m.path("freeSideRadius").asInt(2_000));
         avoidSpawn.setSelected(m.path("avoidSpawn").asBoolean(false));
@@ -331,6 +334,7 @@ final class BehemothSection implements Section {
         m.put("awayFromPortals", awayFromPortals.isSelected());
         m.put("trainTimer", trainTimer.isSelected());
         m.put("waitForTrain", waitForTrain.isSelected());
+        m.put("avoidEnemies", avoidEnemies.isSelected());
         m.put("freeSide", freeSide.isSelected());
         m.put("freeSideRadius", Form.intOf(freeSideRadius));
         m.put("avoidSpawn", avoidSpawn.isSelected());

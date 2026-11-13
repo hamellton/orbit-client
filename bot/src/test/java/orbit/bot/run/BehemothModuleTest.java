@@ -733,4 +733,21 @@ class BehemothModuleTest {
         m.pause();
         assertEquals(1, m.avoidCircles().size(), "still keeping off the spawn on the way to the portal");
     }
+
+    @Test
+    void enemiesInSightAreFlownRoundAndKeepTheShipAtItsPoint() throws Exception {
+        // live 2026-11-13 on the VPS, 2-BL: off to the portal straight at a train coming from it — killed in 2 s
+        Sim sim = new Sim(with(config(2), "{\"avoidEnemies\": true}"), 308, 5_700, 2_600);
+        BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
+        m.workingMap();
+        enemy(sim, 900, "Coming", 9_000, 4_000);
+        sim.run(m::tick, 10_000);
+        assertEquals(308, m.workingMap(), "an enemy 3 600 away: not setting off");
+        assertTrue(m.avoidCircles().stream().anyMatch(c -> c[0] == 9_000 && c[1] == 4_000), "his circle flown round");
+        orbit.protocol.gen.ShipRemoveCommand r = new orbit.protocol.gen.ShipRemoveCommand();
+        r.userId = 900;
+        sim.world.apply(r, sim.now);
+        sim.run(m::tick, 1_000);
+        assertTrue(m.workingMap() != 308, "gone: off");
+    }
 }

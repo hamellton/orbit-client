@@ -656,6 +656,7 @@ public final class BehemothModule implements BotModule {
         waitMap = h.mapId();
         reachedMap = 0;
         trainWaitTold = false;
+        enemyWaitTold = false;
         waitStarted = now;
         long due = dueAt(h.mapId(), wall);
         int[] p = waitPoint(h.mapId());
@@ -992,7 +993,17 @@ public final class BehemothModule implements BotModule {
             return false;
         }
         WorldSnapshot w = ctx.world().get();
-        return !trainComing(w, w.hero());
+        if (trainComing(w, w.hero())) {
+            return false;
+        }
+        if (enemyNear(w, w.hero()) && ctx.now() - waitUntil < TRAIN_WAIT_MAX_NS) {
+            if (!enemyWaitTold) {
+                enemyWaitTold = true;
+                log.info("Враги рядом — не вылетаю с точки, пока не уйдут (до 3 мин)");
+            }
+            return false;
+        }
+        return true;
     }
 
     /** Flies to the map's wait point and waits; the wait over and no behemoth: the next map. */
@@ -1146,6 +1157,7 @@ public final class BehemothModule implements BotModule {
     private long trainSince;
     private final Map<Integer, Long> trainCounted = new HashMap<>();
     private boolean trainWaitTold;
+    private boolean enemyWaitTold;
 
     /** The enemy players on the map within {@code radius} of the spawn. */
     private int enemiesBySpawn(WorldSnapshot w, WorldSnapshot.Hero h, double radius) {
@@ -1391,13 +1403,45 @@ public final class BehemothModule implements BotModule {
         spawnCircle = r >= 300 ? new double[] {map, sp[0], sp[1], r} : null;
     }
 
+    /** {@code avoidEnemies}: every enemy in sight is flown round this far, before he shoots. */
+    static final double ENEMY_KEEP = 2_000;
+    /** {@code avoidEnemies}: an enemy this near keeps the ship at its wait point instead of setting off. */
+    static final double ENEMY_NEAR = 5_000;
+
     @Override
     public List<double[]> avoidCircles() {
+        WorldSnapshot w = ctx.world().get();
+        WorldSnapshot.Hero h = w.hero();
+        List<double[]> out = new java.util.ArrayList<>();
         double[] c = spawnCircle;
-        if (c == null || ctx.world().get().hero().mapId() != (int) c[0]) {
-            return List.of();
+        if (c != null && h.mapId() == (int) c[0]) {
+            out.add(new double[] {c[1], c[2], c[3]});
         }
-        return List.of(new double[] {c[1], c[2], c[3]});
+        JsonNode s = settings();
+        if (on(s, "avoidEnemies", false) && !onBehemoth && maps(s).contains(h.mapId())) {
+            // live 2026-11-13 on the VPS, 2-BL: off to the portal straight at a train coming from it — killed in 2 s,
+            // the offenders' circles come only after the first shots
+            java.util.Set<Integer> group = PlayerFight.group(w);
+            List<String> black = names(s, "blacklist");
+            for (WorldSnapshot.Ship e : w.ships().values()) {
+                if (PlayerFight.enemy(e, h, group, black)) {
+                    out.add(new double[] {e.x(), e.y(), ENEMY_KEEP});
+                }
+            }
+        }
+        return out;
+    }
+
+    /** An enemy within {@link #ENEMY_NEAR} of the ship ({@code avoidEnemies}). */
+    private boolean enemyNear(WorldSnapshot w, WorldSnapshot.Hero h) {
+        JsonNode s = settings();
+        if (!on(s, "avoidEnemies", false)) {
+            return false;
+        }
+        java.util.Set<Integer> group = PlayerFight.group(w);
+        List<String> black = names(s, "blacklist");
+        return w.ships().values().stream().anyMatch(e -> PlayerFight.enemy(e, h, group, black)
+                && e.distanceTo(h.x(), h.y()) < ENEMY_NEAR);
     }
 
     /** Where to wait on the map: the config's, else BeheFarm's; a map not in the table — the spawn seen there. */
