@@ -53,6 +53,52 @@ final class BuyWatch {
     BuyWatch(BotContext ctx) {
         this.ctx = ctx;
         this.nextCheck = ctx.now() + SETTLE_MS * 1_000_000;
+        this.noEffectFile = ctx.dataDir() == null ? null : ctx.dataDir().resolve("buy-no-effect.json");
+        loadNoEffect();
+    }
+
+    /**
+     * «Bought, nothing came» outlives a restart for {@link #NO_EFFECT_KEEP_MS} (live 2026-11-13 on the VPS: the cloak went
+     * to the inventory, the restart bought another 15 750 uridium's worth).
+     */
+    static final long NO_EFFECT_KEEP_MS = 24 * 3_600_000L;
+    private final java.nio.file.Path noEffectFile;
+
+    private void loadNoEffect() {
+        if (noEffectFile == null || !java.nio.file.Files.exists(noEffectFile)) {
+            return;
+        }
+        try {
+            com.fasterxml.jackson.databind.JsonNode n = orbit.config.Json.MAPPER.readTree(noEffectFile.toFile());
+            long wall = System.currentTimeMillis();
+            n.properties().forEach(e -> {
+                if (wall - e.getValue().asLong() < NO_EFFECT_KEEP_MS) {
+                    noEffect.add(e.getKey());
+                    log.info("{}: куплено раньше, но в игре не появилось — не покупаю до {}", ItemCatalog.label(e.getKey()),
+                            java.time.Instant.ofEpochMilli(e.getValue().asLong() + NO_EFFECT_KEEP_MS)
+                                    .atZone(java.time.ZoneId.systemDefault()).toLocalDateTime().withNano(0));
+                }
+            });
+        } catch (java.io.IOException | RuntimeException e) {
+            log.warn("Не прочитал {}: {}", noEffectFile.getFileName(), e.toString());
+        }
+    }
+
+    private void saveNoEffect(String id) {
+        if (noEffectFile == null) {
+            return;
+        }
+        try {
+            com.fasterxml.jackson.databind.node.ObjectNode n = java.nio.file.Files.exists(noEffectFile)
+                    ? (com.fasterxml.jackson.databind.node.ObjectNode) orbit.config.Json.MAPPER.readTree(noEffectFile.toFile())
+                    : orbit.config.Json.MAPPER.createObjectNode();
+            n.put(id, System.currentTimeMillis());
+            java.nio.file.Path tmp = noEffectFile.resolveSibling(noEffectFile.getFileName() + ".new");
+            orbit.config.Json.MAPPER.writeValue(tmp.toFile(), n);
+            java.nio.file.Files.move(tmp, noEffectFile, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+        } catch (java.io.IOException | RuntimeException e) {
+            log.warn("Не записал {}: {}", noEffectFile.getFileName(), e.toString());
+        }
     }
 
     void setShop(ShopAccess s) {
@@ -80,6 +126,7 @@ final class BuyWatch {
             } else if (now - (long) p[1] > EFFECT_MS * 1_000_000) {
                 bought.remove(id);
                 noEffect.add(id);
+                saveNoEffect(id);
                 log.warn("{}: куплено, но в игре не прибавилось — в этом запуске больше не покупаю (проверьте ангар)",
                         ItemCatalog.label(id));
             }

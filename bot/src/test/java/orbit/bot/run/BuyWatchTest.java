@@ -188,4 +188,23 @@ class BuyWatchTest {
         runFor(sim, w, 400_000);
         assertEquals(List.of("equipment_extra_cpu_cl04k-xl x1"), shop.bought, "once; nothing came of it — no more");
     }
+
+    @Test
+    void aPurchaseThatBroughtNothingIsNotRepeatedAfterARestart(@org.junit.jupiter.api.io.TempDir java.nio.file.Path dir)
+            throws Exception {
+        // live 2026-11-13 on the VPS: the cloak went to the inventory, the restart bought another one
+        BotConfig.Buy buy = new BotConfig.Buy(true, List.of(new BotConfig.BuyRule("equipment_extra_cpu_cl04k-xl", 1, 1)), 0, 0);
+        Sim sim = sim(buy, 0, 50_000);
+        BotContext c = sim.ctx;
+        BotContext withDir = new BotContext(c.world(), c.config(), c.actions(), c.nav(), c.traveler(), c.maps(), c.random(),
+                c.clock(), c.repair(), c.ship(), dir, c.stats());
+        CloakShop shop = new CloakShop();
+        BuyWatch first = new BuyWatch(withDir);
+        first.setShop(shop);
+        runFor(sim, first, 400_000);
+        BuyWatch again = new BuyWatch(withDir);
+        again.setShop(shop);
+        runFor(sim, again, 100_000);
+        assertEquals(List.of("equipment_extra_cpu_cl04k-xl x1"), shop.bought, "once, the restart remembers");
+    }
 }
