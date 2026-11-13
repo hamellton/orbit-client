@@ -541,4 +541,57 @@ class BehemothModuleTest {
         // live 2026-11-13 on the VPS: an Attend kept off at its radius took the ship off the point — now shot back in place
         assertTrue(Math.hypot(h.x() - 5_700, h.y() - 2_600) <= 300, "still at the wait point: " + h);
     }
+
+    @Test
+    void enemiesByTheWaitPointMakeTheShipWaitOnTheFreeSideOfTheSpawn() throws Exception {
+        // the user, 2026-11-13: «стоять в точке рядом с бегемотом со стороны где нет никого»
+        Sim sim = new Sim(with(config(300), "{\"freeSide\": true, \"freeSideRadius\": 2000}"), 308, 4_000, 8_000);
+        BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
+        m.workingMap();
+        for (int i = 0; i < 4; i++) {
+            enemy(sim, 900 + i, "Train" + i, 5_700 + i * 100, 2_600);
+        }
+        sim.run(m::tick, 30_000);
+        var h = sim.hero();
+        assertTrue(Math.hypot(h.x() - 5_700, h.y() - 2_600) > 3_000, "away from the train at the wait point: " + h);
+        double fromSpawn = Math.hypot(h.x() - 4_700, h.y() - 3_900);
+        assertTrue(fromSpawn > 1_600 && fromSpawn < 2_400, "on the ring round the spawn: " + h + ", " + (int) fromSpawn);
+        assertTrue(m.status().startsWith("Жду бегемота"), m.status());
+    }
+
+    @Test
+    void withoutEnemiesTheFreeSideIsTheWaitPoint() throws Exception {
+        Sim sim = new Sim(with(config(300), "{\"freeSide\": true}"), 308, 4_000, 8_000);
+        BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
+        m.workingMap();
+        sim.run(m::tick, 30_000);
+        var h = sim.hero();
+        assertTrue(Math.hypot(h.x() - 5_700, h.y() - 2_600) <= 300, "at the wait point: " + h);
+    }
+
+    @Test
+    void whileWaitingTheWayToTheWaitPointKeepsOffTheSpawn() throws Exception {
+        // live 2026-11-13 on the VPS, 3-BL: from the portal 15/122 to the wait point 57/26 the way ran past the spawn 47/39,
+        // where a train stood — killed twice
+        Sim sim = new Sim(with(config(300), "{\"avoidSpawn\": true, \"avoidSpawnRadius\": 1500}"), 308, 1_500, 12_200);
+        BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
+        sim.ctx.nav().setAvoidedPlayers(m::avoidCircles);
+        m.workingMap();
+        double[] nearest = {Double.MAX_VALUE};
+        sim.run(() -> {
+            m.tick();
+            var h = sim.hero();
+            nearest[0] = Math.min(nearest[0], Math.hypot(h.x() - 4_700, h.y() - 3_900));
+        }, 40_000);
+        var h = sim.hero();
+        assertTrue(Math.hypot(h.x() - 5_700, h.y() - 2_600) <= 300, "at the wait point: " + h);
+        var circles = m.avoidCircles();
+        assertEquals(1, circles.size());
+        double r = circles.getFirst()[2];
+        assertTrue(r < 1_500 && r > 1_200, "smaller than asked: the wait point is 1 640 from the spawn, " + r);
+        assertTrue(nearest[0] >= r - 150, "never through the spawn's circle: " + (int) nearest[0]);
+        sim.npc(77, BEHEMOTH, 4_700, 3_900);
+        sim.run(m::tick, 500);
+        assertTrue(m.avoidCircles().isEmpty(), "the behemoth there: no circle");
+    }
 }

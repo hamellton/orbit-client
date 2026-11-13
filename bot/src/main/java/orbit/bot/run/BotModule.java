@@ -34,6 +34,11 @@ public interface BotModule {
         return -1;
     }
 
+    /** Circles {x, y, r} the module wants flown round now, besides the offenders' (e.g. a camped spawn while waiting). */
+    default java.util.List<double[]> avoidCircles() {
+        return java.util.List.of();
+    }
+
     /** The module's own way with a full hold ({@code null}: the config's «Полный трюм»). */
     default CargoPlan cargoPlan(orbit.config.BotConfig c) {
         return null;

@@ -283,6 +283,7 @@ public final class BehemothModule implements BotModule {
         players.clear();
         boxes.clear();
         arrivedAt = 0;
+        spawnCircle = null;
     }
 
     @Override
@@ -298,6 +299,7 @@ public final class BehemothModule implements BotModule {
         WorldSnapshot w = ctx.world().get();
         WorldSnapshot.Hero h = w.hero();
         watch(w);
+        spawnCircle = null; // set again below while waiting
         attacker.setAbilityPlan(new Attacker.AbilityPlan(on(s, "useEmp", true), percent(s, "empPercent", 35),
                 on(s, "useIsh", true), percent(s, "ishPercent", 60),
                 on(s, "usePrismatic", false) ? percent(s, "prismaticPercent", 50) : -1,
@@ -665,7 +667,8 @@ public final class BehemothModule implements BotModule {
             log.info("Бегемот на {} через {}, перелёт {} — жду здесь, вылет через {}", ctx.maps().info(chosen).name(),
                     clock(dueAt(chosen, wall) - wall), clock(travelMs(h.mapId(), chosen)), clock(leaveIn));
         }
-        int[] p = waitPoint(h.mapId());
+        int[] p = standPoint(s, ctx.world().get());
+        avoidSpawn(s, h.mapId(), p);
         double dist = Math.hypot(p[0] - h.x(), p[1] - h.y());
         BotConfig.General g = ctx.config().get().general();
         if (dist > ARRIVE) {
@@ -884,7 +887,7 @@ public final class BehemothModule implements BotModule {
         if (!all) {
             return defendInPlace(w, h);
         }
-        int[] p = waitPoint(h.mapId());
+        int[] p = side != null && sideMap == h.mapId() ? side : waitPoint(h.mapId());
         if (attacker.targetId() != 0) {
             WorldSnapshot.Ship t = w.ships().get(attacker.targetId());
             boolean leashed = t == null || Math.hypot(t.x() - p[0], t.y() - p[1]) <= LEASH;
@@ -952,7 +955,8 @@ public final class BehemothModule implements BotModule {
         if (beacon(s, h, wallMs())) {
             return;
         }
-        int[] p = waitPoint(h.mapId());
+        int[] p = standPoint(s, ctx.world().get());
+        avoidSpawn(s, h.mapId(), p);
         double dist = Math.hypot(p[0] - h.x(), p[1] - h.y());
         BotConfig.General g = ctx.config().get().general();
         long now = ctx.now();
@@ -1074,6 +1078,117 @@ public final class BehemothModule implements BotModule {
         long learned = memory.mapRespawn(map);
         long minutes = (long) number(settings(), "respawnMinutes", 0);
         return minutes > 0 ? minutes * 60_000 : learned > 0 ? learned : DEFAULT_RESPAWN_MS;
+    }
+
+    /** Seconds between looks for a freer side ({@code freeSide}). */
+    static final long SIDE_LOOK_NS = 3_000_000_000L;
+    /** A point this much farther from the nearest enemy is worth moving to. */
+    static final double SIDE_BETTER = 800;
+    /** Nearer than this an enemy makes any freer point worth it. */
+    static final double SIDE_CLOSE = 1_500;
+    static final int SIDE_DIRECTIONS = 16;
+
+    private int[] side;
+    private int sideMap;
+    private long sideAt = Long.MIN_VALUE / 2;
+    /** The spawn circle flown round now (map, x, y, r), set by the bot thread, read by any. */
+    private volatile double[] spawnCircle;
+
+    /**
+     * Where to stand while waiting. {@code freeSide} (the user, 2026-11-13: «стоять в точке рядом с бегемотом со стороны
+     * где нет никого»): on a ring of {@code freeSideRadius} round the spawn, the point farthest from the enemy players in
+     * sight; none in sight — the wait point (or the side taken before). Otherwise the wait point.
+     */
+    int[] standPoint(JsonNode s, WorldSnapshot w) {
+        int map = w.hero().mapId();
+        int[] base = waitPoint(map);
+        if (!on(s, "freeSide", false)) {
+            return base;
+        }
+        int[] current = side != null && sideMap == map ? side : base;
+        long now = ctx.now();
+        if (now - sideAt < SIDE_LOOK_NS && sideMap == map) {
+            return current;
+        }
+        sideAt = now;
+        sideMap = map;
+        WorldSnapshot.Hero h = w.hero();
+        java.util.Set<Integer> group = PlayerFight.group(w);
+        List<String> black = names(s, "blacklist");
+        List<WorldSnapshot.Ship> enemies = w.ships().values().stream()
+                .filter(x -> PlayerFight.enemy(x, h, group, black)).toList();
+        if (enemies.isEmpty()) {
+            side = current;
+            return current;
+        }
+        int[] sp = spawnPoint(map);
+        double r = number(s, "freeSideRadius", 2_000);
+        orbit.world.maps.MapCatalog.MapInfo info = ctx.maps().info(map);
+        int width = info.width() > 0 ? info.width() : 21_000;
+        int height = info.height() > 0 ? info.height() : 13_100;
+        int[] best = current;
+        double bestScore = freeness(current, enemies);
+        double currentScore = bestScore;
+        List<int[]> candidates = new java.util.ArrayList<>();
+        candidates.add(base);
+        for (int i = 0; i < SIDE_DIRECTIONS; i++) {
+            double a = 2 * Math.PI * i / SIDE_DIRECTIONS;
+            candidates.add(new int[] {(int) (sp[0] + r * Math.cos(a)), (int) (sp[1] + r * Math.sin(a))});
+        }
+        BotConfig.Zones zones = ctx.config().get().zones().get(map);
+        BotConfig.ZoneGrid avoided = zones == null ? null : zones.avoided();
+        for (int[] p : candidates) {
+            if (p[0] < 500 || p[1] < 500 || p[0] > width - 500 || p[1] > height - 500
+                    || p != base && avoided != null && avoided.contains(p[0], p[1], width, height)) {
+                continue;
+            }
+            double score = freeness(p, enemies);
+            if (score > bestScore) {
+                bestScore = score;
+                best = p;
+            }
+        }
+        if (best != current && (bestScore > currentScore + SIDE_BETTER || currentScore < SIDE_CLOSE)) {
+            log.info("Чужие у точки ожидания ({} от ближайшего) — встаю со свободной стороны {}/{} ({} от них)",
+                    (int) currentScore, best[0] / 100, best[1] / 100, (int) bestScore);
+            side = best;
+            return best;
+        }
+        side = current;
+        return current;
+    }
+
+    /** The distance from the point to the nearest of the enemies. */
+    private static double freeness(int[] p, List<WorldSnapshot.Ship> enemies) {
+        double min = Double.MAX_VALUE;
+        for (WorldSnapshot.Ship e : enemies) {
+            min = Math.min(min, Math.hypot(e.x() - p[0], e.y() - p[1]));
+        }
+        return min;
+    }
+
+    /**
+     * {@code avoidSpawn} (live 2026-11-13 on the VPS, 3-BL: the way from the portal to the wait point ran past the spawn,
+     * where a train stood — killed twice): while waiting, a circle of {@code avoidSpawnRadius} round the spawn is flown
+     * round; never so big that the place to stand falls in it.
+     */
+    private void avoidSpawn(JsonNode s, int map, int[] stand) {
+        if (!on(s, "avoidSpawn", false)) {
+            spawnCircle = null;
+            return;
+        }
+        int[] sp = spawnPoint(map);
+        double r = Math.min(number(s, "avoidSpawnRadius", 1_500), Math.hypot(stand[0] - sp[0], stand[1] - sp[1]) - 300);
+        spawnCircle = r >= 300 ? new double[] {map, sp[0], sp[1], r} : null;
+    }
+
+    @Override
+    public List<double[]> avoidCircles() {
+        double[] c = spawnCircle;
+        if (c == null || ctx.world().get().hero().mapId() != (int) c[0]) {
+            return List.of();
+        }
+        return List.of(new double[] {c[1], c[2], c[3]});
     }
 
     /** Where to wait on the map: the config's, else BeheFarm's; a map not in the table — the spawn seen there. */

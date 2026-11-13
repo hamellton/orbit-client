@@ -89,6 +89,12 @@ final class BuyWatch {
                 continue;
             }
             WorldSnapshot.Item item = w.items().get(r.item());
+            boolean noCloak = item == null && ItemCatalog.CLOAKS.contains(r.item()) && !w.items().isEmpty();
+            if (noCloak) {
+                // a pilot with no cloaking CPU may get no slot for it at all: the item bar is there, the CPU is not — none
+                // (bought once: no slot after it either and noEffect stops the buying)
+                item = new WorldSnapshot.Item(r.item(), "cpus", 0, 0, false, false, false, false, false, false, 0, 0, 0, 0, 0);
+            }
             if (item == null) {
                 // unknown is not zero: never buy what the game has not counted
                 if (told.add("?" + r.item())) {

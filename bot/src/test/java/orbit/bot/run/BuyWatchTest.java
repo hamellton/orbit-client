@@ -168,4 +168,24 @@ class BuyWatchTest {
         assertEquals(List.of("3 x1"), shop.bought, "25 000 - 10 000 is under the 20 000 to keep: no second booster");
         assertEquals("Бустер", BuyWatch.unescape("\\u0411\\u0443\\u0441\\u0442\\u0435\\u0440"));
     }
+
+    /** A shop that also sells the cloaking CPU. */
+    static class CloakShop extends FakeShop {
+        @Override
+        public Map<String, Offer> offers() {
+            return Map.of("equipment_extra_cpu_cl04k-xl", new Offer("equipment_extra_cpu_cl04k-xl", 15_750, true, 1));
+        }
+    }
+
+    @Test
+    void aCloakThePilotHasNoneOfIsBoughtOnceAndNotAgainWhenNoneComes() throws Exception {
+        // the user, 2026-11-13: «купи за урик и потести» — the pilot has no CL04K, the item bar no slot for it
+        BotConfig.Buy buy = new BotConfig.Buy(true, List.of(new BotConfig.BuyRule("equipment_extra_cpu_cl04k-xl", 1, 1)), 0, 0);
+        Sim sim = sim(buy, 0, 50_000);
+        CloakShop shop = new CloakShop();
+        BuyWatch w = new BuyWatch(sim.ctx);
+        w.setShop(shop);
+        runFor(sim, w, 400_000);
+        assertEquals(List.of("equipment_extra_cpu_cl04k-xl x1"), shop.bought, "once; nothing came of it — no more");
+    }
 }

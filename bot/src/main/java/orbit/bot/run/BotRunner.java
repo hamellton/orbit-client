@@ -1,6 +1,7 @@
 package orbit.bot.run;
 
 import java.util.Comparator;
+import java.util.List;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import orbit.bot.nav.Traveler;
@@ -107,7 +108,15 @@ public final class BotRunner {
         this.cargo = new CargoCare(ctx, pet);
         this.boxCheck = new BoxCheckSolver(ctx);
         this.offenders = new Offenders(ctx);
-        ctx.nav().setAvoidedPlayers(offenders::circles);
+        ctx.nav().setAvoidedPlayers(() -> {
+            List<double[]> own = module == null ? List.of() : module.avoidCircles();
+            if (own.isEmpty()) {
+                return offenders.circles();
+            }
+            List<double[]> all = new java.util.ArrayList<>(offenders.circles());
+            all.addAll(own);
+            return all;
+        });
         this.jumper = new orbit.bot.nav.CpuJumper(ctx.world(), ctx.actions(), ctx.maps(), ctx.clock(), ctx.random(),
                 ctx.dataDir() == null ? null : ctx.dataDir().resolve("jump-uridium.json"));
         loadModule();
