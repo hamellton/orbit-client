@@ -575,14 +575,19 @@ public final class OrbitMain {
                 org.slf4j.MDC.setContextMap(logContext);
             }
             HourlyReport hourly = HourlyReport.of(feed);
+            DailyTotals daily = DailyTotals.of(accountName);
             while (!closed.get()) {
                 try {
                     Thread.sleep(1_000);
                 } catch (InterruptedException e) {
+                    daily.flush();
                     return;
                 }
-                hourly.tick(System.currentTimeMillis(), feed.sessionStartNanos() != 0 && !feed.loggedOut());
+                long nowMs = System.currentTimeMillis();
+                hourly.tick(nowMs, feed.sessionStartNanos() != 0 && !feed.loggedOut());
+                daily.update(HourlyReport.Totals.of(feed), nowMs); // «За сегодня» over all runs
             }
+            daily.flush();
         });
         Thread sessions = Thread.ofPlatform().name("sessions-" + accountName).start(() -> {
             if (logContext != null) {

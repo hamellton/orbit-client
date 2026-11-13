@@ -810,6 +810,8 @@ final class Hud {
 
     private Card stats(WorldSnapshot w, WorldFeed feed) {
         List<String> lines = orbit.app.SessionSummary.lines(w.rewards(), feed.stats(), feed.sessionHours());
+        // today over all runs (the user, 2026-11-13: the session starts from nothing at each start)
+        List<String> today = orbit.app.DailyTotals.of(feed.account()).lines();
         Font textFont = font(Font.PLAIN, 12f);
         return new Card() {
             @Override
@@ -818,7 +820,11 @@ final class Hud {
                 for (String text : lines) {
                     rows += wrap(measure(textFont), text, width - 2 * pad).size();
                 }
-                return pad + line + rows * (line - 1) + pad - 4;
+                int todayRows = 0;
+                for (String text : today) {
+                    todayRows += wrap(measure(textFont), text, width - 2 * pad).size();
+                }
+                return pad + line + rows * (line - 1) + 6 + line + todayRows * (line - 1) + pad - 4;
             }
 
             @Override
@@ -832,6 +838,19 @@ final class Hud {
                 for (int i = 0; i < lines.size(); i++) {
                     g.setColor(i < 4 ? TEXT : DIM);
                     for (String part : wrap(g.getFontMetrics(), lines.get(i), width - 2 * pad)) {
+                        g.drawString(part, x + pad, ty);
+                        ty += line - 1;
+                    }
+                }
+                ty += 6;
+                g.setFont(font(Font.PLAIN, 11f));
+                g.setColor(DIM);
+                g.drawString("За сегодня", x + pad, ty);
+                ty += line;
+                g.setFont(textFont);
+                for (int i = 0; i < today.size(); i++) {
+                    g.setColor(i < 2 ? TEXT : DIM);
+                    for (String part : wrap(g.getFontMetrics(), today.get(i), width - 2 * pad)) {
                         g.drawString(part, x + pad, ty);
                         ty += line - 1;
                     }
