@@ -51,3 +51,32 @@ VoTPlugin. Код большинства закрыт или обфусциро�
 
 Не разобрано: закрытый код плагинов и AstraBot (не декомпилировали), предпочтительные зоны в профилях (base64-сетки),
 `PikaBot-/rule_library.json`, `dse_threat.json`, файлы `deaths_*` AstraBot.
+
+## Бегемот при чужих «поездах» и сами поезда (CARNAGE, 2026-11-13)
+
+**Фарм бегемота, когда рядом группы-поезда и бьют нас** — плагин BLCycle в профиле `CARNAGE/configs/BeheSolo.json`
+(`CUSTOM_CONFIGS` → `eu.darkbot.blcycle.behaviours.BLCycleBehavior`; включён в `PLUGIN_INFOS`):
+- `enemyEscape.behemothPolicy = IGNORE_ATTACKED_USE_COUNT` при `attackedSeconds = 0`, `enemyCount = 0` — у бегемота не
+  убегать ни от атак, ни от числа врагов;
+- `behemoth.avoidEnemyOrbit = true` — не вставать в кольцо, по которому вокруг бегемота кружат чужие группы;
+- прилёт к самому спавну: `approxLeadSeconds 0`, `preHoldSeconds 1`, `recoveryLeadSeconds 30`; таймеры спавна по
+  каждой BL-карте (`carnage-data/blcycle_state.properties`), обход 1→2→3BL, `travelSeconds 130`, `giveUpAfterSeconds 60`;
+- маскировка: `autoCraftCloak` и `useCloak` при формации Heart (`has-formation(heart, hero())`), питомец на HP Link
+  (`PetLinkBehaviour`);
+- в логе `carnage-data/blcycle_debug.txt` побегов нет вовсе; 67 бегемотов по ~5 600 уридия.
+
+Защита «от поездов» есть, но в профилях бегемота **выключена** (настроена, не включена): DmPlugin `AntiTrain`
+(`maxEnemies 3`, `ignoreDistance 1500`, `run true` — 3+ врага ближе 1500 → бежать) и Shared `CrowdAvoidance` (5 в радиусе
+300, NPC и враги, `avoidDrawFire`). То есть у бегемота нарочно не убегают.
+
+**Поезда (группа идёт за лидером):**
+- `CARNAGE/configs/CitaFollow by Patron.json`, `Behemoth_CITA.json` — модуль `com.punikekk.modules.follow.FollowModule`
+  (Kekka): идти за лидером, лидер отмечен тегом игрока `maintrainleader` (`PLAYER_TAGS`); поезд Цитаделей на бегемота;
+- `eu.darkbot.drmalito.minicore.MiniTrain` — настроен в `Behemoth_CITA`, `Berti-optimoth-behe+clearing` (защита RSB/
+  инста/ПЭМ, ожидание на BL), не включён;
+- PikaPika `GroupManager` / `GroupFollower` / `HadesLeader` — в `Berti-optimoth-behe+clearing`, `Invokes-optimoth-Berti`;
+- Penguin `modules.follow` — `HADES`, `VoT`, `Prots`, `InmortalUnion`, `astralGate` (`follow_id`, `follow_flags`,
+  `follow_master_map`);
+- AstraBot: раздел BEHEMOTH `followLeader` + `leaderId`; в KILL — `avoidTrain`.
+
+Код этих плагинов закрыт — видны только их настройки и логи.
