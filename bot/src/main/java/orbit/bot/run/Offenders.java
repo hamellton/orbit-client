@@ -50,6 +50,14 @@ public final class Offenders {
     private boolean deathTaken;
     private long escapePlannedAt = Long.MIN_VALUE / 2;
     private String near = "";
+    /**
+     * What was last told and when: on a circle's edge the ship goes in and out every half second (live 2026-11-13 on
+     * the VPS, 4-2: 37 pairs of lines in 45 s) — the same circle is told again after {@link #TELL_AGAIN_NS} only.
+     */
+    private String told = "";
+    private long toldAt = Long.MIN_VALUE / 2;
+    private boolean toldOut = true;
+    static final long TELL_AGAIN_NS = 60_000_000_000L;
 
     Offenders(BotContext ctx) {
         this.ctx = ctx;
@@ -286,17 +294,25 @@ public final class Offenders {
     String escape(WorldSnapshot w) {
         WorldSnapshot.Hero h = w.hero();
         String who = inside(h);
+        long now = ctx.now();
         if (who == null) {
             if (!near.isEmpty()) {
-                log.info("Отошёл от {} — работаю дальше здесь", near);
+                if (!toldOut) {
+                    log.info("Отошёл от {} — работаю дальше здесь", near);
+                    toldOut = true;
+                }
                 near = "";
             }
             return null;
         }
-        long now = ctx.now();
         if (!who.equals(near)) {
             near = who;
-            log.warn("{} рядом — ухожу на другую сторону и работаю там", who);
+            if (!who.equals(told) || now - toldAt >= TELL_AGAIN_NS) {
+                log.warn("{} рядом — ухожу на другую сторону и работаю там", who);
+                told = who;
+                toldAt = now;
+                toldOut = false;
+            }
             escapePlannedAt = Long.MIN_VALUE / 2;
         }
         if (now - escapePlannedAt >= REPLAN_NS || ctx.nav().idle()) {
