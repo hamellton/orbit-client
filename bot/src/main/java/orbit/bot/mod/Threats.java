@@ -146,6 +146,28 @@ public final class Threats {
     }
 
     double score(double x, double y) {
+        return score(x, y, false);
+    }
+
+    /**
+     * An NPC flying at the ship (its destination within {@link #CHASE_CONE} of the line to the ship): it follows
+     * wherever the ship goes, so turning the circle away from it only meets it head-on (the user, 2026-11-13: DarkBot
+     * keeps its way and the pack gathers behind it).
+     */
+    boolean chasing(WorldSnapshot.Ship o) {
+        WorldSnapshot.Hero h = w.hero();
+        if (!o.moving()) {
+            return false;
+        }
+        double toShip = Math.atan2(h.y() - o.y(), h.x() - o.x());
+        double heading = Math.atan2(o.targetY() - o.y(), o.targetX() - o.x());
+        return Math.abs(Math.atan2(Math.sin(heading - toShip), Math.cos(heading - toShip))) < CHASE_CONE;
+    }
+
+    static final double CHASE_CONE = Math.toRadians(45);
+
+    /** As {@link #score(double, double)}, with {@code noChasers} leaving out the NPCs flying at the ship. */
+    double score(double x, double y, boolean noChasers) {
         if (x < MARGIN || y < MARGIN || x > map.width() - MARGIN || y > map.height() - MARGIN
                 || avoided != null && avoided.contains(x, y, map.width(), map.height()) || ctx.nav().inDanger(x, y)
                 || orbit.world.maps.ZoneGeometry.blocked(w, x, y)) {
@@ -163,6 +185,9 @@ public final class Threats {
                 continue;
             }
             double d = Math.hypot(o.x() - x, o.y() - y);
+            if (o.npc() && noChasers && chasing(o)) {
+                continue;
+            }
             if (o.npc()) {
                 // one shooting the ship reaches a little beyond the radius the list keeps from it
                 double r = Targets.radius(c, o, h.mapId()) + (o.attackTargetId() == h.id() ? SHOOTER_EXTRA : 0);

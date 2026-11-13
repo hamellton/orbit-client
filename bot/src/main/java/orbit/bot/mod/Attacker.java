@@ -754,8 +754,9 @@ public final class Attacker {
             double ahead = 0;
             double back = 0;
             for (int k = 1; k <= 5; k++) {
-                ahead += th.score(cx + Math.cos(angle + circleDir * k * step) * rr, cy + Math.sin(angle + circleDir * k * step) * rr);
-                back += th.score(cx + Math.cos(angle - circleDir * k * step) * rr, cy + Math.sin(angle - circleDir * k * step) * rr);
+                // the pack flying at the ship is left out: it follows either way, the side turns only for what stays
+                ahead += th.score(cx + Math.cos(angle + circleDir * k * step) * rr, cy + Math.sin(angle + circleDir * k * step) * rr, true);
+                back += th.score(cx + Math.cos(angle - circleDir * k * step) * rr, cy + Math.sin(angle - circleDir * k * step) * rr, true);
             }
             boolean aheadBlocked = ahead <= Threats.BLOCKED;
             boolean backBlocked = back <= Threats.BLOCKED;
