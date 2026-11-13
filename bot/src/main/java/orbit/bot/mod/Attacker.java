@@ -211,7 +211,6 @@ public final class Attacker {
      */
     private void abilities(BotConfig c, BotConfig.NpcRule rule, WorldSnapshot w, WorldSnapshot.Hero h, double dist,
                            double radius, long now) {
-        targetRule = rule;
         if (rule == null || dist > radius + 100 || !shotAt) {
             return;
         }
@@ -405,6 +404,7 @@ public final class Attacker {
         double radius = Targets.radius(c, t, h.mapId());
         double dist = t.distanceTo(h.x(), h.y());
         BotConfig.NpcRule rule = Targets.rule(c, t, h.mapId());
+        targetRule = rule; // the pet's HP Link and the boxes go by it from the first moment of the fight
         boolean follow = rule != null && rule.has(BotConfig.NpcFlag.AGGRESSIVE_FOLLOW);
         track(t, now);
         boolean chasing = move && dist > radius + CHASE_GAP && (follow || c.general().runModeChase());
