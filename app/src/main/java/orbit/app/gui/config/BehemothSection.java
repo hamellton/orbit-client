@@ -42,6 +42,7 @@ final class BehemothSection implements Section {
     private final JCheckBox onTime = new JCheckBox("Прилетать ровно к появлению (пока рано — ждать на своей карте)");
     private final JSpinner reward = Form.number(0, 100_000, 500);
     private final JCheckBox useLocator = new JCheckBox("Искать бегемота пеленгатором питомца");
+    private final JCheckBox locatorList = new JCheckBox("Нет бегемота в списке целей пеленгатора — сразу на другую карту");
     private final JCheckBox useCloak = new JCheckBox("Маскировка, пока ждём бегемота (CL04K)");
     private final ItemBox cloakFormation = new ItemBox(ItemCatalog.FORMATIONS, true);
     private final JSpinner beaconSeconds = Form.number(0, 120, 1);
@@ -86,6 +87,8 @@ final class BehemothSection implements Section {
         trainMode.addActionListener(e -> sync());
         useCloak.addActionListener(e -> sync());
         freeSide.addActionListener(e -> sync());
+        locatorList.setToolTipText("В пеленгаторе можно выбрать только тех NPC, что есть на карте: бегемота в списке нет —"
+                + " его нет на карте, лететь дальше; есть — ждать его, даже дольше времени ожидания (до 3 мин)");
         waitInZone.setToolTipText("Как AstraBot («Moving to behe zone»): ждать в зелёной зоне вкладки «Зоны» — у края карты,"
                 + " далеко от места появления; к бегемоту — по пеленгатору или по времени. Зоны нет — точка ниже");
         avoidTrainPaths.setToolTipText("Поезда летят кратчайшим путём от портала к месту появления; бот облетает эти полосы"
@@ -129,6 +132,7 @@ final class BehemothSection implements Section {
                 .row("", onTime)
                 .row("Засчитывать убийство от, уридия", reward)
                 .row("", useLocator)
+                .row("", locatorList)
                 .note("Пеленгатор (нужен модуль у питомца): есть бегемот на карте — летит к нему; «нет» — карта"
                         + " пустая, но ждёт своё время (0 — не ждёт). Питомец тогда выпущен всё время.")
                 .note("Бот запоминает, когда бегемот появился и погиб на каждой карте, и летит туда, где он будет раньше;"
@@ -254,6 +258,7 @@ final class BehemothSection implements Section {
         Form.setFraction(linkBelow, m.path("hpLinkPercent").asDouble(0) / 100);
         onTime.setSelected(m.path("arriveOnTime").asBoolean(false));
         useLocator.setSelected(m.path("useLocator").asBoolean(false));
+        locatorList.setSelected(m.path("locatorList").asBoolean(false));
         Form.set(reward, m.path("rewardUridium").asInt(5_000));
         useCloak.setSelected(m.path("useCloak").asBoolean(false));
         String cf = m.path("cloakFormation").asText("");
@@ -337,6 +342,7 @@ final class BehemothSection implements Section {
         m.put("hpLinkPercent", Math.round(Form.fraction(linkBelow) * 100));
         m.put("arriveOnTime", onTime.isSelected());
         m.put("useLocator", useLocator.isSelected());
+        m.put("locatorList", locatorList.isSelected());
         m.put("rewardUridium", Form.intOf(reward));
         m.put("useCloak", useCloak.isSelected());
         m.put("cloakFormation", cloakFormation.get() != null ? cloakFormation.get() : "");

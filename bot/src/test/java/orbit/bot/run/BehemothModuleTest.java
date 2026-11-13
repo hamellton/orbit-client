@@ -808,4 +808,52 @@ class BehemothModuleTest {
         var h = sim.hero();
         assertTrue(h.x() > 18_600 && h.x() < 19_900 && h.y() > 500 && h.y() < 2_600, "still in the zone: " + h);
     }
+
+    static void targets(Sim sim, Integer... npcs) {
+        orbit.protocol.gen.PetLocatorGearInitializationCommand c = new orbit.protocol.gen.PetLocatorGearInitializationCommand();
+        c.locatorType = new orbit.protocol.gen.PetGearTypeModule();
+        c.possibleTargetValues = new java.util.ArrayList<>(java.util.List.of(npcs));
+        sim.world.apply(c, sim.now);
+    }
+
+    @Test
+    void theBehemothMissingFromTheLocatorsListSendsTheShipOn() throws Exception {
+        // the user, 2026-11-13: «если его даже выбрать нельзя, то его нет на карте»
+        Sim sim = new Sim(with(config(30), "{\"useLocator\": true, \"locatorList\": true}"), 308, 5_700, 2_600);
+        BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
+        locatorPet(sim);
+        m.workingMap();
+        sim.run(m::tick, 3_000);
+        targets(sim, 175, 176);
+        sim.run(m::tick, 2_000);
+        assertEquals(308, m.workingMap(), "the list just came: read after a few seconds on the map");
+        sim.run(m::tick, 2_000);
+        assertTrue(m.workingMap() != 308, "not in the list: on at once");
+    }
+
+    @Test
+    void theBehemothInTheLocatorsListKeepsTheShipWaiting() throws Exception {
+        Sim sim = new Sim(with(config(8), "{\"useLocator\": true, \"locatorList\": true}"), 308, 5_700, 2_600);
+        BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
+        locatorPet(sim);
+        m.workingMap();
+        sim.run(m::tick, 3_000);
+        targets(sim, 175, BehemothModule.BEHEMOTH_NPC, 176);
+        sim.run(m::tick, 30_000);
+        assertEquals(308, m.workingMap(), "listed: it is on the map, the wait goes on");
+    }
+
+    @Test
+    void aWaitPointAmongEnemiesIsNotFlownToStraightThroughThem() throws Exception {
+        // live 2026-11-13 on the VPS, 2-BL: «нет пути к 87/42 … иду напрямик» between two trains
+        Sim sim = new Sim(with(config(300), "{\"avoidEnemies\": true}"), 308, 12_000, 8_000);
+        BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
+        sim.ctx.nav().setAvoidedPlayers(m::avoidCircles);
+        m.workingMap();
+        enemy(sim, 900, "Camper", 5_800, 2_700);
+        sim.run(m::tick, 20_000);
+        var h = sim.hero();
+        assertTrue(Math.hypot(h.x() - 5_800, h.y() - 2_700) > 1_900, "kept off the enemy at the point: " + h);
+        assertTrue(m.status().contains("среди врагов"), m.status());
+    }
 }

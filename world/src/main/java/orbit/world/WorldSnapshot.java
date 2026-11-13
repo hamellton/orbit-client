@@ -260,16 +260,20 @@ public record WorldSnapshot(long nanos, Hero hero, Map<Integer, Ship> ships, Map
      * @param locatorX where the enemy locator last pointed ({@code PetGearLocatorUpdate}: its target, every ~2 s
      *                 while it finds one; recorded 2026-11-11, the points led to the Cubikon), with
      * @param locatorNanos when — 0 none on this map
+     * @param locatorTargets the NPCs the enemy locator may be set to ({@code PetLocatorGearInitializationCommand}: only
+     *                       those on the map — the user, 2026-11-13), with {@code locatorTargetsNanos} when; 0 none on
+     *                       this map yet
      * @param locatorNoneNanos when the locator last said «nothing» (its point in the map's corner, -1/-1): its target is
      *                         not on this map now; 0 never
      */
     public record Pet(boolean owned, boolean alive, boolean hasFuel, boolean active, int id, String name, int level,
                       Health health, int fuel, int fuelMax, double heat, double heatMax, int gear, long gearNanos,
                       java.util.Set<Integer> gears, int repairCost, boolean comboRepair, int locatorX, int locatorY,
-                      long locatorNanos, long locatorNoneNanos) {
+                      long locatorNanos, long locatorNoneNanos, java.util.List<Integer> locatorTargets,
+                      long locatorTargetsNanos) {
 
         static final Pet NONE = new Pet(false, false, false, false, 0, "", 0, Health.UNKNOWN, -1, -1, -1, -1, -1, 0,
-                java.util.Set.of(), -1, false, 0, 0, 0, 0);
+                java.util.Set.of(), -1, false, 0, 0, 0, 0, java.util.List.of(), 0);
 
         /** The locator's point is this fresh (ms) or newer. */
         public boolean locatorWithin(long nowNanos, long ms) {

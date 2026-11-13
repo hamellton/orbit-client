@@ -252,6 +252,12 @@ public final class World {
                     pet.name(), pet.level(), pet.health(), pet.fuel(), pet.fuelMax(), pet.heat(), pet.heatMax(), pet.gear());
             // a point in the map's corner is «nothing found» (live 2026-11-11: the bot flew to the corner after it;
             // the log showed 0/0 in hundreds, so not exactly zero), no NPC stands there
+            case orbit.protocol.gen.PetLocatorGearInitializationCommand p -> {
+                if (!p.possibleTargetValues.equals(pet.locatorTargets())) {
+                    log.info("Пеленгатор: цели на карте {}", p.possibleTargetValues);
+                }
+                pet = petTargets(p.possibleTargetValues, nanos);
+            }
             case orbit.protocol.gen.PetGearLocatorUpdate p -> {
                 if (p.x < LOCATOR_CORNER && p.y < LOCATOR_CORNER) {
                     if (pet.locatorNanos() != 0) {
@@ -683,6 +689,7 @@ public final class World {
     private void initHero(ShipInitializationCommand p, long nanos) {
         death = null;
         pet = petLocator(0, 0, 0); // the locator's point was on the old map
+        pet = petTargets(List.of(), 0); // and its targets
         // sent on every login (and on respawn); the server then lists the map contents again
         clearMap();
         hero.id = p.userId;
@@ -1080,7 +1087,7 @@ public final class World {
                                   int gear) {
         return new WorldSnapshot.Pet(owned, alive, hasFuel, active, id, name, level, health, fuel, fuelMax, heat, heatMax,
                 gear, pet.gearNanos(), pet.gears(), pet.repairCost(), pet.comboRepair(), pet.locatorX(), pet.locatorY(),
-                pet.locatorNanos(), pet.locatorNoneNanos());
+                pet.locatorNanos(), pet.locatorNoneNanos(), pet.locatorTargets(), pet.locatorTargetsNanos());
     }
 
     /** Locator points within this of the map's corner mean «nothing found». */
@@ -1094,14 +1101,23 @@ public final class World {
         WorldSnapshot.Pet p = pet;
         return new WorldSnapshot.Pet(p.owned(), p.alive(), p.hasFuel(), p.active(), p.id(), p.name(), p.level(),
                 p.health(), p.fuel(), p.fuelMax(), p.heat(), p.heatMax(), p.gear(), p.gearNanos(), p.gears(),
-                p.repairCost(), p.comboRepair(), x, y, nanos, noneNanos);
+                p.repairCost(), p.comboRepair(), x, y, nanos, noneNanos, p.locatorTargets(), p.locatorTargetsNanos());
+    }
+
+    private WorldSnapshot.Pet petTargets(List<Integer> targets, long nanos) {
+        WorldSnapshot.Pet p = pet;
+        return new WorldSnapshot.Pet(p.owned(), p.alive(), p.hasFuel(), p.active(), p.id(), p.name(), p.level(),
+                p.health(), p.fuel(), p.fuelMax(), p.heat(), p.heatMax(), p.gear(), p.gearNanos(), p.gears(),
+                p.repairCost(), p.comboRepair(), p.locatorX(), p.locatorY(), p.locatorNanos(), p.locatorNoneNanos(),
+                List.copyOf(targets), nanos);
     }
 
     private WorldSnapshot.Pet petWith(long gearNanos, java.util.Set<Integer> gears, int repairCost, boolean comboRepair) {
         WorldSnapshot.Pet p = pet;
         return new WorldSnapshot.Pet(p.owned(), p.alive(), p.hasFuel(), p.active(), p.id(), p.name(), p.level(),
                 p.health(), p.fuel(), p.fuelMax(), p.heat(), p.heatMax(), p.gear(), gearNanos, gears, repairCost, comboRepair,
-                p.locatorX(), p.locatorY(), p.locatorNanos(), p.locatorNoneNanos());
+                p.locatorX(), p.locatorY(), p.locatorNanos(), p.locatorNoneNanos(), p.locatorTargets(),
+                p.locatorTargetsNanos());
     }
 
     private WorldSnapshot.Pet withPetHealth(Health h) {

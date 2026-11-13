@@ -815,6 +815,9 @@ public final class BehemothModule implements BotModule {
         if (!pet.active()) {
             return false;
         }
+        if (listSaysGone(s, pet, h, now)) {
+            return true;
+        }
         if (pet.locatorWithin(now, LOCATOR_FRESH_MS) && pet.locatorNanos() > settled) {
             int x = pet.locatorX();
             int y = pet.locatorY();
@@ -874,6 +877,46 @@ public final class BehemothModule implements BotModule {
             locatorTold = none;
         }
         return false;
+    }
+
+    /** The locator's target list is read this long after coming to the map (it comes about 3 s after). */
+    static final long LIST_SETTLE_MS = 6_000;
+    private String listTold = "";
+    private boolean behemothListed;
+
+    /**
+     * {@code locatorList} (the user, 2026-11-13: «если в пеленгаторе можно выбрать бегемота — НПС есть на карте, а если
+     * его даже выбрать нельзя — его нет на карте»): the enemy locator lists only the NPCs on the map
+     * ({@code PetLocatorGearInitializationCommand}). The behemoth not listed — on to the next map at once; listed — the
+     * wait goes on until it is seen. True when the ship leaves.
+     */
+    private boolean listSaysGone(JsonNode s, WorldSnapshot.Pet pet, WorldSnapshot.Hero h, long now) {
+        behemothListed = false;
+        if (!on(s, "locatorList", false) || pet.locatorTargetsNanos() <= mapEnteredNanos
+                || now - mapEnteredNanos < LIST_SETTLE_MS * 1_000_000) {
+            return false;
+        }
+        boolean there = pet.locatorTargets().contains(BEHEMOTH_NPC);
+        behemothListed = there;
+        String key = (there ? "listed:" : "unlisted:") + h.mapId() + ":" + mapEnteredNanos;
+        if (!key.equals(listTold)) {
+            listTold = key;
+            log.info("Пеленгатор: бегемот {} в списке целей на {} {}", there ? "есть" : "не", ctx.maps().info(h.mapId()).name(),
+                    there ? "— он на карте, жду его" : "— на карте его нет");
+        }
+        if (there) {
+            return false;
+        }
+        int next = choose(h.mapId(), h.mapId());
+        if (next == h.mapId()) {
+            return false;
+        }
+        emptyAt.put(h.mapId(), wallMs());
+        chosen = next;
+        arrivedAt = 0;
+        waitMap = 0;
+        status = "Бегемота нет в списке пеленгатора — лечу на " + ctx.maps().info(next).name();
+        return true;
     }
 
     /** The box after the kill (true while busy with it). */
@@ -996,6 +1039,9 @@ public final class BehemothModule implements BotModule {
         if (trainComing(w, w.hero())) {
             return false;
         }
+        if (behemothListed && ctx.now() - waitUntil < TRAIN_WAIT_MAX_NS) {
+            return false; // it is on the map by the locator's list: wait for it
+        }
         if (enemyNear(w, w.hero()) && ctx.now() - waitUntil < TRAIN_WAIT_MAX_NS) {
             if (!enemyWaitTold) {
                 enemyWaitTold = true;
@@ -1036,6 +1082,14 @@ public final class BehemothModule implements BotModule {
             waitMap = 0;
             return;
         }
+        if (dist > ARRIVE && on(s, "avoidEnemies", false) && ctx.nav().inDanger(p[0], p[1])) {
+            // the point is among enemies now: no way round them, «straight» would be through them (live 2026-11-13 on
+            // the VPS, 2-BL: «нет пути к 87/42 … иду напрямик» between two trains) — stay where the ship is
+            ctx.nav().stop();
+            ctx.ship().want(g.roam());
+            status = "Точка ожидания среди врагов — стою, где стою";
+            return;
+        }
         if (dist > ARRIVE) {
             arrivedAt = 0;
             ctx.ship().want(g.travel());
@@ -1069,7 +1123,7 @@ public final class BehemothModule implements BotModule {
         if (now >= checkAt) {
             checkAt = now + 5_000_000_000L;
             int better = choose(h.mapId(), 0);
-            if (better != h.mapId() && dueAt(h.mapId(), wall) <= 0) {
+            if (better != h.mapId() && dueAt(h.mapId(), wall) <= 0 && !behemothListed) {
                 // here nothing is due by the clock, there one is: leave now, the flight counted
                 log.info("На {} бегемот по времени раньше — перелетаю", ctx.maps().info(better).name());
                 emptyAt.put(h.mapId(), wall);
