@@ -64,6 +64,16 @@ public final class Revive {
         return max > 0 && deaths >= max;
     }
 
+    private boolean leaving;
+
+    /**
+     * The bot is logging out: a revive only to leave is the free one at the base (live 2026-11-13 on gb2: stopped
+     * while dead, it paid 200 uridium at the portal to log out at once).
+     */
+    void leaving(boolean on) {
+        leaving = on;
+    }
+
     /** @return true while dead or in the pause after reviving */
     public boolean tick() {
         WorldSnapshot w = ctx.world().get();
@@ -100,7 +110,10 @@ public final class Revive {
             return true; // the runner stops the bot
         }
         String wanted = s.revive();
-        if (!"BASE".equals(wanted) && s.paidRevives() > 0 && streak >= s.paidRevives()) {
+        if (leaving && !"BASE".equals(wanted)) {
+            log.info("Выхожу из игры — возрождаюсь на базе бесплатно");
+            wanted = "BASE";
+        } else if (!"BASE".equals(wanted) && s.paidRevives() > 0 && streak >= s.paidRevives()) {
             log.info("Платных возрождений подряд: {} (лимит из конфига) — сейчас на базе бесплатно, потом снова как в конфиге",
                     streak);
             wanted = "BASE";

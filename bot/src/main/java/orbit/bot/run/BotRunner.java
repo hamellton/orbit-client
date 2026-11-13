@@ -354,6 +354,7 @@ public final class BotRunner {
                 return;
             }
         }
+        revive.leaving(state == State.STOPPING);
         boolean reviving = revive.tick();
         if (reviving && state == State.STOPPING && w.death() == null && h.alive()) {
             reviving = false; // back in game while logging out: no pause after the revive, out at once

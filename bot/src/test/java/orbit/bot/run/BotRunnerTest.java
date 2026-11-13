@@ -236,6 +236,18 @@ class BotRunnerTest {
     }
 
     @Test
+    void stoppedWhileDeadTheShipRevivesFreeAtTheBase() throws Exception {
+        // live 2026-11-13 on gb2: stopped on the kill screen, it paid 200 uridium at the portal only to log out
+        BotConfig c = CubikonModuleTest.config(90, false)
+                .withSafety(new BotConfig.Safety(0.5, 0.9, 0.5, 0, null, null, 0, "PORTAL", 0, 0, 2, 3));
+        Sim sim = new Sim(c, 26, 10_000, 6_000);
+        BotRunner r = new BotRunner(sim.ctx, () -> false, s -> { });
+        sim.run(r::tick, 500);
+        r.stop("тест");
+        assertEquals(KillScreenOptionTypeModule.OPTIONTYPE_BASIC_REPAIR, dieAndRevive(sim, r));
+    }
+
+    @Test
     void killedAgainAndAgainAfterPaidRevivesTheShipRevivesAtTheBaseOnce() throws Exception {
         BotConfig c = CubikonModuleTest.config(90, false)
                 .withSafety(new BotConfig.Safety(0.5, 0.9, 0.5, 0, null, null, 0, "PORTAL", 0, 0, 2, 3));
