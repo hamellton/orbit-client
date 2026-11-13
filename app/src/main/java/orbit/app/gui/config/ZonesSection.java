@@ -29,9 +29,23 @@ import orbit.world.maps.MapCatalog;
  */
 final class ZonesSection implements Section {
 
+    /** The grid's usual size (DarkBot's «zone resolution»); finer ones for small zones (AstraBot's are ~300 units). */
     static final int RESOLUTION = 30;
+    static final Integer[] RESOLUTIONS = {30, 70, 100};
+    /** The cells a side now: the finest grid of the config, else the usual. */
+    private int res = RESOLUTION;
+    private final javax.swing.JComboBox<Integer> resBox = new javax.swing.JComboBox<>(RESOLUTIONS);
     private static final Color PREFERRED = new Color(70, 190, 90, 120);
     private static final Color AVOIDED = new Color(220, 70, 60, 120);
+    // DarkBot's colour scheme (ColorScheme: BARRIER, BARRIER_BORDER, NO_CLOACK, BASES, BASE_SPOTS, PORTALS)
+    private static final Color BARRIER = new Color(255, 255, 255, 0x30);
+    private static final Color BARRIER_BORDER = new Color(255, 255, 255, 0x80);
+    private static final Color MIST = new Color(0x18, 0xa0, 0xff, 0x30);
+    private static final Color BASE = new Color(0x00, 0xff, 0x80);
+    private static final Color BASE_SPOT = new Color(0x00, 0xff, 0x80, 0x24);
+    private static final Color PORTAL = new Color(0xae, 0xae, 0xae);
+    private static final Color ENEMY = new Color(0xd0, 0x40, 0x40);
+    private static final Color ALLY = new Color(0x40, 0xb0, 0x60);
 
     private final MapCatalog catalog;
     private final MapBox map;
@@ -73,6 +87,23 @@ final class ZonesSection implements Section {
         controls.add(preferred);
         controls.add(avoided);
         controls.add(clear);
+        controls.add(new javax.swing.JLabel("   Сетка"));
+        controls.add(resBox);
+        resBox.setToolTipText("Клеток по стороне карты: 30 — как в DarkBot, 70 и 100 — для маленьких зон (как у AstraBot)");
+        resBox.setEditable(true);
+        resBox.addActionListener(e -> {
+            Object v = resBox.getSelectedItem();
+            int n;
+            try {
+                n = v instanceof Integer i ? i : Integer.parseInt(String.valueOf(v).strip());
+            } catch (NumberFormatException ex) {
+                return;
+            }
+            n = Math.max(10, Math.min(200, n));
+            if (n != res) {
+                regrid(n);
+            }
+        });
         controls.add(help);
         JPanel page = new JPanel(new java.awt.BorderLayout(0, 4));
         page.setBorder(javax.swing.BorderFactory.createEmptyBorder(6, 6, 8, 8));
@@ -94,8 +125,19 @@ final class ZonesSection implements Section {
     @Override
     public void load(BotConfig c) {
         grids.clear();
+        // the finest grid of the file, so nothing is lost when it is shown and saved again
+        int finest = RESOLUTION;
+        for (BotConfig.Zones z : c.zones().values()) {
+            for (BotConfig.ZoneGrid zg : new BotConfig.ZoneGrid[] {z.preferred(), z.avoided()}) {
+                if (zg != null) {
+                    finest = Math.max(finest, zg.resolution());
+                }
+            }
+        }
+        res = finest;
+        resBox.setSelectedItem(res);
         c.zones().forEach((id, z) -> {
-            boolean[][][] g = new boolean[2][RESOLUTION][RESOLUTION];
+            boolean[][][] g = new boolean[2][res][res];
             fill(g[0], z.preferred());
             fill(g[1], z.avoided());
             grids.put(id, g);
@@ -119,21 +161,21 @@ final class ZonesSection implements Section {
     }
 
     /** Rescales a stored grid of another resolution onto ours. */
-    private static void fill(boolean[][] target, BotConfig.ZoneGrid g) {
+    private void fill(boolean[][] target, BotConfig.ZoneGrid g) {
         if (g == null || g.resolution() <= 0) {
             return;
         }
-        for (int y = 0; y < RESOLUTION; y++) {
-            for (int x = 0; x < RESOLUTION; x++) {
-                int sy = y * g.resolution() / RESOLUTION;
-                int sx = x * g.resolution() / RESOLUTION;
+        for (int y = 0; y < res; y++) {
+            for (int x = 0; x < res; x++) {
+                int sy = y * g.resolution() / res;
+                int sx = x * g.resolution() / res;
                 String row = sy < g.rows().size() ? g.rows().get(sy) : "";
                 target[y][x] = sx < row.length() && row.charAt(sx) == '#';
             }
         }
     }
 
-    private static BotConfig.ZoneGrid grid(boolean[][] cells) {
+    private BotConfig.ZoneGrid grid(boolean[][] cells) {
         List<String> rows = new ArrayList<>();
         boolean any = false;
         for (boolean[] r : cells) {
@@ -144,11 +186,31 @@ final class ZonesSection implements Section {
             }
             rows.add(b.toString());
         }
-        return any ? new BotConfig.ZoneGrid(RESOLUTION, rows) : null;
+        return any ? new BotConfig.ZoneGrid(cells.length, rows) : null;
+    }
+
+    /** The same zones on a grid of {@code n} cells a side. */
+    private void regrid(int n) {
+        Map<Integer, boolean[][][]> before = new TreeMap<>(grids);
+        int old = res;
+        res = n;
+        grids.clear();
+        before.forEach((id, g) -> {
+            boolean[][][] ng = new boolean[2][n][n];
+            for (int l = 0; l < 2; l++) {
+                for (int y = 0; y < n; y++) {
+                    for (int x = 0; x < n; x++) {
+                        ng[l][y][x] = g[l][y * old / n][x * old / n];
+                    }
+                }
+            }
+            grids.put(id, ng);
+        });
+        canvas.repaint();
     }
 
     private boolean[][] layer(int mapId) {
-        return grids.computeIfAbsent(mapId, k -> new boolean[2][RESOLUTION][RESOLUTION])[preferred.isSelected() ? 0 : 1];
+        return grids.computeIfAbsent(mapId, k -> new boolean[2][res][res])[preferred.isSelected() ? 0 : 1];
     }
 
     /** Below this width the map is drawn without names. */
@@ -227,9 +289,9 @@ final class ZonesSection implements Section {
         /** The grid cell under the mouse, or {@code null} off the map. */
         private int[] cell(MouseEvent e) {
             java.awt.Rectangle a = area();
-            int x = (e.getX() - a.x) * RESOLUTION / Math.max(1, a.width);
-            int y = (e.getY() - a.y) * RESOLUTION / Math.max(1, a.height);
-            return x >= 0 && y >= 0 && x < RESOLUTION && y < RESOLUTION ? new int[] {x, y} : null;
+            int x = (e.getX() - a.x) * res / Math.max(1, a.width);
+            int y = (e.getY() - a.y) * res / Math.max(1, a.height);
+            return x >= 0 && y >= 0 && x < res && y < res ? new int[] {x, y} : null;
         }
 
         /**
@@ -242,10 +304,10 @@ final class ZonesSection implements Section {
 
         /** A cell's rectangle on the screen. */
         private java.awt.Rectangle cellRect(java.awt.Rectangle a, int x0, int y0, int x1, int y1) {
-            int sx = a.x + x0 * a.width / RESOLUTION;
-            int sy = a.y + y0 * a.height / RESOLUTION;
-            return new java.awt.Rectangle(sx, sy, a.x + (x1 + 1) * a.width / RESOLUTION - sx,
-                    a.y + (y1 + 1) * a.height / RESOLUTION - sy);
+            int sx = a.x + x0 * a.width / res;
+            int sy = a.y + y0 * a.height / res;
+            return new java.awt.Rectangle(sx, sy, a.x + (x1 + 1) * a.width / res - sx,
+                    a.y + (y1 + 1) * a.height / res - sy);
         }
 
         private double sx(java.awt.Rectangle a, MapCatalog.MapInfo info, double x) {
@@ -256,27 +318,51 @@ final class ZonesSection implements Section {
             return a.y + y / info.height() * a.height;
         }
 
-        /** Obstacles the bot saw here: no-access and mine fields red, radiation and damage orange, the base ring blue. */
+        /**
+         * The zones the bot saw here, drawn as DarkBot draws them (the user, 2026-11-13): no-access zones as barriers
+         * (white, a light fill and a border), damage, radiation, mines and the like as a blue mist, a base's no-fight
+         * ring as its green spot.
+         */
         private void features(Graphics2D g, java.awt.Rectangle a, MapCatalog.MapInfo info) {
             for (orbit.app.MapFeatures.Obstacle o : orbit.app.MapFeatures.shared().obstacles(info.id())) {
                 java.awt.Shape sh = shape(a, info, o);
                 if (sh == null) {
                     continue;
                 }
-                boolean base = o.type() == orbit.app.MapFeatures.BASE_ZONE;
-                Color c = base ? new Color(80, 160, 255) : o.type() == 8 || o.type() == 3 ? new Color(245, 150, 50)
-                        : new Color(230, 70, 60);
                 if (o.inverted()) {
                     java.awt.geom.Path2D.Double outside = new java.awt.geom.Path2D.Double(java.awt.geom.Path2D.WIND_EVEN_ODD);
                     outside.append(a, false);
                     outside.append(sh, false);
                     sh = outside;
                 }
-                g.setColor(new Color(c.getRed(), c.getGreen(), c.getBlue(), base ? 28 : 60));
-                g.fill(sh);
-                g.setColor(new Color(c.getRed(), c.getGreen(), c.getBlue(), base ? 120 : 170));
-                g.setStroke(new BasicStroke(1f));
-                g.draw(sh);
+                if (o.type() == orbit.app.MapFeatures.BASE_ZONE) {
+                    g.setColor(BASE_SPOT);
+                    g.fill(sh);
+                } else if (o.type() == 5 || o.type() == 6) { // NO_ACCESS, FACTION_NO_ACCESS: DarkBot's barriers
+                    g.setColor(BARRIER);
+                    g.fill(sh);
+                    g.setColor(BARRIER_BORDER);
+                    g.setStroke(new BasicStroke(1f));
+                    g.draw(sh);
+                } else { // damage, radiation, mine fields, cages, asteroids: DarkBot's mist
+                    g.setColor(MIST);
+                    g.fill(sh);
+                }
+            }
+        }
+
+        /** The portals of the map (DarkBot: a grey ring with the map it leads to). */
+        private void portals(Graphics2D g, java.awt.Rectangle a, MapCatalog.MapInfo info) {
+            g.setColor(PORTAL);
+            g.setStroke(new BasicStroke(1.2f));
+            for (MapCatalog.Portal pt : catalog.portals(info.id())) {
+                double x = sx(a, info, pt.x());
+                double y = sy(a, info, pt.y());
+                g.draw(new java.awt.geom.Ellipse2D.Double(x - 6, y - 6, 12, 12));
+                if (a.width >= SMALL && pt.toName() != null) {
+                    java.awt.FontMetrics fm = g.getFontMetrics();
+                    g.drawString(pt.toName(), (int) x - fm.stringWidth(pt.toName()) / 2, (int) y - 9);
+                }
             }
         }
 
@@ -316,39 +402,45 @@ final class ZonesSection implements Section {
             return poly;
         }
 
-        /** Stations: a base's HQ with a word (own / shared / other company), clan battle stations as diamonds. */
+        /**
+         * Stations as DarkBot draws them: a base's spots as green circles (HQ 3 500 across, the outpost HQ 3 000, the
+         * other stations 1 000), a clan battle station as an oval — red another company's or a hostile clan's, green
+         * the own or an allied one — with its clan tag; the base's name beside its HQ.
+         */
         private void stations(Graphics2D g, java.awt.Rectangle a, MapCatalog.MapInfo info) {
+            String[] company = {"", "MMO", "EIC", "VRU"};
             for (orbit.app.MapFeatures.Station st : orbit.app.MapFeatures.shared().stations(info.id())) {
                 double x = sx(a, info, st.x());
                 double y = sy(a, info, st.y());
                 if (st.type() == 36) {
-                    java.awt.geom.Path2D.Double d = new java.awt.geom.Path2D.Double();
-                    d.moveTo(x, y - 6);
-                    d.lineTo(x + 6, y);
-                    d.lineTo(x, y + 6);
-                    d.lineTo(x - 6, y);
-                    d.closePath();
-                    g.setColor(new Color(240, 90, 80));
-                    g.fill(d);
+                    g.setColor(st.faction() != 0 && st.faction() == ownCompany(info) ? ALLY : ENEMY);
+                    g.fill(new java.awt.geom.Ellipse2D.Double(x - 5.5, y - 4.5, 11, 9));
                     if (a.width >= SMALL) {
-                        g.drawString("станция" + (st.clanTag().isEmpty() ? "" : " [" + st.clanTag() + "]"), (int) x + 8, (int) y + 4);
+                        String name = st.clanTag().isEmpty() ? st.name() : "[" + st.clanTag() + "] " + st.name();
+                        java.awt.FontMetrics fm = g.getFontMetrics();
+                        g.drawString(name, (int) x - fm.stringWidth(name) / 2, (int) y - 8);
                     }
                     continue;
                 }
-                boolean hq = st.type() == 46 || st.type() == 47;
-                Color c = st.faction() == 0 ? new Color(200, 200, 210) : new Color(90, 170, 255);
-                g.setColor(c);
-                int sz = hq ? 9 : 5;
-                g.fillRect((int) x - sz / 2, (int) y - sz / 2, sz, sz);
-                if (hq && a.width >= SMALL) {
-                    String[] company = {"", "MMO", "EIC", "VRU"};
-                    g.drawString(st.faction() == 0 ? "общая база" : "база " + (st.faction() < company.length
-                            ? company[st.faction()] : String.valueOf(st.faction())), (int) x + 8, (int) y + 4);
-                }
-                if (!hq && st.faction() == 0 && st.type() >= 50 && st.type() <= 52 && a.width >= SMALL) {
-                    g.drawString("станция (общая)", (int) x + 8, (int) y + 4);
+                double across = st.type() == 46 ? 3_500 : st.type() == 47 ? 3_000 : 1_000;
+                double rx = across / 2 / info.width() * a.width;
+                double ry = across / 2 / info.height() * a.height;
+                g.setColor(BASE_SPOT);
+                g.fill(new java.awt.geom.Ellipse2D.Double(x - rx, y - ry, 2 * rx, 2 * ry));
+                g.setColor(BASE);
+                g.fill(new java.awt.geom.Ellipse2D.Double(x - 2, y - 2, 4, 4));
+                if ((st.type() == 46 || st.type() == 47) && a.width >= SMALL) {
+                    String name = st.faction() == 0 ? "общая база" : "база " + (st.faction() < company.length
+                            ? company[st.faction()] : String.valueOf(st.faction()));
+                    java.awt.FontMetrics fm = g.getFontMetrics();
+                    g.drawString(name, (int) x - fm.stringWidth(name) / 2, (int) (y + ry) + 12);
                 }
             }
+        }
+
+        /** The company whose home the map is (its battle stations are friends), 0 for none. */
+        private int ownCompany(MapCatalog.MapInfo info) {
+            return info.homeFaction();
         }
 
         @Override
@@ -373,22 +465,23 @@ final class ZonesSection implements Section {
             if (layers != null) {
                 for (int l = 0; l < 2; l++) {
                     g.setColor(l == 0 ? PREFERRED : AVOIDED);
-                    for (int y = 0; y < RESOLUTION; y++) {
-                        for (int x = 0; x < RESOLUTION; x++) {
+                    for (int y = 0; y < res; y++) {
+                        for (int x = 0; x < res; x++) {
                             if (layers[l][y][x]) {
-                                int x0 = a.x + x * a.width / RESOLUTION;
-                                int y0 = a.y + y * a.height / RESOLUTION;
-                                g.fillRect(x0, y0, a.x + (x + 1) * a.width / RESOLUTION - x0,
-                                        a.y + (y + 1) * a.height / RESOLUTION - y0);
+                                int x0 = a.x + x * a.width / res;
+                                int y0 = a.y + y * a.height / res;
+                                g.fillRect(x0, y0, a.x + (x + 1) * a.width / res - x0,
+                                        a.y + (y + 1) * a.height / res - y0);
                             }
                         }
                     }
                 }
             }
-            g.setColor(new Color(255, 255, 255, 18));
-            for (int i = 1; i < RESOLUTION; i++) {
-                g.drawLine(a.x + i * a.width / RESOLUTION, a.y, a.x + i * a.width / RESOLUTION, a.y + a.height);
-                g.drawLine(a.x, a.y + i * a.height / RESOLUTION, a.x + a.width, a.y + i * a.height / RESOLUTION);
+            // a fine grid's lines fainter, not to hide the map
+            g.setColor(new Color(255, 255, 255, res > 40 ? 8 : 18));
+            for (int i = 1; i < res; i++) {
+                g.drawLine(a.x + i * a.width / res, a.y, a.x + i * a.width / res, a.y + a.height);
+                g.drawLine(a.x, a.y + i * a.height / res, a.x + a.width, a.y + i * a.height / res);
             }
             // what the mouse would change: the frame being dragged, or the cell under it
             Color mark = preferred.isSelected() ? PREFERRED : AVOIDED;
@@ -409,15 +502,7 @@ final class ZonesSection implements Section {
             g.setStroke(new BasicStroke(1.5f));
             g.drawRect(a.x, a.y, a.width, a.height);
             g.setFont(g.getFont().deriveFont(11f));
-            for (MapCatalog.Portal p : catalog.portals(info.id())) {
-                int px = a.x + (int) ((double) p.x() / info.width() * a.width);
-                int py = a.y + (int) ((double) p.y() / info.height() * a.height);
-                g.setColor(new Color(240, 240, 240));
-                g.drawOval(px - 6, py - 6, 12, 12);
-                if (a.width >= SMALL) {
-                    g.drawString(p.toName(), px + 8, py + 4);
-                }
-            }
+            portals(g, a, info);
             stations(g, a, info);
             for (BotConfig.SafetySpot s : spots.getOrDefault(info.id(), List.of())) {
                 int px = a.x + (int) ((double) s.x() / info.width() * a.width);
