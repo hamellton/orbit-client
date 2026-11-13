@@ -494,6 +494,22 @@ class BehemothModuleTest {
     }
 
     @Test
+    void npcsShootingOneAfterAnotherDoNotKeepTheShipPastTheWait() throws Exception {
+        // live 2026-11-13 on the VPS, 3-BL: Attend IX one after another, the ship stayed over two minutes
+        Sim sim = new Sim(config(30), 308, 5_700, 2_600);
+        sim.lasers("ammunition_laser_ucb-100");
+        BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
+        m.workingMap();
+        sim.run(m::tick, 1_000);
+        for (int i = 0; i < 10; i++) {
+            sim.npc(40 + i, "\\\\ Impulse II //", 6_300, 2_600 + i * 50);
+            shoots(sim, 40 + i, 1);
+            sim.run(m::tick, 5_000);
+        }
+        assertTrue(m.workingMap() != 308, "51 s, ten shooting one after another: on to another map, " + m.workingMap());
+    }
+
+    @Test
     void anNpcShootingAtUsWhileWaitingIsFoughtBack() throws Exception {
         Sim sim = new Sim(config(300), 308, 5_700, 2_600);
         sim.lasers("ammunition_laser_ucb-100");

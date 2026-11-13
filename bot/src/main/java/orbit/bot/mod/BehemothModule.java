@@ -844,6 +844,12 @@ public final class BehemothModule implements BotModule {
 
     /** Other NPCs while no behemoth: those shooting at us ({@code defenceMode}) or all ({@code killOthers}). */
     private boolean fightWhileWaiting(BotConfig c, JsonNode s, WorldSnapshot w) {
+        if (waitMap == w.hero().mapId() && ctx.now() >= waitUntil) {
+            // the wait is over: no more fights here, on to the next map (live 2026-11-13 on the VPS, 3-BL: Attend IX one
+            // after another kept the ship over two minutes on a 30 s wait)
+            attacker.clear();
+            return false;
+        }
         boolean all = on(s, "killOthers", false);
         boolean defence = on(s, "defenceMode", true);
         if (!all && !defence) {
