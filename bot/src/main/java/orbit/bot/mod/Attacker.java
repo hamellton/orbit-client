@@ -328,7 +328,9 @@ public final class Attacker {
                 && t.health().hpPercent() < 0.25;
         ctx.ship().want(chasing || runCircle ? c.general().run() : onTheWay ? c.general().travel() : c.general().offensive());
         Threats threats = move ? new Threats(ctx, ctx.world().get(), c, t.id()) : null;
-        fight.radius(radius, Targets.baseRadius(c, t, h.mapId()), !Targets.ownRadius(c, t, h.mapId()));
+        double baseRadius = Targets.baseRadius(c, t, h.mapId());
+        learnedFarther = !Targets.ownRadius(c, t, h.mapId()) && radius > baseRadius + 1;
+        fight.radius(radius, baseRadius, !Targets.ownRadius(c, t, h.mapId()));
         fight.sample(w, t, radius, switch (mode) {
             case KITE -> "отход";
             case STAND -> "стою";
@@ -686,6 +688,9 @@ public final class Attacker {
         return away > 0.3 * Math.max(1, Math.hypot(vx, vy));
     }
 
+    /** The radius of this fight was learned farther than the base one (the target hit the ship nearer). */
+    private boolean learnedFarther;
+
     private void circle(Threats th, WorldSnapshot.Hero h, WorldSnapshot.Ship t, double radius) {
         if (circleDir == 0) {
             circleDir = ctx.random().nextBoolean() ? 1 : -1;
@@ -698,7 +703,9 @@ public final class Attacker {
         double cx = c0[0];
         double cy = c0[1];
         double r = radius;
-        if (!t.moving() || t.health().known() && t.health().hpPercent() < 0.25) {
+        // DarkBot comes nearer to a still or nearly dead NPC — not when its kind was learned to hit the ship nearer
+        // (live 2026-11-13 on 2-7: Boss Kristallon learned 675, fought at 593, the learning took it for 675)
+        if (!learnedFarther && (!t.moving() || t.health().known() && t.health().hpPercent() < 0.25)) {
             r = Math.min(r, 600);
         }
         if (fleeing(t, h)) {
