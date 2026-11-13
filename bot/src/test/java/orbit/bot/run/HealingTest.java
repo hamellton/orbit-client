@@ -222,6 +222,19 @@ class HealingTest {
     }
 
     @Test
+    void onABlacklightMapTheRepairJumpsThroughThePortalAtOnce() {
+        // the user, 2026-11-13: 3-BL's NPCs reach its portals — no healing there, through to 3-8 and repair there
+        Sim sim = lowHp(308, 14_027, 3_181); // 3-BL by its 3-8 portal
+        hurt(sim, 28_000, 0); // 28 %: below the repair, above the escape-under-fire threshold
+        Safety s = new Safety(sim.ctx);
+        for (int t = 0; t < 100; t++) {
+            s.tick(false);
+            sim.now += 100 * Sim.MS;
+        }
+        assertEquals(1, sim.sent.stream().filter(p -> p instanceof orbit.protocol.gen.JumpRequest).count());
+    }
+
+    @Test
     void afterAnEscapeJumpTheRepairIsAtThePortalBackNotAtTheBase() {
         // 2-BL → 2-8 under fire (live 2026-11-12): repair by the 2-BL portal and go back, not to 2-8's base
         Sim sim = lowHp(307, 593, 5_884); // 2-BL by its 2-8 portal
@@ -237,6 +250,7 @@ class HealingTest {
         si.userId = 1;
         si.mapId = 24;
         si.factionId = 3;
+        si.level = 24; // another company's 2-BL lets in from 24; an unknown level would keep the ship off it
         si.x = 9_000;
         si.y = 4_000;
         si.speed = 400;

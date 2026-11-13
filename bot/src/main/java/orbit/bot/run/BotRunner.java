@@ -667,6 +667,28 @@ public final class BotRunner {
         }
         // straight to the portal and out: the hull is not repaired first, no escape jump on the way
         safety.healOnly();
+        // on a Blacklight map no logging out at its portal (NPCs reach it): through it first, out on the other side
+        // (the user, 2026-11-13)
+        if (!logoutHere && orbit.bot.nav.Router.blacklight(h.mapId())) {
+            SafePlaces.Place out = SafePlaces.nearest(w, ctx.maps(), ctx.stats().closedPortals,
+                    ctx.config().get().safety().oneWayJumps());
+            if (out != null && out.portal() != null && out.jumpable()) {
+                if (out.distance(h) > out.reach()) {
+                    if (ctx.nav().idle() || ctx.nav().destination().x() != out.x()) {
+                        ctx.nav().moveTo(out.x(), out.y(), true);
+                    }
+                    ctx.nav().tick();
+                    show("К порталу на " + out.portal().toName() + " — выйду там");
+                } else if (w.jumpingTo() == 0 && now - stopJumpAt > 15_000_000_000L) {
+                    log.info("Выхожу из игры с BL-карты — сначала прыгаю на {}", out.portal().toName());
+                    ctx.nav().stop();
+                    ctx.actions().jump();
+                    stopJumpAt = now;
+                }
+                logoutAt = 0;
+                return;
+            }
+        }
         int[] p = logoutHere ? null : logoutPortal(w);
         if (p != null && Math.hypot(p[0] - h.x(), p[1] - h.y()) > Safety.AT_PORTAL) {
             if (ctx.nav().idle() || ctx.nav().destination().x() != p[0]) {

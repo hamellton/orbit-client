@@ -29,6 +29,19 @@ public final class Router {
     static final int BLACKLIGHT_LEVEL = 24;
     static final int OWN_BLACKLIGHT_LEVEL = 17;
 
+    /** A Blacklight map: its portals are no shelter, NPCs shoot there too (the user, 2026-11-13). */
+    public static boolean blacklight(int map) {
+        return BLACKLIGHT.contains(map);
+    }
+
+    /**
+     * As {@link #open(int, int, int)}, a level not known yet ({@code 0}) taken as too low for another company's
+     * Blacklight: a jump there would be refused under fire (the user, 2026-11-13); the own one is open.
+     */
+    public static boolean openKnown(int map, int faction, int level) {
+        return level > 0 ? open(map, faction, level) : !BLACKLIGHT.contains(map) || map == 305 + faction;
+    }
+
     /** May the pilot enter the map: a Blacklight one by the level, the own company's sooner. */
     public static boolean open(int map, int faction, int level) {
         if (!BLACKLIGHT.contains(map)) {

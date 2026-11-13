@@ -146,7 +146,11 @@ public final class Safety {
             return true;
         }
         MapCatalog.Portal portal = place.portal();
-        if (portal != null && attacked && hp < s.escapeHp() && w.jumpingTo() == 0 && now - jumpedAt > 10_000_000_000L) {
+        // on a Blacklight map the portal is no shelter (its NPCs reach it): through it at once, the repair on the
+        // other side (the user, 2026-11-13)
+        boolean noShelter = orbit.bot.nav.Router.blacklight(h.mapId());
+        if (portal != null && (attacked && hp < s.escapeHp() || noShelter) && w.jumpingTo() == 0
+                && now - jumpedAt > 10_000_000_000L) {
             boolean backInto = portal.toId() == escapedFrom && now - jumpedAt < BACK_INTO_NS;
             if (!place.jumpable() || backInto) {
                 // 5-2 → 5-3 has no way back but the whole loop round the pirate maps (live 2026-11-12): stay in the
@@ -161,7 +165,11 @@ public final class Safety {
             } else if (jumpAt == 0) {
                 jumpAt = now + ctx.pause(200, 700);
             } else if (now >= jumpAt) {
-                log.warn("На портале под огнём, HP {}% — прыгаю на {}", pct(hp), portal.toName());
+                if (attacked) {
+                    log.warn("На портале под огнём, HP {}% — прыгаю на {}", pct(hp), portal.toName());
+                } else {
+                    log.info("На BL-карте у портала укрытия нет — прыгаю на {}, ремонт там", portal.toName());
+                }
                 ctx.actions().jump();
                 jumpedAt = now;
                 jumpAt = 0;
