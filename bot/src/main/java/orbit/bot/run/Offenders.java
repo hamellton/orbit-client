@@ -115,14 +115,49 @@ public final class Offenders {
     /** Another company's clan battle stations on the map (they fire at the ship), when the config keeps away. */
     private volatile List<Circle> stations = List.of();
 
-    private static List<Circle> stations(WorldSnapshot w, int radius) {
+    /**
+     * Battle stations of the own company found shooting the ship (their weapon modules are no ships: the hit comes
+     * from an id nothing in sight has; live 2026-11-13 on 2-3, «Fornax» of another clan, hours of hits near it).
+     */
+    private final Set<String> hostileStations = new java.util.HashSet<>();
+    /** An unseen shooter this near a battle station is the station. */
+    static final double STATION_REACH = 1500;
+
+    private void noteHostileStations(WorldSnapshot w) {
+        WorldSnapshot.Hero h = w.hero();
+        for (int id : h.attackers()) {
+            if (w.ships().containsKey(id) || id == h.id()) {
+                continue;
+            }
+            WorldSnapshot.Asset st = null;
+            double best = STATION_REACH;
+            for (WorldSnapshot.Asset a : w.assets().values()) {
+                double d = Math.hypot(a.x() - h.x(), a.y() - h.y());
+                if (a.type() == BATTLESTATION && d < best && (h.clanId() == 0 || a.clanId() != h.clanId())) {
+                    best = d;
+                    st = a;
+                }
+            }
+            if (st != null && hostileStations.add(stationKey(h.mapId(), st))) {
+                log.warn("Станция {}{} стреляет в корабль — обхожу её", st.name(),
+                        st.clanTag() == null || st.clanTag().isBlank() ? "" : " [" + st.clanTag() + "]");
+            }
+        }
+    }
+
+    private static String stationKey(int map, WorldSnapshot.Asset a) {
+        return map + ":" + a.x() / 100 + ":" + a.y() / 100;
+    }
+
+    private List<Circle> stations(WorldSnapshot w, int radius) {
         if (radius <= 0) {
             return List.of();
         }
         WorldSnapshot.Hero h = w.hero();
         List<Circle> out = new ArrayList<>();
         for (WorldSnapshot.Asset a : w.assets().values()) {
-            if (a.type() == BATTLESTATION && a.factionId() != 0 && a.factionId() != h.factionId()
+            boolean enemy = a.factionId() != 0 && a.factionId() != h.factionId();
+            if (a.type() == BATTLESTATION && (enemy || hostileStations.contains(stationKey(h.mapId(), a)))
                     && (h.clanId() == 0 || a.clanId() != h.clanId())) {
                 String tag = a.clanTag() == null || a.clanTag().isBlank() ? "" : " [" + a.clanTag() + "]";
                 out.add(new Circle("станция" + tag, a.x(), a.y(), radius));
@@ -177,6 +212,7 @@ public final class Offenders {
         }
         seen.values().removeIf(s -> now - s.nanos() > LAST_SEEN_NS || s.map() != h.mapId());
         double r = f.avoidRadius();
+        noteHostileStations(w);
         stations = stations(w, f.stationRadius());
         noteShooters(w);
         // the window shows the players kept off (the user's own tick), not the bot's own keeping off NPCs and
@@ -194,6 +230,7 @@ public final class Offenders {
         ids.addAll(previous.ids);
         names.addAll(previous.names);
         playerNames.putAll(previous.playerNames);
+        hostileStations.addAll(previous.hostileStations);
     }
 
     private final Map<String, Long> playerNames = new HashMap<>();
