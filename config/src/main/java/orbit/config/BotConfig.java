@@ -569,17 +569,27 @@ public record BotConfig(
      *                    on → circle, off → stand
      * @param runCircle   the run configuration to catch a nearly dead target (below 25 %) that got farther than
      *                    twice the radius (DarkBot's {@code RUN_CONFIG_IN_CIRCLE})
+     * @param skipCrowded not to take a target among other NPCs that attack on sight (off: taken like DarkBot does;
+     *                    the user, 2026-11-13: skipping them left the ship flying about for nothing)
      */
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public record Loot(String ammo, String sab, double sabBelow, int sabNpcShieldMin, String rsb,
                        boolean groupNpcs, int ignoreFartherThan, String rocket, boolean fireRockets, boolean circle,
-                       List<String> fallback, String launcher, boolean fireLauncher, String move, Boolean runCircle) {
+                       List<String> fallback, String launcher, boolean fireLauncher, String move, Boolean runCircle,
+                       Boolean skipCrowded) {
+
+        public Loot(String ammo, String sab, double sabBelow, int sabNpcShieldMin, String rsb,
+                    boolean groupNpcs, int ignoreFartherThan, String rocket, boolean fireRockets, boolean circle,
+                    List<String> fallback, String launcher, boolean fireLauncher, String move, Boolean runCircle) {
+            this(ammo, sab, sabBelow, sabNpcShieldMin, rsb, groupNpcs, ignoreFartherThan, rocket, fireRockets, circle,
+                    fallback, launcher, fireLauncher, move, runCircle, null);
+        }
 
         public Loot(String ammo, String sab, double sabBelow, int sabNpcShieldMin, String rsb,
                     boolean groupNpcs, int ignoreFartherThan, String rocket, boolean fireRockets, boolean circle,
                     List<String> fallback, String launcher, boolean fireLauncher, String move) {
             this(ammo, sab, sabBelow, sabNpcShieldMin, rsb, groupNpcs, ignoreFartherThan, rocket, fireRockets, circle,
-                    fallback, launcher, fireLauncher, move, null);
+                    fallback, launcher, fireLauncher, move, (Boolean) null);
         }
 
         public Loot(String ammo, String sab, double sabBelow, int sabNpcShieldMin, String rsb,
@@ -602,6 +612,11 @@ public record BotConfig(
         public Loot {
             fallback = fallback == null ? List.of() : List.copyOf(fallback);
             runCircle = runCircle != null && runCircle;
+        }
+
+        /** Whether a target among NPCs that attack on sight is left; off unless set. */
+        public boolean skipsCrowded() {
+            return skipCrowded != null && skipCrowded;
         }
 
         /** The config's way of moving in a fight. */

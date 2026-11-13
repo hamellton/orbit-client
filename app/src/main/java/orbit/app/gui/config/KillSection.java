@@ -50,6 +50,7 @@ final class KillSection implements Section {
     private final ItemBox fallback1 = new ItemBox(ItemCatalog.LASERS, true);
     private final ItemBox fallback2 = new ItemBox(ItemCatalog.LASERS, true);
     private final JCheckBox runCircle = new JCheckBox("Догонять добиваемую цель в конфигурации бега");
+    private final JCheckBox skipCrowded = new JCheckBox("Не брать цель в толпе NPC");
     private final javax.swing.JComboBox<String> move = new javax.swing.JComboBox<>(
             java.util.Arrays.stream(BotConfig.FightMove.values()).map(m -> m.label).toArray(String[]::new));
     private final JCheckBox fireRockets = new JCheckBox("Пускать ракеты сам (без ракетного CPU)");
@@ -149,6 +150,8 @@ final class KillSection implements Section {
                 + "стоячий (инвок, бегемот) — стоять в безопасной точке. Кубы — кружить.<br>"
                 + "Во всех режимах — подальше от других NPC (сильнее от тех, кто бьёт нас), врагов, станций,<br>"
                 + "мин и запретных зон. Своё движение у NPC — в таблице, колонка «Движение».</html>");
+        skipCrowded.setToolTipText("<html>Пропускать цель, рядом с которой ещё два и больше NPC, что нападают сами<br>"
+                + "или уже бьют нас. Выключено — брать, как DarkBot (в толпе бот уходит от других по кругу).</html>");
         groupNpcs.setToolTipText("Сначала добивать NPC рядом, а не лететь к дальним");
         runCircle.setToolTipText("Цель меньше 25% HP и дальше двух радиусов — догнать в конфигурации бега "
                 + "(DarkBot RUN_CONFIG_IN_CIRCLE); бой — в конфигурации атаки");
@@ -172,6 +175,7 @@ final class KillSection implements Section {
                 .section("Цели")
                 .row("В бою", move)
                 .row("", runCircle)
+                .row("", skipCrowded)
                 .row("", groupNpcs)
                 .row("Не видеть дальше", ignoreFarther)
                 .build(false);
@@ -273,6 +277,7 @@ final class KillSection implements Section {
         fallback2.set(l.fallback().size() > 1 ? l.fallback().get(1) : null);
         move.setSelectedIndex(l.fightMove().ordinal());
         runCircle.setSelected(l.runCircle());
+        skipCrowded.setSelected(l.skipsCrowded());
         fireRockets.setSelected(l.fireRockets());
         launcher.set(l.launcher());
         fireLauncher.setSelected(l.fireLauncher());
@@ -297,7 +302,8 @@ final class KillSection implements Section {
                 useRsb.isSelected() ? rsb.get() : null, groupNpcs.isSelected(), Form.intOf(ignoreFarther), rocket.get(),
                 fireRockets.isSelected(), move.getSelectedIndex() == BotConfig.FightMove.CIRCLE.ordinal(), fallbacks(),
                 launcher.get(), fireLauncher.isSelected(), moveName(),
-                runCircle.isSelected() ? Boolean.TRUE : loaded != null && loaded.runCircle() ? Boolean.FALSE : null);
+                runCircle.isSelected() ? Boolean.TRUE : loaded != null && loaded.runCircle() ? Boolean.FALSE : null,
+                skipCrowded.isSelected() ? Boolean.TRUE : loaded != null && loaded.skipCrowded() != null ? Boolean.FALSE : null);
         Map<String, BotConfig.NpcRule> list = new TreeMap<>(npcs.get());
         return c.withLoot(l).withNpcs(list);
     }
