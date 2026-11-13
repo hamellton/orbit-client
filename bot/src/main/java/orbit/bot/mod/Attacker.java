@@ -166,6 +166,7 @@ public final class Attacker {
         kiteAngle = null;
         kiteTold = false;
         leadingFrom = null;
+        ledFrom.clear();
         standAt = null;
         modeTold = null;
         watchedSince = ctx.now();
@@ -370,10 +371,10 @@ public final class Attacker {
                     // Impulse II fought by Attend IX, the ship flew right up to it)
                     WorldSnapshot.Ship danger = threats != null ? threats.dangerNear(t, radius) : null;
                     if (danger != null) {
-                        if (!danger.name().equals(leadingFrom)) {
-                            log.info("Увожу {} от {}", t.name(), danger.name());
-                            leadingFrom = danger.name();
+                        if (ledFrom.add(danger.name())) {
+                            log.info("Увожу {} от {}", t.name(), danger.name()); // once a fight for each
                         }
+                        leadingFrom = danger.name();
                         kite(threats, h, t, radius);
                         nextApproach = now + ctx.pause(300, 450);
                     } else {
@@ -618,6 +619,8 @@ public final class Attacker {
      */
     /** The NPC the target is led away from now, {@code null} while circling. */
     private String leadingFrom;
+    /** The kinds the target was led away from this fight (told once each). */
+    private final java.util.Set<String> ledFrom = new java.util.HashSet<>();
 
     private void kite(Threats th, WorldSnapshot.Hero h, WorldSnapshot.Ship t, double radius) {
         if (!kiteTold && leadingFrom == null) {
