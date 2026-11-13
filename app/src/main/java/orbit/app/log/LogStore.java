@@ -54,7 +54,7 @@ public final class LogStore {
                 for (Iterator<LogEntry> it = mine.descendingIterator(); it.hasNext(); ) {
                     LogEntry e = it.next();
                     if (e.key().equals(key) && time - e.last() <= MERGE_MS && time - e.first() <= SPAN_MS) {
-                        e.repeat(loot ? sumLoot(e.text(), message) : message, time);
+                        e.repeat(loot ? sumLoot(e.text(), message) : message, message, time);
                         row = e;
                         break;
                     }

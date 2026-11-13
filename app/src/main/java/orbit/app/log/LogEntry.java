@@ -22,6 +22,13 @@ public final class LogEntry {
     private volatile long last;
     private volatile int count = 1;
     private volatile String text;
+    /** Each line folded in, with its time (the last {@link #KEPT} of them): when which loot came (the user, 2026-11-13). */
+    private final java.util.ArrayDeque<Occurrence> occurrences = new java.util.ArrayDeque<>();
+    static final int KEPT = 100;
+
+    /** One line folded into the row. */
+    public record Occurrence(long time, String text) {
+    }
 
     LogEntry(long seq, String account, Level level, String logger, LogCategory category, boolean important,
              String key, String text, String details, long time) {
@@ -37,12 +44,31 @@ public final class LogEntry {
         this.details = details;
         this.first = time;
         this.last = time;
+        occurrences.add(new Occurrence(time, text));
     }
 
     void repeat(String text, long time) {
-        this.text = text;
+        repeat(text, text, time);
+    }
+
+    /** Folds a line in: {@code shown} is the row's text now (the loot summed), {@code line} the line itself. */
+    void repeat(String shown, String line, long time) {
+        this.text = shown;
         this.last = time;
         this.count++;
+        synchronized (occurrences) {
+            occurrences.addLast(new Occurrence(time, line));
+            while (occurrences.size() > KEPT) {
+                occurrences.removeFirst();
+            }
+        }
+    }
+
+    /** The lines folded into the row, oldest first (the last {@link #KEPT}). */
+    public java.util.List<Occurrence> occurrences() {
+        synchronized (occurrences) {
+            return java.util.List.copyOf(occurrences);
+        }
     }
 
     /** Order of arrival: rows are kept and shown by it. */

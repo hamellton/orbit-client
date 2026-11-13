@@ -112,4 +112,15 @@ class LogStoreTest {
         assertEquals("Добыча всего: +31 299 опыта  ·  +131 чести  ·  +14 103 кредитов  ·  +12 уридия  ·  +5 EMP-01", a.text());
         assertEquals(2, a.count());
     }
+
+    @Test
+    void aFoldedRowKeepsEachLineWithItsTime() {
+        // the user, 2026-11-13: «×5 Добыча» — when which loot came was not to be seen
+        LogStore s = new LogStore();
+        LogEntry row = s.add("3", I, "orbit.app.LootLog", "Добыча: +7 Blacklight-trace", "", 1_000);
+        s.add("3", I, "orbit.app.LootLog", "Добыча: +9 Blacklight-trace", "", 60_000);
+        assertEquals(2, row.count());
+        assertEquals(java.util.List.of(new LogEntry.Occurrence(1_000, "Добыча: +7 Blacklight-trace"),
+                new LogEntry.Occurrence(60_000, "Добыча: +9 Blacklight-trace")), row.occurrences());
+    }
 }

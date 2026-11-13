@@ -780,9 +780,20 @@ public final class LogPanel extends JPanel {
         if (!e.details().isEmpty()) {
             s.append("\n\n").append(e.details());
         }
+        // a folded row: each line with its time (the loot of each kill, when it came)
+        List<LogEntry.Occurrence> each = e.count() > 1 ? e.occurrences() : List.of();
+        if (!each.isEmpty()) {
+            s.append("\n");
+            if (each.size() < e.count()) {
+                s.append("\n… ещё ").append(e.count() - each.size()).append(" раньше");
+            }
+            for (LogEntry.Occurrence o : each) {
+                s.append("\n").append(time(o.time(), true)).append("  ").append(o.text());
+            }
+        }
         detail.setText(s.toString());
         detail.setCaretPosition(0);
-        detailBox.setPreferredSize(new Dimension(100, e.details().isEmpty() ? 58 : 140));
+        detailBox.setPreferredSize(new Dimension(100, !each.isEmpty() ? 200 : e.details().isEmpty() ? 58 : 140));
         if (!detailBox.isVisible()) {
             detailBox.setVisible(true);
         }
