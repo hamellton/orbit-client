@@ -116,7 +116,12 @@ public final class Attacker {
         // repair comes at its threshold, the kind is not skipped (live 2026-11-13 on 3-BL: Attend IX begun at 68 %,
         // «не тяну», the only kind of the config skipped 10 min; one begun at 100 % was killed)
         double fromFull = (1 - c.safety().repairHpMin()) / lossRate;
-        if (killRate > 0 && 1 / killRate <= fromFull * WIN_MARGIN) {
+        if (killRate > 0 && 1 / killRate <= fromFull) {
+            return false;
+        }
+        // the only kind the config fights on this map: skipping it only idles the ship (live 2026-11-13: Attend IX
+        // judged in 27 s while Impulse II hit too; the one before was killed in 76 s losing 32 %)
+        if (onlyKind(c, t, h.mapId())) {
             return false;
         }
         // again too strong: twice as long each time, up to an hour (live 2026-11-13: Boss Kristallon tried every 10 min)
@@ -132,6 +137,12 @@ public final class Attacker {
         }
         clear();
         return true;
+    }
+
+    /** No other kind of the NPC list is fought on the map. */
+    private static boolean onlyKind(BotConfig c, WorldSnapshot.Ship t, int map) {
+        return c.npcs().entrySet().stream().noneMatch(e -> e.getValue().kill() && e.getValue().appliesOn(map)
+                && !e.getKey().equals(t.name()));
     }
 
     public boolean gaveUp(int id) {

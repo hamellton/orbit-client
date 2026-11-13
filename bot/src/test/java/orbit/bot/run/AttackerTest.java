@@ -451,7 +451,9 @@ class AttackerTest {
         // live 2026-11-13: Boss Kristallon on LCB-10 — 30 % of it for 50 % of the hull, healed back by the next try
         BotConfig c = BotConfig.empty()
                 .withLoot(new BotConfig.Loot("ammunition_laser_lcb-10", null, 0, 0, null, true, 0, null, false, true, null))
-                .withNpcs(Map.of("-=[ Strong ]=-", new BotConfig.NpcRule(500, 0, true, Set.of(), Set.of(), null)))
+                // another kind to fight: the only kind of a list is never skipped
+                .withNpcs(Map.of("-=[ Strong ]=-", new BotConfig.NpcRule(500, 0, true, Set.of(), Set.of(), null),
+                        "-=[ Weak ]=-", new BotConfig.NpcRule(500, 5, true, Set.of(), Set.of(), null)))
                 .withSafety(new BotConfig.Safety(0.3, 0.9, 0.3, 0, null, null, 10, "PORTAL", 0, 0));
         Sim sim = new Sim(c, 1, 10_400, 6_000);
         sim.lasers("ammunition_laser_lcb-10");
