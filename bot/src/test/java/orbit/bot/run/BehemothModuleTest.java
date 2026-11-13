@@ -380,6 +380,33 @@ class BehemothModuleTest {
         assertTrue(m.workingMap() != 308, "36 s on the map, three fights: on to another map, " + m.workingMap());
     }
 
+    static void arrive(Sim sim, int map, int x, int y) {
+        orbit.protocol.gen.ShipInitializationCommand si = new orbit.protocol.gen.ShipInitializationCommand();
+        si.userId = 1;
+        si.mapId = map;
+        si.factionId = 3;
+        si.x = x;
+        si.y = y;
+        si.speed = 400;
+        si.hitPoints = 100_000;
+        si.hitMax = 100_000;
+        sim.world.apply(si, sim.now);
+    }
+
+    @Test
+    void aMapNobodyLookedAtComesBeforeOneJustFoundEmpty() throws Exception {
+        // live 2026-11-13 on the VPS: 1-BL empty, 2-BL empty — back to 1-BL, 3-BL never looked at
+        Sim sim = new Sim(config(30), 306, 19_100, 7_900);
+        BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
+        assertEquals(306, m.workingMap());
+        sim.run(m::tick, 40_000);
+        assertEquals(307, m.workingMap(), "1-BL empty: the next");
+        sim.now += 390_000 * Sim.MS; // as live: 6.5 min later the 2-BL wait runs out
+        arrive(sim, 307, 5_200, 5_700);
+        sim.run(m::tick, 40_000);
+        assertEquals(308, m.workingMap(), "2-BL empty: 3-BL, not back to 1-BL");
+    }
+
     @Test
     void anNpcShootingAtUsWhileWaitingIsFoughtBack() throws Exception {
         Sim sim = new Sim(config(300), 308, 5_700, 2_600);

@@ -857,8 +857,9 @@ public final class BehemothModule implements BotModule {
             if (due > 0) {
                 at = Math.max(due, arrive);
             } else if (empty > 0 && wall - empty < respawn(m)) {
-                // looked a while ago and none came: within one respawn of that, on average halfway
-                at = Math.max(empty + respawn(m) / 2, arrive) + UNKNOWN_PENALTY_MS;
+                // looked a while ago and none came: within one respawn of that, on average halfway; never later than a map
+                // nobody has looked at yet (live 2026-11-13 on the VPS: a tie sent the ship back to 1-BL, 3-BL unseen)
+                at = Math.max(empty + respawn(m) / 2, arrive) + UNKNOWN_PENALTY_MS + 1_000;
             } else {
                 at = arrive + UNKNOWN_PENALTY_MS;
             }
