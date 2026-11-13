@@ -213,6 +213,45 @@ public final class BotRunner {
         return state != State.STOPPING && state != State.STOPPED && state != State.FAILED;
     }
 
+    /** A stop waits this long at most for the fight to end. */
+    static final long FREE_WAIT_NS = 5 * 60_000_000_000L;
+    private String stopWhenFree;
+    private long stopWhenFreeSince;
+
+    /**
+     * Finish once the ship is out of the fight: the target killed, nobody shooting the ship — at most
+     * {@link #FREE_WAIT_NS} (live 2026-11-13 on 2-7: the time ran out with Boss Kristallon at 70 %, the ship stopped
+     * fighting by it to log out and was destroyed).
+     */
+    public void stopWhenFree(String reason) {
+        if (stopWhenFree != null || state == State.STOPPING || state == State.STOPPED) {
+            return;
+        }
+        WorldSnapshot w = ctx.world().get();
+        if (!inFight(w)) {
+            stop(reason);
+            return;
+        }
+        stopWhenFree = reason;
+        stopWhenFreeSince = ctx.now();
+        log.info("Остановка: {} — сначала заканчиваю бой", reason);
+    }
+
+    /** The ship shoots something or an NPC shoots it. */
+    private static boolean inFight(WorldSnapshot w) {
+        WorldSnapshot.Hero h = w.hero();
+        if (h.attackTargetId() != 0) {
+            return true;
+        }
+        for (int id : h.attackers()) {
+            WorldSnapshot.Ship s = w.ships().get(id);
+            if (s != null && s.npc()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /** Finish: leave the fight, fly to the nearest portal and log out. */
     public void stop(String reason) {
         if (state == State.STOPPING || state == State.STOPPED) {
@@ -306,6 +345,11 @@ public final class BotRunner {
             }
             show(w.death() != null ? "Уничтожен" : "Возрождение");
             return;
+        }
+        if (stopWhenFree != null && state != State.STOPPING && (!inFight(w) || ctx.now() - stopWhenFreeSince > FREE_WAIT_NS)) {
+            String reason = stopWhenFree;
+            stopWhenFree = null;
+            stop(reason);
         }
         if (module != null) {
             module.observe();
@@ -562,6 +606,21 @@ public final class BotRunner {
         return all.stream().min(Comparator.comparingDouble(x -> Math.hypot(x[0] - h.x(), x[1] - h.y()))).orElse(null);
     }
 
+    /** Shot at by an NPC this long while logging out at a portal: jump through it. */
+    static final long FIRED_AT_JUMP_NS = 3_000_000_000L;
+    private long firedAtSince;
+    private long stopJumpAt = Long.MIN_VALUE / 2;
+
+    private static boolean underNpcFire(WorldSnapshot w) {
+        for (int id : w.hero().attackers()) {
+            WorldSnapshot.Ship s = w.ships().get(id);
+            if (s != null && s.npc() && s.attackTargetId() == w.hero().id()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /** To the nearest portal (out of the crowd), wait a moment, press logout, keep still until the server ends it. */
     private void stopping(WorldSnapshot w) {
         WorldSnapshot.Hero h = w.hero();
@@ -585,6 +644,25 @@ public final class BotRunner {
             return;
         }
         ctx.nav().stop();
+        if (underNpcFire(w)) {
+            if (firedAtSince == 0) {
+                firedAtSince = now;
+            }
+            // standing still to log out by an NPC that shoots: through the portal, out on the other side
+            SafePlaces.Place place = SafePlaces.nearest(w, ctx.maps(), ctx.stats().closedPortals,
+                    ctx.config().get().safety().oneWayJumps());
+            if (now - firedAtSince > FIRED_AT_JUMP_NS && place != null && place.portal() != null && place.jumpable()
+                    && place.distance(h) <= place.reach() && w.jumpingTo() == 0 && now - stopJumpAt > 15_000_000_000L) {
+                log.warn("Выхожу из игры, но меня бьют у портала — прыгаю на {}, выйду там", place.portal().toName());
+                ctx.actions().jump();
+                stopJumpAt = now;
+                firedAtSince = 0;
+                logoutAt = 0;
+                return;
+            }
+        } else {
+            firedAtSince = 0;
+        }
         if (logoutAt == 0) {
             logoutAt = now + ctx.pause(1_000, 3_000);
         }

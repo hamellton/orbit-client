@@ -1089,7 +1089,7 @@ public final class OrbitMain {
                     if (stopRequested.get()) {
                         runner.stop("по кнопке");
                     } else if (System.currentTimeMillis() > until) {
-                        runner.stop("время вышло");
+                        runner.stopWhenFree("время вышло");
                     }
                     if (connectionOver.getAsBoolean() && !feed.loggedOut()) {
                         if (!stopRequested.get()) {

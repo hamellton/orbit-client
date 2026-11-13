@@ -82,6 +82,27 @@ class BotRunnerTest {
     }
 
     @Test
+    void theTimeUpWaitsForTheFightToEnd() throws Exception {
+        // live 2026-11-13 on 2-7: the time ran out by Boss Kristallon at 70 %, the ship stood to log out and died
+        Sim sim = new Sim(CubikonModuleTest.config(90, false), 26, 10_000, 6_000);
+        BotRunner r = new BotRunner(sim.ctx, () -> false, s -> { });
+        sim.run(r::tick, 2_000);
+        sim.npc(55, "-=[ Shooter ]=-", 10_400, 6_000);
+        orbit.protocol.gen.AttackLaserRunCommand run = new orbit.protocol.gen.AttackLaserRunCommand();
+        run.attackerId = 55;
+        run.targetId = 1;
+        sim.world.apply(run, sim.now);
+        r.stopWhenFree("время вышло");
+        sim.run(r::tick, 3_000);
+        assertTrue(r.state() != BotRunner.State.STOPPING, "still fighting: " + r.state());
+        orbit.protocol.gen.ShipDestroyedCommand dead = new orbit.protocol.gen.ShipDestroyedCommand();
+        dead.destroyedUserId = 55;
+        sim.world.apply(dead, sim.now);
+        sim.run(r::tick, 500);
+        assertEquals(BotRunner.State.STOPPING, r.state());
+    }
+
+    @Test
     void stopsAtAPortalAndLogsOut() throws Exception {
         Sim sim = new Sim(CubikonModuleTest.config(90, false), 26, 10_000, 6_000);
         boolean[] out = {false};
