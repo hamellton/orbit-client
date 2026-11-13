@@ -29,6 +29,8 @@ public final class Revive {
     /** Deaths by player name this session (the kill screen's killer when the cause is a player). */
     private final java.util.Map<String, Integer> byPlayer = new java.util.HashMap<>();
     private boolean dead;
+    /** The kill screen of this death was looked at for the killer. */
+    private boolean killerCounted = true;
     private long repairAt;
     private long repairedAt = Long.MIN_VALUE / 2;
     private long resumeAt;
@@ -114,20 +116,26 @@ public final class Revive {
             ctx.nav().stop();
             repairAt = now + Math.max(0, s.waitBeforeReviveSec()) * 1_000_000_000L + ctx.pause(2_000, 6_000);
             log.warn("Корабль уничтожен ({}) — смертей {}", death == null ? "?" : death.killer(), deaths);
-            if (death != null && death.cause() == DestructionTypeModule.DESTRUCTIONCAUSE_PLAYER && death.killer() != null
-                    && !death.killer().isBlank()) {
-                int n = byPlayer.merge(death.killer(), 1, Integer::sum);
-                int perPlayer = s.maxDeathsPerPlayer();
-                if (perPlayer > 0) {
-                    log.info("От игрока {}: {} из {} смертей до остановки", death.killer(), n, perPlayer);
-                }
-            }
+            killerCounted = false;
             if (streak > 0 && wallMs() - paidAtMs > Math.max(1, s.paidReviveMinutes()) * 60_000L) {
                 streak = 0; // lived long enough after the last paid revive: not «in a row»
                 saveStreak();
             }
             if (death != null) {
                 log.info("Варианты ремонта: {}", death.options().stream().map(Revive::describe).toList());
+            }
+        }
+        if (death != null && !killerCounted) {
+            // the kill screen may come a moment after the ship is seen dead (live 2026-11-13 on the VPS: «уничтожен (?)»,
+            // the player's death not counted): counted when it comes
+            killerCounted = true;
+            if (death.cause() == DestructionTypeModule.DESTRUCTIONCAUSE_PLAYER && death.killer() != null
+                    && !death.killer().isBlank()) {
+                int n = byPlayer.merge(death.killer(), 1, Integer::sum);
+                int perPlayer = s.maxDeathsPerPlayer();
+                if (perPlayer > 0) {
+                    log.info("От игрока {}: {} из {} смертей до остановки", death.killer(), n, perPlayer);
+                }
             }
         }
         if (death == null || now < repairAt || now - repairedAt < 15_000_000_000L) {

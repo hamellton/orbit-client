@@ -294,6 +294,28 @@ class BotRunnerTest {
     }
 
     @Test
+    void aKillScreenComingAMomentAfterTheDeathStillCountsForItsPlayer() throws Exception {
+        // live 2026-11-13 on the VPS: «Корабль уничтожен (?)» — the ship was seen dead before the kill screen came
+        BotConfig c = CubikonModuleTest.config(90, false)
+                .withSafety(new BotConfig.Safety(0.5, 0.9, 0.5, 0, null, null, 0, "BASE", 0, 0, 0, 3, null, null, 1));
+        Sim sim = new Sim(c, 26, 10_000, 6_000);
+        BotRunner r = new BotRunner(sim.ctx, () -> false, s -> { });
+        sim.run(r::tick, 1_000);
+        orbit.protocol.gen.ShipDestroyedCommand dead = new orbit.protocol.gen.ShipDestroyedCommand();
+        dead.destroyedUserId = 1;
+        sim.world.apply(dead, sim.now);
+        sim.run(r::tick, 1_000);
+        KillScreenPostCommand k = new KillScreenPostCommand();
+        k.killerName = "camper";
+        k.cause = new orbit.protocol.gen.DestructionTypeModule();
+        k.cause.cause = (short) orbit.protocol.gen.DestructionTypeModule.DESTRUCTIONCAUSE_PLAYER;
+        k.options = List.of(option(KillScreenOptionTypeModule.OPTIONTYPE_BASIC_REPAIR, 0));
+        sim.world.apply(k, sim.now);
+        sim.run(r::tick, 20_000);
+        assertEquals(BotRunner.State.FAILED, r.state(), "one death from camper, the limit is one");
+    }
+
+    @Test
     void livingLongerThanTheWindowAfterAPaidReviveStartsTheCountAgain() throws Exception {
         BotConfig c = CubikonModuleTest.config(90, false)
                 .withSafety(new BotConfig.Safety(0.5, 0.9, 0.5, 0, null, null, 0, "PORTAL", 0, 0, 2, 3));
