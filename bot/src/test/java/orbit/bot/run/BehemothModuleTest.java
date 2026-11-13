@@ -518,6 +518,8 @@ class BehemothModuleTest {
         BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
         m.workingMap();
         sim.run(m::tick, 60_000);
+        assertEquals(308, m.workingMap(), "a minute more for a way longer than reckoned");
+        sim.run(m::tick, 60_000);
         assertTrue(m.workingMap() != 308, "the wait ran out though the point was not reached, " + m.workingMap());
     }
 
@@ -593,5 +595,28 @@ class BehemothModuleTest {
         sim.npc(77, BEHEMOTH, 4_700, 3_900);
         sim.run(m::tick, 500);
         assertTrue(m.avoidCircles().isEmpty(), "the behemoth there: no circle");
+    }
+
+    @Test
+    void aLongerWayThanStraightStillGivesTheWholeWaitAtThePoint() throws Exception {
+        // live 2026-11-13 on the VPS, 2-BL: a detour round the server's zones ate the wait, the ship left the point in 0.5 s
+        Sim sim = new Sim(config(2), 308, 1_500, 12_200);
+        BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
+        // a big circle across the straight way: the detour takes far longer than the straight line
+        sim.ctx.nav().setAvoidedPlayers(() -> java.util.List.of(new double[] {3_600, 7_400, 2_600}));
+        m.workingMap();
+        long[] at = {0};
+        for (int i = 0; i < 600 && at[0] == 0; i++) {
+            sim.run(m::tick, 100);
+            var h = sim.hero();
+            if (Math.hypot(h.x() - 5_700, h.y() - 2_600) <= 250) {
+                at[0] = sim.now;
+            }
+        }
+        assertTrue(at[0] > 0, "reached the point");
+        sim.run(m::tick, 1_000);
+        assertEquals(308, m.workingMap(), "waiting at the point: " + m.status());
+        sim.run(m::tick, 2_000);
+        assertTrue(m.workingMap() != 308, "then the next map");
     }
 }

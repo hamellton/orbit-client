@@ -80,6 +80,7 @@ public final class BehemothModule implements BotModule {
      * started afresh after each fight).
      */
     private int waitMap;
+    private int reachedMap;
     private long waitStarted;
     private boolean onBehemoth;
     private int[] deadAt;
@@ -647,6 +648,7 @@ public final class BehemothModule implements BotModule {
         long wall = wallMs();
         long change = (long) number(s, "changeMapSeconds", 30) * 1_000;
         waitMap = h.mapId();
+        reachedMap = 0;
         waitStarted = now;
         long due = dueAt(h.mapId(), wall);
         int[] p = waitPoint(h.mapId());
@@ -871,7 +873,7 @@ public final class BehemothModule implements BotModule {
 
     /** Other NPCs while no behemoth: those shooting at us ({@code defenceMode}) or all ({@code killOthers}). */
     private boolean fightWhileWaiting(BotConfig c, JsonNode s, WorldSnapshot w) {
-        if (waitMap == w.hero().mapId() && ctx.now() >= waitUntil) {
+        if (waitOver(w.hero().mapId())) {
             // the wait is over: no more fights here, on to the next map (live 2026-11-13 on the VPS, 3-BL: Attend IX one
             // after another kept the ship over two minutes on a 30 s wait)
             attacker.clear();
@@ -950,6 +952,17 @@ public final class BehemothModule implements BotModule {
         return false;
     }
 
+    /** A way to the wait point longer than the straight line (server zones, players) gets this much more. */
+    static final long WAY_GRACE_NS = 60_000_000_000L;
+
+    /**
+     * The wait on the map is over: the point reached — the wait there done; not reached yet — the reckoned way and
+     * {@link #WAY_GRACE_NS} more (live 2026-11-13 on the VPS, 2-BL: a detour round the server's zones ate the wait).
+     */
+    private boolean waitOver(int map) {
+        return waitMap == map && ctx.now() >= waitUntil + (reachedMap == map ? 0 : WAY_GRACE_NS);
+    }
+
     /** Flies to the map's wait point and waits; the wait over and no behemoth: the next map. */
     private void waitHere(JsonNode s, WorldSnapshot.Hero h) {
         if (beacon(s, h, wallMs())) {
@@ -960,7 +973,14 @@ public final class BehemothModule implements BotModule {
         double dist = Math.hypot(p[0] - h.x(), p[1] - h.y());
         BotConfig.General g = ctx.config().get().general();
         long now = ctx.now();
-        if (waitMap == h.mapId() && now >= waitUntil) {
+        if (waitMap == h.mapId() && dist <= ARRIVE && reachedMap != h.mapId()) {
+            // the first time at the point on this map: the whole wait there, however long the way took (live
+            // 2026-11-13 on the VPS, 2-BL: a detour round the server's zones ate the wait, the ship left in 0.5 s);
+            // once a map, so fights by the point do not start it again
+            reachedMap = h.mapId();
+            waitUntil = Math.max(waitUntil, now + (long) number(s, "changeMapSeconds", 30) * 1_000_000_000L);
+        }
+        if (waitOver(h.mapId())) {
             // the wait is over, the point reached or not
             long wall = wallMs();
             emptyAt.put(h.mapId(), wall);
