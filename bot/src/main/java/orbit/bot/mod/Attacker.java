@@ -503,7 +503,14 @@ public final class Attacker {
     private String endReason = "прервал (ремонт, бегство, пауза)";
     /** The circle's side lately turned, and how long a turn for something only worse waits after it. */
     private long sideTurnedAt = Long.MIN_VALUE / 2;
-    static final long SIDE_HOLD_NS = 3_000_000_000L;
+    static final long SIDE_HOLD_NS = 8_000_000_000L;
+    /**
+     * The other side must be this much better to turn for (DarkBot: 300 with a weight of 1 an NPC; ours weighs up to 3).
+     * Live 2026-11-13 on 3-BL: 6–7 turns a fight, each into the Impulse II pack chasing behind.
+     */
+    static final double SIDE_BETTER = 1000;
+    static final double SIDE_MUCH_BETTER = 2000;
+    static final long SIDE_HOLD_SHORT_NS = 3_000_000_000L;
 
     /** NPC kinds' top speed seen (units per second): {@link BotConfig.FightMove#AUTO} goes by it. */
     private static final java.util.Map<String, Double> KIND_SPEED = new java.util.concurrent.ConcurrentHashMap<>();
@@ -729,7 +736,10 @@ public final class Attacker {
             // a turn for something only worse: not again before SIDE_HOLD_NS (live 2026-11-13: it turned every 2 s,
             // to and fro); a way that is not allowed turns it at once
             long now = ctx.now();
-            boolean better = !backBlocked && back - ahead > 300 && now - sideTurnedAt > SIDE_HOLD_NS;
+            // much better (deep in a shooter's reach ahead): soon; a little (the pack behind): seldom
+            double gain = back - ahead;
+            boolean better = !backBlocked && (gain > SIDE_BETTER && now - sideTurnedAt > SIDE_HOLD_NS
+                    || gain > SIDE_MUCH_BETTER && now - sideTurnedAt > SIDE_HOLD_SHORT_NS);
             if (aheadBlocked && !backBlocked || better) {
                 circleDir = -circleDir;
                 sideTurnedAt = now;
