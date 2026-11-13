@@ -684,4 +684,41 @@ class BehemothModuleTest {
         assertTrue(Math.hypot(h.x() - 9_000, h.y() - 6_000) < 900, "by the locator's point: " + h);
         assertTrue(m.status().contains("пеленгатора"), m.status());
     }
+
+    @Test
+    void aTrainCampingTheSpawnWithTheBehemothUnseenSetsItsTimer() throws Exception {
+        // the user, 2026-11-13: «поезд полетел на 3-BL убивать бегемота, а мы улетели» — the bot had no timers
+        Sim sim = new Sim(with(config(300), "{\"trainTimer\": true}"), 308, 5_700, 2_600);
+        SpawnMemory mem = SpawnMemory.inMemory();
+        BehemothModule m = new BehemothModule(sim.ctx, mem);
+        m.workingMap();
+        for (int i = 0; i < 4; i++) {
+            enemy(sim, 900 + i, "Train" + i, 4_700 + i * 100, 3_900);
+        }
+        sim.run(m::tick, 10_000);
+        assertEquals(0, m.dueAt(308, m.wallMs()), "10 s: not yet");
+        sim.run(m::tick, 15_000);
+        long due = m.dueAt(308, m.wallMs());
+        assertTrue(due - m.wallMs() > 13 * 60_000, "killed by them: the next in about 15 min, " + (due - m.wallMs()));
+    }
+
+    @Test
+    void aTrainComingToTheSpawnKeepsTheShipWaiting() throws Exception {
+        // the user, 2026-11-13: «не улетать, если поезд идёт к нам»
+        Sim sim = new Sim(with(config(5), "{\"waitForTrain\": true}"), 308, 5_700, 2_600);
+        BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
+        m.workingMap();
+        for (int i = 0; i < 3; i++) {
+            enemy(sim, 900 + i, "Train" + i, 7_500 + i * 100, 5_500);
+        }
+        sim.run(m::tick, 20_000);
+        assertEquals(308, m.workingMap(), "the wait is over, a train comes: waiting on");
+        for (int i = 0; i < 3; i++) {
+            orbit.protocol.gen.ShipRemoveCommand r = new orbit.protocol.gen.ShipRemoveCommand();
+            r.userId = 900 + i;
+            sim.world.apply(r, sim.now);
+        }
+        sim.run(m::tick, 2_000);
+        assertTrue(m.workingMap() != 308, "gone: on to the next map");
+    }
 }

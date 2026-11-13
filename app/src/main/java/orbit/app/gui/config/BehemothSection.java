@@ -46,6 +46,8 @@ final class BehemothSection implements Section {
     private final ItemBox cloakFormation = new ItemBox(ItemCatalog.FORMATIONS, true);
     private final JSpinner beaconSeconds = Form.number(0, 120, 1);
     // where to wait (the user, 2026-11-13: trains camp the spawn and BeheFarm's wait points)
+    private final JCheckBox trainTimer = new JCheckBox("Поезд стоит у места появления, бегемота не видно — считать его убитым (таймер)");
+    private final JCheckBox waitForTrain = new JCheckBox("Не улетать, пока поезд идёт к месту появления (до 3 мин)");
     private final JCheckBox awayFromPortals = new JCheckBox("Ждать в стороне от путей «портал → бегемот», где ходят поезда");
     private final JCheckBox freeSide = new JCheckBox("Ждать со свободной стороны: чужие у точки — встать на круге от них");
     private final JSpinner freeSideRadius = Form.number(800, 5_000, 100);
@@ -81,6 +83,10 @@ final class BehemothSection implements Section {
         trainMode.addActionListener(e -> sync());
         useCloak.addActionListener(e -> sync());
         freeSide.addActionListener(e -> sync());
+        trainTimer.setToolTipText("3 и больше врагов 20 с в 1500 от места появления, бегемота не видно — значит, они его"
+                + " убили: бот запоминает смерть, следующий — через время появления; так работает «прилетать ровно к появлению»");
+        waitForTrain.setToolTipText("Ожидание вышло, а 3 и больше врагов в 4000 от места появления — бегемот, похоже, скоро"
+                + " будет здесь: ждать дальше, но не больше 3 минут");
         awayFromPortals.setToolTipText("Точка на круге вокруг места появления, дальше всего от линий от каждого портала"
                 + " карты к месту появления: поезда идут из портала к бегемоту и дальше в следующий портал");
         avoidSpawn.addActionListener(e -> sync());
@@ -122,6 +128,8 @@ final class BehemothSection implements Section {
                         + " ждёт у места появления (точки — из BeheFarm, уточняются по увиденному).")
                 .section("Где ждать")
                 .row("", awayFromPortals)
+                .row("", trainTimer)
+                .row("", waitForTrain)
                 .row("", freeSide)
                 .row("Круг вокруг места появления", freeSideRadius)
                 .row("", Form.inline(avoidSpawn, avoidSpawnRadius))
@@ -242,6 +250,8 @@ final class BehemothSection implements Section {
         cloakFormation.set(cf.isBlank() ? null : cf.startsWith("drone_formation_") ? cf : formationId(cf));
         Form.set(beaconSeconds, m.path("beaconBeforeSeconds").asInt(0));
         awayFromPortals.setSelected(m.path("awayFromPortals").asBoolean(false));
+        trainTimer.setSelected(m.path("trainTimer").asBoolean(false));
+        waitForTrain.setSelected(m.path("waitForTrain").asBoolean(false));
         freeSide.setSelected(m.path("freeSide").asBoolean(false));
         Form.set(freeSideRadius, m.path("freeSideRadius").asInt(2_000));
         avoidSpawn.setSelected(m.path("avoidSpawn").asBoolean(false));
@@ -319,6 +329,8 @@ final class BehemothSection implements Section {
         m.put("cloakFormation", cloakFormation.get() != null ? cloakFormation.get() : "");
         m.put("beaconBeforeSeconds", Form.intOf(beaconSeconds));
         m.put("awayFromPortals", awayFromPortals.isSelected());
+        m.put("trainTimer", trainTimer.isSelected());
+        m.put("waitForTrain", waitForTrain.isSelected());
         m.put("freeSide", freeSide.isSelected());
         m.put("freeSideRadius", Form.intOf(freeSideRadius));
         m.put("avoidSpawn", avoidSpawn.isSelected());

@@ -655,6 +655,7 @@ public final class BehemothModule implements BotModule {
         long change = (long) number(s, "changeMapSeconds", 30) * 1_000;
         waitMap = h.mapId();
         reachedMap = 0;
+        trainWaitTold = false;
         waitStarted = now;
         long due = dueAt(h.mapId(), wall);
         int[] p = waitPoint(h.mapId());
@@ -985,7 +986,11 @@ public final class BehemothModule implements BotModule {
      * {@link #WAY_GRACE_NS} more (live 2026-11-13 on the VPS, 2-BL: a detour round the server's zones ate the wait).
      */
     private boolean waitOver(int map) {
-        return waitMap == map && ctx.now() >= waitUntil + (reachedMap == map ? 0 : WAY_GRACE_NS);
+        if (waitMap != map || ctx.now() < waitUntil + (reachedMap == map ? 0 : WAY_GRACE_NS)) {
+            return false;
+        }
+        WorldSnapshot w = ctx.world().get();
+        return !trainComing(w, w.hero());
     }
 
     /** Flies to the map's wait point and waits; the wait over and no behemoth: the next map. */
@@ -1124,6 +1129,90 @@ public final class BehemothModule implements BotModule {
         long learned = memory.mapRespawn(map);
         long minutes = (long) number(settings(), "respawnMinutes", 0);
         return minutes > 0 ? minutes * 60_000 : learned > 0 ? learned : DEFAULT_RESPAWN_MS;
+    }
+
+    /** So many enemies make a train. */
+    static final int TRAIN_MIN = 3;
+    /** A train this near the spawn camps it. */
+    static final double TRAIN_AT_SPAWN = 1_500;
+    /** A train this near the spawn is coming to it. */
+    static final double TRAIN_COMING = 4_000;
+    /** Camping the spawn this long, the behemoth unseen: they killed it. */
+    static final long TRAIN_CAMP_NS = 20_000_000_000L;
+    /** The wait goes on at most this much longer for a coming train. */
+    static final long TRAIN_WAIT_MAX_NS = 180_000_000_000L;
+    private long trainSince;
+    private final Map<Integer, Long> trainCounted = new HashMap<>();
+    private boolean trainWaitTold;
+
+    /** The enemy players on the map within {@code radius} of the spawn. */
+    private int enemiesBySpawn(WorldSnapshot w, WorldSnapshot.Hero h, double radius) {
+        JsonNode s = settings();
+        int[] sp = spawnPoint(h.mapId());
+        java.util.Set<Integer> group = PlayerFight.group(w);
+        List<String> black = names(s, "blacklist");
+        return (int) w.ships().values().stream()
+                .filter(x -> PlayerFight.enemy(x, h, group, black))
+                .filter(x -> Math.hypot(x.x() - sp[0], x.y() - sp[1]) <= radius)
+                .count();
+    }
+
+    /**
+     * {@code trainTimer} (the user, 2026-11-13: «поезд полетел на 3-BL убивать бегемота, а мы улетели»; the bot never
+     * sees a kill, so it has no timers): a train of {@link #TRAIN_MIN} enemies by the spawn for {@link #TRAIN_CAMP_NS},
+     * the behemoth not in sight — they killed it: its death is recorded then and the next is due a respawn later.
+     */
+    private void watchTrain(WorldSnapshot w, WorldSnapshot.Hero h, long wall) {
+        JsonNode s = settings();
+        if (!on(s, "trainTimer", false) || !maps(s).contains(h.mapId()) || h.id() == 0 || onBehemoth) {
+            trainSince = 0;
+            return;
+        }
+        long now = ctx.now();
+        int n = enemiesBySpawn(w, h, TRAIN_AT_SPAWN);
+        if (n < TRAIN_MIN || findBehemoth(ctx.config().get(), w) != null) {
+            trainSince = 0;
+            return;
+        }
+        if (trainSince == 0) {
+            trainSince = now;
+            return;
+        }
+        Long counted = trainCounted.get(h.mapId());
+        if (now - trainSince >= TRAIN_CAMP_NS && (counted == null || wall - counted > respawn(h.mapId()) / 2)
+                && dueAt(h.mapId(), wall) - wall < respawn(h.mapId()) / 2) {
+            int[] sp = spawnPoint(h.mapId());
+            memory.killed(h.mapId(), sp[0], sp[1], wall);
+            trainCounted.put(h.mapId(), wall);
+            log.info("{}: поезд ({} врагов) у места появления {} с, бегемота не видно — считаю его убитым, следующий через {}",
+                    ctx.maps().info(h.mapId()).name(), n, (now - trainSince) / 1_000_000_000L, clock(respawn(h.mapId())));
+        }
+    }
+
+    /**
+     * {@code waitForTrain} (the user, 2026-11-13: «не улетать, если поезд идёт к нам»): the wait over, a train on the
+     * map near the spawn and not counted as having killed it — the behemoth is likely due here: wait on, at most
+     * {@link #TRAIN_WAIT_MAX_NS} more.
+     */
+    private boolean trainComing(WorldSnapshot w, WorldSnapshot.Hero h) {
+        JsonNode s = settings();
+        if (!on(s, "waitForTrain", false) || ctx.now() - waitUntil > TRAIN_WAIT_MAX_NS) {
+            return false;
+        }
+        Long counted = trainCounted.get(h.mapId());
+        if (counted != null && wallMs() - counted < respawn(h.mapId()) / 2) {
+            return false; // they have killed it already
+        }
+        int n = enemiesBySpawn(w, h, TRAIN_COMING);
+        if (n >= TRAIN_MIN) {
+            if (!trainWaitTold) {
+                trainWaitTold = true;
+                log.info("{}: поезд ({} врагов) у места появления — бегемот, похоже, скоро здесь: жду дальше",
+                        ctx.maps().info(h.mapId()).name(), n);
+            }
+            return true;
+        }
+        return false;
     }
 
     /** Seconds between looks for a freer side ({@code freeSide}). */
@@ -1335,7 +1424,9 @@ public final class BehemothModule implements BotModule {
             seenMap = h.mapId();
             waitMap = 0; // another map: a wait here later starts afresh
             mapEnteredNanos = ctx.now();
+            trainSince = 0;
         }
+        watchTrain(w, h, now);
         for (WorldSnapshot.Ship s : w.ships().values()) {
             if (s.npc() && isBehemoth(s)) {
                 if (!seen.containsKey(s.id())) {
