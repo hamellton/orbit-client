@@ -165,6 +165,7 @@ public final class Attacker {
         circleDir = 0;
         kiteAngle = null;
         kiteTold = false;
+        leadingFrom = null;
         standAt = null;
         modeTold = null;
         watchedSince = ctx.now();
@@ -329,8 +330,8 @@ public final class Attacker {
         ctx.ship().want(chasing || runCircle ? c.general().run() : onTheWay ? c.general().travel() : c.general().offensive());
         Threats threats = move ? new Threats(ctx, ctx.world().get(), c, t.id()) : null;
         double baseRadius = Targets.baseRadius(c, t, h.mapId());
-        learnedFarther = !Targets.ownRadius(c, t, h.mapId()) && radius > baseRadius + 1;
-        fight.radius(radius, baseRadius, !Targets.ownRadius(c, t, h.mapId()));
+        learnedFarther = radius > baseRadius + 1;
+        fight.radius(radius, baseRadius, true);
         fight.sample(w, t, radius, switch (mode) {
             case KITE -> "отход";
             case STAND -> "стою";
@@ -364,8 +365,22 @@ public final class Attacker {
                     nextApproach = now + ctx.pause(500, 900);
                 }
                 case CIRCLE -> {
-                    circle(threats, h, t, radius);
-                    nextApproach = now + ctx.pause(250, 400);
+                    // an NPC that attacks on sight by the target: the circle would pass by it — lead the target off
+                    // instead, it follows the ship and the slow one stays behind (the user, 2026-11-13 on 3-BL:
+                    // Impulse II fought by Attend IX, the ship flew right up to it)
+                    WorldSnapshot.Ship danger = threats != null ? threats.dangerNear(t, radius) : null;
+                    if (danger != null) {
+                        if (!danger.name().equals(leadingFrom)) {
+                            log.info("Увожу {} от {}", t.name(), danger.name());
+                            leadingFrom = danger.name();
+                        }
+                        kite(threats, h, t, radius);
+                        nextApproach = now + ctx.pause(300, 450);
+                    } else {
+                        leadingFrom = null;
+                        circle(threats, h, t, radius);
+                        nextApproach = now + ctx.pause(250, 400);
+                    }
                 }
                 default -> {
                 }
@@ -601,8 +616,11 @@ public final class Attacker {
      * radius — straight away from it while it is too close — where the threats are least ({@link Threats}), turning as
      * little as may be. Nothing allowed: circling.
      */
+    /** The NPC the target is led away from now, {@code null} while circling. */
+    private String leadingFrom;
+
     private void kite(Threats th, WorldSnapshot.Hero h, WorldSnapshot.Ship t, double radius) {
-        if (!kiteTold) {
+        if (!kiteTold && leadingFrom == null) {
             log.info("Держу дистанцию от {} (радиус {})", t.name(), (int) radius);
             kiteTold = true;
         }

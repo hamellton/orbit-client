@@ -115,6 +115,27 @@ public final class Threats {
         AGGRESSIVE_KINDS.clear();
     }
 
+    /**
+     * An NPC that attacks on sight (or shoots the ship) this near the target that circling it would take the ship into
+     * its reach: within its own radius plus {@code radius} of the target; {@code null} when none.
+     */
+    WorldSnapshot.Ship dangerNear(WorldSnapshot.Ship target, double radius) {
+        WorldSnapshot.Hero h = w.hero();
+        WorldSnapshot.Ship found = null;
+        double best = Double.MAX_VALUE;
+        for (WorldSnapshot.Ship o : w.ships().values()) {
+            if (!o.npc() || o.id() == targetId || !(aggressive(o.name()) || o.attackTargetId() == h.id())) {
+                continue;
+            }
+            double d = Math.hypot(o.x() - target.x(), o.y() - target.y());
+            if (d < Targets.radius(c, o, h.mapId()) + radius && d < best) {
+                best = d;
+                found = o;
+            }
+        }
+        return found;
+    }
+
     /** True when the ship may not be at the point at all. */
     boolean blocked(double x, double y) {
         return score(x, y) <= BLOCKED;
