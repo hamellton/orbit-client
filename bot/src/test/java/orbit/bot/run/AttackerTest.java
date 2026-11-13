@@ -237,6 +237,23 @@ class AttackerTest {
     }
 
     @Test
+    void aTargetDestroyedBeforeTheAttackWasConfirmedIsAKill() {
+        // live 2026-11-13 on 2-3: Lordakia died in the first volley, the reward came, the fight was «пропала из вида»
+        Sim sim = new Sim(config(false, null, Set.of()), 1, 10_500, 6_000);
+        sim.lasers("ammunition_laser_lcb-10");
+        sim.npc(77, "-=[ Target ]=-", 10_000, 6_000);
+        Attacker a = new Attacker(sim.ctx);
+        a.target(sim.world.snapshot(sim.now).ships().get(77));
+        sim.run(() -> a.tick(true), 500);
+        orbit.protocol.gen.ShipDestroyedCommand dead = new orbit.protocol.gen.ShipDestroyedCommand();
+        dead.destroyedUserId = 77;
+        sim.world.apply(dead, sim.now);
+        a.tick(true);
+        assertEquals(0, a.targetId(), "done");
+        assertEquals(1, a.kills());
+    }
+
+    @Test
     void aTargetGreyedByTheServerMidFightIsDropped() {
         Sim sim = new Sim(config(false, null, Set.of()), 1, 10_500, 6_000);
         sim.lasers("ammunition_laser_lcb-10");

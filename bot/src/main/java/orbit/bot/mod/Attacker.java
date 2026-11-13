@@ -198,6 +198,8 @@ public final class Attacker {
 
     /** A target out of sight is flown after this long before it is let go (unless it was being shot: then it died). */
     static final long LOST_GRACE_NS = 3_000_000_000L;
+    /** A destroyed target this near the ship was ours, though the attack was not confirmed yet. */
+    static final double KILL_NEAR = 800;
 
     /** The target's last position and time, and its speed from them (units per second, smoothed). */
     private double seenX;
@@ -267,6 +269,12 @@ public final class Attacker {
         WorldSnapshot w = ctx.world().get();
         WorldSnapshot.Hero h = w.hero();
         WorldSnapshot.Ship t = w.ships().get(targetId);
+        if (t == null && !shotAt && w.destroyed().containsKey(targetId) && seenAt != 0
+                && Math.hypot(h.x() - seenX, h.y() - seenY) <= KILL_NEAR) {
+            // gone in the first volley before the server confirmed our attack (live 2026-11-13 on 2-3: Lordakia
+            // dies in one or two volleys, the reward came, the fight was logged «пропала из вида»)
+            shotAt = true;
+        }
         if (t == null && !shotAt && seenAt != 0 && ctx.now() - seenAt < LOST_GRACE_NS) {
             // out of sight for a moment (the server shows ships near the ship only; live 2026-11-13 on 2-2: 181 of
             // 213 targets dropped at ~1 300, picked again a second later): on to where it was
