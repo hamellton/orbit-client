@@ -48,11 +48,24 @@ public final class Targets {
         if (s.lockedByOther()) {
             return true;
         }
+        // already hurt and not by the ship: somebody else's fight, his shots unseen (live 2026-11-13 on 2-3: Lordakia
+        // and Saimon taken at 33–93 %, killed by others within seconds)
+        if (s.health().known() && w.hero().attackTargetId() != s.id() && share(s) < HURT_BY_OTHER) {
+            return true;
+        }
         java.util.Set<Integer> group = new java.util.HashSet<>();
         w.group().members().forEach(m -> group.add(m.id()));
         int hero = w.hero().id();
         return w.ships().values().stream().anyMatch(p -> p.kind() == WorldSnapshot.ShipKind.PLAYER && p.id() != hero
                 && !group.contains(p.id()) && p.attackTargetId() == s.id());
+    }
+
+    /** Below this share of hull and shield an NPC the ship has not shot is somebody else's. */
+    static final double HURT_BY_OTHER = 0.98;
+
+    private static double share(WorldSnapshot.Ship s) {
+        double max = s.health().hpMax() + Math.max(0, s.health().shieldMax());
+        return max <= 0 ? 1 : (s.health().hp() + Math.max(0, s.health().shield())) / max;
     }
 
     public static double radius(BotConfig c, WorldSnapshot.Ship s, int mapId) {
