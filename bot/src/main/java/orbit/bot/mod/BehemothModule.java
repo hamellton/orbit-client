@@ -109,7 +109,7 @@ public final class BehemothModule implements BotModule {
      * A flight longer is not learned: a repair or a death was on the way (live 2026-11-13 on the VPS: «1-BL → 2-BL: 3 мин
      * 58 с» with a death in between, against 1 мин 25 с).
      */
-    static final long TRAVEL_LEARN_MAX_MS = 180_000;
+    static final long TRAVEL_LEARN_MAX_MS = 140_000; // BLCycle: 70 or 130 s; longer had a detour from players
     private boolean holdTold;
     /** The pet's combat beacon before the spawn ({@code beaconBeforeSeconds}). */
     private boolean beaconOn;
