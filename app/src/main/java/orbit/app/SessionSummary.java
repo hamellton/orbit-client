@@ -61,6 +61,17 @@ public final class SessionSummary {
     }
 
     /** {@code resource_collectable_luminium} → Luminium, {@code ammunition_laser_ucb-100} → UCB-100. */
+    /** An item's name for the window: a resource's Russian one when known, else readable as it is. */
+    public static String displayName(String id) {
+        String r = resource(id);
+        return r != null ? r : itemName(id);
+    }
+
+    /** A number as the window writes it (spaces between thousands). */
+    public static String number(double v) {
+        return num(v);
+    }
+
     /** A resource's name for {@code resource_collectable_scrapium} and the like, {@code null} for other items. */
     static String resource(String id) {
         for (String p : new String[] {"resource_collectable_", "resource_"}) {

@@ -247,6 +247,10 @@ final class AccountView extends JPanel {
         }
         JPanel actions = group();
         bar.add(actions);
+        JButton hangar = new JButton("Ангар");
+        hangar.setToolTipText("Патроны, ракеты, ресурсы и корабли аккаунта — в отдельном окне");
+        hangar.addActionListener(e -> HangarWindow.open(tab.feed()));
+        actions.add(hangar);
         JButton view = new JButton("Блоки ▾");
         view.setToolTipText("Где показывать блоки");
         view.addActionListener(e -> BlockMenu.all().show(view, 0, view.getHeight()));
