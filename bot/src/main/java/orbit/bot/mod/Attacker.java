@@ -197,6 +197,30 @@ public final class Attacker {
     private final java.util.Map<String, String> limitTold = new java.util.HashMap<>();
     static final String EMP = "ammunition_specialammo_emp-01";
     static final String ISH = "equipment_extra_cpu_ish-01";
+    /** The Energy Leech tech (client's item data). */
+    static final String LEECH = "tech_energy-leech";
+    /**
+     * Ship abilities that help in a fight with NPCs, by the ids the server sends in the item bar (sniffer 2026-11):
+     * damage, defence, repair. Not here: travel, cloak, minimap, draw-fire, hologram and alike — no help or harm solo.
+     */
+    static final java.util.List<String> FIGHT_ABILITIES = java.util.List.of("ability_venom", "ability_diminisher",
+            "ability_sentinel", "ability_spectrum", "ability_spectrum-plus_prismatic-reflecting", "ability_lightning",
+            "ability_solace", "ability_solace-plus_nano-cluster-repairer-plus", "ability_aegis_hp-repair",
+            "ability_aegis_shield-repair", "ability_tartarus_rapid-fire", "ability_tartarus-plus_rapid-fire-plus",
+            "ability_hecate_particle-beam", "ability_hecate-plus_particle-beam-plus", "ability_retiarus_supercharge",
+            "ability_solaris_incinerate", "ability_solaris-plus_incinerate-plus", "ability_zephyr_triple-barrage",
+            "ability_berserker_berserk", "ability_citadel_fortify", "ability_liberator-plus_self-repair",
+            "ability_tempest_volt-discharge", "ability_basilisk_heightened-valour", "ability_keres_spread",
+            "ability_goliath-x_frozen-claw", "ability_paladin_ripper");
+    /** Prismatic shielding (Spectrum, Spectrum+, Citadel+) — AstraBot «usePrismatic». */
+    static final java.util.List<String> PRISMATIC = java.util.List.of("ability_spectrum",
+            "ability_spectrum-plus_prismatic-reflecting", "ability_citadel-plus_prismatic-endurance");
+    /** Spearhead's JAM-X (and the Spearhead+'s) — AstraBot «useSpearheadJamx». */
+    static final java.util.List<String> JAMX = java.util.List.of("ability_spearhead_jam-x",
+            "ability_spearhead-plus_jamx-creed");
+    /** An ability or tech asked for: not again this soon (the game's cooldown comes back a moment later). */
+    static final long ITEM_ASK_NS = 3_000_000_000L;
+    private final java.util.Map<String, Long> askedItem = new java.util.HashMap<>();
 
     public Kill lastKill() {
         return lastKill;
@@ -212,7 +236,12 @@ public final class Attacker {
      * A module's own use of EMP-01 and ISH-01 over the NPC list's flags (the behemoth module: AstraBot's useEmp /
      * empPercent, useIsh / ishPercent): each below its hull fraction ({@code -1} = EMP at once, ISH never).
      */
-    public record AbilityPlan(boolean emp, double empBelow, boolean ish, double ishBelow) {
+    public record AbilityPlan(boolean emp, double empBelow, boolean ish, double ishBelow, double prismaticBelow,
+                              double jamxWithin) {
+
+        public AbilityPlan(boolean emp, double empBelow, boolean ish, double ishBelow) {
+            this(emp, empBelow, ish, ishBelow, -1, -1);
+        }
     }
 
     private AbilityPlan plan;
@@ -254,6 +283,33 @@ public final class Attacker {
             ishUses++;
             ishAt = now;
         }
+        if (rule != null && rule.has(BotConfig.NpcFlag.USE_LEECH)) {
+            useFirstReady(w, java.util.List.of(LEECH), now, "Энергетическая пиявка");
+        }
+        if (rule != null && rule.has(BotConfig.NpcFlag.USE_ABILITY)) {
+            useFirstReady(w, FIGHT_ABILITIES, now, "способность корабля");
+        }
+        if (plan != null && plan.prismaticBelow() > 0 && hp >= 0 && hp < plan.prismaticBelow()) {
+            useFirstReady(w, PRISMATIC, now, "призматический щит, HP " + Math.round(hp * 100) + "%");
+        }
+        if (plan != null && plan.jamxWithin() > 0 && dist <= plan.jamxWithin()) {
+            useFirstReady(w, JAMX, now, "JAM-X");
+        }
+    }
+
+    /** The first of these items the game shows ready (an ability, a tech), used; false when none is. */
+    private boolean useFirstReady(WorldSnapshot w, java.util.List<String> ids, long now, String what) {
+        for (String id : ids) {
+            Long asked = askedItem.get(id);
+            if (asked != null && now - asked < ITEM_ASK_NS || !ready(w, id, now)) {
+                continue;
+            }
+            log.info("{}: {}", what, orbit.config.ItemCatalog.friendly(id));
+            ctx.actions().useItem(id);
+            askedItem.put(id, now);
+            return true;
+        }
+        return false;
     }
 
     /**

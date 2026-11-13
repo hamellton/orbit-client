@@ -103,6 +103,7 @@ public final class BotRunner {
         this.pet = new PetCare(ctx);
         pet.setModuleLocator(() -> module == null ? 0 : module.petLocator());
         pet.setModuleGear(() -> module == null ? -1 : module.petGear());
+        pet.setModuleOut(() -> module == null ? null : module.petOut());
         this.cargo = new CargoCare(ctx, pet);
         this.boxCheck = new BoxCheckSolver(ctx);
         this.offenders = new Offenders(ctx);

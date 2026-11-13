@@ -91,6 +91,32 @@ class BehemothModuleTest {
     }
 
     @Test
+    void thePetIsInUntilTheBehemothThenTheBeaconAndHpLinkWhenTheHullIsLow() throws Exception {
+        // AstraBot: petOnlyOnBehemoth, usePetCombatBeacon, PET hpLinkMinPercent 65 (the user, 2026-11-13)
+        BotConfig c = config(300);
+        var s = c.moduleSettings("behemoth");
+        s.put("petOnlyOnBehemoth", true);
+        s.put("usePetCombatBeacon", true);
+        s.put("hpLinkPercent", 65);
+        Sim sim = new Sim(c.withModuleSettings("behemoth", s), 308, 5_700, 2_600);
+        sim.lasers("ammunition_laser_a-bl");
+        BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
+        m.workingMap();
+        sim.run(m::tick, 1_000);
+        assertEquals(Boolean.FALSE, m.petOut(), "no behemoth: in");
+        sim.npc(77, "\\\\ Mindfire Behemoth //", 5_000, 3_000);
+        sim.run(m::tick, 3_000);
+        assertEquals(Boolean.TRUE, m.petOut());
+        assertEquals(orbit.protocol.gen.PetGearTypeModule.PETGEARTYPE_COMBAT_BEACON, m.petGear(), "full hull: the beacon");
+        orbit.protocol.gen.AttackHitCommand hit = new orbit.protocol.gen.AttackHitCommand();
+        hit.attackerId = 77;
+        hit.victimId = 1;
+        hit.victimHitpoints = sim.world.snapshot(sim.now).hero().health().hpMax() * 0.5;
+        sim.world.apply(hit, sim.now);
+        assertEquals(orbit.protocol.gen.PetGearTypeModule.PETGEARTYPE_HP_LINK, m.petGear(), "below 65 %: HP Link");
+    }
+
+    @Test
     void anNpcShootingAtUsWhileWaitingIsFoughtBack() throws Exception {
         Sim sim = new Sim(config(300), 308, 5_700, 2_600);
         sim.lasers("ammunition_laser_ucb-100");

@@ -149,6 +149,26 @@ class PetCareTest {
     }
 
     @Test
+    void aModuleKeepingThePetInRecallsItAndDoesNotLaunchIt() {
+        // AstraBot's petOnlyOnBehemoth (the user, 2026-11-13)
+        Sim sim = new Sim(config("GUARD", 0), 26, 10_000, 6_000);
+        owned(sim);
+        launched(sim);
+        PetCare pet = new PetCare(sim.ctx);
+        java.util.concurrent.atomic.AtomicReference<Boolean> out = new java.util.concurrent.atomic.AtomicReference<>(false);
+        pet.setModuleOut(out::get);
+        sim.run(pet::tick, 2_000);
+        assertEquals(1, sim.sent.stream().filter(p -> p instanceof PetRequest r
+                && r.petRequestType == PetRequest.PETREQUESTTYPE_DEACTIVATE).count(), "recalled");
+        out.set(null);
+        orbit.protocol.gen.PetDeactivationCommand off = new orbit.protocol.gen.PetDeactivationCommand();
+        off.petId = 500;
+        sim.world.apply(off, sim.now);
+        sim.run(pet::tick, 8_000);
+        assertEquals(1, launches(sim), "the config's again: out");
+    }
+
+    @Test
     void outOfFuelIsNotBoughtWhenTheConfigDoesNotSaySo() {
         Sim sim = new Sim(config("GUARD", 0), 26, 10_000, 6_000);
         owned(sim);

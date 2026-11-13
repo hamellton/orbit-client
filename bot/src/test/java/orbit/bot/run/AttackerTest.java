@@ -277,6 +277,41 @@ class AttackerTest {
     }
 
     @Test
+    void energyLeechAndTheShipsFightAbilityWhenReadyNeverATravelOne() {
+        // AstraBot «Use Energy Leech», «Use Ship Ability» (the user, 2026-11-13)
+        Sim sim = new Sim(invoke(Set.of("USE_LEECH", "USE_ABILITY"), null), 1, 10_500, 6_000);
+        sim.lasers("ammunition_laser_lcb-10", "tech_energy-leech", "ability_citadel_travel", "ability_venom");
+        sim.npc(7, "-=[ Target ]=-", 10_000, 6_000);
+        Attacker a = new Attacker(sim.ctx);
+        a.target(sim.world.snapshot(sim.now).ships().get(7));
+        sim.run(() -> a.tick(true), 4_000);
+        assertTrue(used(sim, "tech_energy-leech") >= 1, "the leech");
+        assertTrue(used(sim, "ability_venom") >= 1, "Venom's ability");
+        assertEquals(0, used(sim, "ability_citadel_travel"), "no help in a fight");
+    }
+
+    @Test
+    void aModulesPlanUsesJamxInItsDistanceAndThePrismaticShieldBelowItsHull() {
+        // AstraBot's behemoth module: useSpearheadJamx / jamxDistance, usePrismatic / prismaticPercent
+        Sim sim = new Sim(invoke(Set.of(), null), 1, 10_500, 6_000);
+        sim.lasers("ammunition_laser_lcb-10", "ability_spearhead_jam-x", "ability_spectrum");
+        sim.npc(7, "-=[ Target ]=-", 10_000, 6_000);
+        Attacker a = new Attacker(sim.ctx);
+        a.setAbilityPlan(new Attacker.AbilityPlan(false, -1, false, -1, 0.5, 750));
+        a.target(sim.world.snapshot(sim.now).ships().get(7));
+        sim.run(() -> a.tick(true), 3_000);
+        assertTrue(used(sim, "ability_spearhead_jam-x") >= 1, "JAM-X within 750");
+        assertEquals(0, used(sim, "ability_spectrum"), "full hull: no prismatic shield");
+        orbit.protocol.gen.AttackHitCommand hit = new orbit.protocol.gen.AttackHitCommand();
+        hit.attackerId = 7;
+        hit.victimId = 1;
+        hit.victimHitpoints = sim.world.snapshot(sim.now).hero().health().hpMax() * 0.4;
+        sim.world.apply(hit, sim.now);
+        sim.run(() -> a.tick(true), 1_000);
+        assertEquals(1, used(sim, "ability_spectrum"), "below 50 %: the prismatic shield");
+    }
+
+    @Test
     void anNpcsOwnFormationIsWantedFightingIt() {
         Sim sim = new Sim(invoke(Set.of(), "drone_formation_f-3d-dr"), 1, 10_500, 6_000);
         sim.lasers("ammunition_laser_lcb-10");

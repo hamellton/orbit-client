@@ -616,7 +616,11 @@ public record BotConfig(
         /** ISH-01 fighting it when the hull is below the config's threshold (AstraBot «Use ISH») */
         USE_ISH,
         /** the pet in HP Link while it is fought (AstraBot «HP Link») */
-        HP_LINK
+        HP_LINK,
+        /** the Energy Leech tech ({@code tech_energy-leech}) fighting it, when ready (AstraBot «Use Energy Leech») */
+        USE_LEECH,
+        /** the ship's own fight ability fighting it, when ready (AstraBot «Use Ship Ability») */
+        USE_ABILITY
     }
 
     /**

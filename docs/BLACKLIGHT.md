@@ -200,10 +200,21 @@ C3 — большой этап. Его делаем, только когда C1 
 - **Проверить вживую** (на аккаунтах с VPS): точки ожидания и спауна, время возрождения, имя ящика, порог EMP — чей HP
   у AstraBot `empPercent` (принято: корабля).
 
-**Не сделано из настроек AstraBot** (код закрыт — что именно они делают, видно только по названию):
-`petOnlyOnBehemoth` (питомец только у бегемота), `usePetCombatBeacon` (боевой маяк питомца), `usePrismatic` /
-`prismaticPercent` (призматический щит), «Use Energy Leech» (техника «энергетическая пиявка»), `useSpearheadJamx` /
-`jamxDistance` / `spearheadMode` / `useDrawFire` / `useNovaOnce` (способности кораблей), `attackRandom`,
+**Добавлено из AstraBot (2026-11-13; что делают — по названию, код закрыт):**
+- `petOnlyOnBehemoth` — питомец убран (запрос «убрать»), пока бегемота нет в виду; появился — выпускается;
+- `usePetCombatBeacon` и PET `useHpLink` / `hpLinkMinPercent` (65): в бою HP Link (флаг строки), пока HP корабля ниже
+  65 %, иначе «Боевой маяк» (режим питомца 18);
+- `usePrismatic` / `prismaticPercent` (50): призматический щит — `ability_spectrum`, `ability_spectrum-plus_prismatic-
+  reflecting`, `ability_citadel-plus_prismatic-endurance` (что есть у корабля), при HP корабля ниже порога;
+- `useSpearheadJamx` / `jamxDistance` (750): JAM-X (`ability_spearhead_jam-x`, `ability_spearhead-plus_jamx-creed`) по
+  бегемоту ближе дистанции (как BeheFarm — вместе с EMP);
+- флаги NPC `USE_LEECH` («Use Energy Leech»: `tech_energy-leech`) и `USE_ABILITY` («Use Ship Ability»: первая готовая
+  боевая способность корабля из списка `Attacker.FIGHT_ABILITIES` — Venom, Diminisher, Sentinel, Spectrum, Solace,
+  Aegis, Tartarus, Hecate, Retiarus, Solaris, Zephyr, Berserker, Citadel Fortify и др.; без перелётных, маскировки,
+  миникарты, Draw Fire). Работают для любого NPC, не только бегемота. Названия — из полосы предметов, что шлёт сервер.
+
+**Не сделано из настроек AstraBot:** `spearheadMode`, `useNovaOnce` (что это — не ясно), `useDrawFire` (Citadel: тянет
+огонь на себя — для группы), `attackRandom`,
 `chaseEnemy` / `chaseDistance`, `useRoamConfigOnLowHp`, `changeMapAfterDeath`, `useInfectionMine`, `buyCloak`,
 `ignoreDisruptor`, `waitSecondsAfterJump`, `BLACKLIST`, `readMapInfo` / `channelID`.
 

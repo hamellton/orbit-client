@@ -42,6 +42,8 @@ final class FlagsEditor extends AbstractCellEditor implements TableCellEditor {
             case USE_EMP -> "EMP-01 раз за бой, когда он в радиусе (чужие теряют прицел)";
             case USE_ISH -> "ISH-01, когда HP корабля ниже порога (вкладка «Убивать»)";
             case HP_LINK -> "питомец в режиме HP Link, пока бьём его";
+            case USE_LEECH -> "техника «Энергетическая пиявка», когда готова";
+            case USE_ABILITY -> "способность корабля (Venom, Sentinel, Solace, Spectrum…), когда готова";
         };
     }
 

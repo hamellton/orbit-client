@@ -121,9 +121,32 @@ public final class BehemothModule implements BotModule {
         return attacker.targetId();
     }
 
+    /**
+     * In the behemoth's fight: HP Link (its row's flag) while the hull is below {@code hpLinkPercent} (AstraBot's
+     * PET hpLinkMinPercent; 0 = always), otherwise the combat beacon ({@code usePetCombatBeacon}).
+     */
     @Override
     public int petGear() {
-        return attacker.fighting(BotConfig.NpcFlag.HP_LINK) ? orbit.protocol.gen.PetGearTypeModule.PETGEARTYPE_HP_LINK : -1;
+        if (!onBehemoth) {
+            return attacker.fighting(BotConfig.NpcFlag.HP_LINK) ? orbit.protocol.gen.PetGearTypeModule.PETGEARTYPE_HP_LINK : -1;
+        }
+        JsonNode s = settings();
+        double hp = ctx.world().get().hero().health().hpPercent();
+        double linkBelow = percent(s, "hpLinkPercent", 0);
+        boolean link = attacker.fighting(BotConfig.NpcFlag.HP_LINK) && (linkBelow <= 0 || hp >= 0 && hp < linkBelow);
+        if (link) {
+            return orbit.protocol.gen.PetGearTypeModule.PETGEARTYPE_HP_LINK;
+        }
+        return on(s, "usePetCombatBeacon", false) ? orbit.protocol.gen.PetGearTypeModule.PETGEARTYPE_COMBAT_BEACON : -1;
+    }
+
+    /** {@code petOnlyOnBehemoth}: out while a behemoth is in sight, in otherwise. */
+    @Override
+    public Boolean petOut() {
+        if (!on(settings(), "petOnlyOnBehemoth", false)) {
+            return null;
+        }
+        return onBehemoth || findBehemoth(ctx.config().get(), ctx.world().get()) != null;
     }
 
     @Override
@@ -146,7 +169,9 @@ public final class BehemothModule implements BotModule {
         WorldSnapshot.Hero h = w.hero();
         watch(w);
         attacker.setAbilityPlan(new Attacker.AbilityPlan(on(s, "useEmp", true), percent(s, "empPercent", 35),
-                on(s, "useIsh", true), percent(s, "ishPercent", 60)));
+                on(s, "useIsh", true), percent(s, "ishPercent", 60),
+                on(s, "usePrismatic", false) ? percent(s, "prismaticPercent", 50) : -1,
+                on(s, "useSpearheadJamx", false) ? number(s, "jamxDistance", 750) : -1));
 
         WorldSnapshot.Ship b = findBehemoth(c, w);
         if (b != null) {

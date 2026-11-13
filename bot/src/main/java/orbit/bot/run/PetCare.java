@@ -169,6 +169,20 @@ public final class PetCare {
             return;
         }
         fuelTries = 0;
+        if (Boolean.FALSE.equals(moduleOut.get())) {
+            // AstraBot's petOnlyOnBehemoth: in until the behemoth is here
+            launchAt = 0;
+            if (pet.active() && ms(now - recalledAt) > LAUNCH_RETRY_MS) {
+                if (!recallTold) {
+                    log.info("Убираю питомца — он нужен только у бегемота");
+                    recallTold = true;
+                }
+                ctx.actions().pet(PetRequest.PETREQUESTTYPE_DEACTIVATE);
+                recalledAt = now;
+            }
+            return;
+        }
+        recallTold = false;
         if (!pet.active()) {
             // a moment after the login, a revive or a jump, like a player pressing the key
             if (launchAt == 0) {
@@ -287,6 +301,21 @@ public final class PetCare {
     /** A mode the module wants over the config's (HP Link while fighting an NPC flagged so), -1 for none. */
     private volatile java.util.function.IntSupplier moduleGear = () -> -1;
 
+    /** The module's word on the pet being out: {@code null} = the config's, false = keep it in (the behemoth module). */
+    private volatile java.util.function.Supplier<Boolean> moduleOut = () -> null;
+    private long recalledAt = Long.MIN_VALUE / 2;
+    private boolean recallTold;
+
+    public void setModuleOut(java.util.function.Supplier<Boolean> out) {
+        moduleOut = out;
+    }
+
+    /** A fight mode's name for the log. */
+    static String fightName(int gear) {
+        return gear == PetGearTypeModule.PETGEARTYPE_HP_LINK ? "«HP Link»"
+                : gear == PetGearTypeModule.PETGEARTYPE_COMBAT_BEACON ? "«Боевой маяк»" : "№" + gear;
+    }
+
     public void setModuleGear(java.util.function.IntSupplier gear) {
         moduleGear = gear;
     }
@@ -303,7 +332,7 @@ public final class PetCare {
         boolean byFight = fightGear >= 0 && (pet.gears().isEmpty() || pet.gears().contains(fightGear));
         if (fightGear >= 0 && !byFight && missingFightGear != fightGear) {
             missingFightGear = fightGear; // once: the NPC's flag asks for a mode the pet does not have
-            log.warn("Питомец: у него нет режима «HP Link» — флаг HP_LINK не действует (режимы питомца: {})",
+            log.warn("Питомец: у него нет режима {} — в бою не включаю (режимы питомца: {})", fightName(fightGear),
                     pet.gears());
         }
         int want = trade ? PetGearTypeModule.PETGEARTYPE_TRADE_POD
@@ -311,7 +340,7 @@ public final class PetCare {
                 : byFight ? fightGear
                 : questLocator ? PetGearTypeModule.PETGEARTYPE_ENEMY_LOCATOR : gearId(cfg.gear());
         String label = trade ? "«Торговый модуль»" : kamikazeOn ? "«Камикадзе»"
-                : byFight ? "«HP Link» (бой)"
+                : byFight ? fightName(fightGear) + " (бой)"
                 : questLocator ? "«Пеленгатор врагов» (для модуля)" : gearName(cfg.gear());
         if (want < 0) {
             return;

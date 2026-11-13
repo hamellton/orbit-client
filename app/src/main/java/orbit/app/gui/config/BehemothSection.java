@@ -32,12 +32,22 @@ final class BehemothSection implements Section {
     private final JSpinner empBelow = Form.percent();
     private final JCheckBox ish = new JCheckBox("ISH-01 при HP корабля ниже");
     private final JSpinner ishBelow = Form.percent();
+    private final JCheckBox prismatic = new JCheckBox("Призматический щит (Spectrum, Citadel+) при HP ниже");
+    private final JSpinner prismaticBelow = Form.percent();
+    private final JCheckBox jamx = new JCheckBox("JAM-X (Spearhead) по бегемоту ближе, чем");
+    private final JSpinner jamxDistance = Form.number(100, 2_000, 50);
+    private final JCheckBox petOnly = new JCheckBox("Питомец только у бегемота (в остальное время убран)");
+    private final JCheckBox beacon = new JCheckBox("Боевой маяк питомца в бою, когда HP Link не нужен");
+    private final JSpinner linkBelow = Form.percent();
     private final JComponent view;
 
     BehemothSection() {
         collect.addActionListener(e -> sync());
         emp.addActionListener(e -> sync());
         ish.addActionListener(e -> sync());
+        prismatic.addActionListener(e -> sync());
+        jamx.addActionListener(e -> sync());
+        linkBelow.setToolTipText("HP Link (флаг в строке бегемота) — пока HP корабля ниже этого; 0 % — всегда");
         changeMap.setToolTipText("Сколько ждать на карте после прилёта (или после времени появления), потом — другая карта");
         respawn.setToolTipText("Через сколько минут бегемот появляется снова; 0 — бот узнаёт сам (до этого 15 мин)");
         view = new Form()
@@ -52,8 +62,15 @@ final class BehemothSection implements Section {
                         + " вкладке «Убивать». Чужих игроков у бегемота не боимся: урон засчитывается всем.")
                 .row("", Form.inline(emp, empBelow, new javax.swing.JLabel("%")))
                 .row("", Form.inline(ish, ishBelow, new javax.swing.JLabel("%")))
+                .row("", Form.inline(prismatic, prismaticBelow, new javax.swing.JLabel("%")))
+                .row("", Form.inline(jamx, jamxDistance))
                 .row("", defence)
                 .row("", killOthers)
+                .section("Питомец")
+                .row("", petOnly)
+                .row("HP Link, пока HP корабля ниже, %", linkBelow)
+                .row("", beacon)
+                .note("Энергетическая пиявка и способность корабля — галочки USE_LEECH и USE_ABILITY в строке бегемота.")
                 .section("Ящик")
                 .row("", collect)
                 .row("Конфигурация", collectConfig)
@@ -66,6 +83,8 @@ final class BehemothSection implements Section {
         collectFormation.setEnabled(collect.isSelected());
         empBelow.setEnabled(emp.isSelected());
         ishBelow.setEnabled(ish.isSelected());
+        prismaticBelow.setEnabled(prismatic.isSelected());
+        jamxDistance.setEnabled(jamx.isSelected());
     }
 
     @Override
@@ -98,6 +117,13 @@ final class BehemothSection implements Section {
         Form.setFraction(empBelow, m.path("empPercent").asDouble(35) / 100);
         ish.setSelected(m.path("useIsh").asBoolean(true));
         Form.setFraction(ishBelow, m.path("ishPercent").asDouble(60) / 100);
+        prismatic.setSelected(m.path("usePrismatic").asBoolean(false));
+        Form.setFraction(prismaticBelow, m.path("prismaticPercent").asDouble(50) / 100);
+        jamx.setSelected(m.path("useSpearheadJamx").asBoolean(false));
+        Form.set(jamxDistance, m.path("jamxDistance").asInt(750));
+        petOnly.setSelected(m.path("petOnlyOnBehemoth").asBoolean(false));
+        beacon.setSelected(m.path("usePetCombatBeacon").asBoolean(false));
+        Form.setFraction(linkBelow, m.path("hpLinkPercent").asDouble(0) / 100);
         sync();
     }
 
@@ -138,6 +164,13 @@ final class BehemothSection implements Section {
         m.put("empPercent", Math.round(Form.fraction(empBelow) * 100));
         m.put("useIsh", ish.isSelected());
         m.put("ishPercent", Math.round(Form.fraction(ishBelow) * 100));
+        m.put("usePrismatic", prismatic.isSelected());
+        m.put("prismaticPercent", Math.round(Form.fraction(prismaticBelow) * 100));
+        m.put("useSpearheadJamx", jamx.isSelected());
+        m.put("jamxDistance", Form.intOf(jamxDistance));
+        m.put("petOnlyOnBehemoth", petOnly.isSelected());
+        m.put("usePetCombatBeacon", beacon.isSelected());
+        m.put("hpLinkPercent", Math.round(Form.fraction(linkBelow) * 100));
         return c.withModuleSettings(KEY, m);
     }
 }

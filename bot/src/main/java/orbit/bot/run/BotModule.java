@@ -62,6 +62,11 @@ public interface BotModule {
         return -1;
     }
 
+    /** Whether the pet should be out now: {@code null} = as the config says, false = keep it in. */
+    default Boolean petOut() {
+        return null;
+    }
+
     /** The NPC the module fights now, 0 for none. */
     default int fightTarget() {
         return 0;
