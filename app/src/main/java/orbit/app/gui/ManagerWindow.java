@@ -122,10 +122,31 @@ public final class ManagerWindow {
      * @param onClosed runs when the window is gone and every account has stopped
      */
     public static void open(Vault vault, Function<String, ManagedAccount> factory, Runnable onClosed) {
+        open(vault, factory, onClosed, List.of());
+    }
+
+    /** @param startNow accounts to start as soon as the window is up, a few seconds apart (unknown names are told) */
+    public static void open(Vault vault, Function<String, ManagedAccount> factory, Runnable onClosed,
+                            List<String> startNow) {
         SwingUtilities.invokeLater(() -> {
             Theme.setup();
-            new ManagerWindow(vault, factory).show(onClosed);
+            ManagerWindow w = new ManagerWindow(vault, factory);
+            w.show(onClosed);
+            w.startNow(startNow);
         });
+    }
+
+    private void startNow(List<String> names) {
+        long delay = 0;
+        for (String n : names) {
+            if (!model.names.contains(n)) {
+                org.slf4j.LoggerFactory.getLogger(ManagerWindow.class).warn("Запуск при старте: аккаунта «{}» нет", n);
+                continue;
+            }
+            String why = startOne(n, delay, false);
+            org.slf4j.LoggerFactory.getLogger(ManagerWindow.class).info("Запуск при старте: «{}» — {}", n, why == null ? "запущен" : why);
+            delay += 5_000;
+        }
     }
 
     private void show(Runnable onClosed) {

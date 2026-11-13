@@ -173,7 +173,9 @@ public final class OrbitMain {
             log.warn("Профиль клиента {} не найден — раскладка окон и клавиши отправляться не будут", o.profile);
         }
         CountDownLatch closed = new CountDownLatch(1);
-        orbit.app.gui.ManagerWindow.open(vault, name -> new AccountRunner(name, vault, profile), closed::countDown);
+        // «orbit manager --account a --account b»: these start at once (a restart on a server without anybody at it)
+        orbit.app.gui.ManagerWindow.open(vault, name -> new AccountRunner(name, vault, profile), closed::countDown,
+                o.accounts());
         closed.await();
         System.exit(0);
     }

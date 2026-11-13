@@ -101,6 +101,12 @@ public final class BehemothModule implements BotModule {
     private final Map<String, Long> travel = new HashMap<>();
     private int departFrom;
     private long departAt;
+    private int departDeaths;
+    /**
+     * A flight longer is not learned: a repair or a death was on the way (live 2026-11-13 on the VPS: «1-BL → 2-BL: 3 мин
+     * 58 с» with a death in between, against 1 мин 25 с).
+     */
+    static final long TRAVEL_LEARN_MAX_MS = 180_000;
     private boolean holdTold;
     /** The pet's combat beacon before the spawn ({@code beaconBeforeSeconds}). */
     private boolean beaconOn;
@@ -153,6 +159,7 @@ public final class BehemothModule implements BotModule {
         if (chosen != h.mapId() && departFrom != h.mapId()) {
             departFrom = h.mapId(); // the flight starts: its time is learned on arrival
             departAt = wallMs();
+            departDeaths = ctx.stats().deaths.get();
             holdTold = false;
         }
         return chosen;
@@ -808,7 +815,7 @@ public final class BehemothModule implements BotModule {
         long change = (long) number(s, "changeMapSeconds", 30) * 1_000;
         if (arrivedAt == 0 && departFrom != 0 && departFrom != h.mapId() && departAt > 0) {
             long took = wall - departAt;
-            if (took > 10_000 && took < 10 * 60_000) {
+            if (took > 10_000 && took < TRAVEL_LEARN_MAX_MS && ctx.stats().deaths.get() == departDeaths) {
                 String key = departFrom + ">" + h.mapId();
                 Long before = travel.get(key);
                 travel.put(key, before == null ? took : (before + took) / 2);
