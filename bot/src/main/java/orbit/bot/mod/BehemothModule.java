@@ -1106,6 +1106,8 @@ public final class BehemothModule implements BotModule {
     static final double SIDE_BETTER = 800;
     /** Nearer than this an enemy makes any freer point worth it. */
     static final double SIDE_CLOSE = 1_500;
+    /** Enemies farther than this from where the ship stands do not move it (live 2026-11-13: moved for 12 000). */
+    static final double SIDE_SAFE = 3_000;
     static final int SIDE_DIRECTIONS = 16;
 
     private int[] side;
@@ -1168,7 +1170,8 @@ public final class BehemothModule implements BotModule {
                 best = p;
             }
         }
-        if (best != current && (bestScore > currentScore + SIDE_BETTER || currentScore < SIDE_CLOSE)) {
+        if (best != current && currentScore < SIDE_SAFE
+                && (bestScore > currentScore + SIDE_BETTER || currentScore < SIDE_CLOSE)) {
             log.info("Чужие у точки ожидания ({} от ближайшего) — встаю со свободной стороны {}/{} ({} от них)",
                     (int) currentScore, best[0] / 100, best[1] / 100, (int) bestScore);
             side = best;

@@ -619,4 +619,16 @@ class BehemothModuleTest {
         sim.run(m::tick, 2_000);
         assertTrue(m.workingMap() != 308, "then the next map");
     }
+
+    @Test
+    void enemiesFarAwayDoNotMoveTheShipOffTheWaitPoint() throws Exception {
+        // live 2026-11-13 on the VPS, 1-BL: «Чужие у точки ожидания (12033 от ближайшего) — встаю со свободной стороны»
+        Sim sim = new Sim(with(config(300), "{\"freeSide\": true}"), 308, 5_700, 2_600);
+        BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
+        m.workingMap();
+        enemy(sim, 900, "FarAway", 18_000, 11_000);
+        sim.run(m::tick, 20_000);
+        var h = sim.hero();
+        assertTrue(Math.hypot(h.x() - 5_700, h.y() - 2_600) <= 300, "still at the wait point: " + h);
+    }
 }
