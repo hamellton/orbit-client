@@ -15,6 +15,8 @@ import org.slf4j.LoggerFactory;
  * revive at the portal or on the spot (live 2026-11-11: a player kept killing the ship at the portal) counts as
  * «in a row»; past the limit the ship revives at the base once and the count starts again. The count is kept
  * in the account's data folder, so a restart does not reset it.
+ * <p>Also when the bot is logging out the repair is the config's (the user, 2026-11-13: paying at the portal to log out
+ * there is right, keep it).
  */
 public final class Revive {
 
