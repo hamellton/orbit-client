@@ -817,7 +817,20 @@ public final class BehemothModule implements BotModule {
             int y = pet.locatorY();
             double dist = Math.hypot(x - h.x(), y - h.y());
             if (dist < 900) {
-                return false; // close: it comes into sight
+                // close: it comes into sight — stay by it, not back to the wait point (live 2026-11-13 on the VPS, 2-BL:
+                // the locator showed it at its spawn, the wait took the ship back, it was never seen)
+                String near = "near:" + h.mapId() + ":" + x / 500 + ":" + y / 500;
+                if (!near.equals(locatorTold)) {
+                    locatorTold = near;
+                    long npcs = w.ships().values().stream().filter(v -> v.kind() == WorldSnapshot.ShipKind.NPC
+                            && v.distanceTo(h.x(), h.y()) < 2_500).count();
+                    log.info("Пеленгатор: я у его точки {}/{} (корабль {}/{}), бегемота не вижу; NPC рядом {} — жду здесь",
+                            x / 100, y / 100, h.x() / 100, h.y() / 100, npcs);
+                }
+                ctx.nav().stop();
+                ctx.ship().want(ctx.config().get().general().roam());
+                status = "У точки пеленгатора — жду, когда бегемот покажется";
+                return true;
             }
             String told = "point:" + h.mapId();
             if (!told.equals(locatorTold)) {
@@ -850,8 +863,11 @@ public final class BehemothModule implements BotModule {
         if (pet.locatorNoneWithin(now, LOCATOR_FRESH_MS) && pet.locatorNoneNanos() > settled && twice
                 && pet.locatorNoneNanos() != noneHandled) {
             noneHandled = pet.locatorNoneNanos();
-            log.info("Пеленгатор: бегемота на {} нет — жду до конца ожидания", ctx.maps().info(h.mapId()).name());
-            locatorTold = "";
+            String none = "none:" + h.mapId() + ":" + waitStarted;
+            if (!none.equals(locatorTold)) {
+                log.info("Пеленгатор: бегемота на {} нет — жду до конца ожидания", ctx.maps().info(h.mapId()).name());
+            }
+            locatorTold = none;
         }
         return false;
     }

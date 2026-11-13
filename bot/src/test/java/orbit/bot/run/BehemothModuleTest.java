@@ -667,4 +667,21 @@ class BehemothModuleTest {
         sim.run(m::tick, 20_000);
         assertTrue(m.workingMap() != 308, "then the next map");
     }
+
+    @Test
+    void byTheLocatorsPointTheShipStaysInsteadOfGoingBackToTheWaitPoint() throws Exception {
+        // live 2026-11-13 on the VPS, 2-BL: the locator showed the behemoth at its spawn, the wait took the ship back
+        Sim sim = new Sim(with(config(300), "{\"useLocator\": true}"), 308, 5_700, 2_600);
+        BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
+        locatorPet(sim);
+        m.workingMap();
+        sim.run(m::tick, 6_000);
+        for (int i = 0; i < 20; i++) {
+            locator(sim, 9_000, 6_000);
+            sim.run(m::tick, 2_000);
+        }
+        var h = sim.hero();
+        assertTrue(Math.hypot(h.x() - 9_000, h.y() - 6_000) < 900, "by the locator's point: " + h);
+        assertTrue(m.status().contains("пеленгатора"), m.status());
+    }
 }
