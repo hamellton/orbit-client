@@ -217,7 +217,8 @@ class HealingTest {
             s.tick(true);
             sim.now += 100 * Sim.MS;
         }
-        assertEquals(1, sim.sent.stream().filter(p -> p instanceof orbit.protocol.gen.JumpRequest).count());
+        // once is no proof (live 2026-11-13 on the VPS: the first jump right after a revive did not go): the second
+        assertEquals(2, sim.sent.stream().filter(p -> p instanceof orbit.protocol.gen.JumpRequest).count());
         assertTrue(sim.ctx.stats().closedPortals.contains("2:2000:2000"));
     }
 

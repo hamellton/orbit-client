@@ -42,6 +42,12 @@ public final class Safety {
     private MapCatalog.Portal jumpedVia;
     private int deathsAtJump;
     static final long JUMP_CHECK_MS = 8_000;
+    /**
+     * Failed jumps by portal: closed only at the second (live 2026-11-13 on the VPS: revived by the 2-BL portal to
+     * 2-8, the first jump right after the revive did not go — 2-8, the way home, was marked closed for the run).
+     */
+    private final java.util.Map<String, Integer> failedJumps = new java.util.HashMap<>();
+    static final int FAILS_TO_CLOSE = 2;
     /** The map the last escape jump left: no escape jump back into it this soon. */
     private int escapedFrom;
     static final long BACK_INTO_NS = 120_000_000_000L;
@@ -205,8 +211,16 @@ public final class Safety {
             return;
         }
         if (h.mapId() == jumpedFrom && w.jumpingTo() == 0) {
-            ctx.stats().closedPortals.add(SafePlaces.key(jumpedFrom, jumpedVia));
-            log.warn("Портал на {} не пускает — больше туда не прыгаю", jumpedVia.toName());
+            String key = SafePlaces.key(jumpedFrom, jumpedVia);
+            int n = failedJumps.merge(key, 1, Integer::sum);
+            if (n >= FAILS_TO_CLOSE) {
+                ctx.stats().closedPortals.add(key);
+                log.warn("Портал на {} не пускает ({} раза) — больше туда не прыгаю", jumpedVia.toName(), n);
+            } else {
+                log.info("Прыжок на {} не вышел — попробую ещё раз", jumpedVia.toName());
+            }
+        } else if (h.mapId() != jumpedFrom) {
+            failedJumps.remove(SafePlaces.key(jumpedFrom, jumpedVia));
         }
         jumpedVia = null;
     }
