@@ -36,36 +36,18 @@ public final class Targets {
     }
 
     /**
-     * Another player's NPC: the server greyed it for us ({@code LSH}), or a player who is not in our group is shooting
-     * at it. Only the first shooter (and his group) gets the kill's reward, so such an NPC is not ours — unless its
-     * rule says to fight it anyway (the Cubikon, group NPCs: damage counts there).
+     * Another player's NPC: the server greyed it for us ({@code LSH}). Only the first shooter (and his group) gets the
+     * kill's reward, so such an NPC is not ours — unless its rule says to fight it anyway (the Cubikon, group NPCs:
+     * damage counts there).
      */
     public static boolean taken(BotConfig c, WorldSnapshot w, WorldSnapshot.Ship s) {
         BotConfig.NpcRule r = rule(c, s, w.hero().mapId());
         if (r != null && (r.has(BotConfig.NpcFlag.IGNORE_OWNERSHIP) || r.has(BotConfig.NpcFlag.IGNORE_ATTACKED))) {
             return false;
         }
-        if (s.lockedByOther()) {
-            return true;
-        }
-        // already hurt and not by the ship: somebody else's fight, his shots unseen (live 2026-11-13 on 2-3: Lordakia
-        // and Saimon taken at 33–93 %, killed by others within seconds)
-        if (s.health().known() && w.hero().attackTargetId() != s.id() && share(s) < HURT_BY_OTHER) {
-            return true;
-        }
-        java.util.Set<Integer> group = new java.util.HashSet<>();
-        w.group().members().forEach(m -> group.add(m.id()));
-        int hero = w.hero().id();
-        return w.ships().values().stream().anyMatch(p -> p.kind() == WorldSnapshot.ShipKind.PLAYER && p.id() != hero
-                && !group.contains(p.id()) && p.attackTargetId() == s.id());
-    }
-
-    /** Below this share of hull and shield an NPC the ship has not shot is somebody else's. */
-    static final double HURT_BY_OTHER = 0.98;
-
-    private static double share(WorldSnapshot.Ship s) {
-        double max = s.health().hpMax() + Math.max(0, s.health().shieldMax());
-        return max <= 0 ? 1 : (s.health().hp() + Math.max(0, s.health().shield())) / max;
+        // the server's own word only (LSH greys it, USH frees it again): an NPC hurt and left by somebody is free
+        // again, and a player shooting it got no claim unless the server greys it (the user, 2026-11-13)
+        return s.lockedByOther();
     }
 
     public static double radius(BotConfig c, WorldSnapshot.Ship s, int mapId) {

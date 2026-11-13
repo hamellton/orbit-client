@@ -223,16 +223,24 @@ class AttackerTest {
     }
 
     @Test
-    void anNpcAnotherPlayerShootsIsNotOursUnlessItsRuleSaysSo() {
-        // the user 2026-11-12: only the first shooter's group gets the reward — except cubes and group NPCs
+    void onlyTheServersGreyMakesAnNpcSomebodyElses() {
+        // the user 2026-11-13: a player shooting it or its lost hull says nothing (he may have left it); the server's
+        // LSH says, its USH frees it again; cubes and group NPCs are fought anyway
         Sim sim = new Sim(config(false, null, Set.of()), 1, 10_500, 6_000);
         sim.npc(77, "-=[ Target ]=-", 10_000, 6_000);
         otherPlayerShoots(sim, 900, 77);
-        var w = sim.world.snapshot(sim.now);
-        assertTrue(orbit.bot.mod.Targets.best(sim.config, w, 10_000) == null, "someone else's");
+        assertEquals(77, orbit.bot.mod.Targets.best(sim.config, sim.world.snapshot(sim.now), 10_000).id(), "no grey: ours");
+        orbit.protocol.gen.LegacyModule grey = new orbit.protocol.gen.LegacyModule();
+        grey.message = "0|n|LSH|77|900";
+        sim.world.apply(grey, sim.now);
+        assertTrue(orbit.bot.mod.Targets.best(sim.config, sim.world.snapshot(sim.now), 10_000) == null, "greyed");
+        orbit.protocol.gen.LegacyModule free = new orbit.protocol.gen.LegacyModule();
+        free.message = "0|n|USH|77";
+        sim.world.apply(free, sim.now);
+        assertEquals(77, orbit.bot.mod.Targets.best(sim.config, sim.world.snapshot(sim.now), 10_000).id(), "freed");
         Sim flagged = new Sim(config(false, null, Set.of("IGNORE_OWNERSHIP")), 1, 10_500, 6_000);
         flagged.npc(77, "-=[ Target ]=-", 10_000, 6_000);
-        otherPlayerShoots(flagged, 900, 77);
+        flagged.world.apply(grey, flagged.now);
         assertEquals(77, orbit.bot.mod.Targets.best(flagged.config, flagged.world.snapshot(flagged.now), 10_000).id());
     }
 

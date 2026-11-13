@@ -303,8 +303,8 @@ public final class Attacker {
         long now = ctx.now();
         // another player's: greyed by the server, or someone else shot first — no reward for us (the user,
         // 2026-11-12: only the first shooter's group gets it, except cubes and group NPCs)
-        if (Targets.taken(c, w, t) && (t.lockedByOther() || !shotAt)) {
-            log.info("Цель {} чужая ({}) — бросаю", t.name(), t.lockedByOther() ? "её взял другой игрок" : "её уже бьют");
+        if (Targets.taken(c, w, t)) {
+            log.info("Цель {} чужая (сервер отдал её другому игроку) — бросаю", t.name());
             endReason = "чужая";
             givenUp.put(t.id(), now + GIVE_UP_MS * 1_000_000);
             if (h.attackTargetId() == t.id()) {
