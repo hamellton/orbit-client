@@ -429,7 +429,7 @@ public final class BotRunner {
                 }
             }
             // a target nearly dead is finished first, while the hull allows (live 2026-11-13: Impulse II left at 7 %)
-            String who = finishing(w) ? null : offenders.escape(w);
+            String who = finishing(w) ? null : offenders.escape(w, portalOnTheWay(h));
             if (who != null) {
                 if (!avoiding && module != null) {
                     module.pause();
@@ -468,6 +468,21 @@ public final class BotRunner {
         state = State.WORKING;
         module.tick();
         show(module.status());
+    }
+
+    /** The first portal of the way to the module's map when it is another one, else {@code null}. */
+    private double[] portalOnTheWay(WorldSnapshot.Hero h) {
+        int map = module == null ? 0 : module.workingMap();
+        if (map == 0 || map == h.mapId()) {
+            return null;
+        }
+        try {
+            java.util.List<orbit.world.maps.MapCatalog.Portal> route = orbit.bot.nav.Router.route(ctx.maps(), h.mapId(), h.x(), h.y(),
+                    map, h.factionId(), h.level() > 0 ? h.level() : Integer.MAX_VALUE);
+            return route.isEmpty() ? null : new double[] {route.getFirst().x(), route.getFirst().y()};
+        } catch (RuntimeException e) {
+            return null;
+        }
     }
 
     /** The user's order and the pause; true while they hold the ship. */

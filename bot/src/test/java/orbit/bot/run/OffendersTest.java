@@ -167,6 +167,23 @@ class OffendersTest {
     }
 
     @Test
+    void onTheWayToAnotherMapAStationByThePortalIsPassed() {
+        // live 2026-11-13 on the VPS, 4-2: the portal to 4-4 by a station of another clan, the ship went in and out of
+        // its circle until the user jumped by hand
+        var cat = orbit.world.maps.MapCatalog.bundled();
+        var portal = orbit.bot.nav.Router.route(cat, 92, 10_000, 6_000, 93, 3, Integer.MAX_VALUE).getFirst();
+        double away = BotConfig.Flee.STATION_RADIUS + 1_500;
+        int sx = portal.x() > 10_500 ? portal.x() - (int) away : portal.x() + (int) away;
+        Sim sim = new Sim(config(false), 92, sx, portal.y());
+        station(sim, 900, 1, portal.x(), portal.y());
+        BotRunner r = new BotRunner(sim.ctx, () -> false, s -> { });
+        sim.run(r::tick, 40_000);
+        var h = sim.world.snapshot(sim.now).hero();
+        assertTrue(Math.hypot(h.x() - portal.x(), h.y() - portal.y()) < 600,
+                "at the portal, through the station's circle: " + h.x() + "/" + h.y() + " " + r.status());
+    }
+
+    @Test
     void aBoxInsideANoAccessZoneIsNotFlownTo() {
         // live 2026-11-13 on 3-BL: a box in the wall, the ship stood at the wall 100 s
         Sim sim = new Sim(config(false), 93, 20_000, 7_000);

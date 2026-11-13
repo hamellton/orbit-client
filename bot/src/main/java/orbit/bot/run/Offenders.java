@@ -57,6 +57,9 @@ public final class Offenders {
     private String told = "";
     private long toldAt = Long.MIN_VALUE / 2;
     private boolean toldOut = true;
+    private String passTold = "";
+    /** A portal this close to a station's circle counts as in it (the ship stops by the portal, not on it). */
+    static final double PORTAL_MARGIN = 400;
     static final long TELL_AGAIN_NS = 60_000_000_000L;
 
     Offenders(BotContext ctx) {
@@ -265,12 +268,28 @@ public final class Offenders {
 
     /** The name of the remembered player whose circle the ship is in, or {@code null}. */
     String inside(WorldSnapshot.Hero h) {
+        return inside(h, null);
+    }
+
+    /**
+     * @param through the portal the ship flies to (another map), or {@code null}: a station whose circle holds it is no
+     *                bar on the way — its portal is the only way on (live 2026-11-13 on the VPS, 4-2: the portal to 4-4
+     *                by a station of another clan, the ship went in and out of its circle until a jump by hand)
+     */
+    String inside(WorldSnapshot.Hero h, double[] through) {
         for (Circle c : npcCircles) {
             if (Math.hypot(c.x() - h.x(), c.y() - h.y()) <= c.radius()) {
                 return c.name();
             }
         }
         for (Circle c : stations) {
+            if (through != null && Math.hypot(c.x() - through[0], c.y() - through[1]) <= c.radius() + PORTAL_MARGIN) {
+                if (!c.name().equals(passTold)) {
+                    passTold = c.name();
+                    log.info("Портал на пути — у {}: прохожу мимо неё к порталу", c.name());
+                }
+                continue;
+            }
             if (Math.hypot(c.x() - h.x(), c.y() - h.y()) <= c.radius()) {
                 return c.name();
             }
@@ -292,8 +311,13 @@ public final class Offenders {
      * @return the player's name while escaping, {@code null} once out
      */
     String escape(WorldSnapshot w) {
+        return escape(w, null);
+    }
+
+    /** {@link #escape(WorldSnapshot)} on the way to a portal: see {@link #inside(WorldSnapshot.Hero, double[])}. */
+    String escape(WorldSnapshot w, double[] through) {
         WorldSnapshot.Hero h = w.hero();
-        String who = inside(h);
+        String who = inside(h, through);
         long now = ctx.now();
         if (who == null) {
             if (!near.isEmpty()) {
