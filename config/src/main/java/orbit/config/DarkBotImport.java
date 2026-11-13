@@ -263,7 +263,8 @@ public final class DarkBotImport {
                 rsb.path("ENABLED").asBoolean(false) ? RSB : null,
                 l.path("GROUP_NPCS").asBoolean(true), l.path("NPC_DISTANCE_IGNORE").asInt(0), null, false,
                 true, null, null, false, null, // DarkBot circles round its target unless an NPC has NO_CIRCLE
-                l.path("RUN_CONFIG_IN_CIRCLE").asBoolean(false) ? Boolean.TRUE : null);
+                l.path("RUN_CONFIG_IN_CIRCLE").asBoolean(false) ? Boolean.TRUE : null, null,
+                l.has("MAX_CIRCLE_ITERATIONS") ? l.path("MAX_CIRCLE_ITERATIONS").asInt() : null);
     }
 
     private static BotConfig.Collect collect(JsonNode c) {

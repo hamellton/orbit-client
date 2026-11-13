@@ -571,18 +571,36 @@ public record BotConfig(
      *                    twice the radius (DarkBot's {@code RUN_CONFIG_IN_CIRCLE})
      * @param skipCrowded not to take a target among other NPCs that attack on sight (off: taken like DarkBot does;
      *                    the user, 2026-11-13: skipping them left the ship flying about for nothing)
+     * @param smartCircle points looked at each way to turn the circle (DarkBot's {@code MAX_CIRCLE_ITERATIONS}, 0 =
+     *                    never turn; {@code null} = {@link #SMART_CIRCLE})
      */
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public record Loot(String ammo, String sab, double sabBelow, int sabNpcShieldMin, String rsb,
                        boolean groupNpcs, int ignoreFartherThan, String rocket, boolean fireRockets, boolean circle,
                        List<String> fallback, String launcher, boolean fireLauncher, String move, Boolean runCircle,
-                       Boolean skipCrowded) {
+                       Boolean skipCrowded, Integer smartCircle) {
+
+        /** DarkBot's usual «smart circling iterations». */
+        public static final int SMART_CIRCLE = 5;
+
+        public Loot(String ammo, String sab, double sabBelow, int sabNpcShieldMin, String rsb,
+                    boolean groupNpcs, int ignoreFartherThan, String rocket, boolean fireRockets, boolean circle,
+                    List<String> fallback, String launcher, boolean fireLauncher, String move, Boolean runCircle,
+                    Boolean skipCrowded) {
+            this(ammo, sab, sabBelow, sabNpcShieldMin, rsb, groupNpcs, ignoreFartherThan, rocket, fireRockets, circle,
+                    fallback, launcher, fireLauncher, move, runCircle, skipCrowded, null);
+        }
+
+        /** The points looked at each way to turn the circle. */
+        public int circleIterations() {
+            return smartCircle == null ? SMART_CIRCLE : Math.max(0, smartCircle);
+        }
 
         public Loot(String ammo, String sab, double sabBelow, int sabNpcShieldMin, String rsb,
                     boolean groupNpcs, int ignoreFartherThan, String rocket, boolean fireRockets, boolean circle,
                     List<String> fallback, String launcher, boolean fireLauncher, String move, Boolean runCircle) {
             this(ammo, sab, sabBelow, sabNpcShieldMin, rsb, groupNpcs, ignoreFartherThan, rocket, fireRockets, circle,
-                    fallback, launcher, fireLauncher, move, runCircle, null);
+                    fallback, launcher, fireLauncher, move, runCircle, (Boolean) null);
         }
 
         public Loot(String ammo, String sab, double sabBelow, int sabNpcShieldMin, String rsb,

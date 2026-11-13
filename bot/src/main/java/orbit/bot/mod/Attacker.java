@@ -517,16 +517,8 @@ public final class Attacker {
     /** The temporary record of the fight (FightLog). */
     private final FightLog fight = new FightLog();
     private String endReason = "прервал (ремонт, бегство, пауза)";
-    /** The circle's side lately turned, and how long a turn for something only worse waits after it. */
-    private long sideTurnedAt = Long.MIN_VALUE / 2;
-    static final long SIDE_HOLD_NS = 8_000_000_000L;
-    /**
-     * The other side must be this much better to turn for (DarkBot: 300 with a weight of 1 an NPC; ours weighs up to 3).
-     * Live 2026-11-13 on 3-BL: 6–7 turns a fight, each into the Impulse II pack chasing behind.
-     */
-    static final double SIDE_BETTER = 1000;
-    static final double SIDE_MUCH_BETTER = 2000;
-    static final long SIDE_HOLD_SHORT_NS = 3_000_000_000L;
+    /** DarkBot's: a side this much better turns the circle. */
+    static final double SIDE_BETTER = 300;
 
     /** NPC kinds' top speed seen (units per second): {@link BotConfig.FightMove#AUTO} goes by it. */
     private static final java.util.Map<String, Double> KIND_SPEED = new java.util.concurrent.ConcurrentHashMap<>();
@@ -751,27 +743,30 @@ public final class Attacker {
         double npcSpeed = Math.max(200, Math.hypot(vx, vy));
         double step = Math.max(0.05, Math.max(0, 0.625 * Math.max(1, h.speed()) + 0.625 * npcSpeed - gap) / rr);
         if (th != null) {
-            double ahead = 0;
-            double back = 0;
-            for (int k = 1; k <= 5; k++) {
-                // the pack flying at the ship is left out: it follows either way, the side turns only for what stays
-                ahead += th.score(cx + Math.cos(angle + circleDir * k * step) * rr, cy + Math.sin(angle + circleDir * k * step) * rr, true);
-                back += th.score(cx + Math.cos(angle - circleDir * k * step) * rr, cy + Math.sin(angle - circleDir * k * step) * rr, true);
-            }
-            boolean aheadBlocked = ahead <= Threats.BLOCKED;
-            boolean backBlocked = back <= Threats.BLOCKED;
-            // a turn for something only worse: not again before SIDE_HOLD_NS (live 2026-11-13: it turned every 2 s,
-            // to and fro); a way that is not allowed turns it at once
-            long now = ctx.now();
-            // much better (deep in a shooter's reach ahead): soon; a little (the pack behind): seldom
-            double gain = back - ahead;
-            boolean better = !backBlocked && (gain > SIDE_BETTER && now - sideTurnedAt > SIDE_HOLD_NS
-                    || gain > SIDE_MUCH_BETTER && now - sideTurnedAt > SIDE_HOLD_SHORT_NS);
-            if (aheadBlocked && !backBlocked || better) {
-                circleDir = -circleDir;
-                sideTurnedAt = now;
-                fight.turned();
-                log.info("Кружу в другую сторону: там {}", aheadBlocked ? "нельзя" : "другие NPC или враги");
+            // DarkBot's getBestDir (the user, 2026-11-13: «как в даркботе»): up to N points each way (the config's
+            // «smart circling», DarkBot's MAX_CIRCLE_ITERATIONS, 0 = never turn); stop as soon as one side is clear and
+            // the other not, or one is better by 300; turn to the better side then, else keep the way
+            int max = ctx.config().get().loot().circleIterations();
+            double plus = 0;
+            double minus = 0;
+            int k = 1;
+            boolean decided = false;
+            do {
+                plus += th.darkScore(cx + Math.cos(angle + k * step) * rr, cy + Math.sin(angle + k * step) * rr);
+                minus += th.darkScore(cx + Math.cos(angle - k * step) * rr, cy + Math.sin(angle - k * step) * rr);
+                if (plus < 0 != minus < 0 || Math.abs(plus - minus) > SIDE_BETTER) {
+                    decided = true;
+                    break;
+                }
+            } while (k++ < max);
+            if (decided && max > 0) {
+                int dir = minus > plus ? -1 : 1;
+                if (dir != circleDir) {
+                    circleDir = dir;
+                    fight.turned();
+                    log.info("Кружу в другую сторону: там {}", Math.min(plus, minus) <= -Threats.CANNOT ? "нельзя"
+                            : "другие NPC или враги");
+                }
             }
         }
         double a = angle + circleDir * step;

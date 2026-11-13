@@ -55,6 +55,7 @@ final class KillSection implements Section {
             java.util.Arrays.stream(BotConfig.FightMove.values()).map(m -> m.label).toArray(String[]::new));
     private final JCheckBox fireRockets = new JCheckBox("Пускать ракеты сам (без ракетного CPU)");
     private final JSpinner ignoreFarther = Form.number(0, 50_000, 500);
+    private final JSpinner smartCircle = Form.number(0, 20, 1);
     private final NpcTable npcs;
     private final JTable table;
     private final JComponent view;
@@ -151,6 +152,8 @@ final class KillSection implements Section {
                 + "стоячий (инвок, бегемот) — стоять в безопасной точке. Кубы — кружить.<br>"
                 + "Во всех режимах — подальше от других NPC (сильнее от тех, кто бьёт нас), врагов, станций,<br>"
                 + "мин и запретных зон. Своё движение у NPC — в таблице, колонка «Движение».</html>");
+        smartCircle.setToolTipText("<html>Сколько точек вперёд и назад по кругу сравнивать, чтобы сменить сторону "
+                + "кружения<br>(DarkBot «Smart circling iterations», 3–5; 0 — не менять сторону)</html>");
         skipCrowded.setToolTipText("<html>Пропускать цель, рядом с которой ещё два и больше NPC, что нападают сами<br>"
                 + "или уже бьют нас. Выключено — брать, как DarkBot (в толпе бот уходит от других по кругу).</html>");
         groupNpcs.setToolTipText("Сначала добивать NPC рядом, а не лететь к дальним");
@@ -179,6 +182,7 @@ final class KillSection implements Section {
                 .row("", skipCrowded)
                 .row("", groupNpcs)
                 .row("Не видеть дальше", ignoreFarther)
+                .row("Смотреть вперёд при кружении", smartCircle)
                 .build(false);
         JPanel settings = new JPanel(new Columns());
         settings.add(ammoColumn);
@@ -283,6 +287,7 @@ final class KillSection implements Section {
         launcher.set(l.launcher());
         fireLauncher.setSelected(l.fireLauncher());
         Form.set(ignoreFarther, l.ignoreFartherThan());
+        Form.set(smartCircle, l.circleIterations());
         npcs.load(c.npcs());
         sync();
     }
@@ -304,7 +309,10 @@ final class KillSection implements Section {
                 fireRockets.isSelected(), move.getSelectedIndex() == BotConfig.FightMove.CIRCLE.ordinal(), fallbacks(),
                 launcher.get(), fireLauncher.isSelected(), moveName(),
                 runCircle.isSelected() ? Boolean.TRUE : loaded != null && loaded.runCircle() ? Boolean.FALSE : null,
-                skipCrowded.isSelected() ? Boolean.TRUE : loaded != null && loaded.skipCrowded() != null ? Boolean.FALSE : null);
+                skipCrowded.isSelected() ? Boolean.TRUE : loaded != null && loaded.skipCrowded() != null ? Boolean.FALSE : null,
+                // unchanged from the usual one and not in the file: kept out of it
+                loaded != null && loaded.smartCircle() == null && Form.intOf(smartCircle) == BotConfig.Loot.SMART_CIRCLE
+                        ? null : Integer.valueOf(Form.intOf(smartCircle)));
         Map<String, BotConfig.NpcRule> list = new TreeMap<>(npcs.get());
         return c.withLoot(l).withNpcs(list);
     }

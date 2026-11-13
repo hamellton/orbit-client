@@ -145,29 +145,26 @@ public final class Threats {
         return score(x, y) <= BLOCKED;
     }
 
-    double score(double x, double y) {
-        return score(x, y, false);
-    }
+    /** DarkBot's mark of a point the ship cannot be at. */
+    static final double CANNOT = 1000;
 
     /**
-     * An NPC flying at the ship (its destination within {@link #CHASE_CONE} of the line to the ship): it follows
-     * wherever the ship goes, so turning the circle away from it only meets it head-on (the user, 2026-11-13: DarkBot
-     * keeps its way and the pack gathers behind it).
+     * DarkBot's score of a point on the circle (SharedLootModule.score): {@code -}{@link #CANNOT} where the ship may
+     * not be (here also the danger circles, mines, the avoided zone), minus how deep it lies inside each other NPC's
+     * radius — the radius the NPC list fights it at, every NPC alike (the user, 2026-11-13: «как в даркботе»).
      */
-    boolean chasing(WorldSnapshot.Ship o) {
+    double darkScore(double x, double y) {
+        double s = blocked(x, y) ? -CANNOT : 0;
         WorldSnapshot.Hero h = w.hero();
-        if (!o.moving()) {
-            return false;
+        for (WorldSnapshot.Ship o : w.ships().values()) {
+            if (o.npc() && o.id() != targetId) {
+                s -= Math.max(0, Targets.radius(c, o, h.mapId()) - Math.hypot(o.x() - x, o.y() - y));
+            }
         }
-        double toShip = Math.atan2(h.y() - o.y(), h.x() - o.x());
-        double heading = Math.atan2(o.targetY() - o.y(), o.targetX() - o.x());
-        return Math.abs(Math.atan2(Math.sin(heading - toShip), Math.cos(heading - toShip))) < CHASE_CONE;
+        return s;
     }
 
-    static final double CHASE_CONE = Math.toRadians(45);
-
-    /** As {@link #score(double, double)}, with {@code noChasers} leaving out the NPCs flying at the ship. */
-    double score(double x, double y, boolean noChasers) {
+    double score(double x, double y) {
         if (x < MARGIN || y < MARGIN || x > map.width() - MARGIN || y > map.height() - MARGIN
                 || avoided != null && avoided.contains(x, y, map.width(), map.height()) || ctx.nav().inDanger(x, y)
                 || orbit.world.maps.ZoneGeometry.blocked(w, x, y)) {
@@ -185,9 +182,6 @@ public final class Threats {
                 continue;
             }
             double d = Math.hypot(o.x() - x, o.y() - y);
-            if (o.npc() && noChasers && chasing(o)) {
-                continue;
-            }
             if (o.npc()) {
                 // one shooting the ship reaches a little beyond the radius the list keeps from it
                 double r = Targets.radius(c, o, h.mapId()) + (o.attackTargetId() == h.id() ? SHOOTER_EXTRA : 0);
