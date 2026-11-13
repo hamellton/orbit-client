@@ -363,6 +363,7 @@ public final class BehemothModule implements BotModule {
         if (h.mapId() != chosen) {
             return; // the runner flies there first
         }
+        startWait(s, h);
         if (locate(s, w)) {
             return;
         }
@@ -632,6 +633,29 @@ public final class BehemothModule implements BotModule {
         return out;
     }
 
+    /**
+     * The wait on the map counts from coming to it, not from reaching the wait point (live 2026-11-13 on the VPS, 2-BL:
+     * NPCs by the point and players to keep off — the point never reached, the wait never begun, the ship stayed).
+     */
+    private void startWait(JsonNode s, WorldSnapshot.Hero h) {
+        if (waitMap == h.mapId()) {
+            return;
+        }
+        long now = ctx.now();
+        long wall = wallMs();
+        long change = (long) number(s, "changeMapSeconds", 30) * 1_000;
+        waitMap = h.mapId();
+        waitStarted = now;
+        long due = dueAt(h.mapId(), wall);
+        int[] p = waitPoint(h.mapId());
+        // the way to the wait point counts too: the wait proper starts there
+        long toPoint = (long) (Math.hypot(p[0] - h.x(), p[1] - h.y()) / Math.max(100, h.speed()) * 1_000);
+        long waitMs = due > wall ? Math.max(due - wall, toPoint) + change : toPoint + change;
+        waitUntil = now + waitMs * 1_000_000L;
+        log.info("Жду бегемота на {}{}", ctx.maps().info(h.mapId()).name(),
+                due > wall ? " — по времени через " + clock(due - wall) : "");
+    }
+
     /** Holding on this map until it is time to fly on: by its wait point, cloaked if set. */
     private void hold(JsonNode s, WorldSnapshot.Hero h) {
         long wall = wallMs();
@@ -898,6 +922,18 @@ public final class BehemothModule implements BotModule {
         double dist = Math.hypot(p[0] - h.x(), p[1] - h.y());
         BotConfig.General g = ctx.config().get().general();
         long now = ctx.now();
+        if (waitMap == h.mapId() && now >= waitUntil) {
+            // the wait is over, the point reached or not
+            long wall = wallMs();
+            emptyAt.put(h.mapId(), wall);
+            int next = choose(h.mapId(), h.mapId());
+            log.info("Бегемота на {} нет {} с — {}", ctx.maps().info(h.mapId()).name(), (now - waitStarted) / 1_000_000_000L,
+                    next == h.mapId() ? "жду дальше" : "лечу на " + ctx.maps().info(next).name());
+            chosen = next;
+            arrivedAt = 0;
+            waitMap = 0;
+            return;
+        }
         if (dist > ARRIVE) {
             arrivedAt = 0;
             ctx.ship().want(g.travel());
@@ -927,15 +963,6 @@ public final class BehemothModule implements BotModule {
         if (arrivedAt == 0) {
             arrivedAt = now;
             ctx.nav().stop();
-            if (waitMap != h.mapId()) {
-                waitMap = h.mapId();
-                waitStarted = now;
-                long due = dueAt(h.mapId(), wall);
-                long waitMs = due > wall ? due - wall + change : change;
-                waitUntil = now + waitMs * 1_000_000L;
-                log.info("Жду бегемота на {}{}", ctx.maps().info(h.mapId()).name(),
-                        due > wall ? " — по времени через " + clock(due - wall) : "");
-            }
         }
         if (now >= checkAt) {
             checkAt = now + 5_000_000_000L;
@@ -949,16 +976,6 @@ public final class BehemothModule implements BotModule {
                 waitMap = 0;
                 return;
             }
-        }
-        if (now >= waitUntil) {
-            emptyAt.put(h.mapId(), wall);
-            int next = choose(h.mapId(), h.mapId());
-            log.info("Бегемота на {} нет {} с — {}", ctx.maps().info(h.mapId()).name(), (now - waitStarted) / 1_000_000_000L,
-                    next == h.mapId() ? "жду дальше" : "лечу на " + ctx.maps().info(next).name());
-            chosen = next;
-            arrivedAt = 0;
-            waitMap = 0;
-            return;
         }
         status = "Жду бегемота, " + clock((waitUntil - now) / 1_000_000);
     }

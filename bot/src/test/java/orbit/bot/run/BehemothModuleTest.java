@@ -510,6 +510,18 @@ class BehemothModuleTest {
     }
 
     @Test
+    void theWaitCountsFromComingToTheMapEvenIfTheWaitPointIsNeverReached() throws Exception {
+        // live 2026-11-13 on the VPS, 2-BL: fights and players kept the ship off the point — the wait never began
+        Sim sim = new Sim(config(30), 308, 9_000, 6_000);
+        sim.lasers("ammunition_laser_ucb-100");
+        sim.holdShip = true; // it never gets to the point
+        BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
+        m.workingMap();
+        sim.run(m::tick, 60_000);
+        assertTrue(m.workingMap() != 308, "the wait ran out though the point was not reached, " + m.workingMap());
+    }
+
+    @Test
     void anNpcShootingAtUsWhileWaitingIsFoughtBack() throws Exception {
         Sim sim = new Sim(config(300), 308, 5_700, 2_600);
         sim.lasers("ammunition_laser_ucb-100");
