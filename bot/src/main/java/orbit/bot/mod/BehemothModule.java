@@ -141,6 +141,9 @@ public final class BehemothModule implements BotModule {
     @Override
     public int workingMap() {
         WorldSnapshot.Hero h = ctx.world().get().hero();
+        if (h.id() == 0 || h.mapId() == 0) {
+            return 0; // not in game yet: where the ship is decides the choice
+        }
         if (chosen == 0) {
             chosen = choose(h.mapId(), 0);
         }
@@ -169,9 +172,27 @@ public final class BehemothModule implements BotModule {
         return due > 0 && due - wall > travelMs(here, chosen) + LEAD_MS;
     }
 
-    /** The flight between two maps: learned, else {@link #TRAVEL_MS}. */
+    /**
+     * The flight between two maps: learned, else {@link #TRAVEL_MS} a jump on the way (live 2026-11-13 on the VPS: from
+     * the base 2-8 the ship went to 1-BL through 2-BL — the same 90 s to each made the first in the list win).
+     */
     long travelMs(int from, int to) {
-        return from == to ? 0 : travel.getOrDefault(from + ">" + to, TRAVEL_MS);
+        if (from == to) {
+            return 0;
+        }
+        Long learned = travel.get(from + ">" + to);
+        if (learned != null) {
+            return learned;
+        }
+        WorldSnapshot.Hero h = ctx.world().get().hero();
+        int jumps = 1;
+        try {
+            jumps = Math.max(1, orbit.bot.nav.Router.route(ctx.maps(), from, h.x(), h.y(), to, h.factionId(),
+                    h.level() > 0 ? h.level() : Integer.MAX_VALUE).size());
+        } catch (RuntimeException e) {
+            // no route known: one jump
+        }
+        return TRAVEL_MS * jumps;
     }
 
     @Override

@@ -408,6 +408,14 @@ class BehemothModuleTest {
     }
 
     @Test
+    void fromTheBaseTheNearestBlMapFirst() throws Exception {
+        // live 2026-11-13 on the VPS: logged in on 2-8, the ship went to 1-BL through 2-BL
+        Sim sim = new Sim(config(30), 28, 11_200, 11_100); // our company's x-8: 3-8
+        BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
+        assertEquals(308, m.workingMap(), "3-8 → 3-BL is one jump");
+    }
+
+    @Test
     void anNpcShootingAtUsWhileWaitingIsFoughtBack() throws Exception {
         Sim sim = new Sim(config(300), 308, 5_700, 2_600);
         sim.lasers("ammunition_laser_ucb-100");
