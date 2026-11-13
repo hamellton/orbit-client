@@ -117,14 +117,18 @@ public final class Threats {
 
     /**
      * An NPC that attacks on sight (or shoots the ship) this near the target that circling it would take the ship into
-     * its reach: within its own radius plus {@code radius} of the target; {@code null} when none.
+     * its reach: within its own radius plus {@code radius} of the target; {@code null} when none. Only a slow one: the
+     * target's own kind (its pack) and those about as fast as the ship follow wherever it goes (live 2026-11-13: «led
+     * Impulse II away from Impulse II»).
      */
     WorldSnapshot.Ship dangerNear(WorldSnapshot.Ship target, double radius) {
         WorldSnapshot.Hero h = w.hero();
         WorldSnapshot.Ship found = null;
         double best = Double.MAX_VALUE;
         for (WorldSnapshot.Ship o : w.ships().values()) {
-            if (!o.npc() || o.id() == targetId || !(aggressive(o.name()) || o.attackTargetId() == h.id())) {
+            if (!o.npc() || o.id() == targetId || !(aggressive(o.name()) || o.attackTargetId() == h.id())
+                    || o.name() != null && o.name().equals(target.name())
+                    || Attacker.kindSpeed(o.name()) >= 0.8 * Math.max(1, h.speed())) {
                 continue;
             }
             double d = Math.hypot(o.x() - target.x(), o.y() - target.y());

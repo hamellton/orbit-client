@@ -530,6 +530,11 @@ public final class Attacker {
 
     /** NPC kinds' top speed seen (units per second): {@link BotConfig.FightMove#AUTO} goes by it. */
     private static final java.util.Map<String, Double> KIND_SPEED = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /** The top speed seen of an NPC kind fought, 0 when unknown. */
+    static double kindSpeed(String name) {
+        return name == null ? 0 : KIND_SPEED.getOrDefault(name, 0.0);
+    }
     /** A kind's speed is trusted after this long watching one, or once one was watched that long. */
     static final long SPEED_SURE_NS = 1_500_000_000L;
     private static final java.util.Set<String> KIND_SEEN = java.util.concurrent.ConcurrentHashMap.newKeySet();
