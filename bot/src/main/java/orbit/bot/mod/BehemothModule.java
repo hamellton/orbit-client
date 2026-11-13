@@ -102,6 +102,9 @@ public final class BehemothModule implements BotModule {
     private int departFrom;
     private long departAt;
     private int departDeaths;
+    /** A fight since the departure: the flight's time is not learned (live 2026-11-13 on the VPS: 2 мин 23 с, not ~1). */
+    private boolean foughtOnTheWay;
+    private boolean noCloakTold;
     /**
      * A flight longer is not learned: a repair or a death was on the way (live 2026-11-13 on the VPS: «1-BL → 2-BL: 3 мин
      * 58 с» with a death in between, against 1 мин 25 с).
@@ -160,6 +163,7 @@ public final class BehemothModule implements BotModule {
             departFrom = h.mapId(); // the flight starts: its time is learned on arrival
             departAt = wallMs();
             departDeaths = ctx.stats().deaths.get();
+            foughtOnTheWay = false;
             holdTold = false;
         }
         return chosen;
@@ -650,6 +654,10 @@ public final class BehemothModule implements BotModule {
             }
         }
         cloakAskedAt = now; // none left: the buy list («Покупки», CL04K-XL) may bring one
+        if (!noCloakTold) {
+            noCloakTold = true;
+            log.info("Маскировки нет (CL04K) — жду без неё; купить можно во вкладке «Покупки»");
+        }
     }
 
     /**
@@ -787,6 +795,7 @@ public final class BehemothModule implements BotModule {
         }
         attacker.target(t);
         attacker.tick(true);
+        foughtOnTheWay = true;
         status = "Бой у точки ожидания";
         return true;
     }
@@ -815,7 +824,7 @@ public final class BehemothModule implements BotModule {
         long change = (long) number(s, "changeMapSeconds", 30) * 1_000;
         if (arrivedAt == 0 && departFrom != 0 && departFrom != h.mapId() && departAt > 0) {
             long took = wall - departAt;
-            if (took > 10_000 && took < TRAVEL_LEARN_MAX_MS && ctx.stats().deaths.get() == departDeaths) {
+            if (took > 10_000 && took < TRAVEL_LEARN_MAX_MS && ctx.stats().deaths.get() == departDeaths && !foughtOnTheWay) {
                 String key = departFrom + ">" + h.mapId();
                 Long before = travel.get(key);
                 travel.put(key, before == null ? took : (before + took) / 2);
