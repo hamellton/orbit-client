@@ -290,7 +290,7 @@ public final class BehemothModule implements BotModule {
         players.clear();
         boxes.clear();
         arrivedAt = 0;
-        spawnCircle = null;
+        // the spawn circle stays: escapes and the way off the map keep off the spawn too (it is per map)
     }
 
     @Override
@@ -306,7 +306,6 @@ public final class BehemothModule implements BotModule {
         WorldSnapshot w = ctx.world().get();
         WorldSnapshot.Hero h = w.hero();
         watch(w);
-        spawnCircle = null; // set again below while waiting
         attacker.setAbilityPlan(new Attacker.AbilityPlan(on(s, "useEmp", true), percent(s, "empPercent", 35),
                 on(s, "useIsh", true), percent(s, "ishPercent", 60),
                 on(s, "usePrismatic", false) ? percent(s, "prismaticPercent", 50) : -1,
@@ -324,6 +323,7 @@ public final class BehemothModule implements BotModule {
             }
         }
         if (b != null) {
+            spawnCircle = null; // to the behemoth itself
             if (!onBehemoth) {
                 log.info("Бегемот на карте — к нему ({} от нас, HP {})", (int) b.distanceTo(h.x(), h.y()), hp(b));
                 onBehemoth = true;
@@ -740,6 +740,7 @@ public final class BehemothModule implements BotModule {
             beaconOn = false;
             return false;
         }
+        spawnCircle = null; // to the spawn itself
         if (!beaconOn) {
             beaconOn = true;
             log.info("Бегемот через {} — ставлю боевой маяк питомца у места появления", clock(Math.max(0, due - wall)));
@@ -839,6 +840,7 @@ public final class BehemothModule implements BotModule {
                 log.info("Пеленгатор: бегемот на {} у {}/{}, в {} от нас — лечу", ctx.maps().info(h.mapId()).name(),
                         x / 100, y / 100, (int) dist);
             }
+            spawnCircle = null; // to the behemoth the locator shows
             ctx.ship().want(ctx.config().get().general().travel());
             if (ctx.nav().idle() || Math.hypot(ctx.nav().destination().x() - x, ctx.nav().destination().y() - y) > 300) {
                 ctx.nav().moveTo(x, y, false);
@@ -1375,7 +1377,8 @@ public final class BehemothModule implements BotModule {
 
     /**
      * {@code avoidSpawn} (live 2026-11-13 on the VPS, 3-BL: the way from the portal to the wait point ran past the spawn,
-     * where a train stood — killed twice): while waiting, a circle of {@code avoidSpawnRadius} round the spawn is flown
+     * where a train stood — killed twice; and the way from the wait point on to the next map's portal — killed again):
+     * while waiting and on the way off the map after, a circle of {@code avoidSpawnRadius} round the spawn is flown
      * round; never so big that the place to stand falls in it.
      */
     private void avoidSpawn(JsonNode s, int map, int[] stand) {

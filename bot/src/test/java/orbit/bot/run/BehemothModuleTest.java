@@ -721,4 +721,16 @@ class BehemothModuleTest {
         sim.run(m::tick, 2_000);
         assertTrue(m.workingMap() != 308, "gone: on to the next map");
     }
+
+    @Test
+    void theSpawnIsKeptOffOnTheWayToTheNextMapToo() throws Exception {
+        // live 2026-11-13 on the VPS, 3-BL: from the wait point 36/21 to the 2-BL portal the way ran past the spawn
+        Sim sim = new Sim(with(config(2), "{\"avoidSpawn\": true, \"awayFromPortals\": true}"), 308, 3_600, 2_100);
+        BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
+        m.workingMap();
+        sim.run(m::tick, 20_000);
+        assertTrue(m.workingMap() != 308, "the wait is over: off to another map");
+        m.pause();
+        assertEquals(1, m.avoidCircles().size(), "still keeping off the spawn on the way to the portal");
+    }
 }
