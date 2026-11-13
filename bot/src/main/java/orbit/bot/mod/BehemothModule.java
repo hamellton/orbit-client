@@ -81,6 +81,9 @@ public final class BehemothModule implements BotModule {
      */
     private int waitMap;
     private int reachedMap;
+    private long reachedAt;
+    /** The locator's «nothing» counts when it comes this long after the ship got to the wait point. */
+    static final long LOCATOR_AT_POINT_MS = 3_000;
     private long waitStarted;
     private boolean onBehemoth;
     private int[] deadAt;
@@ -828,7 +831,11 @@ public final class BehemothModule implements BotModule {
             status = "Лечу к бегемоту по пеленгатору: " + x / 100 + "/" + y / 100;
             return true;
         }
-        if (pet.locatorNoneWithin(now, LOCATOR_FRESH_MS) && pet.locatorNoneNanos() > settled
+        // «nothing» counts only at the wait point, said again after coming there (live 2026-11-13 on the VPS: «nothing» 6 s
+        // after each jump, the ship left every map before its point — a word from before the locator looked round)
+        boolean saidAtPoint = reachedMap == h.mapId()
+                && pet.locatorNoneNanos() > reachedAt + LOCATOR_AT_POINT_MS * 1_000_000;
+        if (pet.locatorNoneWithin(now, LOCATOR_FRESH_MS) && pet.locatorNoneNanos() > settled && saidAtPoint
                 && pet.locatorNoneNanos() != noneHandled) {
             noneHandled = pet.locatorNoneNanos();
             long wall = wallMs();
@@ -978,6 +985,7 @@ public final class BehemothModule implements BotModule {
             // 2026-11-13 on the VPS, 2-BL: a detour round the server's zones ate the wait, the ship left in 0.5 s);
             // once a map, so fights by the point do not start it again
             reachedMap = h.mapId();
+            reachedAt = now;
             waitUntil = Math.max(waitUntil, now + (long) number(s, "changeMapSeconds", 30) * 1_000_000_000L);
         }
         if (waitOver(h.mapId())) {

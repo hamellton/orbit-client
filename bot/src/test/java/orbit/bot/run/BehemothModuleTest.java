@@ -665,4 +665,24 @@ class BehemothModuleTest {
             assertTrue(d >= 900, "still off the way from " + q + ": " + (int) d);
         }
     }
+
+    @Test
+    void theLocatorsNothingOnTheWayToThePointDoesNotSendTheShipOn() throws Exception {
+        // live 2026-11-13 on the VPS: «nothing» 6 s after each jump, the ship left every map before its wait point
+        Sim sim = new Sim(with(config(30), "{\"useLocator\": true}"), 308, 15_000, 11_000);
+        BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
+        locatorPet(sim);
+        m.workingMap();
+        sim.run(m::tick, 6_000);
+        locator(sim, -1, -1);
+        sim.run(m::tick, 500);
+        assertEquals(308, m.workingMap(), "on the way: the word is not trusted yet");
+        sim.run(m::tick, 40_000);
+        var h = sim.hero();
+        assertTrue(Math.hypot(h.x() - 5_700, h.y() - 2_600) <= 300, "at the point: " + h);
+        sim.run(m::tick, 4_000);
+        locator(sim, -1, -1);
+        sim.run(m::tick, 500);
+        assertTrue(m.workingMap() != 308, "said again at the point: on");
+    }
 }
