@@ -60,17 +60,19 @@ final class HangarWindow {
 
         JTextField search = new JTextField(18);
         search.putClientProperty("JTextField.placeholderText", "поиск");
+        javax.swing.JCheckBox zeros = new javax.swing.JCheckBox("Показывать нулевые");
         JLabel note = new JLabel();
         note.setForeground(javax.swing.UIManager.getColor("Label.disabledForeground"));
         JPanel top = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 6));
         top.add(search);
+        top.add(zeros);
         top.add(note);
 
         Runnable refresh = () -> {
             WorldSnapshot w = feed.snapshot();
             String q = search.getText().strip().toLowerCase(Locale.ROOT);
-            ammo.set(filter(items(w, List.of("ammunition_laser_")), q));
-            rockets.set(filter(items(w, ROCKETS), q));
+            ammo.set(filter(items(w, List.of("ammunition_laser_"), zeros.isSelected()), q));
+            rockets.set(filter(items(w, ROCKETS, zeros.isSelected()), q));
             resources.set(filter(resources(w), q));
             ships.set(filter(ships(feed.account()), q));
             note.setText(w.hero().id() == 0 ? "не в игре — числа с последнего входа появятся после входа" : "по данным игры, сейчас");
@@ -91,6 +93,7 @@ final class HangarWindow {
                 refresh.run();
             }
         });
+        zeros.addActionListener(e -> refresh.run());
         Timer timer = new Timer(1_000, e -> refresh.run());
         refresh.run();
         timer.start();
@@ -114,11 +117,11 @@ final class HangarWindow {
     }
 
     /** The game's items whose id starts so: name → amount. */
-    static Map<String, String> items(WorldSnapshot w, List<String> prefixes) {
+    static Map<String, String> items(WorldSnapshot w, List<String> prefixes, boolean zeros) {
         Map<String, String> out = new TreeMap<>();
         w.items().forEach((id, item) -> {
-            if (prefixes.stream().anyMatch(id::startsWith)) {
-                out.put(orbit.config.ItemCatalog.label(id), orbit.app.SessionSummary.number(item.counter()));
+            if (prefixes.stream().anyMatch(id::startsWith) && (zeros || item.counter() > 0)) {
+                out.put(orbit.config.ItemCatalog.friendly(id), orbit.app.SessionSummary.number(item.counter()));
             }
         });
         return out;

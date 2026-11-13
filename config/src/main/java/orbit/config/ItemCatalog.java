@@ -95,6 +95,52 @@ public final class ItemCatalog {
     }
 
     /** A readable name of an item id: the catalog label or the raw id; {@code —} for none. */
+    /**
+     * A name for people (the user, 2026-11-13: the hangar showed {@code ammunition_mine_acm-01}): the kind in Russian
+     * and the game's code as written on the item — «Мина ACM-01», «Ракета R-310», «Alien CPU (common)».
+     */
+    public static String friendly(String id) {
+        if (id == null) {
+            return "—";
+        }
+        String known = label(id);
+        String[][] kinds = {
+            {"ammunition_laser_", ""}, {"ammunition_rocketlauncher_", "Ракетомёт "}, {"ammunition_rocket_", "Ракета "},
+            {"ammunition_mine_", "Мина "}, {"ammunition_specialammo_", ""}, {"drone_formation_", "Формация "},
+        };
+        for (String[] k : kinds) {
+            if (id.startsWith(k[0])) {
+                String rest = id.substring(k[0].length());
+                return k[1] + (known.equals(id) ? words(rest) : known);
+            }
+        }
+        return known.equals(id) ? words(id) : known;
+    }
+
+    /** «acm-01» → «ACM-01»; «alien-cpu-common» → «Alien CPU (common)»; «emote_alien_angry» → «Emote alien angry». */
+    static String words(String s) {
+        String t = s.replace('_', '-');
+        if (t.matches("[a-z]{1,6}(-?[a-z]?\\d+[a-z]?)?(-\\d+)?") && t.matches(".*\\d.*")) {
+            return t.toUpperCase(java.util.Locale.ROOT); // a code: ACM-01, DCR-250, EMPM-01
+        }
+        String[] parts = t.split("-");
+        String last = parts[parts.length - 1];
+        boolean grade = parts.length > 1 && List.of("common", "rare", "legend", "easy", "normal", "hard").contains(last);
+        StringBuilder out = new StringBuilder();
+        for (int i = 0; i < parts.length - (grade ? 1 : 0); i++) {
+            String p = parts[i];
+            if (p.isEmpty()) {
+                continue;
+            }
+            if (out.length() > 0) {
+                out.append(' ');
+            }
+            out.append(p.equals("cpu") || p.matches(".*\\d.*") ? p.toUpperCase(java.util.Locale.ROOT)
+                    : out.length() == 0 ? Character.toUpperCase(p.charAt(0)) + p.substring(1) : p);
+        }
+        return grade ? out + " (" + last + ")" : out.toString();
+    }
+
     public static String label(String id) {
         if (id == null) {
             return "—";
