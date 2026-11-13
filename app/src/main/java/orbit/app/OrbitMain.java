@@ -1488,7 +1488,11 @@ public final class OrbitMain {
         }
         feed.setClock(() -> at);
         Path out = o.out.toString().endsWith(".png") ? o.out : Path.of("minimap.png");
-        javax.imageio.ImageIO.write(MainWindow.renderMinimap(feed, 1000, 624), "png", out.toFile());
+        // «…window….png»: the whole account view (map, cards, log), to check the layout
+        java.awt.image.BufferedImage img = out.getFileName().toString().contains("window")
+                ? MainWindow.snapshot(List.of(new MainWindow.Tab(feed, () -> { }, () -> "запись", n -> { })), 0, 1600, 1000)
+                : MainWindow.renderMinimap(feed, 1000, 624);
+        javax.imageio.ImageIO.write(img, "png", out.toFile());
         System.out.println(GameCheck.describe(feed.snapshot()));
         System.out.println("Сохранено: " + out);
     }
