@@ -84,6 +84,9 @@ public final class BehemothModule implements BotModule {
     private long reachedAt;
     /** The locator's «nothing» counts when it comes this long after the ship got to the wait point. */
     static final long LOCATOR_AT_POINT_MS = 3_000;
+    /** The second «nothing» at least this long after the first. */
+    static final long LOCATOR_AGAIN_MS = 4_000;
+    private long noneFirst;
     private long waitStarted;
     private boolean onBehemoth;
     private int[] deadAt;
@@ -833,23 +836,22 @@ public final class BehemothModule implements BotModule {
         }
         // «nothing» counts only at the wait point, said again after coming there (live 2026-11-13 on the VPS: «nothing» 6 s
         // after each jump, the ship left every map before its point — a word from before the locator looked round)
+        // and said twice there: the pet's mode may be set afresh after a jump (live 2026-11-13, 3-BL), its first word
+        // may come before it looked round
         boolean saidAtPoint = reachedMap == h.mapId()
                 && pet.locatorNoneNanos() > reachedAt + LOCATOR_AT_POINT_MS * 1_000_000;
-        if (pet.locatorNoneWithin(now, LOCATOR_FRESH_MS) && pet.locatorNoneNanos() > settled && saidAtPoint
+        if (saidAtPoint && pet.locatorNoneNanos() != noneFirst && (noneFirst == 0 || noneFirst < reachedAt)) {
+            noneFirst = pet.locatorNoneNanos();
+        }
+        boolean twice = saidAtPoint && noneFirst > reachedAt
+                && pet.locatorNoneNanos() - noneFirst >= LOCATOR_AGAIN_MS * 1_000_000;
+        // «nothing» at the point, said twice: told, the wait runs its time all the same (the map is marked empty when it
+        // ends) (the user, 2026-11-13: «нужно ждать, если в конфиге указали не 0»)
+        if (pet.locatorNoneWithin(now, LOCATOR_FRESH_MS) && pet.locatorNoneNanos() > settled && twice
                 && pet.locatorNoneNanos() != noneHandled) {
             noneHandled = pet.locatorNoneNanos();
-            long wall = wallMs();
-            emptyAt.put(h.mapId(), wall);
-            int next = choose(h.mapId(), h.mapId());
-            log.info("Пеленгатор: бегемота на {} нет — {}", ctx.maps().info(h.mapId()).name(),
-                    next == h.mapId() ? "жду здесь" : "лечу на " + ctx.maps().info(next).name());
+            log.info("Пеленгатор: бегемота на {} нет — жду до конца ожидания", ctx.maps().info(h.mapId()).name());
             locatorTold = "";
-            if (next != h.mapId()) {
-                chosen = next;
-                arrivedAt = 0;
-                waitMap = 0;
-                return true;
-            }
         }
         return false;
     }
@@ -1181,7 +1183,7 @@ public final class BehemothModule implements BotModule {
             }
         }
         if (best != current && currentScore < SIDE_SAFE
-                && (bestScore > currentScore + SIDE_BETTER || currentScore < SIDE_CLOSE)) {
+                && (bestScore > currentScore + SIDE_BETTER || currentScore < SIDE_CLOSE && bestScore > currentScore + 300)) {
             log.info("Чужие у точки ожидания ({} от ближайшего) — встаю со свободной стороны {}/{} ({} от них)",
                     (int) currentScore, best[0] / 100, best[1] / 100, (int) bestScore);
             side = best;

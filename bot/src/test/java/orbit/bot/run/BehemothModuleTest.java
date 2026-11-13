@@ -466,21 +466,6 @@ class BehemothModuleTest {
     }
 
     @Test
-    void theLocatorSayingNothingSendsTheShipOnAtOnce() throws Exception {
-        // the user, 2026-11-13: the train killed the behemoth while we were dead — the locator tells it is gone
-        Sim sim = new Sim(with(config(30), "{\"useLocator\": true}"), 308, 5_700, 2_600);
-        BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
-        assertEquals(BehemothModule.BEHEMOTH_NPC, m.petLocator());
-        locatorPet(sim);
-        m.workingMap();
-        sim.run(m::tick, 6_000);
-        assertEquals(308, m.workingMap());
-        locator(sim, -1, -1);
-        sim.run(m::tick, 500);
-        assertTrue(m.workingMap() != 308, "nothing on 3-BL: on at once, not after 30 s");
-    }
-
-    @Test
     void theLocatorsPointIsFlownTo() throws Exception {
         Sim sim = new Sim(with(config(300), "{\"useLocator\": true}"), 308, 5_700, 2_600);
         BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
@@ -667,22 +652,19 @@ class BehemothModuleTest {
     }
 
     @Test
-    void theLocatorsNothingOnTheWayToThePointDoesNotSendTheShipOn() throws Exception {
-        // live 2026-11-13 on the VPS: «nothing» 6 s after each jump, the ship left every map before its wait point
-        Sim sim = new Sim(with(config(30), "{\"useLocator\": true}"), 308, 15_000, 11_000);
+    void byDefaultTheLocatorsNothingDoesNotCutTheWaitShort() throws Exception {
+        // the user, 2026-11-13: «долетает до точки и не ждёт, а в конфиге стоит, чтобы ждал»
+        Sim sim = new Sim(with(config(30), "{\"useLocator\": true}"), 308, 5_700, 2_600);
         BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
         locatorPet(sim);
         m.workingMap();
         sim.run(m::tick, 6_000);
         locator(sim, -1, -1);
-        sim.run(m::tick, 500);
-        assertEquals(308, m.workingMap(), "on the way: the word is not trusted yet");
-        sim.run(m::tick, 40_000);
-        var h = sim.hero();
-        assertTrue(Math.hypot(h.x() - 5_700, h.y() - 2_600) <= 300, "at the point: " + h);
-        sim.run(m::tick, 4_000);
+        sim.run(m::tick, 5_000);
         locator(sim, -1, -1);
-        sim.run(m::tick, 500);
-        assertTrue(m.workingMap() != 308, "said again at the point: on");
+        sim.run(m::tick, 5_000);
+        assertEquals(308, m.workingMap(), "the config's 30 s: still waiting");
+        sim.run(m::tick, 20_000);
+        assertTrue(m.workingMap() != 308, "then the next map");
     }
 }
