@@ -793,10 +793,12 @@ public record BotConfig(
     /**
      * @param gear the pet's mode ({@code PetGearTypeModule} name without the prefix, e.g. {@code GUARD},
      *             {@code ENEMY_LOCATOR}, {@code KAMIKAZE})
+     * @param buyFuel buy fuel when the pet has run out (the game's own «buy fuel» key; AstraBot's {@code buyFuel});
+     *                {@code null} in an older file = no
      */
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public record Pet(boolean enabled, String gear, int locatorTarget, boolean noRepair, double comboRepairBelow,
-                      Kamikaze kamikaze) {
+                      Kamikaze kamikaze, Boolean buyFuel) {
 
         /** The locator's NPC number when none is set: Cubikon (matched by the locator's points, 2026-11-11). */
         public static final int CUBIKON_LOCATOR = 13;
@@ -811,6 +813,12 @@ public record BotConfig(
         public Pet {
             locatorTarget = locatorTarget <= 0 ? CUBIKON_LOCATOR : locatorTarget;
             kamikaze = kamikaze == null ? Kamikaze.OFF : kamikaze;
+            buyFuel = buyFuel != null && buyFuel;
+        }
+
+        public Pet(boolean enabled, String gear, int locatorTarget, boolean noRepair, double comboRepairBelow,
+                   Kamikaze kamikaze) {
+            this(enabled, gear, locatorTarget, noRepair, comboRepairBelow, kamikaze, null);
         }
 
         public Pet(boolean enabled, String gear) {
@@ -861,12 +869,14 @@ public record BotConfig(
      *                      ({@code null} in an older file = {@link #DEFAULT_ESCAPE_HP})
      * @param oneWayJumps   jump (escaping or fleeing) also through a portal with no portal back (5-2 → 5-3,
      *                      5-3 → 4-4): the way back is then the whole loop round the maps; {@code null} = no
+     * @param maxDeathsPerPlayer stop the bot when one player has destroyed the ship this many times in the session
+     *                      (AstraBot's {@code maxDeathsPerPlayer}); 0 or {@code null} = no limit
      */
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public record Safety(double repairHpMin, double repairHpMax, double repairHpNoNpc, double repairToShield,
                          ShipMode repairMode, Heal heal, int maxDeaths, String revive,
                          int waitBeforeReviveSec, int waitAfterReviveSec, int paidRevives, int paidReviveMinutes,
-                         Double escapeHp, Boolean oneWayJumps) {
+                         Double escapeHp, Boolean oneWayJumps, Integer maxDeathsPerPlayer) {
 
         public static final int DEFAULT_PAID_REVIVES = 2;
         public static final int DEFAULT_PAID_REVIVE_MINUTES = 3;
@@ -893,13 +903,22 @@ public record BotConfig(
             revive = revive == null ? "PORTAL" : revive;
             escapeHp = escapeHp == null ? DEFAULT_ESCAPE_HP : escapeHp;
             oneWayJumps = oneWayJumps != null && oneWayJumps;
+            maxDeathsPerPlayer = maxDeathsPerPlayer == null ? 0 : Math.max(0, maxDeathsPerPlayer);
+        }
+
+        public Safety(double repairHpMin, double repairHpMax, double repairHpNoNpc, double repairToShield,
+                      ShipMode repairMode, Heal heal, int maxDeaths, String revive,
+                      int waitBeforeReviveSec, int waitAfterReviveSec, int paidRevives, int paidReviveMinutes,
+                      Double escapeHp, Boolean oneWayJumps) {
+            this(repairHpMin, repairHpMax, repairHpNoNpc, repairToShield, repairMode, heal, maxDeaths, revive,
+                    waitBeforeReviveSec, waitAfterReviveSec, paidRevives, paidReviveMinutes, escapeHp, oneWayJumps, null);
         }
 
         /** The same with the portal-jump settings. */
         public Safety withJumps(double escapeHp, boolean oneWayJumps) {
             return new Safety(repairHpMin, repairHpMax, repairHpNoNpc, repairToShield, repairMode, heal, maxDeaths,
                     revive, waitBeforeReviveSec, waitAfterReviveSec, paidRevives, paidReviveMinutes, escapeHp,
-                    oneWayJumps);
+                    oneWayJumps, maxDeathsPerPlayer);
         }
     }
 

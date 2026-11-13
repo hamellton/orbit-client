@@ -372,7 +372,7 @@ public final class BotRunner {
                 module.pause();
             }
             if (revive.limitReached()) {
-                fail("лимит смертей (" + revive.deaths() + ")");
+                fail(revive.limitReason());
                 return;
             }
             if (state != State.STOPPING) {

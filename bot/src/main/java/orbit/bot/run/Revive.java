@@ -2,6 +2,7 @@ package orbit.bot.run;
 
 import java.util.List;
 import orbit.config.BotConfig;
+import orbit.protocol.gen.DestructionTypeModule;
 import orbit.protocol.gen.KillScreenOptionTypeModule;
 import orbit.world.WorldSnapshot;
 import org.slf4j.Logger;
@@ -10,7 +11,8 @@ import org.slf4j.LoggerFactory;
 /**
  * The kill screen: waits like a player reading it, then takes the repair the config asks for
  * ({@code BASE}, {@code PORTAL}, {@code SPOT}) whatever it costs if affordable, otherwise the base; a
- * single option is taken as it is. Counts deaths for {@code maxDeaths}.
+ * single option is taken as it is. Counts deaths for {@code maxDeaths}, and by the player who destroyed the ship for
+ * {@code maxDeathsPerPlayer} (AstraBot's setting, the user 2026-11-13; only kills the server marks as a player's).
  * <p>Paid revives in a row are limited ({@code paidRevives}): killed again within {@code paidReviveMinutes} of a
  * revive at the portal or on the spot (live 2026-11-11: a player kept killing the ship at the portal) counts as
  * «in a row»; past the limit the ship revives at the base once and the count starts again. The count is kept
@@ -24,6 +26,8 @@ public final class Revive {
 
     private final BotContext ctx;
     private int deaths;
+    /** Deaths by player name this session (the kill screen's killer when the cause is a player). */
+    private final java.util.Map<String, Integer> byPlayer = new java.util.HashMap<>();
     private boolean dead;
     private long repairAt;
     private long repairedAt = Long.MIN_VALUE / 2;
@@ -54,16 +58,39 @@ public final class Revive {
     /** The same session goes on after a ship change: its deaths keep counting towards the limit. */
     void takeFrom(Revive previous) {
         deaths = previous.deaths;
+        byPlayer.putAll(previous.byPlayer);
     }
 
     public int deaths() {
         return deaths;
     }
 
-    /** Stop after this many deaths (config {@code maxDeaths} &gt; 0). */
+    /** Stop after this many deaths (config {@code maxDeaths} &gt; 0), or this many from one player. */
     public boolean limitReached() {
-        int max = ctx.config().get().safety().maxDeaths();
-        return max > 0 && deaths >= max;
+        return limitReason() != null;
+    }
+
+    /** Why the bot stops for its deaths, {@code null} while it may go on. */
+    public String limitReason() {
+        BotConfig.Safety s = ctx.config().get().safety();
+        if (s.maxDeaths() > 0 && deaths >= s.maxDeaths()) {
+            return "лимит смертей (" + deaths + ")";
+        }
+        int perPlayer = s.maxDeathsPerPlayer();
+        if (perPlayer > 0) {
+            for (var e : byPlayer.entrySet()) {
+                if (e.getValue() >= perPlayer) {
+                    return "лимит смертей от одного игрока: " + e.getKey() + " уничтожил корабль " + e.getValue()
+                            + " раз (лимит " + perPlayer + ")";
+                }
+            }
+        }
+        return null;
+    }
+
+    /** Deaths from this player this session. */
+    int deathsBy(String player) {
+        return byPlayer.getOrDefault(player, 0);
     }
 
     /** @return true while dead or in the pause after reviving */
@@ -87,6 +114,14 @@ public final class Revive {
             ctx.nav().stop();
             repairAt = now + Math.max(0, s.waitBeforeReviveSec()) * 1_000_000_000L + ctx.pause(2_000, 6_000);
             log.warn("Корабль уничтожен ({}) — смертей {}", death == null ? "?" : death.killer(), deaths);
+            if (death != null && death.cause() == DestructionTypeModule.DESTRUCTIONCAUSE_PLAYER && death.killer() != null
+                    && !death.killer().isBlank()) {
+                int n = byPlayer.merge(death.killer(), 1, Integer::sum);
+                int perPlayer = s.maxDeathsPerPlayer();
+                if (perPlayer > 0) {
+                    log.info("От игрока {}: {} из {} смертей до остановки", death.killer(), n, perPlayer);
+                }
+            }
             if (streak > 0 && wallMs() - paidAtMs > Math.max(1, s.paidReviveMinutes()) * 60_000L) {
                 streak = 0; // lived long enough after the last paid revive: not «in a row»
                 saveStreak();

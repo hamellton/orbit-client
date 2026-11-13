@@ -26,6 +26,7 @@ final class PetSection implements Section {
     /** The locator's target: a button with the chosen NPC; a click opens the list with a search field. */
     private final javax.swing.JButton locator = new javax.swing.JButton();
     private final JCheckBox repair = new JCheckBox("Чинить уничтоженного");
+    private final JCheckBox buyFuel = new JCheckBox("Покупать топливо, когда кончилось");
     private final JCheckBox combo = new JCheckBox("Комбо-ремонт при HP ниже");
     private final JSpinner comboBelow = Form.percent();
     private final JCheckBox kamikaze = new JCheckBox("Камикадзе, когда рядом враги");
@@ -53,6 +54,7 @@ final class PetSection implements Section {
         combo.addActionListener(e -> sync());
         kamikaze.addActionListener(e -> sync());
         kamikazeNpcs.setToolTipText("0 — не считать NPC; удобно во вратах");
+        buyFuel.setToolTipText("Клавиша игры «купить топливо»; цену игра берёт сама. Как buyFuel в AstraBot");
         combo.setToolTipText("Сервер чинит, только если по кораблю ~11 с не стреляли; потом бот вернёт режим");
         view = new Form()
                 .section("Питомец")
@@ -60,6 +62,7 @@ final class PetSection implements Section {
                 .row("Режим", gear)
                 .row("Цель локатора", locator)
                 .row("", repair)
+                .row("", buyFuel)
                 .row("", Form.inline(combo, comboBelow, new javax.swing.JLabel("%")))
                 .note("Комбо-ремонт — когда по кораблю ~11 с не стреляли.")
                 .section("Камикадзе")
@@ -77,6 +80,7 @@ final class PetSection implements Section {
         gear.setEnabled(on);
         locator.setEnabled(on && "ENEMY_LOCATOR".equals(gear.get()));
         repair.setEnabled(on);
+        buyFuel.setEnabled(on);
         combo.setEnabled(on);
         comboBelow.setEnabled(on && combo.isSelected());
         kamikaze.setEnabled(on);
@@ -107,6 +111,7 @@ final class PetSection implements Section {
         String shown = (name != null ? name : "NPC") + " (" + p.locatorTarget() + ")";
         locator.setText(shown + " ▾");
         repair.setSelected(!p.noRepair());
+        buyFuel.setSelected(p.buyFuel());
         combo.setSelected(p.comboRepairBelow() > 0);
         Form.setFraction(comboBelow, p.comboRepairBelow() > 0 ? p.comboRepairBelow() : 0.5);
         BotConfig.Kamikaze k = p.kamikaze();
@@ -131,6 +136,6 @@ final class PetSection implements Section {
             throw new IllegalArgumentException("Питомец: для камикадзе задайте число NPC или флаг KAMIKAZE");
         }
         return c.withPet(new BotConfig.Pet(enabled.isSelected(), gear.get(), Integer.parseInt(m.group(1)),
-                !repair.isSelected(), combo.isSelected() ? Form.fraction(comboBelow) : 0, k));
+                !repair.isSelected(), combo.isSelected() ? Form.fraction(comboBelow) : 0, k, buyFuel.isSelected()));
     }
 }

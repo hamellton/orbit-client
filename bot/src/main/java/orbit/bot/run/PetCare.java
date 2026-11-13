@@ -33,6 +33,11 @@ public final class PetCare {
     static final long COMBO_EVERY_MS = 20_000;
     static final long LAUNCH_RETRY_MS = 15_000;
     static final long REPAIR_RETRY_MS = 60_000;
+    /** Buying fuel: again after this long when the game sent no fuel, and no more tries than this in a row. */
+    static final long FUEL_RETRY_MS = 60_000;
+    static final int FUEL_TRIES = 5;
+    private long fuelAskedAt = Long.MIN_VALUE / 2;
+    private int fuelTries;
     /** A mode asked again only this long after the last request. */
     static final long GEAR_RETRY_MS = 3_000;
     /** After this many requests the server keeps turning down within {@link #GEAR_BACKOFF_MS}: wait. */
@@ -156,9 +161,14 @@ public final class PetCare {
             return;
         }
         if (!pet.hasFuel()) {
-            tell("У питомца нет топлива");
+            if (cfg.buyFuel()) {
+                buyFuel(now);
+            } else {
+                tell("У питомца нет топлива");
+            }
             return;
         }
+        fuelTries = 0;
         if (!pet.active()) {
             // a moment after the login, a revive or a jump, like a player pressing the key
             if (launchAt == 0) {
@@ -358,6 +368,25 @@ public final class PetCare {
         askedGear = want;
         askedParam = param;
         askedAt = now;
+    }
+
+    /**
+     * Out of fuel and the config buys it (AstraBot's {@code buyFuel}): the game's own «buy fuel» key, as a player
+     * presses it in the pet window; the game takes the price itself. Given up after {@link #FUEL_TRIES} tries with no
+     * fuel coming (no money, or the game refused).
+     */
+    private void buyFuel(long now) {
+        if (fuelTries >= FUEL_TRIES) {
+            tell("У питомца нет топлива — купить не вышло (" + FUEL_TRIES + " попыток), проверьте баланс");
+            return;
+        }
+        if (ms(now - fuelAskedAt) < FUEL_RETRY_MS) {
+            return;
+        }
+        fuelTries++;
+        fuelAskedAt = now;
+        log.info("У питомца нет топлива — покупаю (попытка {} из {})", fuelTries, FUEL_TRIES);
+        ctx.actions().pet(PetRequest.PETREQUESTTYPE_HOTKEY_BUY_FUEL);
     }
 
     private void tell(String s) {

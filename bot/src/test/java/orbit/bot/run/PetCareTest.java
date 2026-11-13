@@ -126,6 +126,38 @@ class PetCareTest {
         assertEquals(0, launches(sim), "not launched while destroyed");
     }
 
+    private static long fuelBuys(Sim sim) {
+        return sim.sent.stream().filter(p -> p instanceof PetRequest r
+                && r.petRequestType == PetRequest.PETREQUESTTYPE_HOTKEY_BUY_FUEL).count();
+    }
+
+    @Test
+    void outOfFuelBuysItWithTheGamesKeyWhenTheConfigSaysSoAndGivesUpAfterSomeTries() {
+        // AstraBot's buyFuel (the user, 2026-11-13)
+        BotConfig c = BotConfig.empty().withPet(new BotConfig.Pet(true, "GUARD", 13, false, 0, null, true));
+        Sim sim = new Sim(c, 26, 10_000, 6_000);
+        owned(sim);
+        sim.world.apply(new orbit.protocol.gen.PetOutOfFuelCommand(), sim.now);
+        PetCare pet = new PetCare(sim.ctx);
+        sim.run(pet::tick, 2_000);
+        assertEquals(1, fuelBuys(sim), "bought at once");
+        sim.run(pet::tick, 30_000);
+        assertEquals(1, fuelBuys(sim), "the game is given a minute to send the fuel");
+        sim.run(pet::tick, 10 * 60_000);
+        assertEquals(PetCare.FUEL_TRIES, fuelBuys(sim), "no fuel came: no more tries");
+        assertEquals(0, launches(sim), "not launched without fuel");
+    }
+
+    @Test
+    void outOfFuelIsNotBoughtWhenTheConfigDoesNotSaySo() {
+        Sim sim = new Sim(config("GUARD", 0), 26, 10_000, 6_000);
+        owned(sim);
+        sim.world.apply(new orbit.protocol.gen.PetOutOfFuelCommand(), sim.now);
+        PetCare pet = new PetCare(sim.ctx);
+        sim.run(pet::tick, 5 * 60_000);
+        assertEquals(0, fuelBuys(sim));
+    }
+
     @Test
     void kamikazeWhileNpcsCrowdTheMainModeAfterAndNotAgainSoonAfterABlast() {
         BotConfig c = BotConfig.empty().withPet(new BotConfig.Pet(true, "ENEMY_LOCATOR", 13, false, 0,

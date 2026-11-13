@@ -249,6 +249,50 @@ class BotRunnerTest {
         assertEquals(portal, dieAndRevive(sim, r), "the count starts again");
     }
 
+    /** Killed by this one ({@code DestructionTypeModule} cause), revived and alive again. */
+    private static void dieBy(Sim sim, BotRunner r, String killer, int cause) {
+        KillScreenPostCommand k = new KillScreenPostCommand();
+        k.killerName = killer;
+        k.cause = new orbit.protocol.gen.DestructionTypeModule();
+        k.cause.cause = (short) cause;
+        k.options = List.of(option(KillScreenOptionTypeModule.OPTIONTYPE_BASIC_REPAIR, 0));
+        sim.world.apply(k, sim.now);
+        sim.run(r::tick, 20_000);
+        if (r.state() == BotRunner.State.FAILED) {
+            return;
+        }
+        ShipInitializationCommand si = new ShipInitializationCommand();
+        si.userId = 1;
+        si.mapId = 26;
+        si.factionId = 3;
+        si.x = 10_000;
+        si.y = 6_000;
+        si.speed = 400;
+        si.hitPoints = 100_000;
+        si.hitMax = 100_000;
+        sim.world.apply(si, sim.now);
+        sim.run(r::tick, 1_000);
+    }
+
+    @Test
+    void oneAndTheSamePlayerKillingTheShipTooOftenStopsTheBot() throws Exception {
+        // AstraBot's maxDeathsPerPlayer (the user, 2026-11-13); NPCs and other players do not count towards it
+        BotConfig c = CubikonModuleTest.config(90, false)
+                .withSafety(new BotConfig.Safety(0.5, 0.9, 0.5, 0, null, null, 0, "BASE", 0, 0, 0, 3, null, null, 2));
+        Sim sim = new Sim(c, 26, 10_000, 6_000);
+        BotRunner r = new BotRunner(sim.ctx, () -> false, s -> { });
+        int player = orbit.protocol.gen.DestructionTypeModule.DESTRUCTIONCAUSE_PLAYER;
+        int npc = orbit.protocol.gen.DestructionTypeModule.DESTRUCTIONCAUSE_NPC;
+        dieBy(sim, r, "camper", player);
+        dieBy(sim, r, "-=[ Invoke XVI ]=-", npc);
+        dieBy(sim, r, "-=[ Invoke XVI ]=-", npc);
+        dieBy(sim, r, "passer", player);
+        assertTrue(r.state() != BotRunner.State.FAILED, "one death from each player: " + r.state());
+        dieBy(sim, r, "camper", player);
+        assertEquals(BotRunner.State.FAILED, r.state(), "camper twice: the limit");
+        assertEquals(5, r.deaths());
+    }
+
     @Test
     void livingLongerThanTheWindowAfterAPaidReviveStartsTheCountAgain() throws Exception {
         BotConfig c = CubikonModuleTest.config(90, false)
