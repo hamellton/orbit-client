@@ -429,7 +429,8 @@ public final class BotRunner {
                 }
             }
             // a target nearly dead is finished first, while the hull allows (live 2026-11-13: Impulse II left at 7 %)
-            String who = finishing(w) ? null : offenders.escape(w, portalOnTheWay(h));
+            String who = finishing(w) || module != null && module.holdsGround() ? null
+                    : offenders.escape(w, portalOnTheWay(h));
             if (who != null) {
                 if (!avoiding && module != null) {
                     module.pause();

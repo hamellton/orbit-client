@@ -72,6 +72,14 @@ public interface BotModule {
         return 0;
     }
 
+    /**
+     * True while the module's fight must not be left for players' circles (the behemoth among a train, CARNAGE's
+     * BLCycle: their attacks are ignored); the runner's keeping off offenders waits.
+     */
+    default boolean holdsGround() {
+        return false;
+    }
+
     /** True when it is a bad moment to leave (e.g. a boss almost dead). */
     default boolean busy() {
         return false;

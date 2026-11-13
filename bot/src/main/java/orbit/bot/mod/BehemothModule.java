@@ -219,6 +219,15 @@ public final class BehemothModule implements BotModule {
         return attacker.targetId() != 0 && onBehemoth || players.targetId() != 0;
     }
 
+    /**
+     * {@code trainMode} by the behemoth: the offenders' circles do not take the ship away (live 2026-11-13 on the VPS:
+     * «DoWarBoy рядом — ухожу» in the behemoth's fight, the train config says to stay).
+     */
+    @Override
+    public boolean holdsGround() {
+        return onBehemoth && on(settings(), "trainMode", false);
+    }
+
     @Override
     public int fightTarget() {
         return players.targetId() != 0 ? players.targetId() : attacker.targetId();

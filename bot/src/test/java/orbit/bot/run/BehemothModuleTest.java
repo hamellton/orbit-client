@@ -160,6 +160,28 @@ class BehemothModuleTest {
     }
 
     @Test
+    void inTheTrainModeTheBehemothsFightHoldsItsGroundAgainstTheOffendersCircles() throws Exception {
+        // live 2026-11-13 on the VPS: «DoWarBoy рядом — ухожу на другую сторону» in the behemoth's fight, the train
+        // config says to stay — the runner leaves the offenders' circles alone while the module holds its ground
+        Sim sim = new Sim(with(config(300), "{\"trainMode\": true}"), 308, 8_000, 5_600);
+        sim.lasers("ammunition_laser_a-bl");
+        BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
+        m.workingMap();
+        sim.run(m::tick, 1_000);
+        assertTrue(!m.holdsGround(), "no behemoth: the usual keeping off");
+        sim.npc(77, BEHEMOTH, 8_000, 5_000);
+        sim.run(m::tick, 2_000);
+        assertTrue(m.holdsGround(), "the behemoth's fight in the train mode");
+
+        Sim plain = new Sim(config(300), 308, 8_000, 5_600);
+        BehemothModule p = new BehemothModule(plain.ctx, SpawnMemory.inMemory());
+        p.workingMap();
+        plain.npc(77, BEHEMOTH, 8_000, 5_000);
+        plain.run(p::tick, 2_000);
+        assertTrue(!p.holdsGround(), "without the train mode: as before");
+    }
+
+    @Test
     void moreEnemiesThanTheLimitSendTheShipToAnotherMap() throws Exception {
         Sim sim = new Sim(with(config(300), "{\"trainMode\": true, \"trainEnemyLimit\": 2}"), 308, 8_000, 5_700);
         BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
