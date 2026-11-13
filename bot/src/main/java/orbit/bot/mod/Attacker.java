@@ -349,6 +349,7 @@ public final class Attacker {
         }
         targetId = s.id();
         targetName = s.name();
+        ammoTries = 0; // a new target: the switches start counting afresh
         empUses = 0;
         ishUses = 0;
         shotAt = false;
@@ -640,7 +641,9 @@ public final class Attacker {
                     wanted == null ? "нет в инвентаре" : (long) wanted.counter() + " шт.",
                     selected == null ? "?" : orbit.config.ItemCatalog.label(selected.id()));
         }
-        if (wanted != null && wanted.selected()) {
+        if (wanted != null && (wanted.selected() || wanted.remainingMs(now) > 0)) {
+            // selected, or its cooldown runs: it fired (RSB-75 shoots once and the game goes back to the ammunition
+            // before — live 2026-11-13 on the VPS, a false «не переключает» a minute without RSB)
             ammoTries = 0;
         }
         if (ammo != null && !ammo.equals(triedAmmo)) {
