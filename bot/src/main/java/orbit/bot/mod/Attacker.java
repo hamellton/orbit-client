@@ -112,6 +112,13 @@ public final class Attacker {
         if (toKill <= toRepair * WIN_MARGIN) {
             return false;
         }
+        // too strong for the hull left, not for the ship: with a full hull a whole fight would be won — fight on, the
+        // repair comes at its threshold, the kind is not skipped (live 2026-11-13 on 3-BL: Attend IX begun at 68 %,
+        // «не тяну», the only kind of the config skipped 10 min; one begun at 100 % was killed)
+        double fromFull = (1 - c.safety().repairHpMin()) / lossRate;
+        if (killRate > 0 && 1 / killRate <= fromFull * WIN_MARGIN) {
+            return false;
+        }
         // again too strong: twice as long each time, up to an hour (live 2026-11-13: Boss Kristallon tried every 10 min)
         int times = TOO_STRONG_TIMES.merge(t.name(), 1, Integer::sum);
         long skip = Math.min(TOO_STRONG_MAX_NS, TOO_STRONG_NS << Math.min(6, times - 1));
