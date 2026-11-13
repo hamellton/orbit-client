@@ -74,6 +74,13 @@ public final class BehemothModule implements BotModule {
     private int chosen;
     private long arrivedAt;
     private long waitUntil;
+    /**
+     * The map whose wait is counting and since when: a fight by the wait point takes the ship off it and back, and the
+     * wait goes on — it does not start again (live 2026-11-13 on the VPS, 2-BL: Impulse II by the point, the 30 s
+     * started afresh after each fight).
+     */
+    private int waitMap;
+    private long waitStarted;
     private boolean onBehemoth;
     private int[] deadAt;
     private long deadAtNanos;
@@ -794,11 +801,15 @@ public final class BehemothModule implements BotModule {
         if (arrivedAt == 0) {
             arrivedAt = now;
             ctx.nav().stop();
-            long due = dueAt(h.mapId(), wall);
-            long waitMs = due > wall ? due - wall + change : change;
-            waitUntil = now + waitMs * 1_000_000L;
-            log.info("Жду бегемота на {}{}", ctx.maps().info(h.mapId()).name(),
-                    due > wall ? " — по времени через " + clock(due - wall) : "");
+            if (waitMap != h.mapId()) {
+                waitMap = h.mapId();
+                waitStarted = now;
+                long due = dueAt(h.mapId(), wall);
+                long waitMs = due > wall ? due - wall + change : change;
+                waitUntil = now + waitMs * 1_000_000L;
+                log.info("Жду бегемота на {}{}", ctx.maps().info(h.mapId()).name(),
+                        due > wall ? " — по времени через " + clock(due - wall) : "");
+            }
         }
         if (now >= checkAt) {
             checkAt = now + 5_000_000_000L;
@@ -809,16 +820,18 @@ public final class BehemothModule implements BotModule {
                 emptyAt.put(h.mapId(), wall);
                 chosen = better;
                 arrivedAt = 0;
+                waitMap = 0;
                 return;
             }
         }
         if (now >= waitUntil) {
             emptyAt.put(h.mapId(), wall);
             int next = choose(h.mapId(), h.mapId());
-            log.info("Бегемота на {} нет {} с — {}", ctx.maps().info(h.mapId()).name(), (now - arrivedAt) / 1_000_000_000L,
+            log.info("Бегемота на {} нет {} с — {}", ctx.maps().info(h.mapId()).name(), (now - waitStarted) / 1_000_000_000L,
                     next == h.mapId() ? "жду дальше" : "лечу на " + ctx.maps().info(next).name());
             chosen = next;
             arrivedAt = 0;
+            waitMap = 0;
             return;
         }
         status = "Жду бегемота, " + clock((waitUntil - now) / 1_000_000);
@@ -910,6 +923,7 @@ public final class BehemothModule implements BotModule {
         if (h.mapId() != seenMap) {
             seen.clear();
             seenMap = h.mapId();
+            waitMap = 0; // another map: a wait here later starts afresh
         }
         for (WorldSnapshot.Ship s : w.ships().values()) {
             if (s.npc() && isBehemoth(s)) {
