@@ -792,4 +792,20 @@ class BehemothModuleTest {
             }
         }
     }
+
+    @Test
+    void inTheZoneModeAFreerPlaceIsLookedForInTheZoneNotByTheSpawn() throws Exception {
+        // live 2026-11-13 on the VPS, 2-BL: from the zone by the edge the free side took the ship to the spawn's ring
+        BotConfig c = with(config(300), "{\"waitInZone\": true, \"freeSide\": true}")
+                .withZones(Map.of(308, new BotConfig.Zones(cornerZone(), null)));
+        Sim sim = new Sim(c, 308, 15_000, 6_000);
+        BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
+        m.workingMap();
+        sim.run(m::tick, 30_000);
+        var at = sim.hero();
+        enemy(sim, 900, "Train", at.x(), at.y() + 300);
+        sim.run(m::tick, 20_000);
+        var h = sim.hero();
+        assertTrue(h.x() > 18_600 && h.x() < 19_900 && h.y() > 500 && h.y() < 2_600, "still in the zone: " + h);
+    }
 }

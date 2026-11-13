@@ -1283,9 +1283,15 @@ public final class BehemothModule implements BotModule {
         double currentScore = bestScore;
         List<int[]> candidates = new java.util.ArrayList<>();
         candidates.add(base);
-        for (int i = 0; i < SIDE_DIRECTIONS; i++) {
-            double a = 2 * Math.PI * i / SIDE_DIRECTIONS;
-            candidates.add(new int[] {(int) (sp[0] + r * Math.cos(a)), (int) (sp[1] + r * Math.sin(a))});
+        if (zone != null) {
+            // waiting in the preferred zone: a freer place is looked for in the zone, not by the spawn (live 2026-11-13:
+            // from the zone by the edge the ship went to the ring round the spawn)
+            candidates.addAll(zoneCells(map));
+        } else {
+            for (int i = 0; i < SIDE_DIRECTIONS; i++) {
+                double a = 2 * Math.PI * i / SIDE_DIRECTIONS;
+                candidates.add(new int[] {(int) (sp[0] + r * Math.cos(a)), (int) (sp[1] + r * Math.sin(a))});
+            }
         }
         BotConfig.Zones zones = ctx.config().get().zones().get(map);
         BotConfig.ZoneGrid avoided = zones == null ? null : zones.avoided();
@@ -1371,6 +1377,37 @@ public final class BehemothModule implements BotModule {
     }
 
     private final Map<Integer, int[]> zonePoints = new HashMap<>();
+
+    /** The centres of the preferred zone's cells on the map (thinned to about 400). */
+    private List<int[]> zoneCells(int map) {
+        BotConfig.Zones zones = ctx.config().get().zones().get(map);
+        BotConfig.ZoneGrid pref = zones == null ? null : zones.preferred();
+        List<int[]> out = new java.util.ArrayList<>();
+        if (pref == null) {
+            return out;
+        }
+        orbit.world.maps.MapCatalog.MapInfo info = ctx.maps().info(map);
+        int width = info.width() > 0 ? info.width() : 21_000;
+        int height = info.height() > 0 ? info.height() : 13_100;
+        int res = pref.resolution();
+        for (int cy = 0; cy < pref.rows().size(); cy++) {
+            String row = pref.rows().get(cy);
+            for (int cx = 0; cx < row.length(); cx++) {
+                if (row.charAt(cx) == '#') {
+                    out.add(new int[] {(int) ((cx + 0.5) * width / res), (int) ((cy + 0.5) * height / res)});
+                }
+            }
+        }
+        if (out.size() > 400) {
+            int k = out.size() / 400 + 1;
+            List<int[]> thin = new java.util.ArrayList<>();
+            for (int i = 0; i < out.size(); i += k) {
+                thin.add(out.get(i));
+            }
+            return thin;
+        }
+        return out;
+    }
 
     /**
      * {@code waitInZone} (AstraBot's «Moving to behe zone»: its behemoth profile waits in the config's preferred zone,
