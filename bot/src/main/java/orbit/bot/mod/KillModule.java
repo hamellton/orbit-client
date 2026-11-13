@@ -46,6 +46,11 @@ public final class KillModule implements BotModule {
     }
 
     @Override
+    public int fightTarget() {
+        return attacker.targetId();
+    }
+
+    @Override
     public void pause() {
         attacker.clear();
         boxes.clear();

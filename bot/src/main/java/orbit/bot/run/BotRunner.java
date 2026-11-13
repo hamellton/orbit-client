@@ -217,6 +217,8 @@ public final class BotRunner {
     static final long FREE_WAIT_NS = 5 * 60_000_000_000L;
     private String stopWhenFree;
     private long stopWhenFreeSince;
+    /** The target fought when the stop came: the stop waits for its end, not for the next one's. */
+    private int stopWhenFreeTarget;
 
     /**
      * Finish once the ship is out of the fight: the target killed, nobody shooting the ship — at most
@@ -228,13 +230,37 @@ public final class BotRunner {
             return;
         }
         WorldSnapshot w = ctx.world().get();
-        if (!inFight(w)) {
+        int target = module != null ? module.fightTarget() : 0;
+        if (target == 0 && !inFight(w)) {
             stop(reason);
             return;
         }
+        stopWhenFreeTarget = target;
         stopWhenFree = reason;
         stopWhenFreeSince = ctx.now();
         log.info("Остановка: {} — сначала заканчиваю бой", reason);
+    }
+
+    /**
+     * The fight of the stop's moment is over: its target killed or left (live 2026-11-13: the hero's attack flag
+     * dropped for a moment with Boss Kristallon at 1 % and the ship left it), no NPC shooting the ship.
+     */
+    private boolean fightOver(WorldSnapshot w) {
+        int now = module != null ? module.fightTarget() : 0;
+        if (stopWhenFreeTarget != 0 && now == stopWhenFreeTarget && w.ships().containsKey(stopWhenFreeTarget)) {
+            return false;
+        }
+        WorldSnapshot.Hero h = w.hero();
+        if (stopWhenFreeTarget == 0 && h.attackTargetId() != 0) {
+            return false;
+        }
+        for (int id : h.attackers()) {
+            WorldSnapshot.Ship s = w.ships().get(id);
+            if (s != null && s.npc() && s.attackTargetId() == h.id()) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /** The ship shoots something or an NPC shoots it. */
@@ -346,7 +372,7 @@ public final class BotRunner {
             show(w.death() != null ? "Уничтожен" : "Возрождение");
             return;
         }
-        if (stopWhenFree != null && state != State.STOPPING && (!inFight(w) || ctx.now() - stopWhenFreeSince > FREE_WAIT_NS)) {
+        if (stopWhenFree != null && state != State.STOPPING && (fightOver(w) || ctx.now() - stopWhenFreeSince > FREE_WAIT_NS)) {
             String reason = stopWhenFree;
             stopWhenFree = null;
             stop(reason);

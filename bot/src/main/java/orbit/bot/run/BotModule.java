@@ -57,6 +57,11 @@ public interface BotModule {
         return true;
     }
 
+    /** The NPC the module fights now, 0 for none. */
+    default int fightTarget() {
+        return 0;
+    }
+
     /** True when it is a bad moment to leave (e.g. a boss almost dead). */
     default boolean busy() {
         return false;
