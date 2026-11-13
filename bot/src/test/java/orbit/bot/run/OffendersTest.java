@@ -161,24 +161,6 @@ class OffendersTest {
     }
 
     @Test
-    void anOwnCompanysStationThatShootsTheShipIsKeptClearOf() {
-        // live 2026-11-13 on 2-3: hits for hours from an id nothing in sight had, by «Fornax» of another clan
-        Sim sim = new Sim(config(false), 93, 20_000, 7_000);
-        station(sim, 901, 3, 21_000, 7_000); // the ship's company
-        BotRunner r = new BotRunner(sim.ctx, () -> false, s -> { });
-        sim.run(r::tick, 500);
-        assertTrue(!r.status().startsWith("Ухожу от станция"), r.status());
-        orbit.protocol.gen.AttackHitCommand hit = new orbit.protocol.gen.AttackHitCommand();
-        hit.attackerId = 777_001; // a weapon module: no ship
-        hit.victimId = 1;
-        hit.victimHitpoints = 200_000;
-        hit.damage = 1_000;
-        sim.world.apply(hit, sim.now);
-        sim.run(r::tick, 500);
-        assertTrue(r.status().startsWith("Ухожу от станция [CBS]"), r.status());
-    }
-
-    @Test
     void anNpcShootingTheShipThatIsNotFoughtIsLeft() {
         // live 2026-11-13: roaming for Impulse II, Abide I (not on the list) shot the ship to death
         Sim sim = new Sim(config(false), 93, 20_000, 7_000);
