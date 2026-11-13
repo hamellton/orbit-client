@@ -856,4 +856,32 @@ class BehemothModuleTest {
         assertTrue(Math.hypot(h.x() - 5_800, h.y() - 2_700) > 1_900, "kept off the enemy at the point: " + h);
         assertTrue(m.status().contains("среди врагов"), m.status());
     }
+
+    @Test
+    void theFirstMapIsWaitedOnUntilTheFirstBehemoth() throws Exception {
+        // the user, 2026-11-13: «на первой же карте простоять всё время, пока не дождёмся бегемота, дождались — и по кругу»
+        Sim sim = new Sim(with(config(30), "{\"waitFirst\": true}"), 308, 5_700, 2_600);
+        BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
+        m.workingMap();
+        sim.run(m::tick, 5 * 60_000);
+        assertEquals(308, m.workingMap(), "5 min, none yet: still here");
+        sim.npc(77, BEHEMOTH, 4_700, 3_900);
+        sim.run(m::tick, 2_000);
+        orbit.protocol.gen.ShipDestroyedCommand d = new orbit.protocol.gen.ShipDestroyedCommand();
+        d.destroyedUserId = 77;
+        sim.world.apply(d, sim.now);
+        sim.run(m::tick, 60_000);
+        assertTrue(m.workingMap() != 308, "it came and died: on round the maps");
+    }
+
+    @Test
+    void theFirstMapIsLeftAfterARespawnWithNone() throws Exception {
+        Sim sim = new Sim(with(config(30), "{\"waitFirst\": true}"), 308, 5_700, 2_600);
+        BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
+        m.workingMap();
+        sim.run(m::tick, 16 * 60_000);
+        assertEquals(308, m.workingMap(), "within a respawn and the spare");
+        sim.run(m::tick, 2 * 60_000);
+        assertTrue(m.workingMap() != 308, "none for 17 min: on");
+    }
 }

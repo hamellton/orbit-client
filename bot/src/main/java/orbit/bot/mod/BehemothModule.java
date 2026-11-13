@@ -882,6 +882,9 @@ public final class BehemothModule implements BotModule {
     /** The locator's target list is read this long after coming to the map (it comes about 3 s after). */
     static final long LIST_SETTLE_MS = 6_000;
     private String listTold = "";
+    private long listedNanos;
+    private int listedMap;
+    private long listedAtNs = Long.MIN_VALUE / 2;
     private boolean behemothListed;
 
     /**
@@ -892,12 +895,30 @@ public final class BehemothModule implements BotModule {
      */
     private boolean listSaysGone(JsonNode s, WorldSnapshot.Pet pet, WorldSnapshot.Hero h, long now) {
         behemothListed = false;
-        if (!on(s, "locatorList", false) || pet.locatorTargetsNanos() <= mapEnteredNanos
-                || now - mapEnteredNanos < LIST_SETTLE_MS * 1_000_000) {
+        if (pet.locatorTargetsNanos() <= mapEnteredNanos) {
             return false;
         }
         boolean there = pet.locatorTargets().contains(BEHEMOTH_NPC);
         behemothListed = there;
+        if (there && pet.locatorTargetsNanos() != listedNanos) {
+            // its coming into the list is its coming to the map (live 2026-11-13 on the VPS, 3-BL: 178 listed 8 s after
+            // the ship left) — a sighting at its spawn: the timers start from it
+            listedNanos = pet.locatorTargetsNanos();
+            if (listedMap != h.mapId() || now - listedAtNs > 5 * 60_000_000_000L) {
+                int[] sp = spawnPoint(h.mapId());
+                memory.seen(h.mapId(), sp[0], sp[1], wallMs());
+                emptyAt.remove(h.mapId());
+                behemothSeenAt = wallMs();
+                behemothSeenMap = h.mapId();
+                log.info("Пеленгатор: бегемот появился в списке на {} — он на карте (время появления записано)",
+                        ctx.maps().info(h.mapId()).name());
+            }
+            listedMap = h.mapId();
+            listedAtNs = now;
+        }
+        if (!on(s, "locatorList", false) || now - mapEnteredNanos < LIST_SETTLE_MS * 1_000_000) {
+            return false;
+        }
         String key = (there ? "listed:" : "unlisted:") + h.mapId() + ":" + mapEnteredNanos;
         if (!key.equals(listTold)) {
             listTold = key;
@@ -1024,6 +1045,39 @@ public final class BehemothModule implements BotModule {
         return false;
     }
 
+    /** {@code waitFirst}: at most this much more than a respawn on the first map. */
+    static final long FIRST_SPARE_MS = 120_000;
+    private boolean firstDone;
+    private boolean firstTold;
+
+    /**
+     * {@code waitFirst} (the user, 2026-11-13: «на первой же карте простоять всё время, пока не дождёмся бегемота,
+     * дождались — и пойдём по кругу»): until a behemoth has been seen (or a train taken as its kill), the first map is
+     * not left — at most a respawn and {@link #FIRST_SPARE_MS}; after that the round as usual, by the timers.
+     */
+    private boolean waitingFirst(int map) {
+        if (!on(settings(), "waitFirst", false) || firstDone) {
+            return false;
+        }
+        if (behemothSeenAt > 0 || !trainCounted.isEmpty() || dueAt(map, wallMs()) > 0) {
+            firstDone = true;
+            log.info("Бегемот был — дальше по кругу, по таймерам");
+            return false;
+        }
+        long waited = (ctx.now() - waitStarted) / 1_000_000;
+        if (waited > respawn(map) + FIRST_SPARE_MS) {
+            firstDone = true;
+            log.info("На {} за {} бегемота не было — дальше по кругу", ctx.maps().info(map).name(), clock(waited));
+            return false;
+        }
+        if (!firstTold) {
+            firstTold = true;
+            log.info("Жду первого бегемота на {}, не улетая (до {})", ctx.maps().info(map).name(),
+                    clock(respawn(map) + FIRST_SPARE_MS));
+        }
+        return true;
+    }
+
     /** A way to the wait point longer than the straight line (server zones, players) gets this much more. */
     static final long WAY_GRACE_NS = 60_000_000_000L;
 
@@ -1033,6 +1087,9 @@ public final class BehemothModule implements BotModule {
      */
     private boolean waitOver(int map) {
         if (waitMap != map || ctx.now() < waitUntil + (reachedMap == map ? 0 : WAY_GRACE_NS)) {
+            return false;
+        }
+        if (waitingFirst(map)) {
             return false;
         }
         WorldSnapshot w = ctx.world().get();
@@ -1123,7 +1180,7 @@ public final class BehemothModule implements BotModule {
         if (now >= checkAt) {
             checkAt = now + 5_000_000_000L;
             int better = choose(h.mapId(), 0);
-            if (better != h.mapId() && dueAt(h.mapId(), wall) <= 0 && !behemothListed) {
+            if (better != h.mapId() && dueAt(h.mapId(), wall) <= 0 && !behemothListed && !waitingFirst(h.mapId())) {
                 // here nothing is due by the clock, there one is: leave now, the flight counted
                 log.info("На {} бегемот по времени раньше — перелетаю", ctx.maps().info(better).name());
                 emptyAt.put(h.mapId(), wall);
