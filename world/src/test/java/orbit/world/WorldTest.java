@@ -66,6 +66,32 @@ class WorldTest {
         return w;
     }
 
+    @Test
+    void hitsAreSummedOursEveryonesAndOnUs() {
+        // the user, 2026-11-14: «можем отслеживать, сколько урона наносим и кому?»
+        World w = withHero();
+        w.apply(ship(7, true, 1200, 1000), 0);
+        w.apply(ship(8, false, 1300, 1000), 0);
+        java.util.function.BiConsumer<int[], Integer> hit = (who, dmg) -> {
+            orbit.protocol.gen.AttackHitCommand h = new orbit.protocol.gen.AttackHitCommand();
+            h.attackerId = who[0];
+            h.victimId = who[1];
+            h.damage = dmg;
+            h.victimHitpoints = 100;
+            w.apply(h, 0);
+        };
+        hit.accept(new int[] {HERO, 7}, 1_000);
+        hit.accept(new int[] {HERO, 7}, 500);
+        hit.accept(new int[] {8, 7}, 4_000);
+        hit.accept(new int[] {8, HERO}, 300);
+        hit.accept(new int[] {7, HERO}, 200);
+        WorldSnapshot.Damage d = w.snapshot(0).damage();
+        assertEquals(1_500, d.dealtTo(7), "ours on the NPC");
+        assertEquals(5_500, d.receivedBy(7), "everyone's on the NPC");
+        assertEquals(300, d.takenFrom(8), "the player's on us");
+        assertEquals(200, d.takenFrom(7), "the NPC's on us");
+    }
+
     private static ShipCreateCommand ship(int id, boolean npc, int x, int y) {
         ShipCreateCommand c = new ShipCreateCommand();
         c.userId = id;

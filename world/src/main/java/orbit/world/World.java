@@ -585,8 +585,14 @@ public final class World {
                         : WorldSnapshot.Boosters.NONE,
                 new WorldSnapshot.JumpCpu(jumpCpuEquipped, jumpVouchers, Map.copyOf(jumpPrices), jumpPricesNanos,
                         jumpConfirmedMap, jumpConfirmedPrice, jumpConfirmedNanos, jumpCountdownMap, jumpCountdownSeconds,
-                        jumpCountdownNanos), boxCheck, quests.snapshot());
+                        jumpCountdownNanos), boxCheck, quests.snapshot(),
+                new WorldSnapshot.Damage(Map.copyOf(dealt), Map.copyOf(received), Map.copyOf(taken)));
     }
+
+    /** {@link WorldSnapshot.Damage}: since the map was entered. */
+    private final Map<Integer, Long> dealt = new HashMap<>();
+    private final Map<Integer, Long> received = new HashMap<>();
+    private final Map<Integer, Long> taken = new HashMap<>();
 
     private WorldSnapshot.BoxCheck boxCheck;
     private final QuestBook quests = new QuestBook();
@@ -830,6 +836,16 @@ public final class World {
     }
 
     private void hit(AttackHitCommand p) {
+        if (p.damage > 0) {
+            if (p.victimId == hero.id) {
+                taken.merge(p.attackerId, (long) p.damage, Long::sum);
+            } else {
+                received.merge(p.victimId, (long) p.damage, Long::sum);
+                if (p.attackerId == hero.id) {
+                    dealt.merge(p.victimId, (long) p.damage, Long::sum);
+                }
+            }
+        }
         if (p.victimId == hero.id) {
             hero.health = hero.health.withHp(p.victimHitpoints, -1).withShield(p.victimShield, -1)
                     .withNanoHull(p.victimNanoHull, -1);
@@ -1255,6 +1271,9 @@ public final class World {
         mines.clear();
         jumpingTo = 0;
         ships.clear();
+        dealt.clear();
+        received.clear();
+        taken.clear();
         kills.clear();
         collectables.clear();
         portals.clear();

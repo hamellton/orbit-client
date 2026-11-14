@@ -43,6 +43,17 @@ public final class FightLog {
     private int samples;
     private int inRange;
     private final Map<String, Long> hitBy = new LinkedHashMap<>();
+    /** The damage counters ({@link WorldSnapshot.Damage}) at the fight's first sample and now (the user, 2026-11-14:
+     * «можем отслеживать, сколько урона наносим и кому?»). */
+    private int targetId;
+    private long dealt0 = -1;
+    private long dealt1;
+    private long received0;
+    private long received1;
+    private double targetMax;
+    private Map<Integer, Long> taken0 = Map.of();
+    private Map<Integer, Long> taken1 = Map.of();
+    private final Map<Integer, String> names = new java.util.HashMap<>();
 
     boolean active() {
         return target != null;
@@ -64,6 +75,10 @@ public final class FightLog {
         samples = 0;
         inRange = 0;
         hitBy.clear();
+        targetId = t.id();
+        dealt0 = -1;
+        targetMax = t.health().known() ? t.health().hpMax() + t.health().shieldMax() : 0;
+        names.clear();
         inRangeNs = 0;
         targetHitNs = 0;
         shootingNs = 0;
@@ -133,6 +148,59 @@ public final class FightLog {
             String who = s == null ? "#" + id : s.id() == t.id() ? "цель" : s.name();
             hitBy.merge(who, dt / 1_000_000, Long::sum);
         }
+        WorldSnapshot.Damage dmg = w.damage();
+        if (dealt0 < 0) {
+            dealt0 = dmg.dealtTo(targetId);
+            received0 = dmg.receivedBy(targetId);
+            taken0 = dmg.taken();
+        }
+        dealt1 = dmg.dealtTo(targetId);
+        received1 = dmg.receivedBy(targetId);
+        taken1 = dmg.taken();
+        if (targetMax <= 0 && t.health().known()) {
+            targetMax = t.health().hpMax() + t.health().shieldMax();
+        }
+        for (WorldSnapshot.Ship s : w.ships().values()) {
+            if (taken1.containsKey(s.id())) {
+                names.put(s.id(), s.id() == targetId ? "цель" : s.name());
+            }
+        }
+    }
+
+    /** «наш урон 1 240 000 (8% HP+щита цели, 15% всего урона по ней); урон по нам: Name 300 000, …». */
+    String damageLine() {
+        if (dealt0 < 0) {
+            return "";
+        }
+        long ours = dealt1 - dealt0;
+        long all = received1 - received0;
+        StringBuilder b = new StringBuilder("наш урон ").append(String.format(java.util.Locale.ROOT, "%,d", ours).replace(',', ' '));
+        java.util.List<String> parts = new java.util.ArrayList<>();
+        if (targetMax > 0) {
+            parts.add(Math.round(100.0 * ours / targetMax) + "% HP+щита цели");
+        }
+        if (all > ours) {
+            parts.add(Math.round(100.0 * ours / all) + "% всего урона по ней ("
+                    + String.format(java.util.Locale.ROOT, "%,d", all).replace(',', ' ') + ")");
+        }
+        if (!parts.isEmpty()) {
+            b.append(" (").append(String.join(", ", parts)).append(')');
+        }
+        Map<String, Long> on = new LinkedHashMap<>();
+        taken1.forEach((id, v) -> {
+            long d = v - taken0.getOrDefault(id, 0L);
+            if (d > 0) {
+                on.merge(names.getOrDefault(id, "#" + id), d, Long::sum);
+            }
+        });
+        if (!on.isEmpty()) {
+            StringBuilder t = new StringBuilder();
+            on.entrySet().stream().sorted(Map.Entry.<String, Long>comparingByValue().reversed()).limit(8)
+                    .forEach(e -> t.append(t.isEmpty() ? "" : ", ").append(e.getKey()).append(' ')
+                            .append(String.format(java.util.Locale.ROOT, "%,d", e.getValue()).replace(',', ' ')));
+            b.append("; урон по нам: ").append(t);
+        }
+        return b.toString();
     }
 
     void turned() {
@@ -162,20 +230,24 @@ public final class FightLog {
         StringBuilder hits = new StringBuilder();
         hitBy.forEach((name, ms) -> hits.append(hits.isEmpty() ? "" : ", ").append(name).append(' ')
                 .append(Math.round(ms / 1000.0)).append(" с"));
+        String damage = damageLine();
         log.info("Бой с {}: {} с, {}, {}; цель {}→{}, мы {}→{} ({}%/с); дистанция ср. {} мин. {}, в радиусе {}%;"
-                        + " били нас: {}; смен стороны {}",
+                        + " били нас: {}; смен стороны {}{}",
                 who, Math.round(secs), mode, outcome, pct(targetHp0), pct(targetHp1), pct(heroHp0), pct(heroHp1),
                 secs > 0 ? String.format("%.1f", 100 * lost / secs) : "0", Math.round(distSum / samples),
-                Math.round(distMin), Math.round(100.0 * inRange / samples), hits.isEmpty() ? "никто" : hits, turns);
+                Math.round(distMin), Math.round(100.0 * inRange / samples), hits.isEmpty() ? "никто" : hits, turns,
+                damage.isEmpty() ? "" : "; " + damage);
         try {
             boolean header = !Files.exists(FILE);
             Files.createDirectories(FILE.toAbsolutePath().getParent());
             String line = String.join(";", java.time.LocalDateTime.now().withNano(0).toString(), String.valueOf(map),
                     who, mode, outcome, String.valueOf(Math.round(secs)), pct(heroHp0), pct(heroHp1), pct(targetHp0),
                     pct(targetHp1), String.valueOf(Math.round(distSum / samples)), String.valueOf(Math.round(distMin)),
-                    String.valueOf(Math.round(100.0 * inRange / samples)), String.valueOf(turns), hits.toString()) + "\n";
+                    String.valueOf(Math.round(100.0 * inRange / samples)), String.valueOf(turns), hits.toString(),
+                    String.valueOf(dealt0 < 0 ? 0 : dealt1 - dealt0), String.valueOf(dealt0 < 0 ? 0 : received1 - received0))
+                    + "\n";
             Files.writeString(FILE, (header ? "time;map;npc;mode;outcome;sec;ourHp0;ourHp1;npcHp0;npcHp1;distAvg;distMin;"
-                    + "inRangePct;turns;hitBy\n" : "") + line, StandardCharsets.UTF_8, StandardOpenOption.CREATE,
+                    + "inRangePct;turns;hitBy;dealt;receivedAll\n" : "") + line, StandardCharsets.UTF_8, StandardOpenOption.CREATE,
                     StandardOpenOption.APPEND);
         } catch (IOException e) {
             // a temporary help only

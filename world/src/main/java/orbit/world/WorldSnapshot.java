@@ -19,7 +19,43 @@ public record WorldSnapshot(long nanos, Hero hero, Map<Integer, Ship> ships, Map
                             Map<Integer, Long> activatable, int jumpingTo, Death death,
                             java.util.Set<String> slotItems, Map<Integer, Kill> destroyed, Rewards rewards,
                             List<Invitation> invitations, List<Contact> contacts, Map<String, Mine> mines,
-                            Boosters boosters, JumpCpu jumpCpu, BoxCheck boxCheck, Quests quests) {
+                            Boosters boosters, JumpCpu jumpCpu, BoxCheck boxCheck, Quests quests, Damage damage) {
+
+    /** Without the damage tally (older callers and tests). */
+    public WorldSnapshot(long nanos, Hero hero, Map<Integer, Ship> ships, Map<String, Collectable> collectables,
+                         Map<Integer, Portal> portals, Map<Integer, Asset> assets, Map<String, Zone> zones,
+                         Group group, Map<String, Item> items, Inventory inventory, Pet pet,
+                         Map<Integer, Long> activatable, int jumpingTo, Death death,
+                         java.util.Set<String> slotItems, Map<Integer, Kill> destroyed, Rewards rewards,
+                         List<Invitation> invitations, List<Contact> contacts, Map<String, Mine> mines,
+                         Boosters boosters, JumpCpu jumpCpu, BoxCheck boxCheck, Quests quests) {
+        this(nanos, hero, ships, collectables, portals, assets, zones, group, items, inventory, pet, activatable, jumpingTo,
+                death, slotItems, destroyed, rewards, invitations, contacts, mines, boosters, jumpCpu, boxCheck, quests,
+                Damage.NONE);
+    }
+
+    /**
+     * The damage the hits ({@code AttackHitCommand}) told since the map was entered, summed: the hero's on each
+     * target ({@code dealt}), everyone's on each target ({@code received}, as far as the server sends others' hits)
+     * and each attacker's on the hero ({@code taken}). Ids are the ships'; the hero is in none of the keys of
+     * {@code dealt} and {@code received} as a victim of its own.
+     */
+    public record Damage(Map<Integer, Long> dealt, Map<Integer, Long> received, Map<Integer, Long> taken) {
+
+        public static final Damage NONE = new Damage(Map.of(), Map.of(), Map.of());
+
+        public long dealtTo(int id) {
+            return dealt.getOrDefault(id, 0L);
+        }
+
+        public long receivedBy(int id) {
+            return received.getOrDefault(id, 0L);
+        }
+
+        public long takenFrom(int id) {
+            return taken.getOrDefault(id, 0L);
+        }
+    }
 
     /** Without quests (older callers and tests). */
     public WorldSnapshot(long nanos, Hero hero, Map<Integer, Ship> ships, Map<String, Collectable> collectables,
@@ -30,7 +66,8 @@ public record WorldSnapshot(long nanos, Hero hero, Map<Integer, Ship> ships, Map
                          List<Invitation> invitations, List<Contact> contacts, Map<String, Mine> mines,
                          Boosters boosters, JumpCpu jumpCpu, BoxCheck boxCheck) {
         this(nanos, hero, ships, collectables, portals, assets, zones, group, items, inventory, pet, activatable, jumpingTo,
-                death, slotItems, destroyed, rewards, invitations, contacts, mines, boosters, jumpCpu, boxCheck, Quests.NONE);
+                death, slotItems, destroyed, rewards, invitations, contacts, mines, boosters, jumpCpu, boxCheck, Quests.NONE,
+                Damage.NONE);
     }
 
     /**
