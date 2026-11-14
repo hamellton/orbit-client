@@ -372,6 +372,11 @@ public final class BehemothModule implements BotModule {
             return; // the runner flies there
         }
         if (h.mapId() != chosen && holding(h.mapId())) {
+            // the locator looks here too: one coming on this map while holding for another is gone for (live
+            // 2026-11-14 on the VPS, 3-BL: listed while holding for 1-BL, not gone for)
+            if (locate(s, w)) {
+                return;
+            }
             if (fightWhileWaiting(c, s, w)) {
                 return;
             }

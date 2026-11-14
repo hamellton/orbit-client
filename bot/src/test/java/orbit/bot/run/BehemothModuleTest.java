@@ -994,4 +994,23 @@ class BehemothModuleTest {
         var h = sim.hero();
         assertTrue(Math.hypot(h.x() - 15_000, h.y() - 9_000) < 1_000, "at it, 35 s later: " + h);
     }
+
+    @Test
+    void aBehemothComingHereWhileHoldingForAnotherMapIsGoneFor() throws Exception {
+        // live 2026-11-14 on the VPS, 3-BL: listed while holding for 1-BL, not gone for
+        Sim sim = new Sim(with(config(30), "{\"useLocator\": true, \"arriveOnTime\": true}"), 308, 5_700, 2_600);
+        SpawnMemory mem = SpawnMemory.inMemory();
+        mem.killed(306, 19_400, 5_800, System.currentTimeMillis() - 12 * 60_000); // 1-BL in 3 min
+        mem.killed(308, 4_700, 3_900, System.currentTimeMillis()); // here in 15 min by the clock
+        mem.killed(307, 6_900, 5_000, System.currentTimeMillis()); // 2-BL too
+        BehemothModule m = new BehemothModule(sim.ctx, mem);
+        locatorPet(sim);
+        m.workingMap();
+        sim.run(m::tick, 8_000);
+        assertTrue(m.status().startsWith("Жду вылета"), m.status());
+        targets(sim, 178, 175);
+        locator(sim, 15_000, 9_000);
+        sim.run(m::tick, 1_000);
+        assertTrue(m.status().contains("пеленгатор"), "after the one here: " + m.status());
+    }
 }
