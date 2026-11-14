@@ -837,6 +837,7 @@ public final class BehemothModule implements BotModule {
     private boolean closing;
     private long closeAt;
     private int[] closeTarget;
+    private int closeMap;
 
     /**
      * As near the spawn as the enemies let: rings of 600 … 2 400 round it, the nearest point at least {@link #CLOSE_KEEP}
@@ -857,10 +858,22 @@ public final class BehemothModule implements BotModule {
         int[] farthest = null;
         double farthestScore = -1;
         orbit.bot.nav.PathFinder pf = orbit.bot.nav.PathFinder.of(w, ctx.maps(), false);
+        double keep = number(s, "closeKeep", CLOSE_KEEP);
         int from = (int) number(s, "closeMin", CLOSE_MIN);
+        // the one taken stays while it is still good (live 2026-11-14 on the VPS, 2-BL: it jumped from side to side of the
+        // spawn every second as the train moved — the ship to and fro past the train)
+        if (closeTarget != null && closeMap == map) {
+            double d = Math.hypot(closeTarget[0] - sp[0], closeTarget[1] - sp[1]);
+            if (d >= from - 50 && pf.free(closeTarget[0], closeTarget[1])
+                    && pf.clear(closeTarget[0], closeTarget[1], sp[0], sp[1])
+                    && (enemies.isEmpty() || freeness(closeTarget, enemies) >= keep)) {
+                return closeTarget;
+            }
+        }
+        closeMap = map;
+        int[] best = null;
+        double bestCost = Double.MAX_VALUE;
         for (int r = from; r <= Math.max(from, 2_600); r += 150) {
-            int[] best = null;
-            double bestScore = -1;
             for (int i = 0; i < 24; i++) {
                 double a = 2 * Math.PI * i / 24;
                 int[] p = {(int) (sp[0] + r * Math.cos(a)), (int) (sp[1] + r * Math.sin(a))};
@@ -869,20 +882,22 @@ public final class BehemothModule implements BotModule {
                     continue; // a wall between it and the spawn: near by the line, far by the way (the user, 2026-11-14)
                 }
                 double score = enemies.isEmpty() ? Double.MAX_VALUE : freeness(p, enemies);
-                if (score > bestScore) {
-                    bestScore = score;
-                    best = p;
-                }
                 if (score > farthestScore) {
                     farthestScore = score;
                     farthest = p;
                 }
-            }
-            if (best != null && bestScore >= number(s, "closeKeep", CLOSE_KEEP)) {
-                return best;
+                if (score < keep) {
+                    continue;
+                }
+                // near the spawn first, then near the ship: no crossing to the far side for a step nearer
+                double cost = r + 0.5 * Math.hypot(p[0] - h.x(), p[1] - h.y());
+                if (cost < bestCost) {
+                    bestCost = cost;
+                    best = p;
+                }
             }
         }
-        return farthest != null ? farthest : sp.clone();
+        return best != null ? best : farthest != null ? farthest : sp.clone();
     }
 
     /** Where the behemoth appears on the map: seen, else BeheFarm's point, else the wait point. */
