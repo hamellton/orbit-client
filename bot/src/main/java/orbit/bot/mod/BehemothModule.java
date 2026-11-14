@@ -1625,6 +1625,10 @@ public final class BehemothModule implements BotModule {
         if (counted != null && wallMs() - counted < respawn(h.mapId()) / 2) {
             return false; // they have killed it already
         }
+        long due = dueAt(h.mapId(), wallMs());
+        if (due > 0 && due - wallMs() > 120_000) {
+            return false; // by the timer the next is far: the train is still there after the kill (live 2026-11-14)
+        }
         int n = enemiesBySpawn(w, h, TRAIN_COMING);
         if (n >= TRAIN_MIN) {
             if (!trainWaitTold) {
