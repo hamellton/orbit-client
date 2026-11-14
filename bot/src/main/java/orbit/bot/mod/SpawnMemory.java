@@ -186,7 +186,9 @@ public final class SpawnMemory {
             list.add(new Spawn(x, y, 1, nowMs, nowMs, List.of()));
         } else {
             Spawn s = list.get(i);
-            list.set(i, new Spawn(s.x(), s.y(), s.seen(), s.lastSeen(), nowMs, s.respawnMs()));
+            // a death dated back (the behemoth's timed from its coming) is after every sighting of it: seen at most then,
+            // or the timer would read «seen since it died» and be lost (live 2026-11-14 on the VPS)
+            list.set(i, new Spawn(s.x(), s.y(), s.seen(), Math.min(s.lastSeen(), nowMs), nowMs, s.respawnMs()));
         }
         save();
     }

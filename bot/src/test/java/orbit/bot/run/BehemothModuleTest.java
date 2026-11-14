@@ -1038,4 +1038,15 @@ class BehemothModuleTest {
         sim.run(m::tick, 25_000);
         assertEquals(308, m.workingMap(), "2-BL's behemoth is 15 min off: not after them");
     }
+
+    @Test
+    void aDeathDatedBeforeItsLastSightingStillGivesTheTimer() throws Exception {
+        // live 2026-11-14 on the VPS: timed from its coming, the death was before the last sighting — no timer
+        SpawnMemory mem = SpawnMemory.inMemory();
+        long now = System.currentTimeMillis();
+        mem.seen(307, 6_900, 5_000, now - 60_000);
+        mem.seen(307, 6_900, 5_000, now - 30_000);
+        mem.killed(307, 6_900, 5_000, now - 60_000);
+        assertEquals(now - 60_000 + 900_000, mem.spawns(307).getFirst().expectedAt(900_000));
+    }
 }
