@@ -372,7 +372,9 @@ public final class Attacker {
             ishAt = now;
             return;
         }
-        if (plan.emp() && plan.empBelow() > 0 && hp >= 0 && hp < plan.empBelow()
+        // EMP only breaks players' locks: with none shooting it is wasted (live 2026-11-14 on the VPS, 3-BL: come at 29 %
+        // after a train on the way, EMP at once with nobody shooting)
+        if (plan.emp() && plan.empBelow() > 0 && hp >= 0 && hp < plan.empBelow() && players > 0
                 && now - ishAt > plan.empAfterIshMs() * 1_000_000
                 && may(w, h, EMP, fo.empSpend(), empUses, empAt, now)) {
             log.info("EMP-01: HP {}%, стреляют {} игроков (за сутки {})", Math.round(hp * 100), players,

@@ -656,6 +656,23 @@ class AttackerTest {
     }
 
     @Test
+    void noEmpWhenNoPlayerShoots() {
+        // live 2026-11-14 on the VPS, 3-BL: come at 29 % after a train on the way, EMP at once with nobody shooting
+        Sim sim = new Sim(invoke(Set.of(), null), 1, 10_500, 6_000);
+        sim.lasers("ammunition_laser_lcb-10", "ammunition_specialammo_emp-01");
+        sim.npc(7, "-=[ Target ]=-", 10_000, 6_000);
+        Attacker a = new Attacker(sim.ctx);
+        a.setAbilityPlan(new Attacker.AbilityPlan(true, 0.35, false, 0, -1, -1, 3, false));
+        a.target(sim.world.snapshot(sim.now).ships().get(7));
+        hull(sim, 0.3);
+        sim.run(() -> a.tick(true), 3_000);
+        assertEquals(0, used(sim, "ammunition_specialammo_emp-01"), "nobody shoots: EMP kept");
+        otherPlayerShoots(sim, 900, 1);
+        sim.run(() -> a.tick(true), 1_000);
+        assertEquals(1, used(sim, "ammunition_specialammo_emp-01"), "a player shoots: EMP");
+    }
+
+    @Test
     void offTheBehemothNothingIsSpent() {
         Sim sim = new Sim(invoke(Set.of("USE_EMP", "USE_ISH", "USE_ABILITY"), null), 1, 10_500, 6_000);
         sim.lasers("ammunition_laser_lcb-10", "ability_venom", "equipment_extra_cpu_ish-01", "ammunition_specialammo_emp-01");
