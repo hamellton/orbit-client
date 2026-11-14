@@ -454,6 +454,7 @@ public final class BehemothModule implements BotModule {
             if (!onBehemoth) {
                 log.info("Бегемот на карте — к нему ({} от нас, HP {})", (int) b.distanceTo(h.x(), h.y()), hp(b));
                 onBehemoth = true;
+                fightSeenAt = ctx.now();
             }
             deadAt = null;
             arrivedAt = 0;
@@ -531,6 +532,10 @@ public final class BehemothModule implements BotModule {
      */
     static final long SKIP_EARLY_MS = 180_000;
 
+    /** {@code trainEnemyLimit} is checked this long after the behemoth is seen. */
+    static final long FIRST_LOOK_NS = 1_500_000_000L;
+    private long fightSeenAt = Long.MIN_VALUE / 2;
+
     private void skip(int map, String why) {
         long until = wallMs() + Math.max(60_000, respawn(map) - SKIP_EARLY_MS);
         skipUntil.put(map, until);
@@ -588,7 +593,10 @@ public final class BehemothModule implements BotModule {
                 .filter(x -> Math.hypot(x.x() - b.x(), x.y() - b.y()) <= radius)
                 .toList();
         int limit = (int) number(s, "trainEnemyLimit", 0);
-        if (limit > 0 && enemies.size() > limit) {
+        // the first look decides: a fight begun among few goes on when the train comes (live 2026-11-14 on the VPS,
+        // 2-BL 01:45: 8 by it, then 14 — survived, +720 764 credits; skipped then, it would have been nothing)
+        boolean firstLook = ctx.now() - fightSeenAt < FIRST_LOOK_NS;
+        if (limit > 0 && firstLook && enemies.size() > limit) {
             attacker.clear();
             skip(h.mapId(), "у бегемота врагов " + enemies.size() + " (больше " + limit + ")");
             chosen = choose(h.mapId(), h.mapId());

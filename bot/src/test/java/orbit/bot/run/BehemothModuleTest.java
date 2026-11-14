@@ -223,6 +223,22 @@ class BehemothModuleTest {
     }
 
     @Test
+    void aTrainComingWhenTheFightIsOnDoesNotSendTheShipAway() throws Exception {
+        // live 2026-11-14 on the VPS, 2-BL 01:45: 8 by it at first, then 14 — the ship lived on and was rewarded
+        Sim sim = new Sim(with(config(300), "{\"trainMode\": true, \"trainEnemyLimit\": 2}"), 308, 8_000, 5_700);
+        BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
+        m.workingMap();
+        sim.npc(77, BEHEMOTH, 8_000, 5_000);
+        enemy(sim, 900, "Early", 7_500, 5_000);
+        sim.run(m::tick, 3_000);
+        for (int i = 1; i < 4; i++) {
+            enemy(sim, 900 + i, "Train" + i, 7_500, 5_000 + i * 100);
+        }
+        sim.run(m::tick, 2_000);
+        assertEquals(308, m.workingMap(), "the first look found one: the fight goes on");
+    }
+
+    @Test
     void diesTooOftenByTheBehemothThenAnotherMap() throws Exception {
         // CARNAGE's DEATH_COUNT
         Sim sim = new Sim(with(config(300), "{\"trainMode\": true, \"deathsPerSpawn\": 2}"), 308, 8_000, 5_700);
