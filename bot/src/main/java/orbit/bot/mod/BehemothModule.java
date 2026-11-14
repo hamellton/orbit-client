@@ -366,6 +366,9 @@ public final class BehemothModule implements BotModule {
         if (followLeader(s, w)) {
             return;
         }
+        if (followTrain(h)) {
+            return; // the runner flies there
+        }
         if (h.mapId() != chosen && holding(h.mapId())) {
             if (fightWhileWaiting(c, s, w)) {
                 return;
@@ -1280,6 +1283,93 @@ public final class BehemothModule implements BotModule {
         return minutes > 0 ? minutes * 60_000 : learned > 0 ? learned : DEFAULT_RESPAWN_MS;
     }
 
+    /** Enemies gone within this of a portal went through it. */
+    static final double EXIT_NEAR = 1_500;
+    /** So many through one portal within {@link #EXIT_WINDOW_NS}: a train left that way. */
+    static final long EXIT_WINDOW_NS = 30_000_000_000L;
+    /** The ship goes after a train this long after it left, not on its heels. */
+    static final long FOLLOW_DELAY_NS = 20_000_000_000L;
+    /** A train's leaving is acted on within this. */
+    static final long FOLLOW_MAX_NS = 180_000_000_000L;
+    private final Map<Integer, int[]> enemiesSeen = new HashMap<>();
+    private final Map<Integer, List<Long>> exits = new HashMap<>();
+    private int trainLeftTo;
+    private long trainLeftAt;
+
+    /**
+     * {@code followTrain} (the user, 2026-11-13: «после поезда туда не полетел, а туда поехал поезд, потому что там
+     * сейчас бегемот появится»): enemies vanishing by a portal, {@link #TRAIN_MIN} within {@link #EXIT_WINDOW_NS} — a
+     * train left for that map; it knows the timers, so the behemoth is due there.
+     */
+    private void watchTrainLeave(WorldSnapshot w, WorldSnapshot.Hero h) {
+        JsonNode s = settings();
+        if (!on(s, "followTrain", false) || !maps(s).contains(h.mapId()) || h.id() == 0) {
+            return;
+        }
+        long now = ctx.now();
+        if (w.death() != null || now - mapEnteredNanos < 5_000_000_000L) {
+            enemiesSeen.clear(); // dead or just come: the map is listed afresh, nobody left
+            return;
+        }
+        java.util.Set<Integer> group = PlayerFight.group(w);
+        List<String> black = names(s, "blacklist");
+        java.util.Set<Integer> present = new java.util.HashSet<>();
+        for (WorldSnapshot.Ship e : w.ships().values()) {
+            if (PlayerFight.enemy(e, h, group, black)) {
+                present.add(e.id());
+                enemiesSeen.put(e.id(), new int[] {e.x(), e.y()});
+            }
+        }
+        for (java.util.Iterator<Map.Entry<Integer, int[]>> it = enemiesSeen.entrySet().iterator(); it.hasNext(); ) {
+            Map.Entry<Integer, int[]> e = it.next();
+            if (present.contains(e.getKey())) {
+                continue;
+            }
+            it.remove();
+            if (w.destroyed().containsKey(e.getKey())) {
+                continue;
+            }
+            int[] at = e.getValue();
+            for (orbit.world.maps.MapCatalog.Portal q : ctx.maps().portals(h.mapId())) {
+                if (Math.hypot(at[0] - q.x(), at[1] - q.y()) <= EXIT_NEAR && maps(s).contains(q.toId())) {
+                    List<Long> list = exits.computeIfAbsent(q.toId(), k -> new java.util.ArrayList<>());
+                    list.removeIf(t -> now - t > EXIT_WINDOW_NS);
+                    list.add(now);
+                    if (list.size() >= TRAIN_MIN && (trainLeftTo != q.toId() || now - trainLeftAt > FOLLOW_MAX_NS)) {
+                        trainLeftTo = q.toId();
+                        trainLeftAt = now;
+                        log.info("Поезд ({} врагов) ушёл с {} на {} — бегемот, похоже, там: лечу следом через {} с",
+                                list.size(), ctx.maps().info(h.mapId()).name(), ctx.maps().info(q.toId()).name(),
+                                FOLLOW_DELAY_NS / 1_000_000_000L);
+                    }
+                    break;
+                }
+            }
+        }
+    }
+
+    /** True when the ship sets off after a train ({@code followTrain}). */
+    private boolean followTrain(WorldSnapshot.Hero h) {
+        if (trainLeftTo == 0 || onBehemoth) {
+            return false;
+        }
+        long since = ctx.now() - trainLeftAt;
+        if (since > FOLLOW_MAX_NS || h.mapId() == trainLeftTo) {
+            trainLeftTo = 0;
+            return false;
+        }
+        if (since < FOLLOW_DELAY_NS) {
+            return false;
+        }
+        chosen = trainLeftTo;
+        trainLeftTo = 0;
+        arrivedAt = 0;
+        waitMap = 0;
+        firstDone = true;
+        status = "Лечу за поездом на " + ctx.maps().info(chosen).name();
+        return true;
+    }
+
     /** So many enemies make a train. */
     static final int TRAIN_MIN = 3;
     /** A train this near the spawn camps it. */
@@ -1321,6 +1411,13 @@ public final class BehemothModule implements BotModule {
         long now = ctx.now();
         int n = enemiesBySpawn(w, h, TRAIN_AT_SPAWN);
         if (n < TRAIN_MIN || findBehemoth(ctx.config().get(), w) != null) {
+            trainSince = 0;
+            return;
+        }
+        WorldSnapshot.Pet pet = w.pet();
+        if (pet.locatorTargetsNanos() > mapEnteredNanos && wasListedMap != h.mapId()) {
+            // the locator's list is here and has not had it: the train waits for it, it has not killed it (live
+            // 2026-11-13 on the VPS, 2-BL: 13 by the spawn 20 s, 178 never listed — a false kill and a wrong timer)
             trainSince = 0;
             return;
         }
@@ -1729,8 +1826,11 @@ public final class BehemothModule implements BotModule {
             waitMap = 0; // another map: a wait here later starts afresh
             mapEnteredNanos = ctx.now();
             trainSince = 0;
+            enemiesSeen.clear();
+            exits.clear();
         }
         watchTrain(w, h, now);
+        watchTrainLeave(w, h);
         for (WorldSnapshot.Ship s : w.ships().values()) {
             if (s.npc() && isBehemoth(s)) {
                 if (!seen.containsKey(s.id())) {

@@ -42,6 +42,7 @@ final class BehemothSection implements Section {
     private final JCheckBox onTime = new JCheckBox("Прилетать ровно к появлению (пока рано — ждать на своей карте)");
     private final JSpinner reward = Form.number(0, 100_000, 500);
     private final JCheckBox useLocator = new JCheckBox("Искать бегемота пеленгатором питомца");
+    private final JCheckBox followTrain = new JCheckBox("Поезд ушёл через портал — лететь за ним на ту карту (через 20 с)");
     private final JCheckBox waitFirst = new JCheckBox("Пока таймеров нет — ждать на первой карте, пока не придёт бегемот (до 17 мин)");
     private final JCheckBox locatorList = new JCheckBox("Нет бегемота в списке целей пеленгатора — сразу на другую карту");
     private final JCheckBox useCloak = new JCheckBox("Маскировка, пока ждём бегемота (CL04K)");
@@ -88,6 +89,8 @@ final class BehemothSection implements Section {
         trainMode.addActionListener(e -> sync());
         useCloak.addActionListener(e -> sync());
         freeSide.addActionListener(e -> sync());
+        followTrain.setToolTipText("Поезда знают таймеры: 3 и больше врагов пропали у одного портала за 30 с — поезд ушёл"
+                + " туда, бегемот, похоже, там; бот летит следом, выждав 20 с, чтобы не прилететь им на хвост");
         waitFirst.setToolTipText("Как scoutMinutes у BLCycle (CARNAGE): пока бот не видел ни одного бегемота, он не облетает"
                 + " карты, а ждёт на первой — до времени появления и 2 минут запаса; дальше — по кругу, по таймерам");
         locatorList.setToolTipText("В пеленгаторе можно выбрать только тех NPC, что есть на карте: бегемота в списке нет —"
@@ -134,6 +137,7 @@ final class BehemothSection implements Section {
                 .row("Появляется снова через, мин", respawn)
                 .row("", onTime)
                 .row("", waitFirst)
+                .row("", followTrain)
                 .row("Засчитывать убийство от, уридия", reward)
                 .row("", useLocator)
                 .row("", locatorList)
@@ -264,6 +268,7 @@ final class BehemothSection implements Section {
         useLocator.setSelected(m.path("useLocator").asBoolean(false));
         locatorList.setSelected(m.path("locatorList").asBoolean(false));
         waitFirst.setSelected(m.path("waitFirst").asBoolean(false));
+        followTrain.setSelected(m.path("followTrain").asBoolean(false));
         Form.set(reward, m.path("rewardUridium").asInt(5_000));
         useCloak.setSelected(m.path("useCloak").asBoolean(false));
         String cf = m.path("cloakFormation").asText("");
@@ -349,6 +354,7 @@ final class BehemothSection implements Section {
         m.put("useLocator", useLocator.isSelected());
         m.put("locatorList", locatorList.isSelected());
         m.put("waitFirst", waitFirst.isSelected());
+        m.put("followTrain", followTrain.isSelected());
         m.put("rewardUridium", Form.intOf(reward));
         m.put("useCloak", useCloak.isSelected());
         m.put("cloakFormation", cloakFormation.get() != null ? cloakFormation.get() : "");

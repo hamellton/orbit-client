@@ -918,4 +918,43 @@ class BehemothModuleTest {
         long due = m.dueAt(308, m.wallMs()) - m.wallMs();
         assertTrue(due > 13 * 60_000 && due < 16 * 60_000, "the next in about 15 min: " + due);
     }
+
+    @Test
+    void aTrainWaitingAtTheSpawnIsNoKillWhileTheLocatorsListHasNotHadIt() throws Exception {
+        // live 2026-11-13 on the VPS, 2-BL: 13 by the spawn 20 s, 178 never in the list — a false kill
+        Sim sim = new Sim(with(config(300), "{\"trainTimer\": true, \"useLocator\": true}"), 308, 5_700, 2_600);
+        BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
+        locatorPet(sim);
+        m.workingMap();
+        sim.run(m::tick, 3_000);
+        targets(sim, 175, 176);
+        for (int i = 0; i < 4; i++) {
+            enemy(sim, 900 + i, "Train" + i, 4_700 + i * 100, 3_900);
+        }
+        sim.run(m::tick, 30_000);
+        assertEquals(0, m.dueAt(308, m.wallMs()), "no kill taken: the train waits for it");
+    }
+
+    @Test
+    void aTrainLeavingThroughAPortalIsFollowedAfterAWhile() throws Exception {
+        // the user, 2026-11-13: «после поезда туда не полетел, а туда поехал поезд, потому что там сейчас бегемот появится»
+        Sim sim = new Sim(with(config(300), "{\"followTrain\": true}"), 308, 5_700, 2_600);
+        BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
+        m.workingMap();
+        var portal = sim.ctx.maps().portals(308).stream().filter(q -> q.toId() == 307).findFirst().orElseThrow();
+        sim.run(m::tick, 6_000);
+        for (int i = 0; i < 4; i++) {
+            enemy(sim, 900 + i, "Train" + i, portal.x() + 100 * i, portal.y());
+        }
+        sim.run(m::tick, 2_000);
+        for (int i = 0; i < 4; i++) {
+            orbit.protocol.gen.ShipRemoveCommand r = new orbit.protocol.gen.ShipRemoveCommand();
+            r.userId = 900 + i;
+            sim.world.apply(r, sim.now);
+            sim.run(m::tick, 1_000);
+        }
+        assertEquals(308, m.workingMap(), "not on their heels");
+        sim.run(m::tick, 25_000);
+        assertEquals(307, m.workingMap(), "after them to 2-BL");
+    }
 }
