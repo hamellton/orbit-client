@@ -223,6 +223,14 @@ class WorldTest {
         assertEquals(420, s.hero().speed());
         assertEquals(5, s.inventory().bootyKeys().get("BKB"));
         assertTrue(s.ships().get(7).cloaked());
+        assertFalse(s.hero().cloaked(), "another ship's cloak is not ours");
+        LegacyModule own = new LegacyModule();
+        own.message = "0|n|INV|" + HERO + "|1"; // live 2026-11-14 on int1, after our cloak CPU
+        w.apply(own, 0);
+        assertTrue(w.snapshot(0).hero().cloaked(), "our own cloak");
+        own.message = "0|n|INV|" + HERO + "|0";
+        w.apply(own, 0);
+        assertFalse(w.snapshot(0).hero().cloaked());
         assertTrue(s.ships().get(7).lockedByOther());
 
         LegacyModule own = new LegacyModule();

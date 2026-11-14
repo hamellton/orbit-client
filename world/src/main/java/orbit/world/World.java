@@ -1062,9 +1062,16 @@ public final class World {
                 switch (a[2]) {
                     case "w" -> hero.enemyWarning = parseInt(a[3], hero.enemyWarning);
                     case "INV" -> {
-                        ShipState s = a.length >= 5 ? ships.get(parseInt(a[3], 0)) : null;
+                        int id = a.length >= 5 ? parseInt(a[3], 0) : 0;
+                        boolean on = a.length >= 5 && parseInt(a[4], 0) != 0;
+                        if (id != 0 && id == hero.id) {
+                            // our own cloak too (live 2026-11-14 on int1: «0|n|INV|<hero>|1» after the CPU — the bot,
+                            // not seeing it, pressed the cloak again every 15 s)
+                            hero.cloaked = on;
+                        }
+                        ShipState s = id != 0 ? ships.get(id) : null;
                         if (s != null) {
-                            s.cloaked = parseInt(a[4], 0) != 0;
+                            s.cloaked = on;
                         }
                     }
                     case "LSH" -> {
