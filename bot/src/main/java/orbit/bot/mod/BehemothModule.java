@@ -123,6 +123,17 @@ public final class BehemothModule implements BotModule {
     /** The pet's combat beacon before the spawn ({@code beaconBeforeSeconds}). */
     private boolean beaconOn;
     private long cloakAskedAt = Long.MIN_VALUE / 2;
+    /** Uses in a row that brought no cloak (the charge spent); and since when cloak use rests after them. */
+    private int cloakMisses;
+    private long cloakRestUntil = Long.MIN_VALUE / 2;
+    private double cloakCounterAtUse = -1;
+    /** A use no sooner than this after the last (each use is a charge). */
+    static final long CLOAK_GAP_NS = 60_000_000_000L;
+    /** The server's invisibility line comes within this after a use that worked. */
+    static final long CLOAK_ANSWER_NS = 5_000_000_000L;
+    /** This many uses in a row without a cloak — cloak use rests for {@link #CLOAK_REST_NS}. */
+    static final int CLOAK_MISSES = 2;
+    static final long CLOAK_REST_NS = 5 * 60_000_000_000L;
     /** The uridium reward of a kill ({@code rewardUridium}): the last balance, the last behemoth seen here. */
     private double lastUri = -1;
     private long behemothSeenAt;
@@ -1034,16 +1045,35 @@ public final class BehemothModule implements BotModule {
             ctx.ship().want(new BotConfig.ShipMode(ctx.config().get().general().roam().config(), formation));
         }
         long now = ctx.now();
-        if (h.cloaked() || now - cloakAskedAt < 15_000_000_000L) {
+        if (h.cloaked()) {
+            cloakMisses = 0;
+            cloakCounterAtUse = -1;
             return;
         }
-        WorldSnapshot w = ctx.world().get();
+        if (cloakCounterAtUse >= 0 && now - cloakAskedAt > CLOAK_ANSWER_NS) {
+            // the last use brought no cloak (live 2026-11-14 on int1: a charge every 15 s, no cloak, after a death)
+            cloakCounterAtUse = -1;
+            if (++cloakMisses >= CLOAK_MISSES) {
+                cloakMisses = 0;
+                cloakRestUntil = now + CLOAK_REST_NS;
+                log.warn("Маскировка {} раза подряд не включилась (заряды уходят) — не включаю {} мин", CLOAK_MISSES,
+                        CLOAK_REST_NS / 60_000_000_000L);
+            }
+        }
+        WorldSnapshot w0 = ctx.world().get();
+        // in a fight or under fire it breaks at once and the charge is gone
+        boolean fighting = attacker.targetId() != 0 || players.targetId() != 0 || !h.attackers().isEmpty();
+        if (fighting || now < cloakRestUntil || now - cloakAskedAt < CLOAK_GAP_NS) {
+            return;
+        }
+        WorldSnapshot w = w0;
         for (String id : orbit.config.ItemCatalog.CLOAKS) {
             WorldSnapshot.Item i = w.items().get(id);
             if (i != null && i.available() && !i.blocked() && i.counter() > 0 && i.remainingMs(now) == 0) {
                 log.info("Маскировка: {} (осталось {})", orbit.config.ItemCatalog.label(id), (long) i.counter() - 1);
                 ctx.actions().useItem(id);
                 cloakAskedAt = now;
+                cloakCounterAtUse = i.counter();
                 return;
             }
         }

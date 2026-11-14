@@ -474,6 +474,19 @@ class BehemothModuleTest {
     }
 
     @Test
+    void aCloakThatNeverComesCostsFewCharges() throws Exception {
+        // live 2026-11-14 on int1: a charge every 15 s and no cloak (5 in 75 s) after a death
+        Sim sim = new Sim(with(config(300), "{\"useCloak\": true}"), 308, 5_700, 2_600);
+        sim.lasers("ammunition_laser_ucb-100", orbit.config.ItemCatalog.CLOAK_BAR);
+        BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
+        m.workingMap();
+        sim.run(m::tick, 10 * 60_000);
+        long uses = sim.sent.stream().filter(p -> p instanceof orbit.protocol.gen.MenuActionRequest a
+                && a.menuItemId.equals(orbit.config.ItemCatalog.CLOAK_BAR)).count();
+        assertTrue(uses >= 2 && uses <= 5, "a minute apart, a rest after two misses: " + uses);
+    }
+
+    @Test
     void thePetsBeaconByTheSpawnJustBeforeTheBehemoth() throws Exception {
         Sim sim = new Sim(with(config(300), "{\"beaconBeforeSeconds\": 10}"), 308, 5_700, 2_600);
         SpawnMemory mem = SpawnMemory.inMemory();
