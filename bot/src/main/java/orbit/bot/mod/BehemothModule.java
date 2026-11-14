@@ -442,6 +442,7 @@ public final class BehemothModule implements BotModule {
         WorldSnapshot.Hero h = w.hero();
         watch(w);
         countDeaths();
+        skipsEnded(h);
         WorldSnapshot.Ship b = findBehemoth(c, w);
         boolean saved = on(s, "powersForBehemoth", false);
         if (saved && b == null) {
@@ -547,6 +548,24 @@ public final class BehemothModule implements BotModule {
      */
     private boolean leftSkipped(int map) {
         return skipped(map) && on(settings(), "leaveSkipped", true);
+    }
+
+    /**
+     * A skip over: the map is in the choice again, so the choice is made again — the one made while it was skipped may
+     * wait for a later behemoth (live 2026-11-14 on the VPS: 2-BL skipped till 13:39, its behemoth due 13:42, the ship
+     * held on 1-BL for the 3-BL one at 13:45).
+     */
+    private void skipsEnded(WorldSnapshot.Hero h) {
+        long wall = wallMs();
+        boolean ended = skipUntil.values().removeIf(until -> until <= wall);
+        if (ended && h.mapId() != 0) {
+            int before = chosen;
+            chosen = choose(h.mapId(), 0);
+            if (chosen != before) {
+                log.info("Пропуск карты кончился — выбираю заново: {} вместо {}", ctx.maps().info(chosen).name(),
+                        before == 0 ? "—" : ctx.maps().info(before).name());
+            }
+        }
     }
 
     /** The map is given up until its behemoth comes again. */
@@ -2236,7 +2255,11 @@ public final class BehemothModule implements BotModule {
                 return false;
             }
             int[] p = e.getValue();
-            boolean dead = w.destroyed().containsKey(e.getKey()) || Math.hypot(p[0] - h.x(), p[1] - h.y()) <= SEEN_DYING;
+            // out of sight is no death while the pet's locator still lists it (live 2026-11-14 on the VPS, 2-BL 13:42: gone
+            // from view 1 300 away, taken for dead, the ship waited for a box and left — it lived 15 s more under a
+            // train; the same on 1-BL and 3-BL): then the list's losing it times the death, the locator's point leads on
+            boolean dead = w.destroyed().containsKey(e.getKey())
+                    || !listedNow(w, h) && Math.hypot(p[0] - h.x(), p[1] - h.y()) <= SEEN_DYING;
             if (dead) {
                 boolean ours = attacker.targetId() == e.getKey() && attacker.shooting();
                 log.info("Бегемот у {}/{} уничтожен{}", p[0] / 100, p[1] / 100, ours ? "" : " (не нами)");
@@ -2257,6 +2280,13 @@ public final class BehemothModule implements BotModule {
             }
             return true;
         });
+    }
+
+    /** The pet's locator lists the behemoth on this map now (a list come since the map was entered). */
+    private boolean listedNow(WorldSnapshot w, WorldSnapshot.Hero h) {
+        WorldSnapshot.Pet pet = w.pet();
+        return pet != null && pet.locatorTargetsNanos() > mapEnteredNanos
+                && pet.locatorTargets().contains(BEHEMOTH_NPC);
     }
 
     static boolean isBehemoth(WorldSnapshot.Ship s) {

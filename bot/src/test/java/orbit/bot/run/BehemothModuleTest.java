@@ -223,6 +223,38 @@ class BehemothModuleTest {
     }
 
     @Test
+    void whenASkipEndsTheMapIsChosenAgain() throws Exception {
+        // live 2026-11-14 on the VPS: 2-BL skipped till 13:39, its behemoth due 13:42, the ship held for 3-BL's at 13:45
+        Sim sim = new Sim(with(config(30), "{\"arriveOnTime\": true, \"trainMode\": true, \"trainEnemyLimit\": 2, "
+                + "\"respawnSeconds\": 915}"), 307, 6_000, 4_000);
+        SpawnMemory mem = SpawnMemory.inMemory();
+        long now = System.currentTimeMillis();
+        mem.killed(306, 19_400, 5_800, now - 14 * 60_000 + 17 * 60_000 - 915_000); // 1-BL due in 17 min
+        mem.killed(308, 4_700, 3_900, now + 16 * 60_000 - 915_000); // 3-BL due in 16 min
+        BehemothModule m = new BehemothModule(sim.ctx, mem);
+        m.workingMap();
+        sim.npc(77, BEHEMOTH, 6_900, 5_000);
+        for (int i = 0; i < 3; i++) {
+            enemy(sim, 900 + i, "Train" + i, 6_800, 4_900 + i * 100);
+        }
+        sim.run(m::tick, 2_000);
+        assertTrue(m.workingMap() != 307, "three by it: 2-BL skipped, " + m.workingMap());
+        orbit.protocol.gen.ShipRemoveCommand gone = new orbit.protocol.gen.ShipRemoveCommand();
+        gone.userId = 77;
+        sim.world.apply(gone, sim.now);
+        for (int i = 0; i < 3; i++) {
+            orbit.protocol.gen.ShipRemoveCommand t = new orbit.protocol.gen.ShipRemoveCommand();
+            t.userId = 900 + i;
+            sim.world.apply(t, sim.now);
+        }
+        arrive(sim, 306, 18_600, 6_500); // on 1-BL, held there for 3-BL's behemoth
+        sim.run(m::tick, 60_000);
+        assertEquals(306, m.workingMap(), "2-BL skipped: held on 1-BL meanwhile");
+        sim.run(m::tick, 11 * 60_000 + 30_000);
+        assertEquals(307, m.workingMap(), "the skip over: 2-BL, due first, chosen again");
+    }
+
+    @Test
     void aTrainComingWhenTheFightIsOnDoesNotSendTheShipAway() throws Exception {
         // live 2026-11-14 on the VPS, 2-BL 01:45: 8 by it at first, then 14 — the ship lived on and was rewarded
         Sim sim = new Sim(with(config(300), "{\"trainMode\": true, \"trainEnemyLimit\": 2}"), 308, 8_000, 5_700);
@@ -891,6 +923,31 @@ class BehemothModuleTest {
         c.locatorType = new orbit.protocol.gen.PetGearTypeModule();
         c.possibleTargetValues = new java.util.ArrayList<>(java.util.List.of(npcs));
         sim.world.apply(c, sim.now);
+    }
+
+    @Test
+    void outOfSightButStillListedIsNoDeath() throws Exception {
+        // live 2026-11-14 on the VPS, 2-BL 13:42: gone from view 1 300 away, taken for dead, the ship waited for a box and
+        // left while it lived 15 s more
+        Sim sim = new Sim(with(config(30), "{\"useLocator\": true, \"trainMode\": true}"), 307, 5_200, 5_000);
+        SpawnMemory mem = SpawnMemory.inMemory();
+        BehemothModule m = new BehemothModule(sim.ctx, mem);
+        locatorPet(sim);
+        m.workingMap();
+        sim.run(m::tick, 3_000);
+        targets(sim, 175, BehemothModule.BEHEMOTH_NPC);
+        sim.npc(77, BEHEMOTH, 6_900, 5_000);
+        sim.run(m::tick, 500);
+        orbit.protocol.gen.ShipRemoveCommand gone = new orbit.protocol.gen.ShipRemoveCommand();
+        gone.userId = 77;
+        sim.world.apply(gone, sim.now); // out of view, no destruction
+        sim.run(m::tick, 2_000);
+        assertTrue(!m.status().contains("ящик"), "listed still: no box wait, " + m.status());
+        assertEquals(307, m.workingMap(), "and the map is kept");
+        assertTrue(mem.spawns(307).stream().noneMatch(k -> k.lastKill() > 0), "no death written");
+        targets(sim, 175);
+        sim.run(m::tick, 1_000);
+        assertTrue(mem.spawns(307).stream().anyMatch(k -> k.lastKill() > 0), "gone from the list: dead");
     }
 
     @Test
