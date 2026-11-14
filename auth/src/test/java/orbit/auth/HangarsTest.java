@@ -42,4 +42,16 @@ class HangarsTest {
                 new Hangars.Fitted("14", 701, 3, java.util.Set.of())), items);
         assertTrue(items.get(1).spare());
     }
+
+    @Test
+    void thePetsLasersArePerConfigAndOnlyTheActiveHangars() throws Exception {
+        // the getHangar shape seen 2026-11-14 on gb2 (ids invented): config.N.pet.EQ.lasers beside ship.EQ
+        String json = "{\"isError\":0,\"data\":{\"ret\":{\"hangars\":["
+                + "{\"hangarID\":700,\"config\":{\"1\":{\"ship\":{\"EQ\":{\"lasers\":[\"5\"]}},"
+                + "\"pet\":{\"EQ\":{\"lasers\":[\"21\",\"22\"],\"gears\":[\"31\"]}}},"
+                + "\"2\":{\"ship\":{\"EQ\":{}},\"pet\":{\"EQ\":{\"lasers\":[],\"gears\":[\"31\"]}}}}},"
+                + "{\"hangarID\":701,\"config\":{\"1\":{\"pet\":{\"EQ\":{\"lasers\":[\"99\"]}}}}}]}}}";
+        var lasers = Hangars.petItems(new ObjectMapper().readTree(json), 700, "lasers");
+        assertEquals(java.util.Map.of(1, java.util.List.of("21", "22")), lasers, "config 2 has none, 701 is not ours");
+    }
 }

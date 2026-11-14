@@ -225,9 +225,52 @@ public final class Hangars {
      * the cloak CPU, out and back: {@code {"isError":0,"data":{"ret":1,…}}}.
      */
     public void move(int hangarId, String itemId, int config, boolean toShip, String slotset) throws IOException {
-        String ship = "{\"configId\":" + config + ",\"target\":\"ship\",\"slotset\":\"" + slotset + "\"";
+        move(hangarId, List.of(itemId), config, toShip, "ship", slotset);
+    }
+
+    /**
+     * The ids the active ship's pet fits in {@code slotset} ({@code lasers}, {@code generators}, {@code gears},
+     * {@code protocols}) per config: {@code data.ret.hangars{…}.config{"1","2"}.pet.EQ.<slotset>} of {@code getHangar}
+     * (2026-11-14 on gb2: seven lasers in each config).
+     */
+    public Map<Integer, List<String>> petItems(int hangarId, String slotset) throws IOException {
+        return petItems(call("getHangar", "{\"params\":{\"hi\":" + hangarId + "}}"), hangarId, slotset);
+    }
+
+    static Map<Integer, List<String>> petItems(JsonNode root, int hangarId, String slotset) {
+        Map<Integer, List<String>> out = new java.util.TreeMap<>();
+        JsonNode hangars = root.path("data").path("ret").path("hangars");
+        List<JsonNode> each = new ArrayList<>();
+        if (hangars.isArray()) {
+            hangars.forEach(each::add);
+        } else {
+            hangars.elements().forEachRemaining(each::add);
+        }
+        for (JsonNode h : each) {
+            if (h.path("hangarID").asInt() != hangarId) {
+                continue;
+            }
+            h.path("config").fields().forEachRemaining(c -> {
+                List<String> ids = new ArrayList<>();
+                c.getValue().path("pet").path("EQ").path(slotset).forEach(id -> ids.add(id.asText()));
+                if (!ids.isEmpty()) {
+                    out.put(parseInt(c.getKey()), List.copyOf(ids));
+                }
+            });
+        }
+        return out;
+    }
+
+    /**
+     * Moves items between the inventory and a config's {@code target} ({@code ship} or {@code pet}) {@code slotset}; the
+     * page's drag of several selected items sends them in one call ({@code ConnectionProxy}: {@code from.items} an array;
+     * the pet's slots are {@code target "pet"}, {@code ActionIdentifiers.PET}).
+     */
+    public void move(int hangarId, List<String> itemIds, int config, boolean toShip, String target, String slotset)
+            throws IOException {
+        String ship = "{\"configId\":" + config + ",\"target\":\"" + target + "\",\"slotset\":\"" + slotset + "\"";
         String inv = "{\"configId\":" + config + ",\"target\":\"inventory\"";
-        String items = ",\"items\":[\"" + itemId + "\"]}";
+        String items = ",\"items\":[" + String.join(",", itemIds.stream().map(i -> "\"" + i + "\"").toList()) + "]}";
         String from = toShip ? inv + items : ship + items;
         String to = toShip ? ship + "}" : inv + ",\"index\":0}";
         JsonNode root = call("move", "{\"action\":\"move\",\"params\":{\"hi\":" + hangarId + "},\"from\":" + from

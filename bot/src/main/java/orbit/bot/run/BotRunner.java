@@ -559,10 +559,10 @@ public final class BotRunner {
             show("Трюм полон — продаю руду");
             return;
         }
-        if (cloak.tick(module.busy(), module.freeFor(CloakCare.WINDOW_MS), module.cloakPlan())) {
+        if (cloak.tick(module.busy(), module.freeFor(CloakCare.WINDOW_MS), module.cloakPlan(), module.petLasersOff())) {
             module.pause();
             state = State.TRAVELLING;
-            show("Маскировка кончилась — ставлю новый процессор");
+            show(cloak.status());
             return;
         }
         int map = module.workingMap();

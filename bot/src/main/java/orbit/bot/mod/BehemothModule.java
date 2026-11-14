@@ -408,6 +408,15 @@ public final class BehemothModule implements BotModule {
         return new orbit.bot.run.CloakPlan(on(s, "cloakCraft", true), (int) number(s, "cloakCraftAmount", 1));
     }
 
+    /**
+     * {@code petLasersOff} (the user, 2026-11-15: «на бегемоті пет має лазери на слотах, якщо є, зніми — можуть в мінус
+     * честь загнати»): on by default.
+     */
+    @Override
+    public boolean petLasersOff() {
+        return on(settings(), "petLasersOff", true);
+    }
+
     @Override
     public void resumed() {
         // the box being taken is chosen again (its fly-to was given by the click's route), the navigator asked anew

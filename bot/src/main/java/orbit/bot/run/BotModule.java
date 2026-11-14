@@ -117,6 +117,11 @@ public interface BotModule {
         return null;
     }
 
+    /** The pet without lasers: taken off on the site at the base in a free window ({@link CloakCare}). */
+    default boolean petLasersOff() {
+        return false;
+    }
+
     /** True when it is a bad moment to leave (e.g. a boss almost dead). */
     default boolean busy() {
         return false;

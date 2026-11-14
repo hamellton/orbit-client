@@ -485,6 +485,16 @@ public final class OrbitMain {
             public void move(String id, int config, boolean toShip) throws java.io.IOException {
                 site().move(active(), id, config, toShip, "extras");
             }
+
+            @Override
+            public java.util.Map<Integer, java.util.List<String>> petLasers() throws java.io.IOException {
+                return site().petItems(active(), "lasers");
+            }
+
+            @Override
+            public void petLasersOff(int config, java.util.List<String> ids) throws java.io.IOException {
+                site().move(active(), ids, config, false, "pet", "lasers");
+            }
         };
     }
 

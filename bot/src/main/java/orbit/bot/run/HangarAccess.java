@@ -23,4 +23,14 @@ public interface HangarAccess {
 
     /** Fits {@code id} into the active ship's config ({@code extras}), or takes it out to the inventory. */
     void move(String id, int config, boolean toShip) throws IOException;
+
+    /** The lasers the active ship's pet fits, per config (configs without any left out). */
+    default java.util.Map<Integer, List<String>> petLasers() throws IOException {
+        return java.util.Map.of();
+    }
+
+    /** Takes {@code ids} out of the pet's lasers in {@code config} to the inventory, in one move. */
+    default void petLasersOff(int config, List<String> ids) throws IOException {
+        throw new IOException("снимать лазеры питомца здесь нельзя");
+    }
 }

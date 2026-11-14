@@ -66,3 +66,7 @@ Flash `swf_global/inventory/inventory.swf` (декомпилирован FFDec):
   "to":{"configId":C,"target":"ship","slotset":"extras"}}`; снять — `from` корабль со `slotset`, `to`
   `{"configId":C,"target":"inventory","index":0}`. Ответ `{"isError":0,"data":{"ret":1,"money":{…}}}`.
   Проверено: CL04K-XL снят из конфига 1 и поставлен обратно (аккаунт был не в игре).
+- Питомец: в `getHangar` рядом с `ship` — `config{"1","2"}.pet.EQ.{lasers,generators,gears,protocols}` (gb2: по 7 лазеров
+  в конфиге), `general.pet.lockedSlots`. Перенос — тот же `move` с `"target":"pet"` и `slotset` (`ActionIdentifiers.PET`);
+  `from.items` — массив: страница переносит несколько выбранных предметов одним вызовом. Снятие лазеров питомца у нас —
+  `Hangars.move(h, ids, c, false, "pet", "lasers")`, вживую ещё не проверено.

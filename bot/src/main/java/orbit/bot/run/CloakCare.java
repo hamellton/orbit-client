@@ -26,6 +26,12 @@ import org.slf4j.LoggerFactory;
  *       ({@code refresh}), as the game reads the equipment at a login.</li>
  * </ol>
  * Then the module takes the ship back. A failed trip is not tried again for {@link #RETRY_MS}.
+ *
+ * <p>The same trip takes the pet's lasers off when the module asks for it ({@link BotModule#petLasersOff}; the user,
+ * 2026-11-15: «на бегемоті пет має лазери на слотах, якщо є, зніми — можуть в мінус честь загнати»): once a session the
+ * site's hangar view is read ({@link HangarAccess#petLasers}, from anywhere); lasers in a config — in a free window to
+ * the base, out of each config in one move ({@link HangarAccess#petLasersOff}), checked on the site, then a new login so
+ * the game reads the pet's equipment again.
  */
 final class CloakCare {
 
@@ -61,8 +67,10 @@ final class CloakCare {
     static volatile long SITE_GAP_MAX_MS = 6_000;
     /** A refused move is tried again after these waits. */
     static final long[] RETRY_WAITS_MS = {20_000, 40_000};
+    /** After a new login this long, the game is taken as back with the new equipment. */
+    static final long RELOGIN_MS = 15_000;
 
-    private enum Step { TO_BASE, TO_STATION, ASK, CRAFT, FIT, GAME }
+    private enum Step { TO_BASE, TO_STATION, PET, ASK, CRAFT, FIT, GAME }
 
     private final BotContext ctx;
     private volatile HangarAccess hangar;
@@ -93,6 +101,17 @@ final class CloakCare {
     private String told = "";
     /** The plan the trip started with (the config may change under way). */
     private CloakPlan currentPlan;
+    /** What this trip is for: a new cloaking CPU, the pet's lasers off. */
+    private boolean cloakTrip;
+    private boolean petTrip;
+    /** The site changed the pet's equipment: the game reads it at a login. */
+    private boolean needRelogin;
+    /** The pet's lasers per config by the site, {@code null} until read; the worker sets it. */
+    private volatile java.util.Map<Integer, List<String>> petLasers;
+    private volatile String petError;
+    private long petAskedAt = Long.MIN_VALUE / 2;
+    private boolean petAsked;
+    private volatile int petRemoved;
 
     CloakCare(BotContext ctx) {
         this.ctx = ctx;
@@ -110,6 +129,15 @@ final class CloakCare {
     /** Busy with a trip (the runner shows it). */
     boolean active() {
         return step != null;
+    }
+
+    /** What the trip is doing, for the runner's status line. */
+    String status() {
+        if (petTrip && !cloakTrip) {
+            return "Снимаю лазеры питомца на базе";
+        }
+        return petTrip ? "Маскировка кончилась — ставлю процессор, снимаю лазеры питомца"
+                : "Маскировка кончилась — ставлю новый процессор";
     }
 
     /** No charges left in any cloaking CPU, by the item bar; false while the item bar is not there. */
@@ -132,28 +160,53 @@ final class CloakCare {
      * @param free the module has a free window of {@link #WINDOW_MS}
      */
     boolean tick(boolean busy, boolean free, CloakPlan plan) {
+        return tick(busy, free, plan, false);
+    }
+
+    /**
+     * One step; true while it flies the ship or waits in the base.
+     *
+     * @param free   the module has a free window of {@link #WINDOW_MS}
+     * @param petOff the module wants the pet without lasers (only with the pet in use)
+     */
+    boolean tick(boolean busy, boolean free, CloakPlan plan, boolean petOff) {
         WorldSnapshot w = ctx.world().get();
         long now = ctx.now();
+        petOff = petOff && ctx.config().get().pet().enabled();
         if (step == null) {
-            if (plan == null || hangar == null || busy || !free || w.hero().id() == 0 || w.death() != null
+            if (petOff) {
+                checkPet(now);
+            }
+            boolean cloakNeed = plan != null && empty(w);
+            java.util.Map<Integer, List<String>> pl = petLasers;
+            boolean petNeed = petOff && pl != null && !pl.isEmpty();
+            if (!cloakNeed && !petNeed || hangar == null || busy || !free || w.hero().id() == 0 || w.death() != null
                     || w.jumpingTo() != 0 // mid-jump the map is about to change (live 2026-11-14: decided on 2-8 as it left)
-                    || ms(now - startedAt) < SETTLE_MS || ms(now - failedAt) < RETRY_MS || !empty(w)) {
+                    || ms(now - startedAt) < SETTLE_MS || ms(now - failedAt) < RETRY_MS) {
                 if (plan != null && hangar == null && empty(w)) {
                     tell("Маскировка кончилась, а сайт аккаунта недоступен — новый процессор не поставить");
                 }
                 return false;
             }
+            cloakTrip = cloakNeed;
+            petTrip = petNeed;
             baseMap = homeBase(w.hero());
             if (baseMap == 0) {
                 return fail("нет пути на свою x-8");
             }
-            log.info("Маскировка кончилась — лечу на {} за новым процессором (окно до бегемота есть)",
-                    ctx.maps().info(baseMap).name());
+            if (petNeed) {
+                log.info("У питомца стоят лазеры ({}) — лечу на {} снять их{}", count(pl), ctx.maps().info(baseMap).name(),
+                        cloakNeed ? " и поставить новый процессор маскировки" : "");
+            } else {
+                log.info("Маскировка кончилась — лечу на {} за новым процессором (окно до бегемота есть)",
+                        ctx.maps().info(baseMap).name());
+            }
             step = Step.TO_BASE;
             tripAt = now;
             since = now;
             crafted = false;
             refreshed = false;
+            needRelogin = false;
             currentPlan = plan;
             ctx.traveler().travel(baseMap, Double.NaN, Double.NaN);
         }
@@ -163,6 +216,7 @@ final class CloakCare {
         return switch (step) {
             case TO_BASE -> toBase(w, now);
             case TO_STATION -> toStation(w, now);
+            case PET -> pet(w, now);
             case ASK -> ask(now);
             case CRAFT -> craft(w, now);
             case FIT -> fit(now);
@@ -226,8 +280,93 @@ final class CloakCare {
         } else {
             log.info("У штаба {} с, а игра не говорит «в станции» — пробую всё равно", STATION_MS / 1000);
         }
+        if (petTrip) {
+            log.info("На базе — снимаю на сайте лазеры питомца");
+            petOffSite(now);
+            return true;
+        }
         log.info("На базе — смотрю на сайте запасные процессоры маскировки");
         askSite(now);
+        return true;
+    }
+
+    /** The pet's lasers read once a session (and again after a failed read, later), on the worker. */
+    private void checkPet(long now) {
+        HangarAccess site = hangar;
+        if (site == null || petLasers != null || ms(now - startedAt) < SETTLE_MS) {
+            return;
+        }
+        if (petAsked && ms(now - petAskedAt) < RETRY_MS) {
+            return;
+        }
+        if (petAsked && petError != null) {
+            log.warn("Лазеры питомца на сайте не прочитать: {} — посмотрю через {} мин", petError, RETRY_MS / 60_000);
+            petError = null;
+        }
+        petAsked = true;
+        petAskedAt = now;
+        worker.execute(() -> {
+            if (logContext != null) {
+                org.slf4j.MDC.setContextMap(logContext);
+            }
+            try {
+                java.util.Map<Integer, List<String>> pl = site.petLasers();
+                if (pl.isEmpty()) {
+                    log.info("У питомца лазеров нет — снимать нечего");
+                } else {
+                    log.info("У питомца стоят лазеры: {} — сниму на базе в свободное окно", configsText(pl));
+                }
+                petLasers = pl;
+            } catch (Exception e) {
+                petError = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
+            }
+        });
+    }
+
+    private void petOffSite(long now) {
+        HangarAccess site = hangar;
+        error = null;
+        petRemoved = 0;
+        go(Step.PET, now);
+        run(() -> {
+            gap();
+            java.util.Map<Integer, List<String>> pl = new java.util.TreeMap<>(site.petLasers());
+            for (var e : pl.entrySet()) {
+                retried(() -> site.petLasersOff(e.getKey(), e.getValue()));
+                petRemoved += e.getValue().size();
+            }
+            if (!pl.isEmpty()) {
+                gap();
+                java.util.Map<Integer, List<String>> after = site.petLasers();
+                if (!after.isEmpty()) {
+                    throw new java.io.IOException("после снятия у питомца ещё стоят лазеры: " + configsText(after));
+                }
+            }
+            petLasers = java.util.Map.of();
+        });
+    }
+
+    private boolean pet(WorldSnapshot w, long now) {
+        if (working) {
+            return true;
+        }
+        if (error != null) {
+            return fail("лазеры питомца: " + error);
+        }
+        if (petRemoved > 0) {
+            log.info("Лазеры питомца сняты на сайте ({} шт.)", petRemoved);
+            needRelogin = true;
+        } else {
+            log.info("У питомца лазеров уже нет");
+        }
+        petTrip = false;
+        if (cloakTrip && empty(w)) {
+            log.info("Смотрю на сайте запасные процессоры маскировки");
+            askSite(now);
+        } else {
+            cloakTrip = false;
+            go(Step.GAME, now);
+        }
         return true;
     }
 
@@ -236,7 +375,10 @@ final class CloakCare {
         error = null;
         HangarAccess site = hangar;
         go(Step.ASK, now);
-        run(() -> answer = site.cpus(CLOAK));
+        run(() -> {
+            gap();
+            answer = site.cpus(CLOAK);
+        });
     }
 
     private boolean ask(long now) {
@@ -359,10 +501,15 @@ final class CloakCare {
 
     /** One move after the site's gap; refused as too soon — once more after another gap. */
     private void move(HangarAccess site, String id, int config, boolean toShip) throws Exception {
+        retried(() -> site.move(id, config, toShip));
+    }
+
+    /** A site call after the site's gap; refused — again after {@link #RETRY_WAITS_MS}. */
+    private void retried(Job call) throws Exception {
         gap();
         for (int attempt = 0; ; attempt++) {
             try {
-                site.move(id, config, toShip);
+                call.run();
                 return;
             } catch (java.io.IOException e) {
                 if (attempt >= RETRY_WAITS_MS.length) {
@@ -397,23 +544,31 @@ final class CloakCare {
     }
 
     private boolean game(WorldSnapshot w, long now) {
-        if (!empty(w)) {
-            log.info("Маскировка снова есть — возвращаюсь к работе");
-            return done();
-        }
-        if (!refreshed && ms(now - since) > GAME_MS) {
-            Runnable r = refresh;
-            if (r == null) {
-                return fail("игра не видит новый процессор, а перевойти нельзя");
+        boolean cloakOk = !cloakTrip || !empty(w);
+        if (!refreshed) {
+            if (cloakOk && !needRelogin) {
+                log.info(cloakTrip ? "Маскировка снова есть — возвращаюсь к работе" : "Возвращаюсь к работе");
+                return done();
             }
-            refreshed = true;
-            since = now;
-            log.info("Игра не видит новый процессор — перевхожу, чтобы она перечитала оснащение");
-            Thread.ofVirtual().name("refresh").start(r);
+            if (needRelogin || ms(now - since) > GAME_MS) {
+                Runnable r = refresh;
+                if (r == null) {
+                    return needRelogin && cloakOk ? done() : fail("игра не видит новый процессор, а перевойти нельзя");
+                }
+                refreshed = true;
+                since = now;
+                log.info(needRelogin ? "Перевхожу, чтобы игра перечитала оснащение питомца"
+                        : "Игра не видит новый процессор — перевхожу, чтобы она перечитала оснащение");
+                Thread.ofVirtual().name("refresh").start(r);
+            }
             return true;
         }
-        if (refreshed && ms(now - since) > AFTER_REFRESH_MS) {
-            return fail("и после перевхода игра не видит новый процессор");
+        if (cloakOk && w.hero().id() != 0 && ms(now - since) > RELOGIN_MS) {
+            log.info(cloakTrip ? "Маскировка снова есть — возвращаюсь к работе" : "Перевошёл — возвращаюсь к работе");
+            return done();
+        }
+        if (ms(now - since) > AFTER_REFRESH_MS) {
+            return cloakTrip ? fail("и после перевхода игра не видит новый процессор") : done();
         }
         return true;
     }
@@ -446,15 +601,36 @@ final class CloakCare {
     private boolean done() {
         step = null;
         told = "";
+        cloakTrip = false;
+        petTrip = false;
+        needRelogin = false;
         return false;
     }
 
     private boolean fail(String why) {
-        log.warn("Новый процессор маскировки не поставлен: {} — попробую через {} мин", why, RETRY_MS / 60_000);
+        String what = petTrip && cloakTrip ? "Процессор маскировки не поставлен, лазеры питомца не сняты"
+                : petTrip ? "Лазеры питомца не сняты" : "Новый процессор маскировки не поставлен";
+        log.warn("{}: {} — попробую через {} мин", what, why, RETRY_MS / 60_000);
         failedAt = ctx.now();
         step = null;
+        cloakTrip = false;
+        petTrip = false;
+        if (needRelogin && refresh != null && !refreshed) {
+            Thread.ofVirtual().name("refresh").start(refresh); // the pet's lasers are off: the game reads it at a login
+        }
+        needRelogin = false;
         ctx.nav().stop();
         return false;
+    }
+
+    private static int count(java.util.Map<Integer, List<String>> pl) {
+        return pl.values().stream().mapToInt(List::size).sum();
+    }
+
+    /** «конфиг 1: 7 шт., конфиг 2: 7 шт.» */
+    private static String configsText(java.util.Map<Integer, List<String>> pl) {
+        return String.join(", ", pl.entrySet().stream().map(e -> "конфиг " + e.getKey() + ": " + e.getValue().size() + " шт.")
+                .toList());
     }
 
     /** The company's x-8 (the cloak's base, as BLCycle's 2-8), when a way there is known. */

@@ -28,6 +28,18 @@ class CloakCareTest {
     static final class Site implements HangarAccess {
         final List<Cpu> cpus = new ArrayList<>();
         final List<String> moves = new ArrayList<>();
+        final java.util.Map<Integer, List<String>> petLasers = new java.util.TreeMap<>();
+
+        @Override
+        public synchronized java.util.Map<Integer, List<String>> petLasers() {
+            return java.util.Map.copyOf(petLasers);
+        }
+
+        @Override
+        public synchronized void petLasersOff(int config, List<String> ids) {
+            moves.add("pet off " + ids + "@" + config);
+            petLasers.remove(config);
+        }
 
         @Override
         public synchronized List<Cpu> cpus(String loot) {
@@ -180,6 +192,55 @@ class CloakCareTest {
         assertFalse(run(sim, care, true, CRAFT, 5_000));
         assertFalse(care.active());
     }
+    /** Ticks with the module wanting the pet's lasers off. */
+    static void runPet(Sim sim, CloakCare care, CloakPlan plan, long ms) throws InterruptedException {
+        for (long t = 0; t < ms; t += 100) {
+            care.tick(false, true, plan, true);
+            sim.now += 100 * Sim.MS;
+            Thread.sleep(1);
+        }
+    }
+
+    static Sim withPet(Sim sim) {
+        sim.config = sim.config.withPet(new BotConfig.Pet(true, null));
+        return sim;
+    }
+
+    @Test
+    void thePetsLasersComeOffAtTheBaseAndTheGameReadsItAtANewLogin() throws Exception {
+        // the user, 2026-11-15: «на бегемоті пет має лазери на слотах, якщо є, зніми — можуть в мінус честь загнати»
+        Sim sim = withPet(atHome(12));
+        Site site = new Site();
+        site.petLasers.put(1, List.of("21", "22"));
+        site.petLasers.put(2, List.of("23"));
+        CloakCare care = new CloakCare(sim.ctx);
+        care.setHangar(site);
+        int[] relogins = {0};
+        care.setRefresh(() -> relogins[0]++);
+        sim.now += (CloakCare.SETTLE_MS + 1_000) * Sim.MS;
+        runPet(sim, care, null, 75_000);
+        assertEquals(List.of("pet off [21, 22]@1", "pet off [23]@2"), site.moves, "both configs, one move each");
+        assertEquals(1, relogins[0], "a new login for the game to read it");
+        runPet(sim, care, null, 20_000);
+        assertFalse(care.active(), "back to work");
+        site.moves.clear();
+        runPet(sim, care, null, (CloakCare.RETRY_MS + 60_000));
+        assertTrue(site.moves.isEmpty(), "once is enough");
+        assertEquals(1, relogins[0]);
+    }
+
+    @Test
+    void noPetLasersNoTrip() throws Exception {
+        Sim sim = withPet(atHome(12));
+        Site site = new Site();
+        CloakCare care = new CloakCare(sim.ctx);
+        care.setHangar(site);
+        sim.now += (CloakCare.SETTLE_MS + 1_000) * Sim.MS;
+        runPet(sim, care, null, 10_000);
+        assertFalse(care.active());
+        assertTrue(site.moves.isEmpty());
+    }
+
     @Test
     void aBuildingByThePortalIsNotTheStationTheShipFliesToTheHq() throws Exception {
         // live 2026-11-14 on 2-8: «at the base» by the portal, 9 000 off the HQ — the site refused the fitting
