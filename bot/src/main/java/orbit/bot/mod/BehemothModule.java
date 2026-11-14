@@ -899,6 +899,9 @@ public final class BehemothModule implements BotModule {
     private long listedNanos;
     private int wasListedMap;
     private long wasListedNs;
+    private long wasListedSeenNs;
+    /** A behemoth found gone from the list later was dead at most this long after it was last seen listed. */
+    static final long LIST_DEATH_SLACK_MS = 10_000;
     private int listedMap;
     private long listedAtNs = Long.MIN_VALUE / 2;
     private boolean behemothListed;
@@ -919,14 +922,20 @@ public final class BehemothModule implements BotModule {
         if (!there && wasListedMap == h.mapId() && pet.locatorTargetsNanos() > wasListedNs) {
             // gone from the list on the same map: dead (BLCycle times the respawn from the locator losing it)
             int[] sp = spawnPoint(h.mapId());
-            memory.killed(h.mapId(), sp[0], sp[1], wallMs());
-            log.info("Пеленгатор: бегемот пропал из списка на {} — убит, следующий через {}", ctx.maps().info(h.mapId()).name(),
-                    clock(respawn(h.mapId())));
+            // away or dead meanwhile (live 2026-11-14: gone 00:19:18, noticed 00:21:30 on coming back) — dead within a
+            // few seconds of the last time it was listed, not when noticed
+            long lastAlive = wallBase + (wasListedSeenNs - nanoBase) / 1_000_000;
+            long killed = Math.min(wallMs(), lastAlive + LIST_DEATH_SLACK_MS);
+            memory.killed(h.mapId(), sp[0], sp[1], killed);
+            log.info("Пеленгатор: бегемот пропал из списка на {} — убит{}, следующий через {}",
+                    ctx.maps().info(h.mapId()).name(), killed < wallMs() - 1_000 ? " (" + clock(wallMs() - killed) + " назад)" : "",
+                    clock(killed + respawn(h.mapId()) - wallMs()));
             wasListedMap = 0;
         }
         if (there) {
             wasListedMap = h.mapId();
             wasListedNs = pet.locatorTargetsNanos();
+            wasListedSeenNs = now;
         }
         if (there && pet.locatorTargetsNanos() != listedNanos) {
             // its coming into the list is its coming to the map (live 2026-11-13 on the VPS, 3-BL: 178 listed 8 s after

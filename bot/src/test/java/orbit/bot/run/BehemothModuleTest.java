@@ -920,6 +920,23 @@ class BehemothModuleTest {
     }
 
     @Test
+    void aBehemothFoundGoneLaterDiedSoonAfterItWasLastListed() throws Exception {
+        // live 2026-11-14: gone 00:19:18, noticed 00:21:30 — the timer was two minutes late
+        Sim sim = new Sim(with(config(300), "{\"useLocator\": true}"), 308, 5_700, 2_600);
+        BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
+        locatorPet(sim);
+        m.workingMap();
+        sim.run(m::tick, 7_000);
+        targets(sim, 178, 175);
+        sim.run(m::tick, 2_000);
+        sim.run(() -> { }, 120_000); // no ticks meanwhile: dead or away
+        targets(sim, 175);
+        sim.run(m::tick, 1_000);
+        long due = m.dueAt(308, m.wallMs()) - m.wallMs();
+        assertTrue(due < 13 * 60_000 + 15_000, "dead about two minutes ago: " + due);
+    }
+
+    @Test
     void aTrainWaitingAtTheSpawnIsNoKillWhileTheLocatorsListHasNotHadIt() throws Exception {
         // live 2026-11-13 on the VPS, 2-BL: 13 by the spawn 20 s, 178 never in the list — a false kill
         Sim sim = new Sim(with(config(300), "{\"trainTimer\": true, \"useLocator\": true}"), 308, 5_700, 2_600);
