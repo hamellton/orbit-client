@@ -25,8 +25,12 @@ final class GateSection implements Section {
                 .note("Настройки модуля врат (JSON), подробно — docs/GALAXY-GATES.md:")
                 .note("gates — порядок: [\"alpha\", \"beta\", \"gamma\", \"zeta\", \"kappa\", \"trinity\"] или"
                         + " {\"gate\": \"alpha\", \"on\": true, \"minLives\": 2}; place — ставить собранные (да);")
-                .note("build — спинить (нет), spinAmount 1/5/10/100, multiplier, energyOnly — только бесплатная энергия (да),"
-                        + " keepUridium — не тратить ниже (1 000 000);")
+                .note("build — спинить (нет); extraEnergyOnly — только бесплатная энергия (да); иначе за уридий, если цена"
+                        + " спина ≤ maxSpinCost (100) и уридия ≥ minUridium (1 000 000);")
+                .note("spinAmount 1/5/10/100 (как AstraBot) или spins100/spins10/spins5 — доля собранных частей, ниже"
+                        + " которой спинить по 100/10/5 (как DarkBot); spinDelay мс (500); useMultiAt — множитель с xN (0 — нет);")
+                .note("buyLives — докупать жизни (нет), keepLives — держать не меньше (3), lifeMinUridium — не тратить ниже (0),"
+                        + " maxLivesToBuy — на врата (0 — без лимита);")
                 .note("boxRadius — ящики во вратах (1 500); trinityAttribute 1 Hellfire / 2 Genome, trinityDifficulty 1–5.")
                 .wide(minHeight(new JScrollPane(text), 140), true)
                 .build(true);

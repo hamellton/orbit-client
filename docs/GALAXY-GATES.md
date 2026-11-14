@@ -122,8 +122,15 @@ CARNAGE `ABG.json`: α приоритет 3, β 2, γ −1; ремонт 0,3–0
 
 Настройки (`modules.gate`):
 - `gates` — список по порядку: `{gate: "alpha"|"beta"|"gamma"|"zeta"|"kappa"|"trinity"…, on, minLives}`;
-- постройка: `build` (спинить), `spinAmount`, `useMultiplier`, `energyOnly` (только бесплатная энергия), `keepUridium`,
-  `place` (ставить, когда части собраны), `buyLives` + `maxLivesToBuy`;
+- постройка (DarkBot SharedPlugin `GateBuilder` + AstraBot): `build`; `extraEnergyOnly` (да) — только бесплатная энергия;
+  иначе за уридий, если цена спина (`energy_cost`) ≤ `maxSpinCost` (100) и уридия ≥ `minUridium` (1 000 000; DarkBot
+  `minUriBalance`, AstraBot `keepMinUriSpin`); сколько за раз — `spinAmount` 1/5/10/100 (AstraBot) или по прогрессу
+  `spins100`/`spins10`/`spins5` — доля собранных частей (для ABG — меньшая из трёх), ниже которой по 100/10/5 спинов с
+  паузой 500/250/200 мс (DarkBot); `spinDelay` (500 мс); множитель — `useMultiAt` N: включать, когда у врат xN и больше
+  (в окне множитель = серверный + 1; AstraBot `spinMultiplier`); `place` — ставить собранные;
+- жизни (пользователь 2026-11-14: «осталось 2 — докупаем за уридий ещё одну, и так дальше»): `buyLives`, `keepLives` (3) —
+  пока у поставленных врат жизней меньше, покупать по одной, если после покупки уридия ≥ `lifeMinUridium` (0);
+  `maxLivesToBuy` на врата (0 — без лимита); и вне врат, и внутри (после потерянной жизни);
 - бой: NPC из таблицы конфига, а кого там нет — из справочника (радиус, бить); `boxRadius`; `toCenter` (ждать в центре);
   `endGateConfig`/`endGateFormation` на последних волнах;
 - Trinity: `trinityAttribute` (Hellfire/Genome), `trinityDifficulty` 1–5.

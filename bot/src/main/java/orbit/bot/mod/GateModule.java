@@ -255,6 +255,10 @@ public final class GateModule implements BotModule {
                 continue;
             }
             if (st.lives() > 0) {
+                if (buyLives(s, g, gates, now)) {
+                    show("Врата " + g.name() + ": покупаю жизнь");
+                    return;
+                }
                 if (st.lives() < e.minLives()) {
                     tell("Врата " + g.name() + ": жизней " + st.lives() + ", нужно не меньше " + e.minLives() + " — пропускаю");
                     continue;
@@ -319,16 +323,69 @@ public final class GateModule implements BotModule {
         show("Врата " + g.name() + ": ставлю");
     }
 
-    /** One spin of the builder for {@code g} when it may (energy, else uridium above {@code keepUridium}). */
+    /**
+     * May the builder spin now — DarkBot's {@code canBuildGG} (SharedPlugin): free energy, or (not {@code extraEnergyOnly})
+     * a spin's uridium price ({@code energy_cost}) within {@code maxSpinCost} and the uridium at least {@code minUridium}
+     * (DarkBot {@code minUriBalance}, AstraBot {@code keepMinUriSpin}).
+     */
+    public static boolean canSpin(JsonNode s, WorldSnapshot.Gates gates, int amount) {
+        if (gates.samples() >= amount) {
+            return true;
+        }
+        if (on(s, "extraEnergyOnly", on(s, "energyOnly", true))) {
+            return false;
+        }
+        if (gates.energyCost() > num(s, "maxSpinCost", 100)) {
+            return false;
+        }
+        double min = num(s, "minUridium", num(s, "keepUridium", 1_000_000));
+        return gates.money() - (double) gates.energyCost() * amount >= min;
+    }
+
+    /**
+     * Spins at a time: DarkBot's by the gate's progress (parts / all — for ABG the least of α, β, γ): below {@code spins100}
+     * 100 spins, below {@code spins10} 10, below {@code spins5} 5; none of them set — AstraBot's fixed {@code spinAmount}
+     * (1, 5, 10, 100). The wait after a spin is the option's (DarkBot: 500 / 250 / 200 ms), else {@code spinDelay}
+     * (AstraBot, 500 ms).
+     */
+    public static int[] spinOption(JsonNode s, double progress) {
+        double s100 = num(s, "spins100", 0);
+        double s10 = num(s, "spins10", 0);
+        double s5 = num(s, "spins5", 0);
+        int delay = (int) num(s, "spinDelay", 500);
+        if (s100 > 0 && progress < s100) {
+            return new int[] {100, Math.max(delay, 500)};
+        }
+        if (s10 > 0 && progress < s10) {
+            return new int[] {10, Math.max(delay, 250)};
+        }
+        if (s5 > 0 && progress < s5) {
+            return new int[] {5, Math.max(delay, 200)};
+        }
+        int amount = (int) num(s, "spinAmount", 1);
+        amount = amount >= 100 ? 100 : amount >= 10 ? 10 : amount >= 5 ? 5 : 1;
+        return new int[] {amount, delay};
+    }
+
+    /**
+     * The multiplier on: DarkBot's {@code useMultiAt} (the gate's multiplier as the window shows it — the server's 1–5
+     * plus one — at least this; 0 never), AstraBot's {@code spinMultiplier} the same.
+     */
+    public static boolean useMultiplier(JsonNode s, int serverMultiplier) {
+        int at = (int) num(s, "useMultiAt", num(s, "spinMultiplier", 0));
+        int shown = serverMultiplier >= 1 && serverMultiplier <= 5 ? serverMultiplier + 1 : serverMultiplier;
+        return at > 0 && shown >= at;
+    }
+
+    /** One spin (or a batch) of the builder for {@code g} when it may. */
     private boolean spin(JsonNode s, GateCatalog.Gate g, WorldSnapshot.Gate st, WorldSnapshot.Gates gates, long now) {
-        int amount = Math.max(1, (int) num(s, "spinAmount", 1));
-        boolean energyOnly = on(s, "energyOnly", true);
-        double keep = num(s, "keepUridium", 1_000_000);
-        boolean energy = gates.samples() >= amount;
-        boolean uridium = !energyOnly && gates.money() - (double) gates.energyCost() * amount >= keep;
-        if (!energy && !uridium) {
-            tell("Врата " + g.name() + ": спинить нечем (энергия " + (long) gates.samples() + ", уридий "
-                    + (long) gates.money() + (energyOnly ? ", только энергия" : ", оставить " + (long) keep) + ")");
+        int[] option = spinOption(s, progress(g, gates));
+        int amount = option[0];
+        if (!canSpin(s, gates, amount)) {
+            boolean energyOnly = on(s, "extraEnergyOnly", on(s, "energyOnly", true));
+            tell("Врата " + g.name() + ": спинить нечем (энергия " + (long) gates.samples() + ", уридий " + (long) gates.money()
+                    + (energyOnly ? ", только энергия" : ", цена спина " + gates.energyCost() + ", оставить "
+                    + (long) num(s, "minUridium", num(s, "keepUridium", 1_000_000))) + ")");
             return false;
         }
         if (gates.spinNanos() > spinAskedAt && gates.spinError() != 0) {
@@ -342,13 +399,67 @@ public final class GateModule implements BotModule {
             if (gates.spinSelected() != amount) {
                 ctx.actions().gateSpinAmount(amount);
             }
-            ctx.actions().gateSpin(g.builderId(), amount, on(s, "multiplier", false));
+            ctx.actions().gateSpin(g.builderId(), amount, useMultiplier(s, st.multiplier()));
             spinAskedAt = now;
-            spinAt = now + ctx.pause(300, 800);
+            spinAt = now + ctx.pause(option[1], option[1] + 300);
+            spins += amount;
         }
-        show("Врата " + g.name() + ": спины, частей " + Math.max(0, st.parts()) + " из " + g.parts());
+        show("Врата " + g.name() + ": спины по " + amount + ", частей " + Math.max(0, st.parts()) + " из " + g.parts());
         return true;
     }
+
+    private long spins;
+
+    /** Parts / all of the gate; for ABG the least of the three (DarkBot builds them together). */
+    private static double progress(GateCatalog.Gate g, WorldSnapshot.Gates gates) {
+        java.util.function.ToDoubleFunction<GateCatalog.Gate> of = x -> {
+            WorldSnapshot.Gate st = gates.gate(x.builderId());
+            return st == null || x.parts() == 0 ? 0 : Math.max(0, st.parts()) / (double) x.parts();
+        };
+        if (g.builderId() >= 1 && g.builderId() <= 3) {
+            return java.util.stream.Stream.of("alpha", "beta", "gamma").map(GateCatalog::byKey).mapToDouble(of).min().orElse(0);
+        }
+        return of.applyAsDouble(g);
+    }
+
+    /**
+     * Lives kept in stock (the user, 2026-11-14: «если осталось 2 жизни, то докупаем за уридиум ещё одну, если урика
+     * хватает, и так дальше — чтобы всегда был запас жизней»; AstraBot {@code buyLife}/{@code maxLifeToBuy}): a placed
+     * gate with fewer than {@code keepLives} (3) gets one more while the uridium after it stays at
+     * {@code lifeMinUridium} (0) or above; {@code maxLivesToBuy} a gate (0 — no limit). True when one was asked for.
+     */
+    private boolean buyLives(JsonNode s, GateCatalog.Gate g, WorldSnapshot.Gates gates, long now) {
+        if (g == null || g.builderId() == 0 || !on(s, "buyLives", false)) {
+            return false;
+        }
+        WorldSnapshot.Gate st = gates.gate(g.builderId());
+        int keep = (int) num(s, "keepLives", 3);
+        if (st == null || st.lives() <= 0 || st.lives() >= keep || st.lifePrice() <= 0) {
+            return false;
+        }
+        int max = (int) num(s, "maxLivesToBuy", 0);
+        if (max > 0 && livesBought.getOrDefault(g.key(), 0) >= max) {
+            tell("Врата " + g.name() + ": жизней " + st.lives() + ", куплено уже " + max + " — больше не покупаю");
+            return false;
+        }
+        if (gates.money() - st.lifePrice() < num(s, "lifeMinUridium", 0)) {
+            tell("Врата " + g.name() + ": жизней " + st.lives() + ", жизнь стоит " + st.lifePrice() + " уридия, а есть "
+                    + (long) gates.money() + " — не покупаю");
+            return false;
+        }
+        if (ms(now - lifeAskedAt) < 5_000) {
+            return true;
+        }
+        log.info("Врата {}: жизней {} (держу {}) — покупаю жизнь за {} уридия", g.name(), st.lives(), keep, st.lifePrice());
+        window();
+        ctx.actions().gateBuyLife(g.builderId());
+        lifeAskedAt = now;
+        livesBought.merge(g.key(), 1, Integer::sum);
+        return true;
+    }
+
+    private long lifeAskedAt = Long.MIN_VALUE / 2;
+    private final Map<String, Integer> livesBought = new HashMap<>();
 
     /** To the gate's portal on x-1 and into it. */
     private void enter(GateCatalog.Gate g, WorldSnapshot w, long now) {
@@ -484,6 +595,7 @@ public final class GateModule implements BotModule {
             completedSeen = now;
             log.info("Врата {} пройдены за {} мин", g.name(), ms(now - enteredAt) / 60_000);
         }
+        buyLives(settings(), g, w.gates(), now); // a life lost in the gate: the stock again (the request goes on aside)
         BotConfig c = config();
         // the fight
         if (attacker.targetId() != 0 && attacker.tick(true)) {

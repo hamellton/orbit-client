@@ -184,4 +184,52 @@ class GateModuleTest {
         assertTrue(Math.hypot(h.x() - 12_000, h.y() - 6_500) < 500, "the stage portal, not home: " + h.x() + "/" + h.y());
         assertFalse(Math.hypot(h.x() - 8_000, h.y() - 6_500) < 500);
     }
+
+    @Test
+    void twoLivesLeftOneMoreIsBoughtWhileTheUridiumLasts() throws Exception {
+        // the user, 2026-11-14: «если осталось 2 жизни, то докупаем за уридиум ещё одну, если урика хватает»
+        Sim sim = new Sim(config("{\"gates\":[\"alpha\"],\"buyLives\":true}"), home(), 10_000, 6_000);
+        info(sim, 0, new int[] {1, 0, 2});
+        GateModule m = new GateModule(sim.ctx);
+        run(sim, m, 1_000);
+        assertEquals(1, sim.sent.stream().filter(p -> p instanceof orbit.protocol.gen.GalaxyGateBuilderBuyLifeRequest r
+                && r.gateId == 1).count());
+        Sim enough = new Sim(config("{\"gates\":[\"alpha\"],\"buyLives\":true}"), home(), 10_000, 6_000);
+        info(enough, 0, new int[] {1, 0, 3});
+        run(enough, new GateModule(enough.ctx), 1_000);
+        assertTrue(enough.sent.stream().noneMatch(p -> p instanceof orbit.protocol.gen.GalaxyGateBuilderBuyLifeRequest),
+                "three: in stock");
+        Sim off = new Sim(config("{\"gates\":[\"alpha\"]}"), home(), 10_000, 6_000);
+        info(off, 0, new int[] {1, 0, 1});
+        run(off, new GateModule(off.ctx), 1_000);
+        assertTrue(off.sent.stream().noneMatch(p -> p instanceof orbit.protocol.gen.GalaxyGateBuilderBuyLifeRequest),
+                "off by default");
+    }
+
+    @Test
+    void spinsByDarkBotsProgressRulesOrAstraBotsFixedAmount() throws Exception {
+        var s = Json.MAPPER.readTree("{\"spins100\":0.2,\"spins10\":0.6,\"spins5\":0.9}");
+        assertEquals(100, GateModule.spinOption(s, 0.1)[0]);
+        assertEquals(10, GateModule.spinOption(s, 0.5)[0]);
+        assertEquals(5, GateModule.spinOption(s, 0.8)[0]);
+        assertEquals(1, GateModule.spinOption(s, 0.95)[0]);
+        assertEquals(10, GateModule.spinOption(Json.MAPPER.readTree("{\"spinAmount\":10}"), 0.1)[0]);
+        var multi = Json.MAPPER.readTree("{\"useMultiAt\":2}");
+        assertFalse(GateModule.useMultiplier(multi, 0));
+        assertTrue(GateModule.useMultiplier(multi, 1), "the window shows x2");
+        assertFalse(GateModule.useMultiplier(Json.MAPPER.readTree("{}"), 5));
+        WorldSnapshotGates g = new WorldSnapshotGates(0, 300_000, 100);
+        assertFalse(GateModule.canSpin(Json.MAPPER.readTree("{}"), g.v, 1), "extra energy only by default");
+        assertTrue(GateModule.canSpin(Json.MAPPER.readTree("{\"extraEnergyOnly\":false,\"minUridium\":1000}"), g.v, 1));
+        assertFalse(GateModule.canSpin(Json.MAPPER.readTree("{\"extraEnergyOnly\":false,\"maxSpinCost\":50}"), g.v, 1),
+                "a spin dearer than maxSpinCost");
+    }
+
+    /** A builder state with only energy, uridium and a spin's price. */
+    record WorldSnapshotGates(orbit.world.WorldSnapshot.Gates v) {
+        WorldSnapshotGates(double energy, double money, int cost) {
+            this(new orbit.world.WorldSnapshot.Gates(java.util.Map.of(), money, energy, cost, List.of(), 1, 1, 0, 0, 0, 0, 0,
+                    orbit.world.WorldSnapshot.Trinity.NONE));
+        }
+    }
 }
