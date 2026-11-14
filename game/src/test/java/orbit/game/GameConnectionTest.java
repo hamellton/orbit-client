@@ -327,7 +327,8 @@ class GameConnectionTest {
     }
 
     @Test
-    void aKickStopsTheConnectionWithoutAReconnect() throws Exception {
+    void aKickIsLoggedInAgainTwiceThenTheConnectionStops() throws Exception {
+        // the user, 2026-11-14: «через минуту входить заново, один-два раза подряд, и только потом останавливаться»
         try (FakeGameServer gs = new FakeGameServer()) {
             gs.afterLogin = send -> {
                 LegacyModule kick = new LegacyModule();
@@ -337,13 +338,33 @@ class GameConnectionTest {
             Source src = new Source(gs.port(), 0);
             Listener l = new Listener();
             GameConnection c = new GameConnection(src, l, fast(), StartupSequence.minimal(READY));
+            c.kickWait(Duration.ofMillis(50));
             Thread t = Thread.ofVirtual().start(c::run);
-            t.join(5000);
+            t.join(10_000);
             assertTrue(!t.isAlive(), "the connection ends");
             assertEquals("Сервер выкинул из игры (KIK)", c.trouble());
             assertTrue(l.states.getLast().startsWith("STOPPED"), l.states.toString());
-            assertEquals(1, gs.gameConnections.get(), "no reconnect");
-            assertEquals(1, src.logins.get());
+            assertEquals(3, gs.gameConnections.get(), "two logins again after kicks, then no more");
+            assertEquals(3, src.logins.get(), "each with a fresh site login");
+        }
+    }
+
+    @Test
+    void aDoubleLoginStillStopsAtOnce() throws Exception {
+        try (FakeGameServer gs = new FakeGameServer()) {
+            gs.afterLogin = send -> {
+                LegacyModule err = new LegacyModule();
+                err.message = "0|ERR|41";
+                send.accept(err);
+            };
+            Source src = new Source(gs.port(), 0);
+            Listener l = new Listener();
+            GameConnection c = new GameConnection(src, l, fast(), StartupSequence.minimal(READY));
+            c.kickWait(Duration.ofMillis(50));
+            Thread t = Thread.ofVirtual().start(c::run);
+            t.join(5000);
+            assertTrue(!t.isAlive(), "the connection ends");
+            assertEquals(1, gs.gameConnections.get(), "someone else is in the account: no reconnect");
         }
     }
 

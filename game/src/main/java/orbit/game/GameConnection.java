@@ -104,10 +104,27 @@ public final class GameConnection implements AutoCloseable {
      */
     private static final class Trouble extends IOException {
         private static final long serialVersionUID = 1L;
+        private final boolean kick;
 
-        Trouble(String message) {
+        Trouble(String message, boolean kick) {
             super(message);
+            this.kick = kick;
         }
+    }
+
+    /**
+     * A KIK is logged in again after {@link #kickWait} (and a little more, at random) this many times within
+     * {@link #KICK_WINDOW_NS}; one more and the account stops (the user, 2026-11-14: «через минуту входить заново, один-два
+     * раза подряд, и только потом останавливаться» — a kick at 14:25 while the ship waited, nobody at the account).
+     */
+    static final int KICK_RETRIES = 2;
+    static final long KICK_WINDOW_NS = 30 * 60_000_000_000L;
+    private final java.util.ArrayDeque<Long> kicks = new java.util.ArrayDeque<>();
+    private Duration kickWait = Duration.ofSeconds(60);
+
+    /** For tests: the wait before logging in again after a KIK. */
+    void kickWait(Duration d) {
+        kickWait = d;
     }
 
     private volatile String trouble;
@@ -342,7 +359,23 @@ public final class GameConnection implements AutoCloseable {
                     }
                     sleep(Duration.ofMillis(Math.max(0, relogin.delayMillis())));
                 } catch (Trouble e) {
-                    throw e;
+                    long now = System.nanoTime();
+                    while (!kicks.isEmpty() && now - kicks.peekFirst() > KICK_WINDOW_NS) {
+                        kicks.removeFirst();
+                    }
+                    if (!e.kick || closed.get() || kicks.size() >= KICK_RETRIES) {
+                        throw e;
+                    }
+                    kicks.addLast(now);
+                    Duration wait = kickWait.plusMillis(
+                            java.util.concurrent.ThreadLocalRandom.current().nextLong(0, kickWait.toMillis() / 3 + 1));
+                    log.warn("{} — вход заново через {} (повтор {} из {} за 30 мин)", e.getMessage(), spoken(wait),
+                            kicks.size(), KICK_RETRIES);
+                    listener.onState(GameListener.State.RECONNECTING, e.getMessage() + " — вход в "
+                            + java.time.LocalTime.now().plus(wait).withNano(0));
+                    session = null;
+                    failures = 0;
+                    sleep(wait);
                 } catch (IOException | ProtocolException e) {
                     if (closed.get()) {
                         break;
@@ -523,7 +556,8 @@ public final class GameConnection implements AutoCloseable {
                         restartNotice = System.nanoTime();
                     } else if (p instanceof LegacyModule lm && troubleOf(lm.message) != null) {
                         listener.onPacket(p);
-                        throw new Trouble(troubleOf(lm.message));
+                        String[] parts = lm.message.split("\\|", -1);
+                        throw new Trouble(troubleOf(lm.message), parts.length > 1 && "KIK".equals(parts[1]));
                     } else if (p instanceof LegacyModule lm && LOGOUT.equals(lm.message)) {
                         // the logout we asked for: the server ends the session, nothing to reconnect
                         listener.onPacket(p);
