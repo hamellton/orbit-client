@@ -45,6 +45,11 @@ final class BehemothSection implements Section {
     private final JCheckBox followTrain = new JCheckBox("Поезд ушёл через портал — лететь за ним на ту карту (через 20 с)");
     private final JCheckBox powers = new JCheckBox("Навык, ISH, EMP — только у бегемота: навык, когда стреляют игроков не меньше");
     private final JSpinner threatPlayers = Form.number(1, 20, 1);
+    private final JCheckBox prismaticAtStart = new JCheckBox("Призма — сразу, как начал бить бегемота");
+    private final JSpinner empAfterIsh = Form.number(0, 10, 1);
+    private final JSpinner closeMin = Form.number(300, 3_000, 100);
+    private final JSpinner closeKeep = Form.number(300, 4_000, 100);
+    private final JSpinner respawnSec = Form.number(0, 3_600, 5);
     private final JCheckBox waitFirst = new JCheckBox("Пока таймеров нет — ждать на первой карте, пока не придёт бегемот (до 17 мин)");
     private final JCheckBox locatorList = new JCheckBox("Нет бегемота в списке целей пеленгатора — сразу на другую карту");
     private final JCheckBox useCloak = new JCheckBox("Маскировка, пока ждём бегемота (CL04K)");
@@ -95,6 +100,14 @@ final class BehemothSection implements Section {
         closeSeconds.setToolTipText("Столько секунд до появления (по таймеру) — подлететь как можно ближе к месту появления,"
                 + " насколько позволяют враги там (не ближе 1100 к ним), и ждать там, не уходя от поезда");
         powers.addActionListener(e -> sync());
+        prismaticAtStart.setToolTipText("Призматический щит Citadel+/Spectrum — в первую же секунду боя с бегемотом,"
+                + " не дожидаясь, пока начнут стрелять игроки");
+        empAfterIsh.setToolTipText("Стенка ISH держит ~3 с: ЭМИ не раньше стольких секунд после неё, чтобы не тратить"
+                + " оба разом");
+        closeMin.setToolTipText("Перед появлением не подлетать к месту появления ближе этого — там стоит поезд");
+        closeKeep.setToolTipText("Перед появлением держаться от видимых врагов не ближе этого");
+        respawnSec.setToolTipText("Бегемот появляется снова через столько секунд после прошлого появления (~915);"
+                + " 0 — по минутам выше или как бот узнал сам");
         powers.setToolTipText("Не тратить навык, ISH-01 и EMP-01 ни на кого, кроме бегемота. У него — по очереди: навык"
                 + " (призма первой), когда по нам стреляет столько игроков (или HP ниже порога призмы); потом ISH ниже своего"
                 + " порога; потом EMP ниже своего, не пока держится стенка");
@@ -144,6 +157,7 @@ final class BehemothSection implements Section {
                 .row("Обходить", Form.inline(maps[0], maps[1], maps[2]))
                 .row("Нет бегемота — другая карта через, с", changeMap)
                 .row("Появляется снова через, мин", respawn)
+                .row("…или точно, с (0 — по минутам)", respawnSec)
                 .row("", onTime)
                 .row("", waitFirst)
                 .row("", followTrain)
@@ -174,6 +188,8 @@ final class BehemothSection implements Section {
                 .row("", Form.inline(prismatic, prismaticBelow, new javax.swing.JLabel("%")))
                 .row("", Form.inline(jamx, jamxDistance))
                 .row("", Form.inline(powers, threatPlayers))
+                .row("", prismaticAtStart)
+                .row("ЭМИ не раньше, с после стенки", empAfterIsh)
                 .row("", defence)
                 .row("", killOthers)
                 .section("Питомец")
@@ -182,6 +198,8 @@ final class BehemothSection implements Section {
                 .row("", beacon)
                 .row("Маяк урона за, с до появления (0 — нет)", beaconSeconds)
                 .row("Встать как можно ближе за, с до появления (0 — нет)", closeSeconds)
+                .row("Ближняя точка: не ближе к месту появления", closeMin)
+                .row("Ближняя точка: до врагов не меньше", closeKeep)
                 .note("Энергетическая пиявка и способность корабля — галочки USE_LEECH и USE_ABILITY в строке бегемота.")
                 .section("Маскировка")
                 .row("", useCloak)
@@ -234,6 +252,7 @@ final class BehemothSection implements Section {
         leader.setEnabled(follow.isSelected());
         cloakFormation.setEnabled(useCloak.isSelected());
         threatPlayers.setEnabled(powers.isSelected());
+        empAfterIsh.setEnabled(powers.isSelected());
         freeSideRadius.setEnabled(freeSide.isSelected() || awayFromPortals.isSelected());
         avoidSpawnRadius.setEnabled(avoidSpawn.isSelected());
         followDistance.setEnabled(follow.isSelected());
@@ -281,6 +300,11 @@ final class BehemothSection implements Section {
         locatorList.setSelected(m.path("locatorList").asBoolean(false));
         waitFirst.setSelected(m.path("waitFirst").asBoolean(false));
         powers.setSelected(m.path("powersForBehemoth").asBoolean(false));
+        prismaticAtStart.setSelected(m.path("prismaticAtStart").asBoolean(false));
+        Form.set(empAfterIsh, m.path("empAfterIshSeconds").asInt(3));
+        Form.set(closeMin, m.path("closeMin").asInt(1_200));
+        Form.set(closeKeep, m.path("closeKeep").asInt(1_500));
+        Form.set(respawnSec, m.path("respawnSeconds").asInt(0));
         Form.set(threatPlayers, m.path("threatPlayers").asInt(3));
         followTrain.setSelected(m.path("followTrain").asBoolean(false));
         Form.set(reward, m.path("rewardUridium").asInt(5_000));
@@ -370,6 +394,11 @@ final class BehemothSection implements Section {
         m.put("locatorList", locatorList.isSelected());
         m.put("waitFirst", waitFirst.isSelected());
         m.put("powersForBehemoth", powers.isSelected());
+        m.put("prismaticAtStart", prismaticAtStart.isSelected());
+        m.put("empAfterIshSeconds", Form.intOf(empAfterIsh));
+        m.put("closeMin", Form.intOf(closeMin));
+        m.put("closeKeep", Form.intOf(closeKeep));
+        m.put("respawnSeconds", Form.intOf(respawnSec));
         m.put("threatPlayers", Form.intOf(threatPlayers));
         m.put("followTrain", followTrain.isSelected());
         m.put("rewardUridium", Form.intOf(reward));

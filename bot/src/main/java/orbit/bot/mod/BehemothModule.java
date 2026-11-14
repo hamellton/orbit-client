@@ -331,7 +331,8 @@ public final class BehemothModule implements BotModule {
                     on(s, "useIsh", true), percent(s, "ishPercent", 60),
                     on(s, "usePrismatic", false) ? percent(s, "prismaticPercent", 50) : -1,
                     on(s, "useSpearheadJamx", false) ? number(s, "jamxDistance", 750) : -1,
-                    saved ? (int) number(s, "threatPlayers", 3) : 0, false));
+                    saved ? (int) number(s, "threatPlayers", 3) : 0, false, on(s, "prismaticAtStart", false),
+                    (long) number(s, "empAfterIshSeconds", 3) * 1_000));
         }
         if (fightPlayers(c, s, w, b)) {
             return;
@@ -851,7 +852,8 @@ public final class BehemothModule implements BotModule {
         int[] farthest = null;
         double farthestScore = -1;
         orbit.bot.nav.PathFinder pf = orbit.bot.nav.PathFinder.of(w, ctx.maps(), false);
-        for (int r = CLOSE_MIN; r <= 2_600; r += 150) {
+        int from = (int) number(s, "closeMin", CLOSE_MIN);
+        for (int r = from; r <= Math.max(from, 2_600); r += 150) {
             int[] best = null;
             double bestScore = -1;
             for (int i = 0; i < 24; i++) {
@@ -871,7 +873,7 @@ public final class BehemothModule implements BotModule {
                     farthest = p;
                 }
             }
-            if (best != null && bestScore >= CLOSE_KEEP) {
+            if (best != null && bestScore >= number(s, "closeKeep", CLOSE_KEEP)) {
                 return best;
             }
         }

@@ -237,15 +237,22 @@ public final class Attacker {
      * empPercent, useIsh / ishPercent): each below its hull fraction ({@code -1} = EMP at once, ISH never).
      */
     public record AbilityPlan(boolean emp, double empBelow, boolean ish, double ishBelow, double prismaticBelow,
-                              double jamxWithin, int threatPlayers, boolean off) {
+                              double jamxWithin, int threatPlayers, boolean off, boolean prismaticAtStart,
+                              long empAfterIshMs) {
 
         public AbilityPlan(boolean emp, double empBelow, boolean ish, double ishBelow) {
-            this(emp, empBelow, ish, ishBelow, -1, -1, 0, false);
+            this(emp, empBelow, ish, ishBelow, -1, -1, 0, false, false, ISH_HOLDS_NS / 1_000_000);
         }
 
         public AbilityPlan(boolean emp, double empBelow, boolean ish, double ishBelow, double prismaticBelow,
                            double jamxWithin) {
-            this(emp, empBelow, ish, ishBelow, prismaticBelow, jamxWithin, 0, false);
+            this(emp, empBelow, ish, ishBelow, prismaticBelow, jamxWithin, 0, false, false, ISH_HOLDS_NS / 1_000_000);
+        }
+
+        public AbilityPlan(boolean emp, double empBelow, boolean ish, double ishBelow, double prismaticBelow,
+                           double jamxWithin, int threatPlayers, boolean off) {
+            this(emp, empBelow, ish, ishBelow, prismaticBelow, jamxWithin, threatPlayers, off, false,
+                    ISH_HOLDS_NS / 1_000_000);
         }
 
         /** Nothing at all — not the NPC list's flags either (the behemoth module off its behemoth). */
@@ -333,7 +340,7 @@ public final class Attacker {
         boolean threat = players >= plan.threatPlayers();
         // the prismatic shield from the fight's first moment (the user, 2026-11-14: «призму можно с самого начала, как
         // начал бить бегемота»); the other abilities when the train shoots
-        if (plan.prismaticBelow() > 0 && useFirstReady(w, PRISMATIC, now, "призматический щит (начало боя)")) {
+        if (plan.prismaticAtStart() && useFirstReady(w, PRISMATIC, now, "призматический щит (начало боя)")) {
             abilityAt = now;
             return;
         }
@@ -359,7 +366,8 @@ public final class Attacker {
             ishAt = now;
             return;
         }
-        if (plan.emp() && plan.empBelow() > 0 && hp >= 0 && hp < plan.empBelow() && now - ishAt > ISH_HOLDS_NS
+        if (plan.emp() && plan.empBelow() > 0 && hp >= 0 && hp < plan.empBelow()
+                && now - ishAt > plan.empAfterIshMs() * 1_000_000
                 && may(w, h, EMP, fo.empSpend(), empUses, empAt, now)) {
             log.info("EMP-01: HP {}%, стреляют {} игроков (за сутки {})", Math.round(hp * 100), players,
                     AbilityUse.today(h.id(), EMP, System.currentTimeMillis()) + 1);
