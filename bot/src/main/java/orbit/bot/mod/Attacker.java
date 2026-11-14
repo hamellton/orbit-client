@@ -276,7 +276,13 @@ public final class Attacker {
      */
     private void abilities(BotConfig c, BotConfig.NpcRule rule, WorldSnapshot w, WorldSnapshot.Hero h, double dist,
                            double radius, long now) {
-        if (rule == null && plan == null || dist > radius + 100 || !shotAt || plan != null && plan.off()) {
+        if (rule == null && plan == null || plan != null && plan.off()) {
+            return;
+        }
+        // the behemoth's staged defence holds on the way in too: the train shoots from 1 600 (live 2026-11-14 on the VPS,
+        // 3-BL: ISH at 11 %, EMP at 1 % — nothing while out of reach)
+        boolean staged = plan != null && plan.threatPlayers() > 0;
+        if (!staged && (dist > radius + 100 || !shotAt)) {
             return;
         }
         BotConfig.FightOptions fo = c.loot().fight();
