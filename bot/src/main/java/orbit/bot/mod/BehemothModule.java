@@ -788,7 +788,7 @@ public final class BehemothModule implements BotModule {
                 closing = true;
                 closeAt = 0;
             }
-            if (closeAt == 0 || ctx.now() - closeAt > SIDE_LOOK_NS) {
+            if (closeAt == 0 || ctx.now() - closeAt > CLOSE_LOOK_NS) {
                 closeAt = ctx.now();
                 int[] was = closeTarget;
                 closeTarget = closePoint(h.mapId());
@@ -823,7 +823,11 @@ public final class BehemothModule implements BotModule {
     }
 
     /** The near point keeps at least this far from every enemy in sight. */
-    static final double CLOSE_KEEP = 1_100;
+    static final double CLOSE_KEEP = 1_500;
+    /** The near point is no nearer the spawn than this: the trains wait right at it, out of sight from afar (live
+     *  2026-11-14 on the VPS, 2-BL: 600 off it, the train there killed the ship 5 s before the behemoth came). */
+    static final int CLOSE_MIN = 1_200;
+    static final long CLOSE_LOOK_NS = 1_000_000_000L;
     private boolean closing;
     private long closeAt;
     private int[] closeTarget;
@@ -846,14 +850,16 @@ public final class BehemothModule implements BotModule {
         int height = info.height() > 0 ? info.height() : 13_100;
         int[] farthest = null;
         double farthestScore = -1;
-        for (int r = 600; r <= 2_400; r += 150) {
+        orbit.bot.nav.PathFinder pf = orbit.bot.nav.PathFinder.of(w, ctx.maps(), false);
+        for (int r = CLOSE_MIN; r <= 2_600; r += 150) {
             int[] best = null;
             double bestScore = -1;
             for (int i = 0; i < 24; i++) {
                 double a = 2 * Math.PI * i / 24;
                 int[] p = {(int) (sp[0] + r * Math.cos(a)), (int) (sp[1] + r * Math.sin(a))};
-                if (p[0] < 300 || p[1] < 300 || p[0] > width - 300 || p[1] > height - 300) {
-                    continue;
+                if (p[0] < 300 || p[1] < 300 || p[0] > width - 300 || p[1] > height - 300
+                        || !pf.free(p[0], p[1]) || !pf.clear(p[0], p[1], sp[0], sp[1])) {
+                    continue; // a wall between it and the spawn: near by the line, far by the way (the user, 2026-11-14)
                 }
                 double score = enemies.isEmpty() ? Double.MAX_VALUE : freeness(p, enemies);
                 if (score > bestScore) {
@@ -1676,11 +1682,13 @@ public final class BehemothModule implements BotModule {
         BotConfig.Zones zones = ctx.config().get().zones().get(map);
         BotConfig.ZoneGrid avoided = zones == null ? null : zones.avoided();
         boolean paths = on(s, "awayFromPortals", false);
+        orbit.bot.nav.PathFinder sidePf = orbit.bot.nav.PathFinder.of(w, ctx.maps(), false);
         for (int[] p : candidates) {
             if (p[0] < 500 || p[1] < 500 || p[0] > width - 500 || p[1] > height - 500
                     || p != base && avoided != null && avoided.contains(p[0], p[1], width, height)
                     || p != base && paths && fromPaths(map, sp, p) < PATH_KEEP
-                    || p != base && ctx.nav().inDanger(p[0], p[1])) {
+                    || p != base && ctx.nav().inDanger(p[0], p[1])
+                    || p != base && (!sidePf.free(p[0], p[1]) || !sidePf.clear(p[0], p[1], sp[0], sp[1]))) {
                 continue;
             }
             double score = freeness(p, enemies);
