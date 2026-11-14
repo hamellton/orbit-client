@@ -447,6 +447,35 @@ public final class OrbitMain {
         System.exit(0);
     }
 
+    /**
+     * The account's equipment on the website, through the login's web session (and so its proxy): the active ship's
+     * hangar view and the inventory page's item move.
+     */
+    private static orbit.bot.run.HangarAccess hangarFor(AuthClient auth, GameConnection conn) {
+        return new orbit.bot.run.HangarAccess() {
+            private orbit.auth.Hangars site() {
+                return new orbit.auth.Hangars(auth.http(), conn.session().host());
+            }
+
+            private int active() throws java.io.IOException {
+                return site().list().stream().filter(orbit.auth.Hangars.Hangar::active).findFirst()
+                        .orElseThrow(() -> new java.io.IOException("на сайте не понять активный корабль")).id();
+            }
+
+            @Override
+            public java.util.List<Cpu> cpus(String loot) throws java.io.IOException {
+                int hangar = active();
+                return site().items(hangar, loot).stream().filter(i -> i.spare() || i.hangar() == hangar)
+                        .map(i -> new Cpu(i.id(), i.spare(), i.charges(), i.configs())).toList();
+            }
+
+            @Override
+            public void move(String id, int config, boolean toShip) throws java.io.IOException {
+                site().move(active(), id, config, toShip, "extras");
+            }
+        };
+    }
+
     /** The website shop of the logged-in account, through the same web session the login used. */
     private static orbit.bot.run.ShopAccess shopFor(AuthClient auth, GameConnection conn) {
         return new orbit.bot.run.ShopAccess() {
@@ -672,6 +701,8 @@ public final class OrbitMain {
                             shopFor(auth, conn), () -> !game.isAlive(), ships, previous);
                     current.set(run);
                     run.runner().setClickHold(clickHold(accountName));
+                    run.runner().setHangar(hangarFor(auth, conn));
+                    run.runner().setRefresh(conn::refresh);
                     // every module: which ship is in use, and the list the «Ангар» window shows (the user, 2026-11-14:
                     // «в кораблях пусто» — it was read for palladium only)
                     watchHangar(auth, conn, run.runner(), lastHost, accountName, cfg, ships);

@@ -364,6 +364,11 @@ public final class BehemothModule implements BotModule {
      */
     @Override
     public boolean calm() {
+        return freeFor(CALM_SPARE_MS);
+    }
+
+    @Override
+    public boolean freeFor(long ms) {
         if (attacker.targetId() != 0 || onBehemoth || toBehemoth || behemothListed || boxes.busy()
                 || players.targetId() != 0) {
             return false;
@@ -371,11 +376,25 @@ public final class BehemothModule implements BotModule {
         long wall = wallMs();
         for (int m : maps(settings())) {
             long due = dueAt(m, wall);
-            if (due > 0 && due - wall < CALM_SPARE_MS) {
+            if (due > 0 && due - wall < ms) {
                 return false;
             }
         }
         return true;
+    }
+
+    /**
+     * {@code cloakRefill} (CARNAGE's BLCycle autoCraftCloak; the user, 2026-11-14): the cloak CPU empty — in a free
+     * window to the own x-8 for a new one, crafted ({@code cloakCraft}, {@code cloakCraftAmount}) when there is no
+     * spare. Only with {@code useCloak}.
+     */
+    @Override
+    public orbit.bot.run.CloakPlan cloakPlan() {
+        JsonNode s = settings();
+        if (!on(s, "useCloak", false) || !on(s, "cloakRefill", false)) {
+            return null;
+        }
+        return new orbit.bot.run.CloakPlan(on(s, "cloakCraft", true), (int) number(s, "cloakCraftAmount", 1));
     }
 
     @Override

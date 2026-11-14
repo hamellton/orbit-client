@@ -61,6 +61,9 @@ final class BehemothSection implements Section {
     private final JCheckBox locatorList = new JCheckBox("Нет бегемота в списке целей пеленгатора — сразу на другую карту");
     private final JCheckBox useCloak = new JCheckBox("Маскировка, пока ждём бегемота (CL04K)");
     private final ItemBox cloakFormation = new ItemBox(ItemCatalog.FORMATIONS, true);
+    private final JCheckBox cloakRefill = new JCheckBox("Маскировка кончилась — в свободное окно на свою x-8 и поставить новый процессор");
+    private final JCheckBox cloakCraft = new JCheckBox("Запасного нет — скрафтить в сборке (рецепт CL04K-XL, BL)");
+    private final JSpinner cloakCraftAmount = Form.number(1, 10, 1);
     private final JSpinner beaconSeconds = Form.number(0, 120, 1);
     private final JSpinner closeSeconds = Form.number(0, 300, 5);
     // where to wait (the user, 2026-11-13: trains camp the spawn and BeheFarm's wait points)
@@ -124,6 +127,8 @@ final class BehemothSection implements Section {
                 + " появления, как задумано (CARNAGE не убегает никогда)");
         empOnlyPlayers.setToolTipText("ЭМИ снимает только захват игроков: если стреляют одни NPC, он пропадёт зря");
         useCloak.addActionListener(e -> sync());
+        cloakRefill.addActionListener(e -> sync());
+        cloakCraft.addActionListener(e -> sync());
         freeSide.addActionListener(e -> sync());
         closeSeconds.setToolTipText("Столько секунд до появления (по таймеру) — подлететь как можно ближе к месту появления,"
                 + " насколько позволяют враги там (не ближе 1100 к ним), и ждать там, не уходя от поезда");
@@ -169,6 +174,9 @@ final class BehemothSection implements Section {
         onTime.setToolTipText("Как BLCycle в CARNAGE: вылет так, чтобы прилететь к времени появления; время перелёта бот"
                 + " узнаёт сам; карту, где появление не видели, считает на круг вперёд");
         reward.setToolTipText("Пришло столько уридия рядом с бегемотом — убийство засчитано (как BLCycle: 5 000); 0 — нет");
+        cloakRefill.setToolTipText("Как autoCraftCloak у BLCycle (CARNAGE): заряды процессора маскировки кончились — когда до"
+                + " бегемота больше 4 мин, бот летит на свою x-8, на базу, ставит запасной процессор через сайт (оба конфига),"
+                + " при необходимости сначала крафтит его, и возвращается");
         cloakFormation.setToolTipText("Формация на время маскировки (BLCycle: Heart); не выбрана — как в «Общем»");
         beaconSeconds.setToolTipText("За столько секунд до появления — к месту появления, питомец ставит боевой маяк; 0 — нет");
         respond.addActionListener(e -> sync());
@@ -244,8 +252,11 @@ final class BehemothSection implements Section {
                 .section("Маскировка")
                 .row("", useCloak)
                 .row("Формация в маскировке", cloakFormation)
+                .row("", cloakRefill)
+                .row("", cloakCraft)
+                .row("Крафтить за раз, шт.", cloakCraftAmount)
                 .note("Покупка маскировки — вкладка «Покупки», предмет CL04K-XL (если купленная не появилась в игре,"
-                        + " бот больше не покупает до перезапуска). Крафт пока не сделан.")
+                        + " бот больше не покупает до перезапуска).")
                 .section("Чужой поезд у бегемота")
                 .row("", trainMode)
                 .row("", trainProven)
@@ -305,6 +316,9 @@ final class BehemothSection implements Section {
         huntRadius.setEnabled(hunt.isSelected());
         leader.setEnabled(follow.isSelected());
         cloakFormation.setEnabled(useCloak.isSelected());
+        cloakRefill.setEnabled(useCloak.isSelected());
+        cloakCraft.setEnabled(useCloak.isSelected() && cloakRefill.isSelected());
+        cloakCraftAmount.setEnabled(useCloak.isSelected() && cloakRefill.isSelected() && cloakCraft.isSelected());
         threatPlayers.setEnabled(powers.isSelected());
         empAfterIsh.setEnabled(powers.isSelected());
         freeSideRadius.setEnabled(freeSide.isSelected() || awayFromPortals.isSelected());
@@ -399,6 +413,9 @@ final class BehemothSection implements Section {
         followTrain.setSelected(m.path("followTrain").asBoolean(false));
         Form.set(reward, m.path("rewardUridium").asInt(5_000));
         useCloak.setSelected(m.path("useCloak").asBoolean(false));
+        cloakRefill.setSelected(m.path("cloakRefill").asBoolean(false));
+        cloakCraft.setSelected(m.path("cloakCraft").asBoolean(true));
+        Form.set(cloakCraftAmount, m.path("cloakCraftAmount").asInt(1));
         String cf = m.path("cloakFormation").asText("");
         cloakFormation.set(cf.isBlank() ? null : cf.startsWith("drone_formation_") ? cf : formationId(cf));
         Form.set(beaconSeconds, m.path("beaconBeforeSeconds").asInt(0));
@@ -504,6 +521,9 @@ final class BehemothSection implements Section {
         m.put("followTrain", followTrain.isSelected());
         m.put("rewardUridium", Form.intOf(reward));
         m.put("useCloak", useCloak.isSelected());
+        m.put("cloakRefill", cloakRefill.isSelected());
+        m.put("cloakCraft", cloakCraft.isSelected());
+        m.put("cloakCraftAmount", Form.intOf(cloakCraftAmount));
         m.put("cloakFormation", cloakFormation.get() != null ? cloakFormation.get() : "");
         m.put("beaconBeforeSeconds", Form.intOf(beaconSeconds));
         m.put("closeBeforeSeconds", Form.intOf(closeSeconds));

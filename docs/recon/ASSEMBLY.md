@@ -50,3 +50,19 @@ assemblyItemFilters=[ammunition|weapons|extras|…]}` — только вид о
 - ангар: `HangarShipMoveItemsRequest{hangarId, slotSet="cannons"|"cannon_shields", source="ship"|"inventory",
   destination=…, items=[id]}`;
 - Арсенал: `ArmoryUnlockInfoRequest`, `ArmoryUnlockDrawRequest{count, type}`.
+
+## Оснащение через сайт (страница инвентаря, 2026-11-14, gb2)
+
+Окно ангара в игре у мини-клиента — только пушки (`hangarCannons`); процессоры ставятся на сайте. Страница инвентаря —
+Flash `swf_global/inventory/inventory.swf` (декомпилирован FFDec): все её вызовы — `POST flashAPI/inventory.php`,
+`action=<имя>`, `params` = base64 JSON всего объекта запроса, к нему добавляется `params.hi` = ангар.
+
+- `getHangar`, `{"params":{"hi":<ангар>}}` → `data.ret.items[]` (`I` id, `L` индекс в `data.map.lootIds`, `EQH` ангар,
+  где стоит, `null` = запасной, `EQC` конфиг, `CH` "Charges: N", `properties.durability`), `data.ret.hangars{…}.config
+  {"1","2"}.ship.EQ.{lasers,generators,heavy_guns,extras,ship_upgrades}` — id по конфигам. Список включает предметы,
+  стоящие в других ангарах. Один процессор может стоять сразу в обоих конфигах.
+- `move` (перетаскивание, `DragComponent` → `ConnectionProxy.itemMoveRequest`):
+  `{"action":"move","params":{"hi":H},"from":{"configId":C,"target":"inventory","items":["id"]},
+  "to":{"configId":C,"target":"ship","slotset":"extras"}}`; снять — `from` корабль со `slotset`, `to`
+  `{"configId":C,"target":"inventory","index":0}`. Ответ `{"isError":0,"data":{"ret":1,"money":{…}}}`.
+  Проверено: CL04K-XL снят из конфига 1 и поставлен обратно (аккаунт был не в игре).

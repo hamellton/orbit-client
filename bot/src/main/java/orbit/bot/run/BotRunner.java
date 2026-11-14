@@ -80,6 +80,7 @@ public final class BotRunner {
     private final Revive revive;
     private final BuyWatch buy;
     private final CraftWatch craft;
+    private final CloakCare cloak;
     private final Flee flee;
     private final GroupWatch groupWatch;
     private final PetCare pet;
@@ -111,6 +112,7 @@ public final class BotRunner {
         this.revive = new Revive(ctx);
         this.buy = new BuyWatch(ctx);
         this.craft = new CraftWatch(ctx);
+        this.cloak = new CloakCare(ctx);
         this.flee = new Flee(ctx);
         this.groupWatch = new GroupWatch(ctx);
         this.pet = new PetCare(ctx);
@@ -211,6 +213,16 @@ public final class BotRunner {
      */
     public void setLinkLost(java.util.function.BooleanSupplier lost) {
         linkLost = lost;
+    }
+
+    /** The account's equipment on the site, for a new cloaking CPU (none = not fitted by the bot). */
+    public void setHangar(HangarAccess hangar) {
+        cloak.setHangar(hangar);
+    }
+
+    /** A new login of the game connection (the game reads a new CPU at a login). */
+    public void setRefresh(Runnable refresh) {
+        cloak.setRefresh(refresh);
     }
 
     /** The account's shop for the buy list (none = the bot only says when to buy). */
@@ -491,6 +503,12 @@ public final class BotRunner {
             module.pause();
             state = State.TRAVELLING;
             show("Трюм полон — продаю руду");
+            return;
+        }
+        if (cloak.tick(module.busy(), module.freeFor(CloakCare.WINDOW_MS), module.cloakPlan())) {
+            module.pause();
+            state = State.TRAVELLING;
+            show("Маскировка кончилась — ставлю новый процессор");
             return;
         }
         int map = module.workingMap();

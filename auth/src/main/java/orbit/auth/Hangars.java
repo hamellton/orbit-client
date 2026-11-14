@@ -143,6 +143,127 @@ public final class Hangars {
         }
     }
 
+    /**
+     * One item of a kind in the hangar view: its id, the hangar it is fitted in ({@code 0} = none, a spare), its charges
+     * ({@code -1} unknown) and the configs of the asked hangar whose ship has it fitted (by the config's lists).
+     */
+    public record Fitted(String id, int hangar, int charges, java.util.Set<Integer> configs) {
+
+        public boolean spare() {
+            return hangar == 0;
+        }
+    }
+
+    /**
+     * The items of one kind ({@code equipment_extra_cpu_cl04k-xl}…) the site shows for {@code hangarId}:
+     * {@code action=getHangar}, {@code params} = base64 of {@code {"params":{"hi":<hangar>}}} (the inventory page's
+     * own call, read from its {@code inventory.swf}, 2026-11-14 on gb2). The answer: {@code data.ret.items[]} — {@code I}
+     * the id, {@code L} an index into {@code data.map.lootIds}, {@code EQH} the hangar it is fitted in (null = spare),
+     * {@code CH} "Charges: N"; {@code data.ret.hangars{…}.config{"1","2"}.ship.EQ.extras} — what each config fits.
+     * Items fitted in other hangars are listed too.
+     */
+    public List<Fitted> items(int hangarId, String loot) throws IOException {
+        JsonNode root = call("getHangar", "{\"params\":{\"hi\":" + hangarId + "}}");
+        return items(root, hangarId, loot);
+    }
+
+    static List<Fitted> items(JsonNode root, int hangarId, String loot) {
+        JsonNode lootIds = root.path("data").path("map").path("lootIds");
+        Map<String, java.util.Set<Integer>> fitted = new java.util.HashMap<>();
+        JsonNode hangars = root.path("data").path("ret").path("hangars");
+        List<JsonNode> each = new ArrayList<>();
+        if (hangars.isArray()) {
+            hangars.forEach(each::add);
+        } else {
+            hangars.elements().forEachRemaining(each::add);
+        }
+        for (JsonNode h : each) {
+            if (h.path("hangarID").asInt() != hangarId) {
+                continue;
+            }
+            h.path("config").fields().forEachRemaining(c -> {
+                int config = parseInt(c.getKey());
+                c.getValue().path("ship").path("EQ").elements().forEachRemaining(slots -> slots.forEach(
+                        id -> fitted.computeIfAbsent(id.asText(), k -> new java.util.TreeSet<>()).add(config)));
+            });
+        }
+        List<Fitted> out = new ArrayList<>();
+        for (JsonNode i : root.path("data").path("ret").path("items")) {
+            if (!loot.equals(loot(i.path("L"), lootIds))) {
+                continue;
+            }
+            String id = i.path("I").asText();
+            out.add(new Fitted(id, i.path("EQH").isNull() ? 0 : parseInt(i.path("EQH").asText()), charges(i),
+                    java.util.Set.copyOf(fitted.getOrDefault(id, java.util.Set.of()))));
+        }
+        return out;
+    }
+
+    private static int charges(JsonNode item) {
+        java.util.regex.Matcher m = java.util.regex.Pattern.compile("(\\d+)").matcher(item.path("CH").asText(""));
+        if (m.find()) {
+            return parseInt(m.group(1));
+        }
+        String d = item.path("properties").path("durability").asText("");
+        return d.isEmpty() ? -1 : parseInt(d);
+    }
+
+    private static int parseInt(String s) {
+        try {
+            return Integer.parseInt(s.strip());
+        } catch (NumberFormatException e) {
+            return 0;
+        }
+    }
+
+    /**
+     * Moves an item between the inventory and a config of the ship's {@code slotset} ({@code extras} for CPUs), as the
+     * inventory page's drag does ({@code inventory.swf}: {@code DragComponent} → {@code ConnectionProxy.itemMoveRequest}):
+     * {@code action=move}, {@code params} = base64 of {@code {"action":"move","params":{"hi":<hangar>},
+     * "from":{"configId":c,"target":"inventory","items":[id]},"to":{"configId":c,"target":"ship","slotset":"extras"}}}
+     * (out: {@code from} the ship with its slotset, {@code to} the inventory at index 0). Tried 2026-11-14 on gb2 with
+     * the cloak CPU, out and back: {@code {"isError":0,"data":{"ret":1,…}}}.
+     */
+    public void move(int hangarId, String itemId, int config, boolean toShip, String slotset) throws IOException {
+        String ship = "{\"configId\":" + config + ",\"target\":\"ship\",\"slotset\":\"" + slotset + "\"";
+        String inv = "{\"configId\":" + config + ",\"target\":\"inventory\"";
+        String items = ",\"items\":[\"" + itemId + "\"]}";
+        String from = toShip ? inv + items : ship + items;
+        String to = toShip ? ship + "}" : inv + ",\"index\":0}";
+        JsonNode root = call("move", "{\"action\":\"move\",\"params\":{\"hi\":" + hangarId + "},\"from\":" + from
+                + ",\"to\":" + to + "}");
+        if (root.path("data").path("ret").asInt(0) != 1) {
+            throw new IOException("сайт не переложил предмет: " + root.path("data").toString()
+                    .substring(0, Math.min(200, root.path("data").toString().length())));
+        }
+    }
+
+    /** A {@code flashAPI/inventory.php} call: the action and its params as base64; the answer read, errors thrown. */
+    private JsonNode call(String action, String params) throws IOException {
+        Map<String, String> form = new LinkedHashMap<>();
+        form.put("action", action);
+        form.put("params", Base64.getEncoder().encodeToString(params.getBytes(StandardCharsets.UTF_8)));
+        HttpSession.Response r = http.postForm(origin + PATH, form, origin + Shop.START_PAGE);
+        String body = r.body() == null ? "" : r.body().strip();
+        if (r.status() != 200) {
+            throw new IOException("сайт ответил HTTP " + r.status());
+        }
+        if (body.startsWith("<")) {
+            throw new Expired();
+        }
+        JsonNode root;
+        try {
+            root = decode(body);
+        } catch (IOException | RuntimeException e) {
+            throw new IOException("ответ сайта не читается (" + body.length() + " символов)");
+        }
+        if (root.path("isError").asInt(1) != 0) {
+            throw new IOException("сайт вернул ошибку: " + orbit.secrets.SecretMask.mask(root.toString()
+                    .substring(0, Math.min(200, root.toString().length()))));
+        }
+        return root;
+    }
+
     /** The last answer, the dosid masked, to see what the site sent ({@code local/debug/hangars-answer.txt}). */
     static final java.nio.file.Path ANSWER_FILE = java.nio.file.Path.of("local", "debug", "hangars-answer.txt");
 

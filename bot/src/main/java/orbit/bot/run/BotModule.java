@@ -100,6 +100,19 @@ public interface BotModule {
         return !busy();
     }
 
+    /**
+     * Nothing under way and nothing due for {@code ms}: a window for a trip away (a new cloaking CPU at the base). By
+     * default {@link #calm()}.
+     */
+    default boolean freeFor(long ms) {
+        return calm();
+    }
+
+    /** A new cloaking CPU when the fitted one is empty ({@link CloakCare}), {@code null} = not wanted. */
+    default CloakPlan cloakPlan() {
+        return null;
+    }
+
     /** True when it is a bad moment to leave (e.g. a boss almost dead). */
     default boolean busy() {
         return false;
