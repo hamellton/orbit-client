@@ -142,6 +142,8 @@ public final class BehemothModule implements BotModule {
     static final long LOCATOR_GRACE_MS = 10_000;
     private int[] lastPoint;
     private long lastPointNs;
+    /** Flying to the behemoth the locator shows: no circles kept off on the way (the trains stand round it). */
+    private volatile boolean toBehemoth;
 
     public BehemothModule(BotContext ctx, SpawnMemory memory) {
         this.ctx = ctx;
@@ -812,6 +814,7 @@ public final class BehemothModule implements BotModule {
 
     /** The locator's word on this map (see {@link #petLocator}); true when it took over the tick. */
     private boolean locate(JsonNode s, WorldSnapshot w) {
+        toBehemoth = false;
         if (!on(s, "useLocator", false)) {
             return false;
         }
@@ -831,7 +834,11 @@ public final class BehemothModule implements BotModule {
         }
         // the locator flickers: a point, «nothing», the point again (live 2026-11-13 on the VPS, 2-BL; BLCycle's log the
         // same, «approx_death_pending graceMs=10000») — its last point is kept LOCATOR_GRACE_MS through a «nothing»
-        boolean pointHeld = lastPoint != null && lastPoint[0] == h.mapId() && now - lastPointNs <= LOCATOR_GRACE_MS * 1_000_000;
+        // and as long as the locator's list still has it (live 2026-11-14 on the VPS, 2-BL: 4 600 away, 10 s were not
+        // enough, the ship turned back while it was alive)
+        boolean pointHeld = lastPoint != null && lastPoint[0] == h.mapId()
+                && (now - lastPointNs <= LOCATOR_GRACE_MS * 1_000_000 || behemothListed);
+        toBehemoth = pointHeld;
         if (pointHeld) {
             int x = lastPoint[1];
             int y = lastPoint[2];
@@ -1748,6 +1755,9 @@ public final class BehemothModule implements BotModule {
             out.add(new double[] {c[1], c[2], c[3]});
         }
         JsonNode s = settings();
+        if (toBehemoth || onBehemoth) {
+            return List.of(); // to the behemoth or fighting it: through them, the train mode does not run (live 2026-11-14)
+        }
         if (on(s, "avoidTrainPaths", false) && !onBehemoth && !beaconOn && maps(s).contains(h.mapId())) {
             out.addAll(pathCircles(h.mapId()));
         }

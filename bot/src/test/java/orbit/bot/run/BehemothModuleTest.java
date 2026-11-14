@@ -974,4 +974,24 @@ class BehemothModuleTest {
         sim.run(m::tick, 25_000);
         assertEquals(307, m.workingMap(), "after them to 2-BL");
     }
+
+    @Test
+    void whileTheBehemothIsListedTheShipKeepsGoingToItThroughTheTrain() throws Exception {
+        // live 2026-11-14 on the VPS, 2-BL: 4 600 away, the 10 s grace ran out, the ship turned back while it was alive
+        Sim sim = new Sim(with(config(300), "{\"useLocator\": true, \"avoidEnemies\": true}"), 308, 5_700, 2_600);
+        BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
+        sim.ctx.nav().setAvoidedPlayers(m::avoidCircles);
+        locatorPet(sim);
+        m.workingMap();
+        sim.run(m::tick, 7_000);
+        targets(sim, 178, 175);
+        enemy(sim, 900, "Train", 15_000, 9_500);
+        locator(sim, 15_000, 9_000);
+        sim.run(m::tick, 1_000);
+        locator(sim, -1, -1);
+        sim.run(m::tick, 35_000);
+        assertTrue(m.avoidCircles().isEmpty(), "no circles on the way to it");
+        var h = sim.hero();
+        assertTrue(Math.hypot(h.x() - 15_000, h.y() - 9_000) < 1_000, "at it, 35 s later: " + h);
+    }
 }
