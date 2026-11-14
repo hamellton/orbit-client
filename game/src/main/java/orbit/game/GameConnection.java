@@ -113,18 +113,35 @@ public final class GameConnection implements AutoCloseable {
     }
 
     /**
-     * A KIK is logged in again after {@link #kickWait} (and a little more, at random) this many times within
-     * {@link #KICK_WINDOW_NS}; one more and the account stops (the user, 2026-11-14: «через минуту входить заново, один-два
-     * раза подряд, и только потом останавливаться» — a kick at 14:25 while the ship waited, nobody at the account).
+     * A KIK is logged in again, never given up, the waits growing with the kicks of the last {@link #KICK_WINDOW_NS}
+     * (and a little more, at random): DarkBot and AstraBot never stop after a disconnect either (the user, 2026-11-14:
+     * «после KIK входить заново быстрее… не останавливаться вообще, а растягивать паузы»; kicks at 12:40, 14:25, 16:44
+     * while the ship only waited and nobody was at the account).
      */
-    static final int KICK_RETRIES = 2;
+    static final java.util.List<Duration> KICK_WAITS = java.util.List.of(Duration.ofSeconds(20), Duration.ofMinutes(1),
+            Duration.ofMinutes(5), Duration.ofMinutes(15));
     static final long KICK_WINDOW_NS = 30 * 60_000_000_000L;
     private final java.util.ArrayDeque<Long> kicks = new java.util.ArrayDeque<>();
-    private Duration kickWait = Duration.ofSeconds(60);
+    private java.util.List<Duration> kickWaits = KICK_WAITS;
 
-    /** For tests: the wait before logging in again after a KIK. */
+    /** For tests: every wait before logging in again after a KIK. */
     void kickWait(Duration d) {
-        kickWait = d;
+        kickWaits = java.util.List.of(d);
+    }
+
+    /** Asked for a planned new login: the session's drop is no failure. */
+    private volatile boolean refreshAsked;
+
+    /**
+     * A planned new login, as DarkBot's «refresh» (CARNAGE: every 40 min): the game connection is dropped and made
+     * again after a site login by the saved session — the bot's memory goes on, it is the same program.
+     */
+    public void refresh() {
+        if (closed.get() || socket == null) {
+            return;
+        }
+        refreshAsked = true;
+        closeSocket();
     }
 
     private volatile String trouble;
@@ -363,14 +380,15 @@ public final class GameConnection implements AutoCloseable {
                     while (!kicks.isEmpty() && now - kicks.peekFirst() > KICK_WINDOW_NS) {
                         kicks.removeFirst();
                     }
-                    if (!e.kick || closed.get() || kicks.size() >= KICK_RETRIES) {
+                    if (!e.kick || closed.get()) {
                         throw e;
                     }
                     kicks.addLast(now);
-                    Duration wait = kickWait.plusMillis(
-                            java.util.concurrent.ThreadLocalRandom.current().nextLong(0, kickWait.toMillis() / 3 + 1));
-                    log.warn("{} — вход заново через {} (повтор {} из {} за 30 мин)", e.getMessage(), spoken(wait),
-                            kicks.size(), KICK_RETRIES);
+                    Duration base = kickWaits.get(Math.min(kicks.size() - 1, kickWaits.size() - 1));
+                    Duration wait = base.plusMillis(
+                            java.util.concurrent.ThreadLocalRandom.current().nextLong(0, base.toMillis() / 4 + 1));
+                    log.warn("{} — вход заново через {} ({}-й KIK за 30 мин)", e.getMessage(), spoken(wait),
+                            kicks.size());
                     listener.onState(GameListener.State.RECONNECTING, e.getMessage() + " — вход в "
                             + java.time.LocalTime.now().plus(wait).withNano(0));
                     session = null;
@@ -379,6 +397,17 @@ public final class GameConnection implements AutoCloseable {
                 } catch (IOException | ProtocolException e) {
                     if (closed.get()) {
                         break;
+                    }
+                    if (refreshAsked) {
+                        refreshAsked = false;
+                        failures = 0;
+                        Duration wait = Duration.ofMillis(
+                                java.util.concurrent.ThreadLocalRandom.current().nextLong(2_000, 6_000));
+                        log.info("Плановый перевход: вход заново через {}", spoken(wait));
+                        listener.onState(GameListener.State.RECONNECTING, "Плановый перевход");
+                        session = null;
+                        sleep(wait);
+                        continue;
                     }
                     Duration wait = settings.backoff(failures);
                     failures++;

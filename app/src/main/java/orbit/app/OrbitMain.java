@@ -675,6 +675,7 @@ public final class OrbitMain {
                     // every module: which ship is in use, and the list the «Ангар» window shows (the user, 2026-11-14:
                     // «в кораблях пусто» — it was read for palladium only)
                     watchHangar(auth, conn, run.runner(), lastHost, accountName, cfg, ships);
+                    planRefresh(conn, run.runner(), game);
                     if (closed.get()) {
                         // stopped while logging in: the stop found no module to finish, so finish this one
                         Thread.ofPlatform().name("stop-" + accountName).start(() -> run.finish(conn));
@@ -817,6 +818,46 @@ public final class OrbitMain {
                 Thread.currentThread().interrupt();
             } catch (java.io.IOException | RuntimeException e) {
                 log.warn("Ангары с сайта не прочитать: {}", e.getMessage());
+            }
+        });
+    }
+
+    /** A planned new login this often (CARNAGE's DarkBot: {@code REFRESH_TIME} 40 min), and up to this much later. */
+    static final long REFRESH_EVERY_MS = 40 * 60_000L;
+    static final long REFRESH_SPREAD_MS = 5 * 60_000L;
+
+    /**
+     * DarkBot's refresh (the user, 2026-11-14: «плановый перевход раз в 40 минут, как у CARNAGE, только в спокойный
+     * момент»): about every 40 min, as soon as the bot is calm (no fight, no box, the next behemoth more than 2.5 min
+     * off), the game connection logs in again; while the game thread lives.
+     */
+    private static void planRefresh(GameConnection conn, orbit.bot.run.BotRunner runner, Thread game) {
+        java.util.Map<String, String> ctx = org.slf4j.MDC.getCopyOfContextMap();
+        Thread.ofVirtual().name("refresh").start(() -> {
+            if (ctx != null) {
+                org.slf4j.MDC.setContextMap(ctx);
+            }
+            java.util.Random random = new java.util.Random();
+            try {
+                while (game.isAlive()) {
+                    long due = System.currentTimeMillis() + REFRESH_EVERY_MS + (long) (random.nextDouble() * REFRESH_SPREAD_MS);
+                    while (game.isAlive() && System.currentTimeMillis() < due) {
+                        Thread.sleep(5_000);
+                    }
+                    long waited = System.currentTimeMillis();
+                    while (game.isAlive() && !runner.calm()) {
+                        Thread.sleep(2_000);
+                    }
+                    if (!game.isAlive()) {
+                        return;
+                    }
+                    log.info("Плановый перевход (раз в ~40 мин), момент спокойный{}",
+                            System.currentTimeMillis() - waited > 10_000
+                                    ? " — ждал его " + (System.currentTimeMillis() - waited) / 1000 + " с" : "");
+                    conn.refresh();
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
             }
         });
     }

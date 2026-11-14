@@ -92,6 +92,14 @@ public interface BotModule {
         return false;
     }
 
+    /**
+     * A quiet moment for a planned new login (DarkBot's refresh): nothing under way and nothing due within a few
+     * minutes. By default when not {@link #busy()}.
+     */
+    default boolean calm() {
+        return !busy();
+    }
+
     /** True when it is a bad moment to leave (e.g. a boss almost dead). */
     default boolean busy() {
         return false;

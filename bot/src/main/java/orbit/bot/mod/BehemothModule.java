@@ -350,6 +350,30 @@ public final class BehemothModule implements BotModule {
      * {@code trainMode} by the behemoth: the offenders' circles do not take the ship away (live 2026-11-13 on the VPS:
      * «DoWarBoy рядом — ухожу» in the behemoth's fight, the train config says to stay).
      */
+    /** A planned new login waits till the next behemoth is at least this far off. */
+    static final long CALM_SPARE_MS = 150_000;
+
+    /**
+     * Calm for a planned new login (the user, 2026-11-14: «плановый перевход раз в 40 минут… только в спокойный момент,
+     * когда до бегемота больше 2–3 минут»): no fight, no behemoth on the way or in the list, no box being taken, and
+     * every known behemoth more than {@link #CALM_SPARE_MS} off.
+     */
+    @Override
+    public boolean calm() {
+        if (attacker.targetId() != 0 || onBehemoth || toBehemoth || behemothListed || boxes.busy()
+                || players.targetId() != 0) {
+            return false;
+        }
+        long wall = wallMs();
+        for (int m : maps(settings())) {
+            long due = dueAt(m, wall);
+            if (due > 0 && due - wall < CALM_SPARE_MS) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     @Override
     public void resumed() {
         // the box being taken is chosen again (its fly-to was given by the click's route), the navigator asked anew
