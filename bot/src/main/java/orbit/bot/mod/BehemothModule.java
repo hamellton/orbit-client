@@ -1112,6 +1112,24 @@ public final class BehemothModule implements BotModule {
             int x = lastPoint[1];
             int y = lastPoint[2];
             double dist = Math.hypot(x - h.x(), y - h.y());
+            int limit = (int) number(s, "trainEnemyLimit", 0);
+            if (on(s, "trainMode", false) && limit > 0 && now - fightSeenAt > 60_000_000_000L) {
+                // (not within a fight begun: out of sight a moment, it goes on — the first look decided)
+                // the crowd at its point counts as by the behemoth itself: the locator's word comes with a lag, the train
+                // stays by the spawn after the kill (live 2026-11-14 on the VPS, 1-BL: at the point, the behemoth gone,
+                // killed there by the train in 3 s)
+                double radius = number(s, "trainRadius", 1_500);
+                java.util.Set<Integer> group = PlayerFight.group(w);
+                List<String> black = names(s, "blacklist");
+                long crowd = w.ships().values().stream().filter(e -> PlayerFight.enemy(e, h, group, black)
+                        && Math.hypot(e.x() - x, e.y() - y) <= radius).count();
+                if (crowd > limit) {
+                    skip(h.mapId(), "у точки пеленгатора врагов " + crowd + " (больше " + limit + ")");
+                    chosen = choose(h.mapId(), h.mapId());
+                    toBehemoth = false;
+                    return false;
+                }
+            }
             if (dist < 900) {
                 // close: it comes into sight — stay by it, not back to the wait point (live 2026-11-13 on the VPS, 2-BL:
                 // the locator showed it at its spawn, the wait took the ship back, it was never seen)

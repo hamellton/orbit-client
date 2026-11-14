@@ -239,6 +239,23 @@ class BehemothModuleTest {
     }
 
     @Test
+    void aCrowdAtTheLocatorsPointSkipsTheMapUnseen() throws Exception {
+        // live 2026-11-14 on the VPS, 1-BL: at the locator's point, the behemoth gone, the train killed the ship there
+        Sim sim = new Sim(with(config(300), "{\"trainMode\": true, \"trainEnemyLimit\": 2, \"useLocator\": true, "
+                + "\"locatorList\": true}"), 308, 5_700, 2_600);
+        BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
+        locatorPet(sim);
+        m.workingMap();
+        sim.run(m::tick, 3_000);
+        targets(sim, 175, BehemothModule.BEHEMOTH_NPC);
+        for (int i = 0; i < 3; i++) {
+            enemy(sim, 900 + i, "Train" + i, 4_700 + i * 200, 3_900);
+        }
+        sim.run(m::tick, 1_000);
+        assertTrue(m.workingMap() != 308, "three at its point against a limit of two: another map, " + m.workingMap());
+    }
+
+    @Test
     void diesTooOftenByTheBehemothThenAnotherMap() throws Exception {
         // CARNAGE's DEATH_COUNT
         Sim sim = new Sim(with(config(300), "{\"trainMode\": true, \"deathsPerSpawn\": 2}"), 308, 8_000, 5_700);
