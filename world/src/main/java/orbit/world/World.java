@@ -307,6 +307,13 @@ public final class World {
                     gateMoney = p.money;
                     gateSamples = p.samples;
                     gateSpinSelected = p.spinamount_selected;
+                    // the answer names the gate by its mode ("alpha"), its parts are the gate's collected ones (gb2:
+                    // [2, 6, 5, 20, 13] — α's five)
+                    for (WorldSnapshot.Gate g : List.copyOf(gates.values())) {
+                        if (!g.mode().isEmpty() && g.mode().equalsIgnoreCase(p.gateMode)) {
+                            gates.put(g.id(), g.withParts(p.gatePartIds.size()));
+                        }
+                    }
                 }
             }
             case orbit.protocol.gen.GalaxyGateBuilderSetupGateCommand p -> {
@@ -334,6 +341,13 @@ public final class World {
                 WorldSnapshot.Gate g = gate(p.gateId);
                 gates.put((int) p.gateId, g.withLives(p.livesLeft, g.lifePrice()));
                 log.info("Врата {}: жизнь потеряна, осталось {}", p.gateId, p.livesLeft);
+            }
+            case orbit.protocol.gen.TrinityTrialsGateWindowCommand p -> {
+                trinity = new WorldSnapshot.Trinity(p.attributeType, p.openAttributes.stream()
+                        .map(t -> new String[] {t.param0, t.param1}).toList(), p.openDifficulty, p.lootId,
+                        p.curLootAmount, p.isFree, nanos);
+                log.info("Trinity: окно — атрибут {}, сложность до {}, ключей {}{}", p.attributeType, p.openDifficulty,
+                        p.curLootAmount, p.isFree ? ", бесплатно" : "");
             }
             case orbit.protocol.gen.GalaxyGateBuilderGateCompleteCommand p -> {
                 gates.put((int) p.gateId, gate(p.gateId).completed(p.currPart, nanos));
@@ -644,7 +658,7 @@ public final class World {
                 new WorldSnapshot.Damage(Map.copyOf(dealt), Map.copyOf(received), Map.copyOf(taken)),
                 new WorldSnapshot.Gates(Map.copyOf(gates), gateMoney, gateSamples, gateEnergyCost, gateSpinAmounts,
                         gateSpinSelected, gateInfoNanos, gateSetup, gateSetupError, gateSetupNanos, gateSpinError,
-                        gateSpinNanos));
+                        gateSpinNanos, trinity));
     }
 
     /** The assembly's recipes by their loot id (kept over map changes: the assembly is the account's). */
@@ -662,6 +676,7 @@ public final class World {
     private long gateSetupNanos;
     private int gateSpinError;
     private long gateSpinNanos;
+    private WorldSnapshot.Trinity trinity = WorldSnapshot.Trinity.NONE;
 
     private WorldSnapshot.Gate gate(int id) {
         return gates.getOrDefault(id, WorldSnapshot.Gate.of(id));

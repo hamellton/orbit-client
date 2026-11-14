@@ -143,6 +143,78 @@ public final class Actions {
         sender.accept(r);
     }
 
+    /**
+     * Opens or closes the galaxy gate builder as the client's window does ({@code UIWindowUpdateRequest{itemId="ggBuilder"}},
+     * recording gb2 2026-11-14: 807×435 at 3/45).
+     */
+    public void gateWindow(boolean open) {
+        orbit.protocol.gen.UIWindowUpdateRequest r = new orbit.protocol.gen.UIWindowUpdateRequest();
+        r.itemId = "ggBuilder";
+        r.maximized = open;
+        r.posX = 3;
+        r.posY = 45;
+        r.width = 807;
+        r.height = 435;
+        sender.accept(r);
+    }
+
+    /** The builder's gates, money and energy ({@code GalaxyGateBuilderInfoRequest}). */
+    public void gateInfo() {
+        sender.accept(new orbit.protocol.gen.GalaxyGateBuilderInfoRequest());
+    }
+
+    /** A gate's collected parts ({@code GalaxyGateBuilderGetGatePartsRequest}). */
+    public void gateParts(int gateId) {
+        orbit.protocol.gen.GalaxyGateBuilderGetGatePartsRequest r = new orbit.protocol.gen.GalaxyGateBuilderGetGatePartsRequest();
+        r.gateId = (byte) gateId;
+        sender.accept(r);
+    }
+
+    /** The spin amount the builder keeps ({@code GalaxyGateBuilderSaveSpinAmountRequest}: 1, 5, 10, 100). */
+    public void gateSpinAmount(int amount) {
+        orbit.protocol.gen.GalaxyGateBuilderSaveSpinAmountRequest r = new orbit.protocol.gen.GalaxyGateBuilderSaveSpinAmountRequest();
+        r.spinAmount = (byte) amount;
+        sender.accept(r);
+    }
+
+    /** One spin of the builder for a gate ({@code GalaxyGateBuilderMultiEnergyRequest}). */
+    public void gateSpin(int gateId, int amount, boolean multiplier) {
+        orbit.protocol.gen.GalaxyGateBuilderMultiEnergyRequest r = new orbit.protocol.gen.GalaxyGateBuilderMultiEnergyRequest();
+        r.gateId = (byte) gateId;
+        r.spinAmount = (byte) amount;
+        r.useMultiplier = multiplier;
+        sender.accept(r);
+    }
+
+    /** Places a built gate — the client's «prepare jump» ({@code GalaxyGateBuilderSetupGateRequest}). */
+    public void gatePlace(int gateId) {
+        orbit.protocol.gen.GalaxyGateBuilderSetupGateRequest r = new orbit.protocol.gen.GalaxyGateBuilderSetupGateRequest();
+        r.gateId = (byte) gateId;
+        sender.accept(r);
+    }
+
+    /** Buys a gate a life ({@code GalaxyGateBuilderBuyLifeRequest}). */
+    public void gateBuyLife(int gateId) {
+        orbit.protocol.gen.GalaxyGateBuilderBuyLifeRequest r = new orbit.protocol.gen.GalaxyGateBuilderBuyLifeRequest();
+        r.gateId = (byte) gateId;
+        sender.accept(r);
+    }
+
+    /** Trinity Trials' window: {@code 0} its state, {@code 1} the pass, {@code 2} drop a level ({@code TrinityTrialsUIRequest}). */
+    public void trinityWindow(int type) {
+        orbit.protocol.gen.TrinityTrialsUIRequest r = new orbit.protocol.gen.TrinityTrialsUIRequest();
+        r.optionalType = (short) type;
+        sender.accept(r);
+    }
+
+    /** Enters Trinity Trials of an attribute (1 Hellfire, 2 Genome) at a difficulty 1–5 ({@code TrinityTrialsGateEnterRequest}). */
+    public void trinityEnter(int attribute, int difficulty) {
+        orbit.protocol.gen.TrinityTrialsGateEnterRequest r = new orbit.protocol.gen.TrinityTrialsGateEnterRequest();
+        r.attributeType = attribute;
+        r.difficulty = difficulty;
+        sender.accept(r);
+    }
+
     /** Starts building {@code amount} of a recipe in the assembly ({@code AssemblyBuildRequest}). */
     public void assemblyBuild(String recipe, int amount) {
         orbit.protocol.gen.AssemblyBuildRequest r = new orbit.protocol.gen.AssemblyBuildRequest();

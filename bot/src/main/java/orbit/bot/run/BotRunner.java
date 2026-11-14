@@ -209,6 +209,9 @@ public final class BotRunner {
     private void loadModule() {
         moduleKind = ctx.config().get().module();
         module = Modules.create(moduleKind, ctx);
+        if (module != null && refresh != null) {
+            module.useRefresh(refresh);
+        }
         if (module == null) {
             log.error("Модуль {} пока не поддерживается", moduleKind);
         } else {
@@ -237,8 +240,14 @@ public final class BotRunner {
 
     /** A new login of the game connection (the game reads a new CPU at a login). */
     public void setRefresh(Runnable refresh) {
+        this.refresh = refresh;
         cloak.setRefresh(refresh);
+        if (module != null) {
+            module.useRefresh(refresh);
+        }
     }
+
+    private Runnable refresh;
 
     /** The account's shop for the buy list (none = the bot only says when to buy). */
     public void setShop(ShopAccess shop) {

@@ -22,9 +22,12 @@ final class GateSection implements Section {
         text.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
         view = new Form()
                 .section("Врата (GG)")
-                .note("Модуль не готов: настройки из импорта DarkBot как есть.")
-                .note("gateId — врата (71 Зета, 74 Каппа, −4 ЕБГ…), kamikaze — взрыв питомца, "
-                        + "builder — постройка и лимиты спинов.")
+                .note("Настройки модуля врат (JSON), подробно — docs/GALAXY-GATES.md:")
+                .note("gates — порядок: [\"alpha\", \"beta\", \"gamma\", \"zeta\", \"kappa\", \"trinity\"] или"
+                        + " {\"gate\": \"alpha\", \"on\": true, \"minLives\": 2}; place — ставить собранные (да);")
+                .note("build — спинить (нет), spinAmount 1/5/10/100, multiplier, energyOnly — только бесплатная энергия (да),"
+                        + " keepUridium — не тратить ниже (1 000 000);")
+                .note("boxRadius — ящики во вратах (1 500); trinityAttribute 1 Hellfire / 2 Genome, trinityDifficulty 1–5.")
                 .wide(minHeight(new JScrollPane(text), 140), true)
                 .build(true);
     }

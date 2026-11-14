@@ -75,14 +75,25 @@ public record WorldSnapshot(long nanos, Hero hero, Map<Integer, Ship> ships, Map
      */
     public record Gates(Map<Integer, Gate> gates, double money, double samples, int energyCost, List<Integer> spinAmounts,
                         int spinSelected, long infoNanos, int setupGate, int setupError, long setupNanos, int spinError,
-                        long spinNanos) {
+                        long spinNanos, Trinity trinity) {
 
-        public static final Gates NONE = new Gates(Map.of(), -1, -1, 0, List.of(), 0, 0, 0, 0, 0, 0, 0);
+        public static final Gates NONE = new Gates(Map.of(), -1, -1, 0, List.of(), 0, 0, 0, 0, 0, 0, 0, Trinity.NONE);
 
         /** The gate by its builder number, {@code null} when not told. */
         public Gate gate(int id) {
             return gates.get(id);
         }
+    }
+
+    /**
+     * Trinity Trials' window ({@code TrinityTrialsGateWindowCommand}): the attribute shown, the maps offered
+     * ({@code openAttributes}: {@code param0} the map, {@code param1} "1" free), the difficulty open up to, the key's loot
+     * and how many there are, a free entry; when it came ({@code 0} never).
+     */
+    public record Trinity(int attribute, List<String[]> offered, int openDifficulty, String lootId, int keys, boolean free,
+                          long nanos) {
+
+        public static final Trinity NONE = new Trinity(0, List.of(), 0, "", 0, false, 0);
     }
 
     /** Without the damage tally (older callers and tests). */

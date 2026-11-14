@@ -117,6 +117,10 @@ public interface BotModule {
         return null;
     }
 
+    /** A new login of the game connection, for modules that need one (the gates: AstraBot logs in again after one). */
+    default void useRefresh(Runnable refresh) {
+    }
+
     /** The pet without lasers: taken off on the site at the base in a free window ({@link CloakCare}). */
     default boolean petLasersOff() {
         return false;
