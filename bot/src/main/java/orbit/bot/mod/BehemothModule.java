@@ -524,8 +524,15 @@ public final class BehemothModule implements BotModule {
         return until != null && until > wallMs();
     }
 
+    /**
+     * A skip ends this much before the map's next behemoth: it is in the choice again in time to be flown to (live
+     * 2026-11-14 on the VPS: 3-BL skipped at its 03:35 behemoth was still skipped when the ship came for its 03:50 one,
+     * and the ship turned back through the train's 2-BL).
+     */
+    static final long SKIP_EARLY_MS = 180_000;
+
     private void skip(int map, String why) {
-        long until = wallMs() + respawn(map);
+        long until = wallMs() + Math.max(60_000, respawn(map) - SKIP_EARLY_MS);
         skipUntil.put(map, until);
         deathsAt.remove(map);
         log.info("{}: {} — пропускаю карту до следующего бегемота ({})", ctx.maps().info(map).name(), why,
