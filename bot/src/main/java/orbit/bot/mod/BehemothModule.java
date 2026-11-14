@@ -912,6 +912,8 @@ public final class BehemothModule implements BotModule {
     private int wasListedMap;
     private long wasListedNs;
     private long wasListedSeenNs;
+    private int listedComeMap;
+    private long listedComeWall;
     /** A behemoth found gone from the list later was dead at most this long after it was last seen listed. */
     static final long LIST_DEATH_SLACK_MS = 10_000;
     private int listedMap;
@@ -938,6 +940,11 @@ public final class BehemothModule implements BotModule {
             // few seconds of the last time it was listed, not when noticed
             long lastAlive = wallBase + (wasListedSeenNs - nanoBase) / 1_000_000;
             long killed = Math.min(wallMs(), lastAlive + LIST_DEATH_SLACK_MS);
+            // it comes back about 15 min 17 s after it last came, however long it lived (live 2026-11-14: 1-BL 00:18:50 →
+            // 00:34:08, 2-BL 00:28:52 → 00:44:09; 30–60 s after its death were the timer's lateness): timed from its coming
+            if (listedComeMap == h.mapId() && listedComeWall > 0 && listedComeWall < killed) {
+                killed = listedComeWall;
+            }
             memory.killed(h.mapId(), sp[0], sp[1], killed);
             log.info("Пеленгатор: бегемот пропал из списка на {} — убит{}, следующий через {}",
                     ctx.maps().info(h.mapId()).name(), killed < wallMs() - 1_000 ? " (" + clock(wallMs() - killed) + " назад)" : "",
@@ -956,6 +963,8 @@ public final class BehemothModule implements BotModule {
             if (listedMap != h.mapId() || now - listedAtNs > 5 * 60_000_000_000L) {
                 int[] sp = spawnPoint(h.mapId());
                 memory.seen(h.mapId(), sp[0], sp[1], wallMs());
+                listedComeMap = h.mapId();
+                listedComeWall = wallMs();
                 emptyAt.remove(h.mapId());
                 behemothSeenAt = wallMs();
                 behemothSeenMap = h.mapId();
@@ -1300,6 +1309,10 @@ public final class BehemothModule implements BotModule {
 
     private long respawn(int map) {
         long learned = memory.mapRespawn(map);
+        long seconds = (long) number(settings(), "respawnSeconds", 0);
+        if (seconds > 0) {
+            return seconds * 1_000;
+        }
         long minutes = (long) number(settings(), "respawnMinutes", 0);
         return minutes > 0 ? minutes * 60_000 : learned > 0 ? learned : DEFAULT_RESPAWN_MS;
     }
