@@ -54,9 +54,21 @@ public final class ItemCatalog {
             new Item("equipment_extra_cpu_cl04k-m", "CL04K-M (маскировка)"),
             new Item("equipment_extra_cpu_cl04k-xs", "CL04K-XS (маскировка)"));
 
-    /** The cloaking CPUs, the biggest first (each use is one cloak). */
-    public static final List<String> CLOAKS = List.of("equipment_extra_cpu_cl04k-xl", "equipment_extra_cpu_cl04k-m",
+    /**
+     * The cloaking CPU in the game's item bar: one item for any size, its counter the fitted CPU's charges (recorded
+     * 2026-11-14 on gb2: {@code equipment_extra_cpu_cl04k} counter 15 = the site's "Charges: 15" of the fitted CL04K-XL).
+     * The sized ids are the shop's and the site's.
+     */
+    public static final String CLOAK_BAR = "equipment_extra_cpu_cl04k";
+
+    /** The cloaking CPUs: the item bar's first, then the sized ones (older ids, the biggest first). */
+    public static final List<String> CLOAKS = List.of(CLOAK_BAR, "equipment_extra_cpu_cl04k-xl", "equipment_extra_cpu_cl04k-m",
             "equipment_extra_cpu_cl04k-xs");
+
+    /** The id the item bar counts an item by: a sized cloaking CPU as {@link #CLOAK_BAR}, else the item itself. */
+    public static String barItem(String id) {
+        return id != null && id.startsWith(CLOAK_BAR + "-") ? CLOAK_BAR : id;
+    }
 
     public static final List<Item> FORMATIONS;
 
@@ -154,6 +166,9 @@ public final class ItemCatalog {
     public static String label(String id) {
         if (id == null) {
             return "—";
+        }
+        if (CLOAK_BAR.equals(id)) {
+            return "CL04K (маскировка)";
         }
         for (List<Item> list : List.of(LASERS, ROCKETS, LAUNCHER, SPECIAL, FORMATIONS, PET_GEARS)) {
             for (Item i : list) {

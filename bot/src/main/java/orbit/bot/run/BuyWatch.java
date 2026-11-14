@@ -120,7 +120,7 @@ final class BuyWatch {
             return; // not in game or the item bar not received yet
         }
         bought.forEach((id, p) -> {
-            WorldSnapshot.Item now2 = w.items().get(id);
+            WorldSnapshot.Item now2 = w.items().get(ItemCatalog.barItem(id));
             if (now2 != null && now2.counter() > p[0]) {
                 bought.remove(id);
             } else if (now - (long) p[1] > EFFECT_MS * 1_000_000) {
@@ -135,7 +135,7 @@ final class BuyWatch {
             if (noEffect.contains(r.item())) {
                 continue;
             }
-            WorldSnapshot.Item item = w.items().get(r.item());
+            WorldSnapshot.Item item = w.items().get(ItemCatalog.barItem(r.item()));
             boolean noCloak = item == null && ItemCatalog.CLOAKS.contains(r.item()) && !w.items().isEmpty();
             if (noCloak) {
                 // a pilot with no cloaking CPU may get no slot for it at all: the item bar is there, the CPU is not — none

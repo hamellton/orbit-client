@@ -464,12 +464,12 @@ class BehemothModuleTest {
     void cloakedWhileWaitingInTheCloakFormation() throws Exception {
         Sim sim = new Sim(with(config(300), "{\"useCloak\": true, \"cloakFormation\": \"drone_formation_f-11-he\"}"),
                 308, 5_700, 2_600);
-        sim.lasers("ammunition_laser_ucb-100", "equipment_extra_cpu_cl04k-xl");
+        sim.lasers("ammunition_laser_ucb-100", orbit.config.ItemCatalog.CLOAK_BAR);
         BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
         m.workingMap();
         sim.run(m::tick, 3_000);
         assertTrue(sim.sent.stream().anyMatch(p -> p instanceof orbit.protocol.gen.MenuActionRequest a
-                && a.menuItemId.equals("equipment_extra_cpu_cl04k-xl")), "cloaked");
+                && a.menuItemId.equals(orbit.config.ItemCatalog.CLOAK_BAR)), "cloaked");
         assertEquals("drone_formation_f-11-he", sim.ctx.ship().wanted().formation(), "Heart");
     }
 

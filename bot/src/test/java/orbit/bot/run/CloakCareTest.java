@@ -75,7 +75,7 @@ class CloakCareTest {
         cat.categoryId = "cpus";
         orbit.protocol.gen.MenuItemInitializationCommand it = new orbit.protocol.gen.MenuItemInitializationCommand();
         it.status = new orbit.protocol.gen.MenuItemStatusCommand();
-        it.status.menuItemId = CloakCare.CLOAK;
+        it.status.menuItemId = orbit.config.ItemCatalog.CLOAK_BAR; // the bar's id, as recorded
         it.status.counterValue = charges;
         it.status.available = charges > 0;
         cat.menuItems = List.of(it);

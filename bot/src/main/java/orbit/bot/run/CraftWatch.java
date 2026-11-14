@@ -131,7 +131,7 @@ final class CraftWatch {
         if (item == null || item.isBlank()) {
             return -1;
         }
-        WorldSnapshot.Item i = w.items().get(item);
+        WorldSnapshot.Item i = w.items().get(ItemCatalog.barItem(item));
         if (i != null) {
             return i.counter();
         }
