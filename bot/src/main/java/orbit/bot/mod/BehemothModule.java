@@ -552,6 +552,8 @@ public final class BehemothModule implements BotModule {
     static final double SPAWN_BOX_RADIUS = 1_000;
     /** …and are flown to only while its next one is at least this far off. */
     static final long SPAWN_BOX_SPARE_MS = 60_000;
+    /** Enemies this much beyond the boxes' circle keep the ship from them. */
+    static final double SPAWN_BOX_ENEMY_MARGIN = 1_000;
 
     /**
      * {@code collectSpawnBoxes} (on unless turned off; the user, 2026-11-14: «на месте бегемота жёлтые точки — коробки,
@@ -570,6 +572,20 @@ public final class BehemothModule implements BotModule {
             return false;
         }
         int[] sp = spawnPoint(h.mapId());
+        // not by enemies (the user, 2026-11-14: «когда возле ящика нет обидчиков»; live the same day on the VPS, 2-BL
+        // 16:09: the ship went for a box by the spawn, the train standing there killed it in 20 s)
+        java.util.Set<Integer> group = PlayerFight.group(w);
+        List<String> black = names(s, "blacklist");
+        boolean enemies = w.ships().values().stream().anyMatch(e -> PlayerFight.enemy(e, h, group, black)
+                && Math.hypot(e.x() - sp[0], e.y() - sp[1]) <= SPAWN_BOX_RADIUS + SPAWN_BOX_ENEMY_MARGIN);
+        if (enemies || ctx.nav().inDanger(sp[0], sp[1])) {
+            if (boxes.busy()) {
+                boxes.clear();
+                ctx.nav().stop();
+                log.info("У ящиков бегемота враги — бросаю, назад к точке ожидания");
+            }
+            return false;
+        }
         if (boxes.tickAnyType(sp[0], sp[1], SPAWN_BOX_RADIUS)) {
             status = "Подбираю ящик бегемота: " + boxes.currentName();
             return true;

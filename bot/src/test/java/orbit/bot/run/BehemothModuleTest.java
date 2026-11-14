@@ -937,10 +937,27 @@ class BehemothModuleTest {
         box.x = 6_950;
         box.y = 5_050;
         sim.world.apply(box, sim.now);
-        enemy(sim, 900, "Train", 7_000, 5_100); // a train by it: no matter
         sim.run(m::tick, 15_000);
         assertTrue(sim.sent.stream().anyMatch(p -> p instanceof orbit.protocol.gen.CollectBoxRequest),
                 "the box by the spawn is collected, its type not in the list");
+    }
+
+    @Test
+    void noSpawnBoxWhileEnemiesStandByIt() throws Exception {
+        // live 2026-11-14 on the VPS, 2-BL 16:09: the train by the spawn killed the ship that went for a box
+        Sim sim = new Sim(with(config(300), "{\"trainMode\": true}"), 307, 5_200, 5_000);
+        BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
+        m.workingMap();
+        orbit.protocol.gen.AddBoxCommand box = new orbit.protocol.gen.AddBoxCommand();
+        box.hash = "behebox";
+        box.boxType = "MINDFIRE_BEHEMOTH_BOX_2";
+        box.x = 6_950;
+        box.y = 5_050;
+        sim.world.apply(box, sim.now);
+        enemy(sim, 900, "Train", 7_300, 5_400);
+        sim.run(m::tick, 15_000);
+        assertTrue(sim.sent.stream().noneMatch(p -> p instanceof orbit.protocol.gen.CollectBoxRequest),
+                "an enemy by the boxes: the ship stays at its wait");
     }
 
     @Test
