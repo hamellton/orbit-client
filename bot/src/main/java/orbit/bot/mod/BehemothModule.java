@@ -174,6 +174,8 @@ public final class BehemothModule implements BotModule {
     static final long HEAT_EVERY_NS = 2_000_000_000L;
     /** The ship's death weighs as much as so many sightings. */
     static final double DEATH_HEAT = 40;
+    /** The safe spot keeps this far from every portal of the map. */
+    static final double SAFE_PORTAL_KEEP = 2_000;
     /** Below this much learned on a map the heat is not trusted yet. */
     static final double HEAT_ENOUGH = 300;
 
@@ -238,6 +240,9 @@ public final class BehemothModule implements BotModule {
                         || avoided != null && avoided.contains(p[0], p[1], width, height)
                         || !pf.free(p[0], p[1]) || !pf.clear(p[0], p[1], sp[0], sp[1])) {
                     continue;
+                }
+                if (fromPortals(map, p) < SAFE_PORTAL_KEEP || fromPaths(map, sp, p) < PATH_KEEP) {
+                    continue; // portals and the trains' ways are where offenders and trains pass (the user, 2026-11-14)
                 }
                 double near = heat.around(map, p[0], p[1], 3_000);
                 // a share of the map's heat, and a little for the way to the spawn
