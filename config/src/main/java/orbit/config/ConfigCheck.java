@@ -59,6 +59,7 @@ public final class ConfigCheck {
                 if (b != null && !b.kill()) {
                     out.add(error("Mindfire Behemoth в списке NPC отмечен «не бить»"));
                 }
+                behemothTrain(c, out);
             }
             case GALAXY_GATE -> {
                 if (!c.modules().containsKey(BotConfig.Module.GALAXY_GATE.key())) {
@@ -98,6 +99,31 @@ public final class ConfigCheck {
 
     private static Problem warning(String m) {
         return new Problem(Level.WARNING, m);
+    }
+
+    /** The train settings differing from the tested ones ({@link BehemothProven}) — said, not forbidden. */
+    private static void behemothTrain(BotConfig c, List<Problem> out) {
+        com.fasterxml.jackson.databind.JsonNode m = c.modules().get(BotConfig.Module.BEHEMOTH.key());
+        if (m == null || !m.path("trainMode").asBoolean(false)) {
+            return;
+        }
+        String fix = " (проверенное — кнопка «Поставить проверенные настройки» во вкладке «Бегемот»)";
+        int limit = m.path("trainEnemyLimit").asInt(BehemothProven.TRAIN_LIMIT);
+        if (limit == 0) {
+            out.add(warning("бегемот среди поезда: от толпы не уходит — при 13–15 врагах смерть без награды" + fix));
+        } else if (limit != BehemothProven.TRAIN_LIMIT) {
+            out.add(warning("бегемот среди поезда: уходит при врагах больше " + limit + ", проверено "
+                    + BehemothProven.TRAIN_LIMIT + fix));
+        }
+        if (!m.path("trainAtLocator").asBoolean(true)) {
+            out.add(warning("бегемот среди поезда: толпа у точки пеленгатора не считается" + fix));
+        }
+        if (!m.path("leaveSkipped").asBoolean(true)) {
+            out.add(warning("бегемот среди поезда: пропущенная карта не покидается сразу" + fix));
+        }
+        if (m.path("useEmp").asBoolean(true) && !m.path("empOnlyPlayers").asBoolean(true)) {
+            out.add(warning("бегемот: ЭМИ и тогда, когда стреляют одни NPC — пропадёт зря" + fix));
+        }
     }
 
     private static String pct(double v) {

@@ -238,7 +238,14 @@ public final class Attacker {
      */
     public record AbilityPlan(boolean emp, double empBelow, boolean ish, double ishBelow, double prismaticBelow,
                               double jamxWithin, int threatPlayers, boolean off, boolean prismaticAtStart,
-                              long empAfterIshMs) {
+                              long empAfterIshMs, boolean empOnlyPlayers) {
+
+        public AbilityPlan(boolean emp, double empBelow, boolean ish, double ishBelow, double prismaticBelow,
+                           double jamxWithin, int threatPlayers, boolean off, boolean prismaticAtStart,
+                           long empAfterIshMs) {
+            this(emp, empBelow, ish, ishBelow, prismaticBelow, jamxWithin, threatPlayers, off, prismaticAtStart,
+                    empAfterIshMs, true);
+        }
 
         public AbilityPlan(boolean emp, double empBelow, boolean ish, double ishBelow) {
             this(emp, empBelow, ish, ishBelow, -1, -1, 0, false, false, ISH_HOLDS_NS / 1_000_000);
@@ -373,8 +380,9 @@ public final class Attacker {
             return;
         }
         // EMP only breaks players' locks: with none shooting it is wasted (live 2026-11-14 on the VPS, 3-BL: come at 29 %
-        // after a train on the way, EMP at once with nobody shooting)
-        if (plan.emp() && plan.empBelow() > 0 && hp >= 0 && hp < plan.empBelow() && players > 0
+        // after a train on the way, EMP at once with nobody shooting); {@code empOnlyPlayers} off — by HP alone
+        if (plan.emp() && plan.empBelow() > 0 && hp >= 0 && hp < plan.empBelow()
+                && (players > 0 || !plan.empOnlyPlayers())
                 && now - ishAt > plan.empAfterIshMs() * 1_000_000
                 && may(w, h, EMP, fo.empSpend(), empUses, empAt, now)) {
             log.info("EMP-01: HP {}%, стреляют {} игроков (за сутки {})", Math.round(hp * 100), players,

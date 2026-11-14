@@ -291,7 +291,7 @@ public final class BehemothModule implements BotModule {
         if (chosen == 0) {
             chosen = choose(h.mapId(), 0);
         }
-        if (holding(h.mapId()) && !skipped(h.mapId())) {
+        if (holding(h.mapId()) && !leftSkipped(h.mapId())) {
             return h.mapId();
         }
         if (chosen != h.mapId() && departFrom != h.mapId()) {
@@ -440,7 +440,7 @@ public final class BehemothModule implements BotModule {
                     on(s, "usePrismatic", false) ? percent(s, "prismaticPercent", 50) : -1,
                     on(s, "useSpearheadJamx", false) ? number(s, "jamxDistance", 750) : -1,
                     saved ? (int) number(s, "threatPlayers", 3) : 0, false, on(s, "prismaticAtStart", false),
-                    (long) number(s, "empAfterIshSeconds", 3) * 1_000));
+                    (long) number(s, "empAfterIshSeconds", 3) * 1_000, on(s, "empOnlyPlayers", true)));
         }
         if (fightPlayers(c, s, w, b)) {
             return;
@@ -500,7 +500,7 @@ public final class BehemothModule implements BotModule {
         if (followTrain(h)) {
             return; // the runner flies there
         }
-        if (h.mapId() != chosen && holding(h.mapId()) && !skipped(h.mapId())) {
+        if (h.mapId() != chosen && holding(h.mapId()) && !leftSkipped(h.mapId())) {
             // a map given up for its crowd is left at once: the next one is waited on, not this one's train
             // the locator looks here too: one coming on this map while holding for another is gone for (live
             // 2026-11-14 on the VPS, 3-BL: listed while holding for 1-BL, not gone for)
@@ -525,6 +525,14 @@ public final class BehemothModule implements BotModule {
             return;
         }
         waitHere(s, h);
+    }
+
+    /**
+     * {@code leaveSkipped} (on unless turned off): a map given up for its crowd is left at once, not held for and not
+     * flown back to by the locator's point.
+     */
+    private boolean leftSkipped(int map) {
+        return skipped(map) && on(settings(), "leaveSkipped", true);
     }
 
     /** The map is given up until its behemoth comes again. */
@@ -600,7 +608,7 @@ public final class BehemothModule implements BotModule {
                 .filter(x -> PlayerFight.enemy(x, h, group, black))
                 .filter(x -> Math.hypot(x.x() - b.x(), x.y() - b.y()) <= radius)
                 .toList();
-        int limit = (int) number(s, "trainEnemyLimit", 0);
+        int limit = (int) number(s, "trainEnemyLimit", orbit.config.BehemothProven.TRAIN_LIMIT);
         // the first look decides: a fight begun among few goes on when the train comes (live 2026-11-14 on the VPS,
         // 2-BL 01:45: 8 by it, then 14 — survived, +720 764 credits; skipped then, it would have been nothing)
         boolean firstLook = ctx.now() - fightSeenAt < FIRST_LOOK_NS;
@@ -1084,7 +1092,7 @@ public final class BehemothModule implements BotModule {
         if (listSaysGone(s, pet, h, now)) {
             return true;
         }
-        if (skipped(h.mapId())) {
+        if (leftSkipped(h.mapId())) {
             // given up for its crowd: the list still dates it, but its point is not flown to (live 2026-11-14 on the
             // VPS, 2-BL: 15 by it, skipped, then the locator's point took the ship back into them)
             return false;
@@ -1112,8 +1120,9 @@ public final class BehemothModule implements BotModule {
             int x = lastPoint[1];
             int y = lastPoint[2];
             double dist = Math.hypot(x - h.x(), y - h.y());
-            int limit = (int) number(s, "trainEnemyLimit", 0);
-            if (on(s, "trainMode", false) && limit > 0 && now - fightSeenAt > 60_000_000_000L) {
+            int limit = (int) number(s, "trainEnemyLimit", orbit.config.BehemothProven.TRAIN_LIMIT);
+            if (on(s, "trainMode", false) && on(s, "trainAtLocator", true) && limit > 0
+                    && now - fightSeenAt > 60_000_000_000L) {
                 // (not within a fight begun: out of sight a moment, it goes on — the first look decided)
                 // the crowd at its point counts as by the behemoth itself: the locator's word comes with a lag, the train
                 // stays by the spawn after the kill (live 2026-11-14 on the VPS, 1-BL: at the point, the behemoth gone,

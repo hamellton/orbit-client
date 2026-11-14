@@ -673,6 +673,19 @@ class AttackerTest {
     }
 
     @Test
+    void empByHpAloneWhenTurnedOff() {
+        Sim sim = new Sim(invoke(Set.of(), null), 1, 10_500, 6_000);
+        sim.lasers("ammunition_laser_lcb-10", "ammunition_specialammo_emp-01");
+        sim.npc(7, "-=[ Target ]=-", 10_000, 6_000);
+        Attacker a = new Attacker(sim.ctx);
+        a.setAbilityPlan(new Attacker.AbilityPlan(true, 0.35, false, 0, -1, -1, 3, false, false, 3_000, false));
+        a.target(sim.world.snapshot(sim.now).ships().get(7));
+        hull(sim, 0.3);
+        sim.run(() -> a.tick(true), 3_000);
+        assertEquals(1, used(sim, "ammunition_specialammo_emp-01"), "empOnlyPlayers off: EMP by HP");
+    }
+
+    @Test
     void offTheBehemothNothingIsSpent() {
         Sim sim = new Sim(invoke(Set.of("USE_EMP", "USE_ISH", "USE_ABILITY"), null), 1, 10_500, 6_000);
         sim.lasers("ammunition_laser_lcb-10", "ability_venom", "equipment_extra_cpu_ish-01", "ammunition_specialammo_emp-01");

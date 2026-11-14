@@ -51,4 +51,16 @@ class ConfigCheckTest {
         BotConfig c = BotConfig.empty().withGeneral(new BotConfig.General(99_999, null, null, null, true, false, 300, false, false));
         assertTrue(says(ConfigCheck.check(c, MAPS), "неизвестна"));
     }
+
+    @Test
+    void behemothTrainSettingsOffTheTestedOnesAreSaid() {
+        BotConfig c = BotConfig.empty().withModule(BotConfig.Module.BEHEMOTH);
+        var m = Json.MAPPER.createObjectNode().put("trainMode", true);
+        assertFalse(says(ConfigCheck.check(c.withModuleSettings("behemoth", m), MAPS), "бегемот среди поезда"),
+                "defaults are the tested ones");
+        m.put("trainEnemyLimit", 0).put("leaveSkipped", false);
+        List<ConfigCheck.Problem> p = ConfigCheck.check(c.withModuleSettings("behemoth", m), MAPS);
+        assertTrue(says(p, "от толпы не уходит"));
+        assertTrue(says(p, "пропущенная карта"));
+    }
 }

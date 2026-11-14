@@ -30,6 +30,7 @@ final class BehemothSection implements Section {
     private final ItemBox collectFormation = new ItemBox(ItemCatalog.FORMATIONS, true);
     private final JCheckBox emp = new JCheckBox("EMP-01 при HP корабля ниже");
     private final JSpinner empBelow = Form.percent();
+    private final JCheckBox empOnlyPlayers = new JCheckBox("ЭМИ — только когда по нам стреляет игрок");
     private final JCheckBox ish = new JCheckBox("ISH-01 при HP корабля ниже");
     private final JSpinner ishBelow = Form.percent();
     private final JCheckBox prismatic = new JCheckBox("Призматический щит (Spectrum, Citadel+) при HP ниже");
@@ -72,6 +73,9 @@ final class BehemothSection implements Section {
     private final JCheckBox trainMode = new JCheckBox("Бить бегемота, даже когда рядом чужой поезд и бьёт нас");
     private final JSpinner trainRadius = Form.number(300, 5_000, 100);
     private final JSpinner trainLimit = Form.number(0, 50, 1);
+    private final JCheckBox trainAtLocator = new JCheckBox("Считать врагов и у точки пеленгатора, ещё до того, как бегемот виден");
+    private final JCheckBox leaveSkipped = new JCheckBox("Пропущенную карту покидать сразу и не возвращаться до следующего бегемота");
+    private final javax.swing.JButton trainProven = new javax.swing.JButton("Поставить проверенные настройки");
     private final JCheckBox avoidOrbit = new JCheckBox("Стоять с другой стороны бегемота от чужих (не лезть в их кольцо)");
     private final JSpinner deathsPerSpawn = Form.number(0, 20, 1);
     // players (CARNAGE's PvpHelper / DefenseMode, AstraBot's defenceMode, chaseEnemy, BLACKLIST)
@@ -96,6 +100,16 @@ final class BehemothSection implements Section {
         prismatic.addActionListener(e -> sync());
         jamx.addActionListener(e -> sync());
         trainMode.addActionListener(e -> sync());
+        trainProven.addActionListener(e -> proven());
+        trainProven.setToolTipText("Включает бой среди чужого поезда и ставит всё, что проверено на VPS 2026-11-14:"
+                + " радиус 1500, уйти при больше 12 врагов, считать у точки пеленгатора, пропущенную карту покидать сразу,"
+                + " стоять с другой стороны бегемота, после 4 смертей — другая карта, учиться безопасной точке, ЭМИ только"
+                + " против игроков");
+        trainAtLocator.setToolTipText("Пеленгатор показал бегемота, а у его точки уже больше врагов, чем в пороге выше,"
+                + " — пропустить карту, не подлетая (поезд там убьёт его за секунды)");
+        leaveSkipped.setToolTipText("Карта пропущена из-за толпы или смертей — бот сразу улетает и не тянется к точке"
+                + " пеленгатора на ней; снова в выборе за 3 мин до следующего бегемота");
+        empOnlyPlayers.setToolTipText("ЭМИ снимает только захват игроков: если стреляют одни NPC, он пропадёт зря");
         useCloak.addActionListener(e -> sync());
         freeSide.addActionListener(e -> sync());
         closeSeconds.setToolTipText("Столько секунд до появления (по таймеру) — подлететь как можно ближе к месту появления,"
@@ -146,7 +160,9 @@ final class BehemothSection implements Section {
         hunt.addActionListener(e -> sync());
         follow.addActionListener(e -> sync());
         trainRadius.setToolTipText("Чужие игроки ближе этого к бегемоту считаются поездом");
-        trainLimit.setToolTipText("Больше стольких врагов у бегемота — уйти на другую карту; 0 — не уходить (как BLCycle)");
+        trainLimit.setToolTipText("Смотрит первые 1,5 с после того, как увидел бегемота: врагов больше — сразу другая"
+                + " карта. Начал бой — уже не уходит, даже если поезд прилетел. 0 — не уходить (как BLCycle). Проверено:"
+                + " до 10 врагов награда приходила, при 13–15 — смерть без награды");
         deathsPerSpawn.setToolTipText("Погиб у бегемота столько раз — эту карту пропустить до следующего бегемота; 0 — нет");
         blacklist.setToolTipText("Имена игроков через запятую — их бить всегда, когда видны (как BLACKLIST в AstraBot)");
         focus.setToolTipText("Сначала бегемот — игроков только пока его нет; сначала враги — даже когда бегемот рядом");
@@ -189,6 +205,7 @@ final class BehemothSection implements Section {
                 .note("Как бить самого бегемота (радиус, A-BL, Drill, HP Link, RSB) — строка «Mindfire Behemoth» во"
                         + " вкладке «Убивать». Чужих игроков у бегемота не боимся: урон засчитывается всем.")
                 .row("", Form.inline(emp, empBelow, new javax.swing.JLabel("%")))
+                .row("", empOnlyPlayers)
                 .row("", Form.inline(ish, ishBelow, new javax.swing.JLabel("%")))
                 .row("", Form.inline(prismatic, prismaticBelow, new javax.swing.JLabel("%")))
                 .row("", Form.inline(jamx, jamxDistance))
@@ -213,10 +230,15 @@ final class BehemothSection implements Section {
                         + " бот больше не покупает до перезапуска). Крафт пока не сделан.")
                 .section("Чужой поезд у бегемота")
                 .row("", trainMode)
+                .row("", trainProven)
                 .row("Поезд — чужие ближе к бегемоту, чем", trainRadius)
-                .row("Уйти, если врагов больше (0 — нет)", trainLimit)
+                .row("Врагов больше — другая карта (0 — нет)", trainLimit)
+                .row("", trainAtLocator)
+                .row("", leaveSkipped)
                 .row("", avoidOrbit)
                 .row("Погиб столько раз — другая карта (0 — нет)", deathsPerSpawn)
+                .note("Не знаете, что ставить, — нажмите «Поставить проверенные настройки». Отличия от проверенных"
+                        + " видно в проверке конфига перед запуском.")
                 .note("Как в CARNAGE: от их атак не убегаем, бьём бегемота дальше; урон засчитывается всем, кто бил."
                         + " Против частых смертей — «Стоп после смертей от одного игрока» во вкладке «Безопасность».")
                 .section("Игроки")
@@ -244,12 +266,15 @@ final class BehemothSection implements Section {
         collectConfig.setEnabled(collect.isSelected());
         collectFormation.setEnabled(collect.isSelected());
         empBelow.setEnabled(emp.isSelected());
+        empOnlyPlayers.setEnabled(emp.isSelected());
         ishBelow.setEnabled(ish.isSelected());
         prismaticBelow.setEnabled(prismatic.isSelected());
         jamxDistance.setEnabled(jamx.isSelected());
         boolean t = trainMode.isSelected();
         trainRadius.setEnabled(t);
         trainLimit.setEnabled(t);
+        trainAtLocator.setEnabled(t);
+        leaveSkipped.setEnabled(t);
         avoidOrbit.setEnabled(t);
         deathsPerSpawn.setEnabled(t);
         respondRadius.setEnabled(respond.isSelected());
@@ -261,6 +286,20 @@ final class BehemothSection implements Section {
         freeSideRadius.setEnabled(freeSide.isSelected() || awayFromPortals.isSelected());
         avoidSpawnRadius.setEnabled(avoidSpawn.isSelected());
         followDistance.setEnabled(follow.isSelected());
+    }
+
+    /** The train settings tested live (docs/BLACKLIGHT.md): one button, nothing to remember. */
+    private void proven() {
+        trainMode.setSelected(true);
+        Form.set(trainRadius, orbit.config.BehemothProven.TRAIN_RADIUS);
+        Form.set(trainLimit, orbit.config.BehemothProven.TRAIN_LIMIT);
+        trainAtLocator.setSelected(true);
+        leaveSkipped.setSelected(true);
+        avoidOrbit.setSelected(true);
+        Form.set(deathsPerSpawn, orbit.config.BehemothProven.DEATHS_PER_SPAWN);
+        learnSafeSpot.setSelected(true);
+        empOnlyPlayers.setSelected(true);
+        sync();
     }
 
     @Override
@@ -291,6 +330,7 @@ final class BehemothSection implements Section {
         collectFormation.set(f.isBlank() ? null : f.startsWith("drone_formation_") ? f : formationId(f));
         emp.setSelected(m.path("useEmp").asBoolean(true));
         Form.setFraction(empBelow, m.path("empPercent").asDouble(35) / 100);
+        empOnlyPlayers.setSelected(m.path("empOnlyPlayers").asBoolean(true));
         ish.setSelected(m.path("useIsh").asBoolean(true));
         Form.setFraction(ishBelow, m.path("ishPercent").asDouble(60) / 100);
         prismatic.setSelected(m.path("usePrismatic").asBoolean(false));
@@ -331,7 +371,9 @@ final class BehemothSection implements Section {
         Form.set(avoidSpawnRadius, m.path("avoidSpawnRadius").asInt(1_500));
         trainMode.setSelected(m.path("trainMode").asBoolean(false));
         Form.set(trainRadius, m.path("trainRadius").asInt(1_500));
-        Form.set(trainLimit, m.path("trainEnemyLimit").asInt(0));
+        Form.set(trainLimit, m.path("trainEnemyLimit").asInt(orbit.config.BehemothProven.TRAIN_LIMIT));
+        trainAtLocator.setSelected(m.path("trainAtLocator").asBoolean(true));
+        leaveSkipped.setSelected(m.path("leaveSkipped").asBoolean(true));
         avoidOrbit.setSelected(m.path("avoidEnemyOrbit").asBoolean(true));
         Form.set(deathsPerSpawn, m.path("deathsPerSpawn").asInt(0));
         respond.setSelected(m.path("respondPlayers").asBoolean(false));
@@ -386,6 +428,7 @@ final class BehemothSection implements Section {
         m.put("collectBoxFormation", collectFormation.get() != null ? collectFormation.get() : "");
         m.put("useEmp", emp.isSelected());
         m.put("empPercent", Math.round(Form.fraction(empBelow) * 100));
+        m.put("empOnlyPlayers", empOnlyPlayers.isSelected());
         m.put("useIsh", ish.isSelected());
         m.put("ishPercent", Math.round(Form.fraction(ishBelow) * 100));
         m.put("usePrismatic", prismatic.isSelected());
@@ -426,6 +469,8 @@ final class BehemothSection implements Section {
         m.put("trainMode", trainMode.isSelected());
         m.put("trainRadius", Form.intOf(trainRadius));
         m.put("trainEnemyLimit", Form.intOf(trainLimit));
+        m.put("trainAtLocator", trainAtLocator.isSelected());
+        m.put("leaveSkipped", leaveSkipped.isSelected());
         m.put("avoidEnemyOrbit", avoidOrbit.isSelected());
         m.put("deathsPerSpawn", Form.intOf(deathsPerSpawn));
         m.put("respondPlayers", respond.isSelected());

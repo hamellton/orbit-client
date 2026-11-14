@@ -256,6 +256,22 @@ class BehemothModuleTest {
     }
 
     @Test
+    void theCrowdAtTheLocatorsPointIsNotCountedWhenTurnedOff() throws Exception {
+        Sim sim = new Sim(with(config(300), "{\"trainMode\": true, \"trainEnemyLimit\": 2, \"useLocator\": true, "
+                + "\"locatorList\": true, \"trainAtLocator\": false}"), 308, 5_700, 2_600);
+        BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
+        locatorPet(sim);
+        m.workingMap();
+        sim.run(m::tick, 3_000);
+        targets(sim, 175, BehemothModule.BEHEMOTH_NPC);
+        for (int i = 0; i < 3; i++) {
+            enemy(sim, 900 + i, "Train" + i, 4_700 + i * 200, 3_900);
+        }
+        sim.run(m::tick, 1_000);
+        assertEquals(308, m.workingMap(), "turned off: the map is kept");
+    }
+
+    @Test
     void diesTooOftenByTheBehemothThenAnotherMap() throws Exception {
         // CARNAGE's DEATH_COUNT
         Sim sim = new Sim(with(config(300), "{\"trainMode\": true, \"deathsPerSpawn\": 2}"), 308, 8_000, 5_700);
