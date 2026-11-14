@@ -139,9 +139,14 @@ public final class BehemothModule implements BotModule {
     /** Leave this long before the flight says (a turn, a slow start). */
     static final long LEAD_MS = 5_000;
 
-    /** How early to be on the behemoth's map: the near point's time ({@code closeBeforeSeconds}) and a little more. */
+    /**
+     * How early to be on the behemoth's map: the near point's time ({@code closeBeforeSeconds}) and the flight across the
+     * map from the portal to it (live 2026-11-14 on the VPS, 1-BL: on the map 21 s before it came, 4 600 off it when it
+     * came — it lived 16 s).
+     */
     private long lead() {
-        return Math.max(LEAD_MS, (long) number(settings(), "closeBeforeSeconds", 0) * 1_000 + 10_000);
+        long close = (long) number(settings(), "closeBeforeSeconds", 0) * 1_000;
+        return close > 0 ? close + (long) number(settings(), "crossMapSeconds", 35) * 1_000 : LEAD_MS;
     }
     /** The locator's last point is kept this long through its «nothing» (BLCycle: 10 s). */
     static final long LOCATOR_GRACE_MS = 10_000;
