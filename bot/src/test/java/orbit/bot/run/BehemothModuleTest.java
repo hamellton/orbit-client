@@ -161,6 +161,18 @@ class BehemothModuleTest {
         at.run(m2::tick, 3_000);
         assertTrue(at.sent.stream().anyMatch(p -> p instanceof orbit.protocol.gen.ShipSelectRequest r && r.targetId == 500),
                 "at the point: shot back at");
+
+        Sim cl = new Sim(config(300), 308, 5_700, 2_600); // at the point, cloaked
+        orbit.protocol.gen.LegacyModule inv = new orbit.protocol.gen.LegacyModule();
+        inv.message = "0|n|INV|1|1";
+        cl.world.apply(inv, cl.now);
+        BehemothModule m3 = new BehemothModule(cl.ctx, SpawnMemory.inMemory());
+        m3.workingMap();
+        cl.npc(500, "\\\\ Impulse II //", 5_900, 2_600);
+        shoots(cl, 500, 1); // its attack from before the cloak, still on record
+        cl.run(m3::tick, 3_000);
+        assertTrue(cl.sent.stream().noneMatch(p -> p instanceof orbit.protocol.gen.ShipSelectRequest r && r.targetId == 500),
+                "cloaked: NPCs cannot see us, a shot back would only uncloak");
     }
 
     @Test

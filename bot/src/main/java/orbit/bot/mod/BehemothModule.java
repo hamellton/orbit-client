@@ -1747,6 +1747,12 @@ public final class BehemothModule implements BotModule {
             attacker.clear(); // on the way to the point: no fight
             return false;
         }
+        if (h.cloaked()) {
+            // NPCs do not see a cloaked ship; «shooting at us» is the attack from before the cloak, not cleared yet — a
+            // shot back would only take the cloak off and its charge with it (live 2026-11-14 on int1: a charge a minute)
+            attacker.clear();
+            return false;
+        }
         if (attacker.targetId() != 0) {
             WorldSnapshot.Ship t = w.ships().get(attacker.targetId());
             if (t != null && t.distanceTo(h.x(), h.y()) <= DEFEND_REACH && attacker.tick(false)) {
