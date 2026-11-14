@@ -96,6 +96,16 @@ public final class BotRunner {
     private String status = "Вход в игру";
     private String stopReason;
     private int travelTarget;
+    /** Where the ship last stood still from, and since when (the idle nudge). */
+    private int stillX = Integer.MIN_VALUE;
+    private int stillY;
+    private long stillSince;
+    private long stillLimit; // nanos
+    /** Standing this long without a move (random within, not a fixed beat) and the ship steps aside a little. */
+    static final long STILL_MIN_MS = 150_000;
+    static final long STILL_MAX_MS = 240_000;
+    /** Moved less than this — still standing. */
+    static final double STILL_RADIUS = 40;
     private long logoutAt;
     private long logoutPressedAt = Long.MIN_VALUE / 2;
     private String lastStatus = "";
@@ -448,6 +458,7 @@ public final class BotRunner {
         if (manual(h)) {
             return;
         }
+        nudgeWhenStill(h);
         if (flee.tick()) {
             if (module != null) {
                 module.pause();
@@ -520,6 +531,41 @@ public final class BotRunner {
         state = State.WORKING;
         module.tick();
         show(module.status());
+    }
+
+    /**
+     * A ship standing on one spot for minutes gets a server kick (the user, 2026-11-14: «кик, может из-за бездействия?
+     * может пару метров туда-сюда летать?»; live on the VPS: KIK about 5 min after each login while it stood still on 2-8):
+     * after {@link #STILL_MIN_MS}–{@link #STILL_MAX_MS} without moving, a short step aside (150–300); the module puts the
+     * ship back on its spot if it wants it there.
+     */
+    private void nudgeWhenStill(WorldSnapshot.Hero h) {
+        long now = ctx.now();
+        if (stillX == Integer.MIN_VALUE || Math.hypot(h.x() - stillX, h.y() - stillY) > STILL_RADIUS) {
+            stillX = h.x();
+            stillY = h.y();
+            stillSince = now;
+            stillLimit = ctx.pause(STILL_MIN_MS, STILL_MAX_MS);
+            return;
+        }
+        if (now - stillSince < stillLimit) { // nanos, as ctx.pause gives
+            return;
+        }
+        double a = ctx.random().nextDouble() * 2 * Math.PI;
+        double d = 150 + ctx.random().nextDouble() * 150;
+        orbit.world.maps.MapCatalog.MapInfo m = ctx.maps().info(h.mapId());
+        double x = h.x() + Math.cos(a) * d;
+        double y = h.y() + Math.sin(a) * d;
+        if (m != null && m.width() > 0) {
+            x = Math.max(100, Math.min(m.width() - 100, x));
+            y = Math.max(100, Math.min(m.height() - 100, y));
+        }
+        log.info("Стою на месте {} мин — чуть сдвигаюсь, чтобы сервер не выкинул за бездействие",
+                (now - stillSince) / 60_000_000_000L);
+        ctx.nav().moveTo(x, y, true);
+        ctx.nav().tick();
+        stillSince = now; // counted again from here, wherever the step ends
+        stillLimit = ctx.pause(STILL_MIN_MS, STILL_MAX_MS);
     }
 
     /**
