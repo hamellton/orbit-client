@@ -827,11 +827,15 @@ public final class BehemothModule implements BotModule {
         WorldSnapshot.Hero h = w.hero();
         long now = ctx.now();
         long settled = mapEnteredNanos + LOCATOR_SETTLE_MS * 1_000_000;
-        if (!pet.active()) {
-            return false;
-        }
+        // the list and the last point are read with the pet in too (live 2026-11-14 on the VPS, 2-BL: the behemoth listed,
+        // the pet in after a fight — the ship stayed by an Impulse II while the behemoth lived its 19 s)
         if (listSaysGone(s, pet, h, now)) {
             return true;
+        }
+        if (behemothListed && (lastPoint == null || lastPoint[0] != h.mapId() || lastPointNs < mapEnteredNanos)) {
+            int[] sp = spawnPoint(h.mapId());
+            lastPoint = new int[] {h.mapId(), sp[0], sp[1]}; // listed, no point yet: where it comes
+            lastPointNs = now;
         }
         if (pet.locatorWithin(now, LOCATOR_FRESH_MS) && pet.locatorNanos() > settled) {
             lastPoint = new int[] {h.mapId(), pet.locatorX(), pet.locatorY()};
@@ -844,6 +848,9 @@ public final class BehemothModule implements BotModule {
         boolean pointHeld = lastPoint != null && lastPoint[0] == h.mapId()
                 && (now - lastPointNs <= LOCATOR_GRACE_MS * 1_000_000 || behemothListed);
         toBehemoth = pointHeld;
+        if (!pointHeld && !pet.active()) {
+            return false;
+        }
         if (pointHeld) {
             int x = lastPoint[1];
             int y = lastPoint[2];
@@ -1195,14 +1202,6 @@ public final class BehemothModule implements BotModule {
             chosen = next;
             arrivedAt = 0;
             waitMap = 0;
-            return;
-        }
-        if (dist > ARRIVE && on(s, "avoidEnemies", false) && ctx.nav().inDanger(p[0], p[1])) {
-            // the point is among enemies now: no way round them, «straight» would be through them (live 2026-11-13 on
-            // the VPS, 2-BL: «нет пути к 87/42 … иду напрямик» between two trains) — stay where the ship is
-            ctx.nav().stop();
-            ctx.ship().want(g.roam());
-            status = "Точка ожидания среди врагов — стою, где стою";
             return;
         }
         if (dist > ARRIVE) {
@@ -1566,7 +1565,8 @@ public final class BehemothModule implements BotModule {
         for (int[] p : candidates) {
             if (p[0] < 500 || p[1] < 500 || p[0] > width - 500 || p[1] > height - 500
                     || p != base && avoided != null && avoided.contains(p[0], p[1], width, height)
-                    || p != base && paths && fromPaths(map, sp, p) < PATH_KEEP) {
+                    || p != base && paths && fromPaths(map, sp, p) < PATH_KEEP
+                    || p != base && ctx.nav().inDanger(p[0], p[1])) {
                 continue;
             }
             double score = freeness(p, enemies);

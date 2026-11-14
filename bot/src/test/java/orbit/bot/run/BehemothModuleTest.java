@@ -844,17 +844,18 @@ class BehemothModuleTest {
     }
 
     @Test
-    void aWaitPointAmongEnemiesIsNotFlownToStraightThroughThem() throws Exception {
-        // live 2026-11-13 on the VPS, 2-BL: «нет пути к 87/42 … иду напрямик» between two trains
-        Sim sim = new Sim(with(config(300), "{\"avoidEnemies\": true}"), 308, 12_000, 8_000);
+    void aWaitPointAmongEnemiesIsLeftForAFreeOne() throws Exception {
+        // live 2026-11-13 on the VPS, 2-BL: «нет пути к 87/42 … иду напрямик» between two trains; then «стоит на месте и не
+        // на точке» (the user) — a free point away from them is flown to instead
+        Sim sim = new Sim(with(config(300), "{\"avoidEnemies\": true, \"freeSide\": true}"), 308, 12_000, 8_000);
         BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
         sim.ctx.nav().setAvoidedPlayers(m::avoidCircles);
         m.workingMap();
         enemy(sim, 900, "Camper", 5_800, 2_700);
-        sim.run(m::tick, 20_000);
+        sim.run(m::tick, 40_000);
         var h = sim.hero();
-        assertTrue(Math.hypot(h.x() - 5_800, h.y() - 2_700) > 1_900, "kept off the enemy at the point: " + h);
-        assertTrue(m.status().contains("среди врагов"), m.status());
+        assertTrue(Math.hypot(h.x() - 5_800, h.y() - 2_700) > 1_900, "kept off the enemy: " + h);
+        assertTrue(m.status().startsWith("Жду бегемота"), "waiting at a point: " + m.status());
     }
 
     @Test
