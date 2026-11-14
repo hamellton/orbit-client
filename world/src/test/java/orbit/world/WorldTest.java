@@ -572,4 +572,64 @@ class WorldTest {
         assertEquals(0, w.snapshot(1).hero().health().shieldMax());
         assertEquals(-1.0, w.snapshot(1).hero().health().shieldPercent());
     }
+
+    @Test
+    void theGateBuilderAndTheGateItselfTellPartsWavesAndLives() {
+        World w = new World();
+        orbit.protocol.gen.GalaxyGateBuilderInfoCommand info = new orbit.protocol.gen.GalaxyGateBuilderInfoCommand();
+        info.money = 260_000;
+        info.energy_cost = 75;
+        info.spinAmounts = new java.util.ArrayList<>(java.util.List.of((byte) 1, (byte) 5, (byte) 10, (byte) 100));
+        orbit.protocol.gen.GalaxyGateBuilderGateModule alpha = new orbit.protocol.gen.GalaxyGateBuilderGateModule();
+        alpha.id = 1;
+        alpha.currPart = 34;
+        alpha.livesLeft = -1;
+        alpha.lifePrice = -1;
+        info.gates = new java.util.ArrayList<>(java.util.List.of(alpha));
+        w.apply(info, 1);
+        var g = w.snapshot(1).gates();
+        assertEquals(260_000.0, g.money());
+        assertEquals(java.util.List.of(1, 5, 10, 100), g.spinAmounts());
+        assertEquals(34, g.gate(1).parts());
+
+        orbit.protocol.gen.GalaxyGateBuilderSetupGateCommand setup = new orbit.protocol.gen.GalaxyGateBuilderSetupGateCommand();
+        setup.id = 1;
+        setup.livesLeft = 3;
+        setup.lifePrice = 10_000;
+        w.apply(setup, 2);
+        assertEquals(3, w.snapshot(2).gates().gate(1).lives());
+        assertEquals(0, w.snapshot(2).gates().gate(1).parts(), "placed: the parts are used up");
+
+        orbit.protocol.gen.GalaxyGateBuilderGateWaveUpdateCommand wave = new orbit.protocol.gen.GalaxyGateBuilderGateWaveUpdateCommand();
+        wave.gateId = 1;
+        wave.currWave = 7;
+        w.apply(wave, 3);
+        orbit.protocol.gen.GalaxyGateBuilderGateLifeLostCommand lost = new orbit.protocol.gen.GalaxyGateBuilderGateLifeLostCommand();
+        lost.gateId = 1;
+        lost.livesLeft = 2;
+        w.apply(lost, 4);
+        assertEquals(7, w.snapshot(4).gates().gate(1).wave());
+        assertEquals(2, w.snapshot(4).gates().gate(1).lives());
+
+        orbit.protocol.gen.GalaxyGateBuilderGateCompleteCommand done = new orbit.protocol.gen.GalaxyGateBuilderGateCompleteCommand();
+        done.gateId = 1;
+        done.currPart = 0;
+        w.apply(done, 5);
+        assertEquals(5, w.snapshot(5).gates().gate(1).completedNanos());
+        assertEquals(-1, w.snapshot(5).gates().gate(1).lives());
+    }
+
+    @Test
+    void aRemovedPortalIsGone() {
+        World w = new World();
+        JumpgateCreateCommand p = new JumpgateCreateCommand();
+        p.gateId = 77;
+        p.designId = 2;
+        w.apply(p, 1);
+        assertTrue(w.snapshot(1).portals().containsKey(77));
+        orbit.protocol.gen.JumpGateRemoveCommand r = new orbit.protocol.gen.JumpGateRemoveCommand();
+        r.gateId = 77;
+        w.apply(r, 2);
+        assertTrue(w.snapshot(2).portals().isEmpty());
+    }
 }

@@ -292,6 +292,53 @@ public final class World {
             case RemoveCollectableCommand p -> collectables.remove(p.hash);
             case JumpgateCreateCommand p -> portals.put(p.gateId,
                     new Portal(p.gateId, p.x, p.y, p.factionId, p.designId, p.isVisibleOnMinimap));
+            // a galaxy gate's portal goes when it is used up or the gate ends (the client's JumpGateRemoveCommand)
+            case orbit.protocol.gen.JumpGateRemoveCommand p -> portals.remove(p.gateId);
+            case orbit.protocol.gen.GalaxyGateBuilderInfoCommand p -> gateInfo(p, nanos);
+            case orbit.protocol.gen.GalaxyGateBuilderGetGatePartsCommand p -> {
+                if (p.errorCode == 0) {
+                    gates.put((int) p.gateId, gate(p.gateId).withParts(p.gatePartIds.size()));
+                }
+            }
+            case orbit.protocol.gen.GalaxyGateBuilderMultiEnergyCommand p -> {
+                gateSpinError = p.errorCode;
+                gateSpinNanos = nanos;
+                if (p.errorCode == 0) {
+                    gateMoney = p.money;
+                    gateSamples = p.samples;
+                    gateSpinSelected = p.spinamount_selected;
+                }
+            }
+            case orbit.protocol.gen.GalaxyGateBuilderSetupGateCommand p -> {
+                gateSetup = p.id;
+                gateSetupError = p.errorCode;
+                gateSetupNanos = nanos;
+                if (p.errorCode == 0) {
+                    gates.put((int) p.id, gate(p.id).withLives(p.livesLeft, p.lifePrice).withParts(0));
+                    log.info("Врата {}: прыжок подготовлен, жизней {}", p.id, p.livesLeft);
+                } else {
+                    log.info("Врата {}: прыжок не подготовлен, ошибка {}", p.id, p.errorCode);
+                }
+            }
+            case orbit.protocol.gen.GalaxyGateBuilderBuyLifeCommand p -> {
+                if (p.errorCode == 0) {
+                    gates.put((int) p.gateId, gate(p.gateId).withLives(p.livesLeft, p.lifePrice));
+                    gateMoney = p.money;
+                }
+            }
+            case orbit.protocol.gen.GalaxyGateBuilderGateWaveUpdateCommand p -> {
+                gates.put((int) p.gateId, gate(p.gateId).withWave(p.currWave));
+                log.info("Врата {}: волна {}", p.gateId, p.currWave);
+            }
+            case orbit.protocol.gen.GalaxyGateBuilderGateLifeLostCommand p -> {
+                WorldSnapshot.Gate g = gate(p.gateId);
+                gates.put((int) p.gateId, g.withLives(p.livesLeft, g.lifePrice()));
+                log.info("Врата {}: жизнь потеряна, осталось {}", p.gateId, p.livesLeft);
+            }
+            case orbit.protocol.gen.GalaxyGateBuilderGateCompleteCommand p -> {
+                gates.put((int) p.gateId, gate(p.gateId).completed(p.currPart, nanos));
+                log.info("Врата {} пройдены (часть {})", p.gateId, p.currPart);
+            }
             case AssetCreateCommand p -> assets.put(p.assetId, new Asset(p.assetId,
                     p.type != null ? p.type.typeValue : -1, p.userName, p.posX, p.posY, p.factionId, p.clanId,
                     p.clanTag, p.invisible, p.clanRelation != null ? p.clanRelation.type : 0));
@@ -594,11 +641,45 @@ public final class World {
                 new WorldSnapshot.JumpCpu(jumpCpuEquipped, jumpVouchers, Map.copyOf(jumpPrices), jumpPricesNanos,
                         jumpConfirmedMap, jumpConfirmedPrice, jumpConfirmedNanos, jumpCountdownMap, jumpCountdownSeconds,
                         jumpCountdownNanos), boxCheck, quests.snapshot(),
-                new WorldSnapshot.Damage(Map.copyOf(dealt), Map.copyOf(received), Map.copyOf(taken)));
+                new WorldSnapshot.Damage(Map.copyOf(dealt), Map.copyOf(received), Map.copyOf(taken)),
+                new WorldSnapshot.Gates(Map.copyOf(gates), gateMoney, gateSamples, gateEnergyCost, gateSpinAmounts,
+                        gateSpinSelected, gateInfoNanos, gateSetup, gateSetupError, gateSetupNanos, gateSpinError,
+                        gateSpinNanos));
     }
 
     /** The assembly's recipes by their loot id (kept over map changes: the assembly is the account's). */
     private final Map<String, WorldSnapshot.Recipe> recipes = new HashMap<>();
+    /** The galaxy gates by the builder's number (kept over map changes: the account's). */
+    private final Map<Integer, WorldSnapshot.Gate> gates = new HashMap<>();
+    private double gateMoney = -1;
+    private double gateSamples = -1;
+    private int gateEnergyCost;
+    private List<Integer> gateSpinAmounts = List.of();
+    private int gateSpinSelected;
+    private long gateInfoNanos;
+    private int gateSetup;
+    private int gateSetupError;
+    private long gateSetupNanos;
+    private int gateSpinError;
+    private long gateSpinNanos;
+
+    private WorldSnapshot.Gate gate(int id) {
+        return gates.getOrDefault(id, WorldSnapshot.Gate.of(id));
+    }
+
+    private void gateInfo(orbit.protocol.gen.GalaxyGateBuilderInfoCommand p, long nanos) {
+        gateMoney = p.money;
+        gateSamples = p.samples;
+        gateEnergyCost = p.energy_cost;
+        gateSpinAmounts = p.spinAmounts.stream().map(b -> (int) b).toList();
+        gateSpinSelected = p.spinamount_selected;
+        gateInfoNanos = nanos;
+        for (orbit.protocol.gen.GalaxyGateBuilderGateModule g : p.gates) {
+            WorldSnapshot.Gate old = gates.get((int) g.id);
+            gates.put((int) g.id, new WorldSnapshot.Gate(g.id, g.state, g.mode, g.currPart, g.currWave, g.livesLeft,
+                    g.lifePrice, g.multiplier, old != null ? old.completedNanos() : 0));
+        }
+    }
 
     private void recipe(String id, orbit.protocol.gen.AssemblyRecipeStatusModule st, long nanos) {
         if (id == null || id.isBlank() || st == null) {

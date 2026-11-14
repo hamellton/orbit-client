@@ -19,7 +19,71 @@ public record WorldSnapshot(long nanos, Hero hero, Map<Integer, Ship> ships, Map
                             Map<Integer, Long> activatable, int jumpingTo, Death death,
                             java.util.Set<String> slotItems, Map<Integer, Kill> destroyed, Rewards rewards,
                             List<Invitation> invitations, List<Contact> contacts, Map<String, Mine> mines,
-                            Boosters boosters, JumpCpu jumpCpu, BoxCheck boxCheck, Quests quests, Damage damage) {
+                            Boosters boosters, JumpCpu jumpCpu, BoxCheck boxCheck, Quests quests, Damage damage,
+                            Gates gates) {
+
+    /** Without the galaxy gates (older callers and tests). */
+    public WorldSnapshot(long nanos, Hero hero, Map<Integer, Ship> ships, Map<String, Collectable> collectables,
+                         Map<Integer, Portal> portals, Map<Integer, Asset> assets, Map<String, Zone> zones,
+                         Group group, Map<String, Item> items, Inventory inventory, Pet pet,
+                         Map<Integer, Long> activatable, int jumpingTo, Death death,
+                         java.util.Set<String> slotItems, Map<Integer, Kill> destroyed, Rewards rewards,
+                         List<Invitation> invitations, List<Contact> contacts, Map<String, Mine> mines,
+                         Boosters boosters, JumpCpu jumpCpu, BoxCheck boxCheck, Quests quests, Damage damage) {
+        this(nanos, hero, ships, collectables, portals, assets, zones, group, items, inventory, pet, activatable, jumpingTo,
+                death, slotItems, destroyed, rewards, invitations, contacts, mines, boosters, jumpCpu, boxCheck, quests,
+                damage, Gates.NONE);
+    }
+
+    /**
+     * One galaxy gate as the builder tells it ({@code GalaxyGateBuilderGateModule} and the commands after it): the builder's
+     * gate number ({@code id}: α 1, β 2, γ 3, δ 4, ε 5, ζ 6, κ 7, λ 8, Kronos 12, Hades 13, Kuiper 19), {@code state}
+     * (0 in progress, 1 finished), the parts collected ({@code parts}, {@code -1} not told), the wave on
+     * ({@code wave}), the lives left and a life's price ({@code -1} when the gate is not set up), the multiplier;
+     * {@code completedNanos} — when the server last said the gate was completed ({@code GalaxyGateBuilderGateCompleteCommand}),
+     * 0 never.
+     */
+    public record Gate(int id, int state, String mode, int parts, int wave, int lives, int lifePrice, int multiplier,
+                       long completedNanos) {
+
+        public Gate withParts(int p) {
+            return new Gate(id, state, mode, p, wave, lives, lifePrice, multiplier, completedNanos);
+        }
+
+        public Gate withWave(int w) {
+            return new Gate(id, state, mode, parts, w, lives, lifePrice, multiplier, completedNanos);
+        }
+
+        public Gate withLives(int l, int price) {
+            return new Gate(id, state, mode, parts, wave, l, price, multiplier, completedNanos);
+        }
+
+        public Gate completed(int part, long nanos) {
+            return new Gate(id, state, mode, part, wave, -1, -1, multiplier, nanos);
+        }
+
+        public static Gate of(int id) {
+            return new Gate(id, 0, "", -1, 0, -1, -1, 1, 0);
+        }
+    }
+
+    /**
+     * The galaxy gate builder ({@code ggBuilder}): the gates, the uridium it shows ({@code money}), its samples, the energy
+     * a spin costs, the spin amounts offered and the one chosen; the last answers to a gate set-up (prepare the jump) and
+     * a spin — their error codes ({@code 0} none, {@code 1} not enough money) and when they came ({@code 0} never).
+     * Kept over map changes: the gates are the account's.
+     */
+    public record Gates(Map<Integer, Gate> gates, double money, double samples, int energyCost, List<Integer> spinAmounts,
+                        int spinSelected, long infoNanos, int setupGate, int setupError, long setupNanos, int spinError,
+                        long spinNanos) {
+
+        public static final Gates NONE = new Gates(Map.of(), -1, -1, 0, List.of(), 0, 0, 0, 0, 0, 0, 0);
+
+        /** The gate by its builder number, {@code null} when not told. */
+        public Gate gate(int id) {
+            return gates.get(id);
+        }
+    }
 
     /** Without the damage tally (older callers and tests). */
     public WorldSnapshot(long nanos, Hero hero, Map<Integer, Ship> ships, Map<String, Collectable> collectables,
