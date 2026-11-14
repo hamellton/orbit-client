@@ -239,7 +239,9 @@ public final class BehemothModule implements BotModule {
      */
     @Override
     public boolean holdsGround() {
-        return onBehemoth && on(settings(), "trainMode", false);
+        // and on the way to it and to its beacon (live 2026-11-14 on the VPS, 2-BL: the navigator led to the behemoth,
+        // the escape from the train round it took the ship away — 3 400 → 5 400 in 5 s)
+        return (onBehemoth || toBehemoth || beaconOn) && on(settings(), "trainMode", false);
     }
 
     @Override

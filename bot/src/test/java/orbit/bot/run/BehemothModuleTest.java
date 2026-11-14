@@ -1049,4 +1049,19 @@ class BehemothModuleTest {
         mem.killed(307, 6_900, 5_000, now - 60_000);
         assertEquals(now - 60_000 + 900_000, mem.spawns(307).getFirst().expectedAt(900_000));
     }
+
+    @Test
+    void onTheWayToTheBehemothTheGroundIsHeldAgainstTheTrain() throws Exception {
+        // live 2026-11-14 on the VPS, 2-BL: the escape from the train round it took the ship away, 3 400 → 5 400 in 5 s
+        Sim sim = new Sim(with(config(300), "{\"useLocator\": true, \"trainMode\": true}"), 308, 5_700, 2_600);
+        BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
+        locatorPet(sim);
+        m.workingMap();
+        sim.run(m::tick, 7_000);
+        assertTrue(!m.holdsGround(), "waiting: the offenders' circles as usual");
+        targets(sim, 178, 175);
+        locator(sim, 15_000, 9_000);
+        sim.run(m::tick, 1_000);
+        assertTrue(m.holdsGround(), "on the way to the behemoth: held");
+    }
 }

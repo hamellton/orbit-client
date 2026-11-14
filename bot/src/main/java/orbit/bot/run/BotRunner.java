@@ -109,6 +109,11 @@ public final class BotRunner {
         this.boxCheck = new BoxCheckSolver(ctx);
         this.offenders = new Offenders(ctx);
         ctx.nav().setAvoidedPlayers(() -> {
+            if (module != null && module.holdsGround()) {
+                // to the behemoth or fighting it in the train mode: the train round it is no detour (live 2026-11-14 on
+                // the VPS: the way to it went round the offenders' circles, the ship off to the far side)
+                return module.avoidCircles();
+            }
             List<double[]> own = module == null ? List.of() : module.avoidCircles();
             if (own.isEmpty()) {
                 return offenders.circles();
