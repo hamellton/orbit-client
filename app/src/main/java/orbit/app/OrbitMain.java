@@ -671,9 +671,9 @@ public final class OrbitMain {
                     ModuleRun run = startModule(feed, conn, cfgName, cfg, end, why, profile, stopFile,
                             shopFor(auth, conn), () -> !game.isAlive(), ships, previous);
                     current.set(run);
-                    if (cfg.module() == orbit.config.BotConfig.Module.PALLADIUM) {
-                        watchHangar(auth, conn, run.runner(), lastHost, accountName, cfg, ships); // which ship is in use
-                    }
+                    // every module: which ship is in use, and the list the «Ангар» window shows (the user, 2026-11-14:
+                    // «в кораблях пусто» — it was read for palladium only)
+                    watchHangar(auth, conn, run.runner(), lastHost, accountName, cfg, ships);
                     if (closed.get()) {
                         // stopped while logging in: the stop found no module to finish, so finish this one
                         Thread.ofPlatform().name("stop-" + accountName).start(() -> run.finish(conn));
