@@ -90,6 +90,8 @@ public final class BehemothModule implements BotModule {
     private long waitStarted;
     private boolean onBehemoth;
     private int[] deadAt;
+    /** The map {@link #deadAt} is on. */
+    private int deadMap;
     private long deadAtNanos;
     private long checkAt;
     private String status = "Бегемот";
@@ -475,6 +477,11 @@ public final class BehemothModule implements BotModule {
             onBehemoth = false;
             attacker.clear();
         }
+        if (deadAt != null && (deadMap != h.mapId() || skipped(h.mapId()))) {
+            // died on a map left since, or on one skipped for its crowd: no box there, no new choice for this map (live
+            // 2026-11-14 on the VPS: 1-BL's death, seen while leaving it, sent the ship from 2-BL on its arrival there)
+            deadAt = null;
+        }
         if (deadAt != null) {
             if (afterKill(s)) {
                 return;
@@ -507,6 +514,7 @@ public final class BehemothModule implements BotModule {
             return;
         }
         if (h.mapId() != chosen) {
+            status = "Лечу на " + ctx.maps().info(chosen).name();
             return; // the runner flies there first
         }
         startWait(s, h);
@@ -1047,6 +1055,7 @@ public final class BehemothModule implements BotModule {
                 memory.killed(h.mapId(), p[0], p[1], now);
                 deathsAt.remove(h.mapId());
                 deadAt = p;
+                deadMap = h.mapId();
                 deadAtNanos = ctx.now();
                 killedAt = now;
                 killCounted = false;
@@ -2199,8 +2208,11 @@ public final class BehemothModule implements BotModule {
                 memory.killed(h.mapId(), p[0], p[1], now);
                 deathsAt.remove(h.mapId());
                 deadAt = p;
+                deadMap = h.mapId();
                 deadAtNanos = ctx.now();
-                ctx.nav().stop();
+                if (!skipped(h.mapId())) {
+                    ctx.nav().stop(); // for its box; a skipped map is being left
+                }
             }
             return true;
         });
