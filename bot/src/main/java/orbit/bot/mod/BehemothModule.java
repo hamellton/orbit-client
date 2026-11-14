@@ -354,7 +354,8 @@ public final class BehemothModule implements BotModule {
     public boolean holdsGround() {
         // and on the way to it and to its beacon (live 2026-11-14 on the VPS, 2-BL: the navigator led to the behemoth,
         // the escape from the train round it took the ship away — 3 400 → 5 400 in 5 s)
-        return (onBehemoth || toBehemoth || beaconOn || closing) && on(settings(), "trainMode", false);
+        return (onBehemoth || toBehemoth || beaconOn || closing) && on(settings(), "trainMode", false)
+                || pushThrough(settings(), ctx.world().get());
     }
 
     @Override
@@ -417,8 +418,20 @@ public final class BehemothModule implements BotModule {
 
     @Override
     public void observe() {
-        watch(ctx.world().get());
+        WorldSnapshot w = ctx.world().get();
+        watch(w);
         countDeaths();
+        if (pushThrough(settings(), w) && attacker.targetId() == 0 && w.death() == null && w.hero().id() != 0) {
+            attacker.empUnderFire(w); // off the fight: on the way to the map or the spawn, the way goes on
+        }
+    }
+
+    /**
+     * {@code pushThrough} in {@code trainMode}: on the module's maps a train shooting the ship does not turn it away —
+     * EMP-01 and on to the spawn (the user, 2026-11-14; CARNAGE's BLCycle never runs either).
+     */
+    private boolean pushThrough(JsonNode s, WorldSnapshot w) {
+        return on(s, "trainMode", false) && on(s, "pushThrough", false) && maps(s).contains(w.hero().mapId());
     }
 
     @Override
@@ -440,7 +453,8 @@ public final class BehemothModule implements BotModule {
                     on(s, "usePrismatic", false) ? percent(s, "prismaticPercent", 50) : -1,
                     on(s, "useSpearheadJamx", false) ? number(s, "jamxDistance", 750) : -1,
                     saved ? (int) number(s, "threatPlayers", 3) : 0, false, on(s, "prismaticAtStart", false),
-                    (long) number(s, "empAfterIshSeconds", 3) * 1_000, on(s, "empOnlyPlayers", true)));
+                    (long) number(s, "empAfterIshSeconds", 3) * 1_000, on(s, "empOnlyPlayers", true),
+                    on(s, "abilityAtStart", false), on(s, "empThenIsh", false)));
         }
         if (fightPlayers(c, s, w, b)) {
             return;

@@ -1,6 +1,7 @@
 package orbit.bot.run;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
@@ -653,6 +654,38 @@ class AttackerTest {
         assertEquals(0, used(sim, "ammunition_specialammo_emp-01"), "ISH still holds: no EMP");
         sim.run(() -> a.tick(true), 3_000);
         assertEquals(1, used(sim, "ammunition_specialammo_emp-01"), "below 35 % after the ISH: EMP");
+    }
+
+    @Test
+    void asCarnageTheAbilityAtOnceThenAPlayerShootsEmpAndRightAfterIsh() {
+        // the user, 2026-11-14: «как подлетает к бегемоту сразу включает навык, когда начинают бить другие корабли, а не
+        // нпс, — импульс, сразу же после импульса — стенка»
+        Sim sim = new Sim(invoke(Set.of(), null), 1, 10_500, 6_000);
+        sim.lasers("ammunition_laser_lcb-10", "ability_citadel_fortify", "equipment_extra_cpu_ish-01",
+                "ammunition_specialammo_emp-01");
+        sim.npc(7, "-=[ Target ]=-", 10_000, 6_000);
+        Attacker a = new Attacker(sim.ctx);
+        a.setAbilityPlan(new Attacker.AbilityPlan(true, 0.35, true, 0.6, -1, -1, 3, false, false, 2_000, true, true, true));
+        a.target(sim.world.snapshot(sim.now).ships().get(7));
+        sim.run(() -> a.tick(true), 1_500);
+        assertEquals(1, used(sim, "ability_citadel_fortify"), "at the behemoth: the ability at once");
+        assertEquals(0, used(sim, "ammunition_specialammo_emp-01") + used(sim, "equipment_extra_cpu_ish-01"),
+                "no player shoots: neither EMP nor ISH, full hull or not");
+        otherPlayerShoots(sim, 900, 1);
+        sim.run(() -> a.tick(true), 1_500);
+        assertEquals(1, used(sim, "ammunition_specialammo_emp-01"), "one player shoots: EMP");
+        assertEquals(1, used(sim, "equipment_extra_cpu_ish-01"), "and the ISH right after it, by no HP threshold");
+    }
+
+    @Test
+    void empUnderFireOnTheWay() {
+        Sim sim = new Sim(invoke(Set.of(), null), 1, 10_500, 6_000);
+        sim.lasers("ammunition_laser_lcb-10", "ammunition_specialammo_emp-01");
+        Attacker a = new Attacker(sim.ctx);
+        assertFalse(a.empUnderFire(sim.world.snapshot(sim.now)), "nobody shoots");
+        otherPlayerShoots(sim, 900, 1);
+        assertTrue(a.empUnderFire(sim.world.snapshot(sim.now)), "a player shoots: EMP");
+        assertEquals(1, used(sim, "ammunition_specialammo_emp-01"));
     }
 
     @Test

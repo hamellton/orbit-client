@@ -31,6 +31,9 @@ final class BehemothSection implements Section {
     private final JCheckBox emp = new JCheckBox("EMP-01 при HP корабля ниже");
     private final JSpinner empBelow = Form.percent();
     private final JCheckBox empOnlyPlayers = new JCheckBox("ЭМИ — только когда по нам стреляет игрок");
+    private final JCheckBox empThenIsh = new JCheckBox("Стреляет игрок (не NPC) — ЭМИ, сразу за ним стенка ISH");
+    private final JCheckBox abilityAtStart = new JCheckBox("Навык корабля — сразу, как подлетел к бегемоту");
+    private final JCheckBox pushThrough = new JCheckBox("Поезд стреляет в пути — ЭМИ и всё равно лететь к месту появления");
     private final JCheckBox ish = new JCheckBox("ISH-01 при HP корабля ниже");
     private final JSpinner ishBelow = Form.percent();
     private final JCheckBox prismatic = new JCheckBox("Призматический щит (Spectrum, Citadel+) при HP ниже");
@@ -75,7 +78,7 @@ final class BehemothSection implements Section {
     private final JSpinner trainLimit = Form.number(0, 50, 1);
     private final JCheckBox trainAtLocator = new JCheckBox("Считать врагов и у точки пеленгатора, ещё до того, как бегемот виден");
     private final JCheckBox leaveSkipped = new JCheckBox("Пропущенную карту покидать сразу и не возвращаться до следующего бегемота");
-    private final javax.swing.JButton trainProven = new javax.swing.JButton("Поставить проверенные настройки");
+    private final javax.swing.JButton trainProven = new javax.swing.JButton("Поставить как в CARNAGE");
     private final JCheckBox avoidOrbit = new JCheckBox("Стоять с другой стороны бегемота от чужих (не лезть в их кольцо)");
     private final JSpinner deathsPerSpawn = Form.number(0, 20, 1);
     // players (CARNAGE's PvpHelper / DefenseMode, AstraBot's defenceMode, chaseEnemy, BLACKLIST)
@@ -101,14 +104,20 @@ final class BehemothSection implements Section {
         jamx.addActionListener(e -> sync());
         trainMode.addActionListener(e -> sync());
         trainProven.addActionListener(e -> proven());
-        trainProven.setToolTipText("Включает бой среди чужого поезда и ставит всё, что проверено на VPS 2026-11-14:"
-                + " радиус 1500, уйти при больше 12 врагов, считать у точки пеленгатора, пропущенную карту покидать сразу,"
-                + " стоять с другой стороны бегемота, после 4 смертей — другая карта, учиться безопасной точке, ЭМИ только"
-                + " против игроков");
+        trainProven.setToolTipText("Сценарий CARNAGE (BeheSolo): ждать в предпочитаемой зоне вкладки «Зоны», к бегемоту —"
+                + " по пеленгатору; у бегемота сразу навык; стреляет игрок — ЭМИ и сразу стенка; в пути от поезда не уходить;"
+                + " погиб у бегемота — возрождение в порту и следующая карта. Плюс проверенное на VPS: больше 12 врагов —"
+                + " другая карта. Зоны ставятся во вкладке «Зоны»");
         trainAtLocator.setToolTipText("Пеленгатор показал бегемота, а у его точки уже больше врагов, чем в пороге выше,"
                 + " — пропустить карту, не подлетая (поезд там убьёт его за секунды)");
         leaveSkipped.setToolTipText("Карта пропущена из-за толпы или смертей — бот сразу улетает и не тянется к точке"
                 + " пеленгатора на ней; снова в выборе за 3 мин до следующего бегемота");
+        empThenIsh.setToolTipText("Как CARNAGE: по нам начал стрелять игрок — сразу ЭМИ (сбивает их захват), в ту же"
+                + " секунду стенка ISH-01; без порогов HP. Нужна галочка «Навык, ISH, EMP — только у бегемота»");
+        abilityAtStart.setToolTipText("Как CARNAGE: навык (призма первой) включается, как только бот подлетел к бегемоту,"
+                + " и снова, как откатится");
+        pushThrough.setToolTipText("На картах бегемота бот не уходит от поезда, а ЭМИ сбивает их захват; дальше — к месту"
+                + " появления, как задумано (CARNAGE не убегает никогда)");
         empOnlyPlayers.setToolTipText("ЭМИ снимает только захват игроков: если стреляют одни NPC, он пропадёт зря");
         useCloak.addActionListener(e -> sync());
         freeSide.addActionListener(e -> sync());
@@ -206,6 +215,8 @@ final class BehemothSection implements Section {
                         + " вкладке «Убивать». Чужих игроков у бегемота не боимся: урон засчитывается всем.")
                 .row("", Form.inline(emp, empBelow, new javax.swing.JLabel("%")))
                 .row("", empOnlyPlayers)
+                .row("", empThenIsh)
+                .row("", abilityAtStart)
                 .row("", Form.inline(ish, ishBelow, new javax.swing.JLabel("%")))
                 .row("", Form.inline(prismatic, prismaticBelow, new javax.swing.JLabel("%")))
                 .row("", Form.inline(jamx, jamxDistance))
@@ -235,10 +246,12 @@ final class BehemothSection implements Section {
                 .row("Врагов больше — другая карта (0 — нет)", trainLimit)
                 .row("", trainAtLocator)
                 .row("", leaveSkipped)
+                .row("", pushThrough)
                 .row("", avoidOrbit)
                 .row("Погиб столько раз — другая карта (0 — нет)", deathsPerSpawn)
-                .note("Не знаете, что ставить, — нажмите «Поставить проверенные настройки». Отличия от проверенных"
-                        + " видно в проверке конфига перед запуском.")
+                .note("Не знаете, что ставить, — нажмите «Поставить как в CARNAGE», а точки ожидания нарисуйте во"
+                        + " вкладке «Зоны» (предпочитаемая зона на каждой BL-карте). Отличия видно в проверке конфига"
+                        + " перед запуском.")
                 .note("Как в CARNAGE: от их атак не убегаем, бьём бегемота дальше; урон засчитывается всем, кто бил."
                         + " Против частых смертей — «Стоп после смертей от одного игрока» во вкладке «Безопасность».")
                 .section("Игроки")
@@ -274,6 +287,7 @@ final class BehemothSection implements Section {
         trainRadius.setEnabled(t);
         trainLimit.setEnabled(t);
         trainAtLocator.setEnabled(t);
+        pushThrough.setEnabled(t);
         leaveSkipped.setEnabled(t);
         avoidOrbit.setEnabled(t);
         deathsPerSpawn.setEnabled(t);
@@ -297,8 +311,23 @@ final class BehemothSection implements Section {
         leaveSkipped.setSelected(true);
         avoidOrbit.setSelected(true);
         Form.set(deathsPerSpawn, orbit.config.BehemothProven.DEATHS_PER_SPAWN);
-        learnSafeSpot.setSelected(true);
         empOnlyPlayers.setSelected(true);
+        // CARNAGE: the wait is the zone, nothing clever round it
+        waitInZone.setSelected(true);
+        learnSafeSpot.setSelected(false);
+        awayFromPortals.setSelected(false);
+        avoidTrainPaths.setSelected(false);
+        freeSide.setSelected(false);
+        avoidSpawn.setSelected(false);
+        Form.set(closeSeconds, 0);
+        Form.set(beaconSeconds, 0);
+        useLocator.setSelected(true);
+        powers.setSelected(true);
+        emp.setSelected(true);
+        ish.setSelected(true);
+        empThenIsh.setSelected(true);
+        abilityAtStart.setSelected(true);
+        pushThrough.setSelected(true);
         sync();
     }
 
@@ -331,6 +360,9 @@ final class BehemothSection implements Section {
         emp.setSelected(m.path("useEmp").asBoolean(true));
         Form.setFraction(empBelow, m.path("empPercent").asDouble(35) / 100);
         empOnlyPlayers.setSelected(m.path("empOnlyPlayers").asBoolean(true));
+        empThenIsh.setSelected(m.path("empThenIsh").asBoolean(false));
+        abilityAtStart.setSelected(m.path("abilityAtStart").asBoolean(false));
+        pushThrough.setSelected(m.path("pushThrough").asBoolean(false));
         ish.setSelected(m.path("useIsh").asBoolean(true));
         Form.setFraction(ishBelow, m.path("ishPercent").asDouble(60) / 100);
         prismatic.setSelected(m.path("usePrismatic").asBoolean(false));
@@ -429,6 +461,9 @@ final class BehemothSection implements Section {
         m.put("useEmp", emp.isSelected());
         m.put("empPercent", Math.round(Form.fraction(empBelow) * 100));
         m.put("empOnlyPlayers", empOnlyPlayers.isSelected());
+        m.put("empThenIsh", empThenIsh.isSelected());
+        m.put("abilityAtStart", abilityAtStart.isSelected());
+        m.put("pushThrough", pushThrough.isSelected());
         m.put("useIsh", ish.isSelected());
         m.put("ishPercent", Math.round(Form.fraction(ishBelow) * 100));
         m.put("usePrismatic", prismatic.isSelected());

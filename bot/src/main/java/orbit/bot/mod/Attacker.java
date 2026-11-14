@@ -238,7 +238,15 @@ public final class Attacker {
      */
     public record AbilityPlan(boolean emp, double empBelow, boolean ish, double ishBelow, double prismaticBelow,
                               double jamxWithin, int threatPlayers, boolean off, boolean prismaticAtStart,
-                              long empAfterIshMs, boolean empOnlyPlayers) {
+                              long empAfterIshMs, boolean empOnlyPlayers, boolean abilityAtStart,
+                              boolean empThenIsh) {
+
+        public AbilityPlan(boolean emp, double empBelow, boolean ish, double ishBelow, double prismaticBelow,
+                           double jamxWithin, int threatPlayers, boolean off, boolean prismaticAtStart,
+                           long empAfterIshMs, boolean empOnlyPlayers) {
+            this(emp, empBelow, ish, ishBelow, prismaticBelow, jamxWithin, threatPlayers, off, prismaticAtStart,
+                    empAfterIshMs, empOnlyPlayers, false, false);
+        }
 
         public AbilityPlan(boolean emp, double empBelow, boolean ish, double ishBelow, double prismaticBelow,
                            double jamxWithin, int threatPlayers, boolean off, boolean prismaticAtStart,
@@ -351,6 +359,35 @@ public final class Attacker {
             }
         }
         boolean threat = players >= plan.threatPlayers();
+        // CARNAGE's behemoth (BeheSolo: the ship's ability by the NPC's flag, EblExtraFlags' offensive EMP and ISH; the user,
+        // 2026-11-14: «как подлетает к бегемоту сразу включает навык, когда начинают бить другие корабли, а не нпс, —
+        // импульс, сразу же после импульса — стенка»)
+        if (plan.abilityAtStart() && (useFirstReady(w, PRISMATIC, now, "призматический щит (подлетел к бегемоту)")
+                || useFirstReady(w, FIGHT_ABILITIES, now, "способность корабля (подлетел к бегемоту)"))) {
+            abilityAt = now;
+            return;
+        }
+        if (plan.empThenIsh() && players > 0) {
+            BotConfig.FightOptions fo = ctx.config().get().loot().fight();
+            if (plan.emp() && may(w, h, EMP, fo.empSpend(), empUses, empAt, now)) {
+                log.info("EMP-01: стреляют {} игроков, HP {}% — следом стенка (за сутки {})", players,
+                        Math.round(hp * 100), AbilityUse.today(h.id(), EMP, System.currentTimeMillis()) + 1);
+                ctx.actions().useItem(EMP);
+                AbilityUse.used(h.id(), EMP, System.currentTimeMillis());
+                empUses++;
+                empAt = now;
+                return;
+            }
+            if (plan.ish() && now - empAt < EMP_THEN_ISH_NS && may(w, h, ISH, fo.ishSpend(), ishUses, ishAt, now)) {
+                log.info("ISH-01 сразу после EMP: стреляют {} игроков, HP {}% (за сутки {})", players,
+                        Math.round(hp * 100), AbilityUse.today(h.id(), ISH, System.currentTimeMillis()) + 1);
+                ctx.actions().useItem(ISH);
+                AbilityUse.used(h.id(), ISH, System.currentTimeMillis());
+                ishUses++;
+                ishAt = now;
+                return;
+            }
+        }
         // the prismatic shield from the fight's first moment (the user, 2026-11-14: «призму можно с самого начала, как
         // начал бить бегемота»); the other abilities when the train shoots
         if (plan.prismaticAtStart() && useFirstReady(w, PRISMATIC, now, "призматический щит (начало боя)")) {
@@ -381,7 +418,7 @@ public final class Attacker {
         }
         // EMP only breaks players' locks: with none shooting it is wasted (live 2026-11-14 on the VPS, 3-BL: come at 29 %
         // after a train on the way, EMP at once with nobody shooting); {@code empOnlyPlayers} off — by HP alone
-        if (plan.emp() && plan.empBelow() > 0 && hp >= 0 && hp < plan.empBelow()
+        if (plan.emp() && !plan.empThenIsh() && plan.empBelow() > 0 && hp >= 0 && hp < plan.empBelow()
                 && (players > 0 || !plan.empOnlyPlayers())
                 && now - ishAt > plan.empAfterIshMs() * 1_000_000
                 && may(w, h, EMP, fo.empSpend(), empUses, empAt, now)) {
@@ -392,6 +429,35 @@ public final class Attacker {
             empUses++;
             empAt = now;
         }
+    }
+
+    /** {@code empThenIsh}: ISH-01 follows an EMP-01 within this (a tick or two, the item bar's answer between). */
+    static final long EMP_THEN_ISH_NS = 5_000_000_000L;
+
+    /**
+     * Players shoot the ship off a fight (on the way to the behemoth's map or spawn): EMP-01 breaks their locks and the
+     * way goes on (the user, 2026-11-14: «встречает поезд и в него начинают стрелять — импульс и всё равно лететь на
+     * точку спауна»). True when used.
+     */
+    public boolean empUnderFire(WorldSnapshot w) {
+        WorldSnapshot.Hero h = w.hero();
+        int players = 0;
+        for (int id : h.attackers()) {
+            WorldSnapshot.Ship s = w.ships().get(id);
+            if (s != null && s.kind() == WorldSnapshot.ShipKind.PLAYER) {
+                players++;
+            }
+        }
+        long now = ctx.now();
+        if (players == 0 || !may(w, h, EMP, ctx.config().get().loot().fight().empSpend(), empUses, empAt, now)) {
+            return false;
+        }
+        log.info("EMP-01 в пути: стреляют {} игроков, HP {}% — лечу дальше (за сутки {})", players,
+                Math.round(h.health().hpPercent() * 100), AbilityUse.today(h.id(), EMP, System.currentTimeMillis()) + 1);
+        ctx.actions().useItem(EMP);
+        AbilityUse.used(h.id(), EMP, System.currentTimeMillis());
+        empAt = now;
+        return true;
     }
 
     /** The first of these items the game shows ready (an ability, a tech), used; false when none is. */

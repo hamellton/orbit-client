@@ -107,13 +107,27 @@ public final class ConfigCheck {
         if (m == null || !m.path("trainMode").asBoolean(false)) {
             return;
         }
-        String fix = " (проверенное — кнопка «Поставить проверенные настройки» во вкладке «Бегемот»)";
+        String fix = " (как надо — кнопка «Поставить как в CARNAGE» во вкладке «Бегемот»)";
         int limit = m.path("trainEnemyLimit").asInt(BehemothProven.TRAIN_LIMIT);
         if (limit == 0) {
             out.add(warning("бегемот среди поезда: от толпы не уходит — при 13–15 врагах смерть без награды" + fix));
         } else if (limit != BehemothProven.TRAIN_LIMIT) {
             out.add(warning("бегемот среди поезда: уходит при врагах больше " + limit + ", проверено "
                     + BehemothProven.TRAIN_LIMIT + fix));
+        }
+        if (m.path("waitInZone").asBoolean(false)) {
+            java.util.List<Integer> maps = new java.util.ArrayList<>();
+            m.path("maps").forEach(x -> maps.add(x.asInt()));
+            if (maps.isEmpty()) {
+                maps.addAll(java.util.List.of(306, 307, 308));
+            }
+            for (int id : maps) {
+                BotConfig.Zones z = c.zones().get(id);
+                if (z == null || z.preferred() == null || z.preferred().isEmpty()) {
+                    out.add(warning("бегемот: на карте " + id + " нет предпочитаемой зоны — ждать будет у точки по"
+                            + " умолчанию (вкладка «Зоны»)"));
+                }
+            }
         }
         if (!m.path("trainAtLocator").asBoolean(true)) {
             out.add(warning("бегемот среди поезда: толпа у точки пеленгатора не считается" + fix));
