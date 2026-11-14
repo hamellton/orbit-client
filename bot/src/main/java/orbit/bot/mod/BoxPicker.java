@@ -22,9 +22,17 @@ public final class BoxPicker {
     private String hash;
     /** Clicks on one box before it is left alone for two minutes. */
     static final int MAX_TRIES = 4;
-    /** One box is given up after this long, whatever holds the ship off it. */
+    /** One box is given up after this long by it, whatever holds the ship off it… */
     static final long MAX_BOX_NS = 15_000_000_000L;
+    /**
+     * …counted from the ship coming this close (live 2026-11-14 on the VPS, 1-BL: boxes 6 000 from the portal, the
+     * flight round the server's zones ate the 15 s and the box was left for two minutes, three times)…
+     */
+    static final double NEAR_BOX = 400;
+    /** …and the whole way to it at most this long. */
+    static final long MAX_WAY_NS = 60_000_000_000L;
     private long startedAt;
+    private long nearAt;
     /** Boxes near this spot are left until then ({@code IGNORE_BOXES}). */
     private double leaveX;
     private double leaveY;
@@ -73,6 +81,8 @@ public final class BoxPicker {
 
     private boolean anywhere;
     private boolean anyType;
+    /** The behemoth's boxes: {@code MINDFIRE_BEHEMOTH_BOX_2} seen on 1-, 2- and 3-BL. */
+    static final String BEHEMOTH_BOX = "MINDFIRE_BEHEMOTH_BOX";
 
     /**
      * Boxes of any type within {@code within} of (ax, ay), the config's box list and «contested» aside: the behemoth's
@@ -140,6 +150,7 @@ public final class BoxPicker {
             }
             hash = box.hash();
             current = key(box);
+            nearAt = 0;
             if (anyType) {
                 log.info("Ящик у места бегемота: тип {} у {}/{}", current, box.x() / 100, box.y() / 100);
             }
@@ -151,7 +162,10 @@ public final class BoxPicker {
             ctx.nav().moveTo(box.x(), box.y(), true);
         }
         WorldSnapshot.Collectable box = w.collectables().get(hash);
-        if (box != null && now - startedAt > MAX_BOX_NS) {
+        if (box != null && nearAt == 0 && Math.hypot(box.x() - h.x(), box.y() - h.y()) <= NEAR_BOX) {
+            nearAt = now;
+        }
+        if (box != null && (nearAt != 0 ? now - nearAt > MAX_BOX_NS : now - startedAt > MAX_WAY_NS)) {
             // live 2026-11-13 on 3-BL: a box by a no-access wall, the ship jittering at the nearest free point never
             // came still, so no click counted — it stood 100 s
             log.info("Не могу подобрать {} — бросаю", orbit.config.LootNames.of(current));
@@ -192,7 +206,11 @@ public final class BoxPicker {
                 .filter(b -> !ignored.containsKey(b.hash()))
                 .filter(b -> {
                     if (anyType) {
-                        return orbit.config.BoxCatalog.collectable(key(b));
+                        // the behemoth's own boxes and the config's — not a pirate booty a key opens (live 2026-11-14
+                        // on the VPS, 1-BL: PIRATE_BOOTY by the spawn, five keys spent)
+                        BotConfig.BoxRule rule = c.collect().boxes().get(key(b));
+                        return orbit.config.BoxCatalog.collectable(key(b))
+                                && (key(b).startsWith(BEHEMOTH_BOX) || rule != null && rule.collect());
                     }
                     BotConfig.BoxRule r = c.collect().boxes().get(key(b));
                     // mines and fireworks show among the resources but are no boxes (the user's list, 2026-11-12)

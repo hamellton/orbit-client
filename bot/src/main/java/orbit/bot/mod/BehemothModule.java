@@ -583,6 +583,10 @@ public final class BehemothModule implements BotModule {
     static final double SPAWN_BOX_RADIUS = 1_000;
     /** …and are flown to only while its next one is at least this far off. */
     static final long SPAWN_BOX_SPARE_MS = 60_000;
+    /** Enemies by the boxes: the boxes are looked at again this much later. */
+    static final long BOX_RETRY_NS = 20_000_000_000L;
+    private long boxEnemiesUntil = Long.MIN_VALUE / 2;
+
     /** Enemies this much beyond the boxes' circle keep the ship from them. */
     static final double SPAWN_BOX_ENEMY_MARGIN = 1_000;
 
@@ -597,6 +601,9 @@ public final class BehemothModule implements BotModule {
                 || !maps(s).contains(h.mapId())) {
             return false;
         }
+        if (!boxes.busy() && ctx.now() < boxEnemiesUntil) {
+            return false; // enemies were there a moment ago: looked at again a little later, from the wait point
+        }
         long wall = wallMs();
         long due = dueAt(h.mapId(), wall);
         if (due > 0 && due - wall < SPAWN_BOX_SPARE_MS && !boxes.busy()) {
@@ -610,10 +617,14 @@ public final class BehemothModule implements BotModule {
         boolean enemies = w.ships().values().stream().anyMatch(e -> PlayerFight.enemy(e, h, group, black)
                 && Math.hypot(e.x() - sp[0], e.y() - sp[1]) <= SPAWN_BOX_RADIUS + SPAWN_BOX_ENEMY_MARGIN);
         if (enemies || ctx.nav().inDanger(sp[0], sp[1])) {
+            // not looked at again for a while: from the wait point they are out of sight, the ship went and came back
+            // every few seconds (live 2026-11-14 on the VPS, 2-BL)
+            boxEnemiesUntil = ctx.now() + BOX_RETRY_NS;
             if (boxes.busy()) {
                 boxes.clear();
                 ctx.nav().stop();
-                log.info("У ящиков бегемота враги — бросаю, назад к точке ожидания");
+                log.info("У ящиков бегемота враги — бросаю, назад к точке ожидания (снова гляну через {} с)",
+                        BOX_RETRY_NS / 1_000_000_000L);
             }
             return false;
         }
@@ -965,6 +976,7 @@ public final class BehemothModule implements BotModule {
         }
         int[] p = standPoint(s, ctx.world().get());
         avoidSpawn(s, h.mapId(), p);
+        p = dodge(s, ctx.world().get(), p);
         double dist = Math.hypot(p[0] - h.x(), p[1] - h.y());
         BotConfig.General g = ctx.config().get().general();
         if (dist > ARRIVE) {
@@ -1435,8 +1447,92 @@ public final class BehemothModule implements BotModule {
         return false;
     }
 
+    /** {@code dodgeEnemies}: the wait point's neighbourhood searched this far for a point out of the enemies' reach. */
+    public static final double DODGE_MAX = 1_200;
+    private int[] dodgePoint;
+    private boolean dodging;
+
+    /**
+     * {@code dodgeEnemies} (on unless turned off; the user, 2026-11-14: «стоим на точке, зона обидчиков достаёт до нас —
+     * отлетать не сильно от зоны, не ближе к обидчикам, двигаться не в их радиусе; как отлетят — ближе к точке; увидели
+     * бегемота — радиус не учитываем»): while waiting, enemy players within the config's avoid radius ({@code flee
+     * avoidRadius}) of the wait point move the ship to the nearest point within {@link #DODGE_MAX} of it out of every
+     * enemy's radius (or, none being, the one farthest from them); back to the point when they are gone. The behemoth
+     * seen, this is not called: the way to it is as before.
+     */
+    public int[] dodge(JsonNode s, WorldSnapshot w, int[] p) {
+        if (!on(s, "dodgeEnemies", true)) {
+            dodging = false;
+            return p;
+        }
+        WorldSnapshot.Hero h = w.hero();
+        double radius = Math.max(300, ctx.config().get().flee().avoidRadius());
+        java.util.Set<Integer> group = PlayerFight.group(w);
+        List<String> black = names(s, "blacklist");
+        List<WorldSnapshot.Ship> enemies = w.ships().values().stream()
+                .filter(e -> PlayerFight.enemy(e, h, group, black))
+                .filter(e -> Math.hypot(e.x() - p[0], e.y() - p[1]) <= radius + DODGE_MAX)
+                .toList();
+        if (enemies.stream().noneMatch(e -> Math.hypot(e.x() - p[0], e.y() - p[1]) <= radius)) {
+            if (dodging) {
+                log.info("Враги отошли — назад к точке ожидания {}/{}", p[0] / 100, p[1] / 100);
+            }
+            dodging = false;
+            dodgePoint = null;
+            return p;
+        }
+        if (dodgePoint != null && freeness(dodgePoint, enemies) > radius
+                && Math.hypot(dodgePoint[0] - p[0], dodgePoint[1] - p[1]) <= DODGE_MAX) {
+            return dodgePoint; // the point taken still out of reach: kept
+        }
+        orbit.world.maps.MapCatalog.MapInfo info = ctx.maps().info(h.mapId());
+        int width = info.width() > 0 ? info.width() : 21_000;
+        int height = info.height() > 0 ? info.height() : 13_100;
+        int[] best = null;
+        double bestKey = Double.MAX_VALUE;
+        int[] farthest = null;
+        double farthestFree = freeness(new int[] {h.x(), h.y()}, enemies);
+        for (int ring = 300; ring <= DODGE_MAX; ring += 300) {
+            for (int a = 0; a < 16; a++) {
+                double ang = a * Math.PI / 8;
+                int x = (int) (p[0] + ring * Math.cos(ang));
+                int y = (int) (p[1] + ring * Math.sin(ang));
+                if (x < 300 || y < 300 || x > width - 300 || y > height - 300
+                        || orbit.world.maps.ZoneGeometry.blocked(w, x, y)) {
+                    continue;
+                }
+                int[] c = {x, y};
+                double free = freeness(c, enemies);
+                if (free > radius && ring < bestKey) {
+                    bestKey = ring;
+                    best = c;
+                }
+                if (free > farthestFree) {
+                    farthestFree = free;
+                    farthest = c;
+                }
+            }
+        }
+        int[] to = best != null ? best : farthest;
+        if (to == null) {
+            return dodgePoint != null ? dodgePoint : new int[] {h.x(), h.y()}; // nowhere better: stay
+        }
+        if (!dodging) {
+            log.info("Враги в {} от точки ожидания — отхожу на {}/{} ({} от точки, {} от ближайшего врага)",
+                    (int) freeness(p, enemies), to[0] / 100, to[1] / 100, (int) Math.hypot(to[0] - p[0], to[1] - p[1]),
+                    (int) freeness(to, enemies));
+        }
+        dodging = true;
+        dodgePoint = to;
+        return to;
+    }
+
     /** Other NPCs while no behemoth: those shooting at us ({@code defenceMode}) or all ({@code killOthers}). */
     private boolean fightWhileWaiting(BotConfig c, JsonNode s, WorldSnapshot w) {
+        if (dodging) {
+            attacker.clear(); // stepping away from players first: the NPC fight would hold the ship in their reach
+            return false;
+        }
         if (waitOver(w.hero().mapId())) {
             // the wait is over: no more fights here, on to the next map (live 2026-11-13 on the VPS, 3-BL: Attend IX one
             // after another kept the ship over two minutes on a 30 s wait)
@@ -1587,6 +1683,7 @@ public final class BehemothModule implements BotModule {
         }
         int[] p = standPoint(s, ctx.world().get());
         avoidSpawn(s, h.mapId(), p);
+        p = dodge(s, ctx.world().get(), p);
         double dist = Math.hypot(p[0] - h.x(), p[1] - h.y());
         BotConfig.General g = ctx.config().get().general();
         long now = ctx.now();

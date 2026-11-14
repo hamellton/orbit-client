@@ -905,7 +905,7 @@ class BehemothModuleTest {
     @Test
     void inTheZoneModeAFreerPlaceIsLookedForInTheZoneNotByTheSpawn() throws Exception {
         // live 2026-11-13 on the VPS, 2-BL: from the zone by the edge the free side took the ship to the spawn's ring
-        BotConfig c = with(config(300), "{\"waitInZone\": true, \"freeSide\": true}")
+        BotConfig c = with(config(300), "{\"waitInZone\": true, \"freeSide\": true, \"dodgeEnemies\": false}")
                 .withZones(Map.of(308, new BotConfig.Zones(cornerZone(), null)));
         Sim sim = new Sim(c, 308, 15_000, 6_000);
         BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
@@ -933,13 +933,68 @@ class BehemothModuleTest {
         m.workingMap();
         orbit.protocol.gen.AddBoxCommand box = new orbit.protocol.gen.AddBoxCommand();
         box.hash = "behebox";
-        box.boxType = "SOME_UNLISTED_BOX";
+        box.boxType = "MINDFIRE_BEHEMOTH_BOX_2"; // not in the config's list
         box.x = 6_950;
         box.y = 5_050;
         sim.world.apply(box, sim.now);
         sim.run(m::tick, 15_000);
         assertTrue(sim.sent.stream().anyMatch(p -> p instanceof orbit.protocol.gen.CollectBoxRequest),
                 "the box by the spawn is collected, its type not in the list");
+    }
+
+    @Test
+    void aFarSpawnBoxIsFlownToNotGivenUpOnTheWay() throws Exception {
+        // live 2026-11-14 on the VPS, 1-BL: boxes 6 000 from the portal, the 15 s ran out on the way three times
+        Sim sim = new Sim(with(config(300), "{\"trainMode\": true}"), 307, 1_000, 5_000);
+        BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
+        m.workingMap();
+        orbit.protocol.gen.AddBoxCommand box = new orbit.protocol.gen.AddBoxCommand();
+        box.hash = "behebox";
+        box.boxType = "MINDFIRE_BEHEMOTH_BOX_2";
+        box.x = 6_950;
+        box.y = 5_050;
+        sim.world.apply(box, sim.now);
+        sim.run(m::tick, 40_000);
+        assertTrue(sim.sent.stream().anyMatch(p -> p instanceof orbit.protocol.gen.CollectBoxRequest),
+                "~6 000 away, 15 s at 400: still taken");
+    }
+
+    @Test
+    void aPirateBootyByTheSpawnIsLeft() throws Exception {
+        // live 2026-11-14 on the VPS, 1-BL: a PIRATE_BOOTY by the spawn, keys spent on it
+        Sim sim = new Sim(with(config(300), "{\"trainMode\": true}"), 307, 5_200, 5_000);
+        BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
+        m.workingMap();
+        orbit.protocol.gen.AddBoxCommand box = new orbit.protocol.gen.AddBoxCommand();
+        box.hash = "booty";
+        box.boxType = "PIRATE_BOOTY";
+        box.x = 6_950;
+        box.y = 5_050;
+        sim.world.apply(box, sim.now);
+        sim.run(m::tick, 15_000);
+        assertTrue(sim.sent.stream().noneMatch(p -> p instanceof orbit.protocol.gen.CollectBoxRequest),
+                "not the behemoth's, not in the config's list: left");
+    }
+
+    @Test
+    void enemiesByTheWaitPointMoveTheShipAsideAndBack() throws Exception {
+        // the user, 2026-11-14: «отлетать не сильно от зоны, не ближе к обидчикам; как отлетят — ближе к точке»
+        Sim sim = new Sim(config(300), 307, 5_200, 5_000);
+        BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
+        com.fasterxml.jackson.databind.JsonNode s = sim.ctx.config().get().moduleSettings("behemoth");
+        int[] p = {5_200, 5_000};
+        double radius = Math.max(300, sim.ctx.config().get().flee().avoidRadius());
+        enemy(sim, 900, "Near", (int) (5_200 + radius - 500), 5_000);
+        int[] to = m.dodge(s, sim.world.snapshot(sim.now), p);
+        assertTrue(Math.hypot(to[0] - (5_200 + radius - 500), to[1] - 5_000) > radius,
+                "out of its reach " + radius + ": " + to[0] + "/" + to[1]);
+        assertTrue(Math.hypot(to[0] - p[0], to[1] - p[1]) <= BehemothModule.DODGE_MAX, "near the wait point");
+        orbit.protocol.gen.ShipRemoveCommand gone = new orbit.protocol.gen.ShipRemoveCommand();
+        gone.userId = 900;
+        sim.world.apply(gone, sim.now);
+        int[] back = m.dodge(s, sim.world.snapshot(sim.now), p);
+        assertEquals(p[0], back[0], "gone: back to the point");
+        assertEquals(p[1], back[1]);
     }
 
     @Test

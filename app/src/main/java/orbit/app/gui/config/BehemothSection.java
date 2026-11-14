@@ -67,6 +67,7 @@ final class BehemothSection implements Section {
     private final JCheckBox avoidEnemies = new JCheckBox("Облетать видимых врагов заранее (2000), рядом враги — не вылетать с точки (до 3 мин)");
     private final JCheckBox waitInZone = new JCheckBox("Ждать в предпочитаемой зоне конфига, дальше всего от поездов (как AstraBot)");
     private final JCheckBox avoidTrainPaths = new JCheckBox("Летать в обход путей поездов «портал → бегемот»");
+    private final JCheckBox dodgeEnemies = new JCheckBox("Пока ждём — отходить от врагов (не дальше 1200 от точки), ушли — назад");
     private final JCheckBox learnSafeSpot = new JCheckBox("Учиться, где ходят враги, и ждать там, где их меньше всего");
     private final JCheckBox awayFromPortals = new JCheckBox("Ждать в стороне от путей «портал → бегемот», где ходят поезда");
     private final JCheckBox freeSide = new JCheckBox("Ждать со свободной стороны: чужие у точки — встать на круге от них");
@@ -125,6 +126,8 @@ final class BehemothSection implements Section {
         closeSeconds.setToolTipText("Столько секунд до появления (по таймеру) — подлететь как можно ближе к месту появления,"
                 + " насколько позволяют враги там (не ближе 1100 к ним), и ждать там, не уходя от поезда");
         powers.addActionListener(e -> sync());
+        dodgeEnemies.setToolTipText("Враги ближе к точке ожидания, чем радиус «Обходить» (вкладка «Бегство»), — бот встаёт рядом,"
+                + " вне их радиуса, не ближе к ним; ушли — возвращается. Бегемот появился — летит к нему, как раньше");
         learnSafeSpot.setToolTipText("Раз в 2 с бот отмечает, где на BL-карте видны враги, место своей гибели — с большим весом"
                 + " (файл local/behemoth-heat.json, копится между запусками). Ждёт в 1500–3000 от места появления, с прямой"
                 + " видимостью его, там, где врагов видели меньше всего. Пока отметок мало — как без этой галочки");
@@ -200,6 +203,7 @@ final class BehemothSection implements Section {
                         + " ждёт у места появления (точки — из BeheFarm, уточняются по увиденному).")
                 .section("Где ждать")
                 .row("", waitInZone)
+                .row("", dodgeEnemies)
                 .row("", learnSafeSpot)
                 .row("", awayFromPortals)
                 .row("", avoidTrainPaths)
@@ -396,6 +400,7 @@ final class BehemothSection implements Section {
         awayFromPortals.setSelected(m.path("awayFromPortals").asBoolean(false));
         learnSafeSpot.setSelected(m.path("learnSafeSpot").asBoolean(false));
         waitInZone.setSelected(m.path("waitInZone").asBoolean(false));
+        dodgeEnemies.setSelected(m.path("dodgeEnemies").asBoolean(true));
         avoidTrainPaths.setSelected(m.path("avoidTrainPaths").asBoolean(false));
         trainTimer.setSelected(m.path("trainTimer").asBoolean(false));
         waitForTrain.setSelected(m.path("waitForTrain").asBoolean(false));
@@ -497,6 +502,7 @@ final class BehemothSection implements Section {
         m.put("awayFromPortals", awayFromPortals.isSelected());
         m.put("learnSafeSpot", learnSafeSpot.isSelected());
         m.put("waitInZone", waitInZone.isSelected());
+        m.put("dodgeEnemies", dodgeEnemies.isSelected());
         m.put("avoidTrainPaths", avoidTrainPaths.isSelected());
         m.put("trainTimer", trainTimer.isSelected());
         m.put("waitForTrain", waitForTrain.isSelected());
