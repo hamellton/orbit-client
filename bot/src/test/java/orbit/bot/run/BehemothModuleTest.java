@@ -998,6 +998,54 @@ class BehemothModuleTest {
     }
 
     @Test
+    void aBoxByTheBehemothIsPickedUpInItsFightWhileTheLasersStayOnIt() throws Exception {
+        // the user, 2026-11-14: «во время боя с бегемотом подбирать коробки, что там уже есть»
+        Sim sim = new Sim(with(config(300), "{\"trainMode\": true}"), 307, 6_500, 5_000);
+        sim.lasers("ammunition_laser_a-bl");
+        BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
+        m.workingMap();
+        sim.npc(77, BEHEMOTH, 6_900, 5_000);
+        orbit.protocol.gen.AddBoxCommand box = new orbit.protocol.gen.AddBoxCommand();
+        box.hash = "behebox";
+        box.boxType = "MINDFIRE_BEHEMOTH_BOX_2";
+        box.x = 7_200;
+        box.y = 5_300;
+        sim.world.apply(box, sim.now);
+        sim.run(m::tick, 8_000);
+        assertTrue(sim.sent.stream().anyMatch(p -> p instanceof orbit.protocol.gen.CollectBoxRequest),
+                "the box by the behemoth is taken in the fight");
+        assertTrue(sim.sent.stream().anyMatch(p -> p instanceof orbit.protocol.gen.ShipSelectRequest s && s.targetId == 77),
+                "the behemoth stays the target");
+    }
+
+    @Test
+    void aWindowBeforeTheNextBehemothIsUsedForAnotherMapsBoxes() throws Exception {
+        // the user, 2026-11-14: «есть свободное окно — облететь и собрать коробки»
+        Sim sim = new Sim(with(config(30), "{\"arriveOnTime\": true, \"trainMode\": true, \"respawnSeconds\": 915}"),
+                308, 4_700, 3_900);
+        SpawnMemory mem = SpawnMemory.inMemory();
+        long now = System.currentTimeMillis();
+        mem.killed(306, 19_400, 5_800, now + 10 * 60_000 - 915_000); // 1-BL due in 10 min
+        mem.killed(307, 6_900, 5_000, now + 14 * 60_000 - 915_000);
+        mem.killed(308, 4_700, 3_900, now + 13 * 60_000 - 915_000);
+        BehemothModule m = new BehemothModule(sim.ctx, mem);
+        m.workingMap();
+        orbit.protocol.gen.AddBoxCommand box = new orbit.protocol.gen.AddBoxCommand();
+        box.hash = "behebox";
+        box.boxType = "MINDFIRE_BEHEMOTH_BOX_2";
+        box.x = 4_800;
+        box.y = 4_000;
+        sim.world.apply(box, sim.now);
+        sim.run(m::tick, 1_000); // 3-BL's boxes seen
+        orbit.protocol.gen.RemoveCollectableCommand gone = new orbit.protocol.gen.RemoveCollectableCommand();
+        gone.hash = "behebox";
+        sim.world.apply(gone, sim.now);
+        arrive(sim, 307, 5_200, 5_000); // on 2-BL, 3-BL's boxes remembered
+        sim.run(m::tick, 3_000);
+        assertEquals(308, m.workingMap(), "10 min before 1-BL's behemoth: off to 3-BL's boxes first");
+    }
+
+    @Test
     void noSpawnBoxWhileEnemiesStandByIt() throws Exception {
         // live 2026-11-14 on the VPS, 2-BL 16:09: the train by the spawn killed the ship that went for a box
         Sim sim = new Sim(with(config(300), "{\"trainMode\": true}"), 307, 5_200, 5_000);

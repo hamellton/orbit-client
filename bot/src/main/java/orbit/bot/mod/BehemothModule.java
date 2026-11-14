@@ -310,7 +310,11 @@ public final class BehemothModule implements BotModule {
      * wait by the spawn in sight of everybody.
      */
     private boolean holding(int here) {
-        if (chosen == 0 || chosen == here || !on(settings(), "arriveOnTime", false) || !maps(settings()).contains(here)) {
+        if (boxRunTo == here) {
+            boxRunTo = 0; // the box run's map reached: its boxes, then the choice as on any wait
+        }
+        if (chosen == 0 || chosen == here || boxRunTo == chosen || !on(settings(), "arriveOnTime", false)
+                || !maps(settings()).contains(here)) {
             return false;
         }
         long wall = wallMs();
@@ -513,6 +517,9 @@ public final class BehemothModule implements BotModule {
                 attacker.target(b);
             }
             if (train(c, s, w, b)) {
+                return;
+            }
+            if (fightBoxes(s, w, h, b)) {
                 return;
             }
             attacker.tick(true);
@@ -973,6 +980,9 @@ public final class BehemothModule implements BotModule {
             holdTold = true;
             log.info("Бегемот на {} через {}, перелёт {} — жду здесь, вылет через {}", ctx.maps().info(chosen).name(),
                     clock(dueAt(chosen, wall) - wall), clock(travelMs(h.mapId(), chosen)), clock(leaveIn));
+        }
+        if (boxRun(s, h, leaveIn)) {
+            return;
         }
         int[] p = standPoint(s, ctx.world().get());
         avoidSpawn(s, h.mapId(), p);
@@ -1525,6 +1535,97 @@ public final class BehemothModule implements BotModule {
         dodging = true;
         dodgePoint = to;
         return to;
+    }
+
+    /** {@code fightBoxes}: boxes this close to the behemoth are picked up in its fight. */
+    static final double FIGHT_BOX_RADIUS = 600;
+
+    /**
+     * {@code fightBoxes} (on unless turned off; the user, 2026-11-14: «во время боя с бегемотом подбирать коробки, что
+     * там уже есть — только во время боя»): the behemoth's boxes (an earlier one's, by the spawn) within
+     * {@link #FIGHT_BOX_RADIUS} of it are picked up while the lasers keep on it — DarkBot's collector in a fight the same
+     * (a box near the target, the target shot at meanwhile). The ship's config and formation stay the fight's.
+     */
+    private boolean fightBoxes(JsonNode s, WorldSnapshot w, WorldSnapshot.Hero h, WorldSnapshot.Ship b) {
+        if (!on(s, "fightBoxes", true)) {
+            return false;
+        }
+        if (boxes.tickInFight(b.x(), b.y(), FIGHT_BOX_RADIUS)) {
+            attacker.tick(false); // shooting on, the box picker steers
+            status = "Бой: бегемот, HP " + hp(b) + " — подбираю " + boxes.currentName();
+            return true;
+        }
+        return false;
+    }
+
+    /** {@code boxRuns}: behemoth boxes seen by a map's spawn this recently are worth a run there. */
+    static final long BOX_SEEN_MS = 20 * 60_000L;
+    /** A box run is made only with this much to spare before the ship must leave for its behemoth. */
+    static final long BOX_RUN_SPARE_MS = 90_000;
+    /** What a box run's pickup takes, roughly. */
+    static final long BOX_RUN_PICK_MS = 45_000;
+    /** When the behemoth's boxes were last seen by each map's spawn (wall ms); none seen there now — removed. */
+    private final Map<Integer, Long> boxesSeen = new HashMap<>();
+    /** The map a box run goes to (no waiting for its behemoth before the way there), 0 for none. */
+    private int boxRunTo;
+
+    private void watchBoxes(WorldSnapshot w, WorldSnapshot.Hero h, long wall) {
+        if (h.mapId() == 0 || !BL_MAPS.contains(h.mapId())) {
+            return;
+        }
+        int[] sp = spawnPoint(h.mapId());
+        boolean any = w.collectables().values().stream()
+                .anyMatch(b -> b.kind() == WorldSnapshot.CollectableKind.BOX && b.boxType() != null
+                        && b.boxType().startsWith(BoxPicker.BEHEMOTH_BOX)
+                        && Math.hypot(b.x() - sp[0], b.y() - sp[1]) <= SPAWN_BOX_RADIUS);
+        if (any) {
+            boxesSeen.put(h.mapId(), wall);
+        } else if (Math.hypot(h.x() - sp[0], h.y() - sp[1]) <= SPAWN_SIGHT) {
+            boxesSeen.remove(h.mapId()); // by the spawn and none in sight: taken
+        }
+    }
+
+    /** The spawn's surroundings are in sight from this close. */
+    static final double SPAWN_SIGHT = 1_500;
+
+    /**
+     * {@code boxRuns} (on unless turned off; the user, 2026-11-14: «может есть свободное окно, чтобы облететь и собрать
+     * коробки»): while waiting to leave for the next behemoth, a map whose spawn had the behemoth's boxes in the last
+     * {@link #BOX_SEEN_MS} is flown to when the way there, the pickup and the way on to the chosen map leave
+     * {@link #BOX_RUN_SPARE_MS} before the ship must be off; there the boxes are taken as on any wait, then the choice
+     * goes on. True when a run starts.
+     */
+    private boolean boxRun(JsonNode s, WorldSnapshot.Hero h, long leaveIn) {
+        if (!on(s, "boxRuns", true) || !on(s, "collectSpawnBoxes", true)) {
+            return false;
+        }
+        long wall = wallMs();
+        int best = 0;
+        long bestCost = Long.MAX_VALUE;
+        for (Map.Entry<Integer, Long> e : boxesSeen.entrySet()) {
+            int m = e.getKey();
+            if (m == h.mapId() || wall - e.getValue() > BOX_SEEN_MS || !maps(s).contains(m)) {
+                continue;
+            }
+            long cost = travelMs(h.mapId(), m) + BOX_RUN_PICK_MS + travelMs(m, chosen) - travelMs(h.mapId(), chosen);
+            if (cost + BOX_RUN_SPARE_MS <= leaveIn && cost < bestCost) {
+                bestCost = cost;
+                best = m;
+            }
+        }
+        if (best == 0) {
+            return false;
+        }
+        log.info("Окно до вылета {} — лечу за ящиками бегемота на {} (видел {} назад), потом на {}", clock(leaveIn),
+                ctx.maps().info(best).name(), clock(wall - boxesSeen.get(best)), ctx.maps().info(chosen).name());
+        boxesSeen.remove(best); // one run a sighting: seen again there, it is remembered again
+        firstDone = true; // the box map is no place to wait for a «first» behemoth: the timers are known
+        boxRunTo = best;
+        chosen = best;
+        arrivedAt = 0;
+        waitMap = 0;
+        status = "Лечу за ящиками бегемота на " + ctx.maps().info(best).name();
+        return true;
     }
 
     /** Other NPCs while no behemoth: those shooting at us ({@code defenceMode}) or all ({@code killOthers}). */
@@ -2415,6 +2516,7 @@ public final class BehemothModule implements BotModule {
         }
         watchTrain(w, h, now);
         watchTrainLeave(w, h);
+        watchBoxes(w, h, now);
         learnHeat(w, h);
         for (WorldSnapshot.Ship s : w.ships().values()) {
             if (s.npc() && isBehemoth(s)) {

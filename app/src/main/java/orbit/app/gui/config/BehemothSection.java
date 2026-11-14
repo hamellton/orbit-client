@@ -26,6 +26,8 @@ final class BehemothSection implements Section {
     private final JCheckBox defence = new JCheckBox("Отвечать NPC, которые стреляют по нам (пока бегемота нет)");
     private final JCheckBox killOthers = new JCheckBox("Бить и других NPC у точки ожидания");
     private final JCheckBox collect = new JCheckBox("Подбирать ящик бегемота");
+    private final JCheckBox fightBoxes = new JCheckBox("В бою — подбирать ящики бегемота рядом с ним (до 600), не прекращая стрелять");
+    private final JCheckBox boxRuns = new JCheckBox("Есть окно до вылета — слетать за ящиками бегемота на другую карту и вернуться");
     private final JCheckBox spawnBoxes = new JCheckBox("Пока ждём — подбирать ящики у места появления (любые, бегемот мёртв, до него больше минуты)");
     private final JComboBox<String> collectConfig = new JComboBox<>(new String[] {"1", "2"});
     private final ItemBox collectFormation = new ItemBox(ItemCatalog.FORMATIONS, true);
@@ -276,6 +278,8 @@ final class BehemothSection implements Section {
                 .section("Ящик")
                 .row("", collect)
                 .row("", spawnBoxes)
+                .row("", fightBoxes)
+                .row("", boxRuns)
                 .row("Конфигурация", collectConfig)
                 .row("Формация", collectFormation)
                 .build(true);
@@ -361,6 +365,8 @@ final class BehemothSection implements Section {
         killOthers.setSelected(m.path("killOthers").asBoolean(false));
         collect.setSelected(m.path("collectBox").asBoolean(true));
         spawnBoxes.setSelected(m.path("collectSpawnBoxes").asBoolean(true));
+        fightBoxes.setSelected(m.path("fightBoxes").asBoolean(true));
+        boxRuns.setSelected(m.path("boxRuns").asBoolean(true));
         collectConfig.setSelectedIndex(m.path("collectBoxConfig").asInt(2) == 1 ? 0 : 1);
         String f = m.path("collectBoxFormation").asText("Veteran");
         collectFormation.set(f.isBlank() ? null : f.startsWith("drone_formation_") ? f : formationId(f));
@@ -464,6 +470,8 @@ final class BehemothSection implements Section {
         m.put("killOthers", killOthers.isSelected());
         m.put("collectBox", collect.isSelected());
         m.put("collectSpawnBoxes", spawnBoxes.isSelected());
+        m.put("fightBoxes", fightBoxes.isSelected());
+        m.put("boxRuns", boxRuns.isSelected());
         m.put("collectBoxConfig", collectConfig.getSelectedIndex() + 1);
         // none chosen: "" (the formation stays as it is), not the default Veteran
         m.put("collectBoxFormation", collectFormation.get() != null ? collectFormation.get() : "");

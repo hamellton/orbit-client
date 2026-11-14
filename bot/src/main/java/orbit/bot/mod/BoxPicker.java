@@ -98,6 +98,20 @@ public final class BoxPicker {
         }
     }
 
+    private boolean keepShipMode;
+
+    /**
+     * {@link #tickAnyType} in a fight: the ship's config and formation stay the fight's (the caller keeps shooting).
+     */
+    public boolean tickInFight(double ax, double ay, double within) {
+        keepShipMode = true;
+        try {
+            return tickAnyType(ax, ay, within);
+        } finally {
+            keepShipMode = false;
+        }
+    }
+
     /** True while busy with a box (the caller should not move the ship). Boxes near the ship. */
     public boolean tick() {
         return tick(Double.NaN, Double.NaN);
@@ -158,7 +172,9 @@ public final class BoxPicker {
             collectAt = 0;
             collectedAt = 0;
             tries = 0;
-            ctx.ship().want(c.general().roam());
+            if (!keepShipMode) {
+                ctx.ship().want(c.general().roam());
+            }
             ctx.nav().moveTo(box.x(), box.y(), true);
         }
         WorldSnapshot.Collectable box = w.collectables().get(hash);
