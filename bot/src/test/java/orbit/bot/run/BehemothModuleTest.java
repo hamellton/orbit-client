@@ -1082,4 +1082,33 @@ class BehemothModuleTest {
         assertTrue(fromEnemy >= 1_000, "not on the enemy: " + (int) fromEnemy);
         assertTrue(m.holdsGround(), "the ground held there");
     }
+
+    @Test
+    void theShipLearnsWhereTheEnemiesGoAndWaitsWhereTheyAreLeast() throws Exception {
+        // the user, 2026-11-14: «найдём идеальную точку, чтобы дождаться бегемота и чтобы поезда не били»
+        Sim sim = new Sim(with(config(300), "{\"learnSafeSpot\": true, \"awayFromPortals\": true}"), 308, 5_700, 2_600);
+        BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
+        m.workingMap();
+        // a zone so the walls count as known; then enemies keep to the east of the spawn for a long while
+        orbit.protocol.gen.MapAddPOICommand z = new orbit.protocol.gen.MapAddPOICommand();
+        z.poiId = "wall";
+        z.poiType = new orbit.protocol.gen.POITypeModule();
+        z.poiType.typeValue = (short) orbit.protocol.gen.POITypeModule.POITYPE_NO_ACCESS;
+        z.shape = (short) orbit.protocol.gen.MapAddPOICommand.SHAPETYPE_CIRCLE;
+        z.shapeCoordinates = java.util.List.of(20_000, 12_500, 300);
+        z.active = true;
+        sim.world.apply(z, sim.now);
+        for (int i = 0; i < 5; i++) {
+            enemy(sim, 900 + i, "Camper" + i, 6_700 + i * 100, 3_900);
+        }
+        sim.run(m::tick, 200_000);
+        for (int i = 0; i < 5; i++) {
+            orbit.protocol.gen.ShipRemoveCommand r = new orbit.protocol.gen.ShipRemoveCommand();
+            r.userId = 900 + i;
+            sim.world.apply(r, sim.now);
+        }
+        sim.run(m::tick, 70_000);
+        var h = sim.hero();
+        assertTrue(h.x() < 4_700, "waits west of the spawn, away from where they kept: " + h);
+    }
 }

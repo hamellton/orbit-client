@@ -163,6 +163,102 @@ public final class BehemothModule implements BotModule {
         this.boxes = new BoxPicker(ctx);
         this.nanoBase = ctx.now();
         this.players = new PlayerFight(ctx);
+        this.heat = ctx.dataDir() == null ? EnemyHeat.inMemory()
+                : EnemyHeat.open(ctx.dataDir().resolve("behemoth-heat.json"));
+    }
+
+    private final EnemyHeat heat;
+    private long heatAt = Long.MIN_VALUE / 2;
+    private int[] lastPos;
+    /** Enemies seen are put on the heat map this often. */
+    static final long HEAT_EVERY_NS = 2_000_000_000L;
+    /** The ship's death weighs as much as so many sightings. */
+    static final double DEATH_HEAT = 40;
+    /** Below this much learned on a map the heat is not trusted yet. */
+    static final double HEAT_ENOUGH = 300;
+
+    /** The enemies in sight to the heat map; the ship's place kept for its death. */
+    private void learnHeat(WorldSnapshot w, WorldSnapshot.Hero h) {
+        JsonNode s = settings();
+        if (!on(s, "learnSafeSpot", false) || !maps(s).contains(h.mapId()) || h.id() == 0 || w.death() != null) {
+            return;
+        }
+        lastPos = new int[] {h.mapId(), h.x(), h.y()};
+        long now = ctx.now();
+        if (now - heatAt < HEAT_EVERY_NS) {
+            return;
+        }
+        heatAt = now;
+        java.util.Set<Integer> group = PlayerFight.group(w);
+        List<String> black = names(s, "blacklist");
+        for (WorldSnapshot.Ship e : w.ships().values()) {
+            if (PlayerFight.enemy(e, h, group, black)) {
+                heat.add(h.mapId(), e.x(), e.y(), 1);
+            }
+        }
+        heat.saveSometimes(now);
+    }
+
+    private final Map<Integer, int[]> safeSpots = new HashMap<>();
+    private final Map<Integer, Long> safeSpotAt = new HashMap<>();
+
+    /**
+     * {@code learnSafeSpot}: the place to wait where the enemies have been seen least (and the ship killed least), 1 500 …
+     * 3 000 off the spawn with a clear line to it, the nearer of two equal ones; {@code null} while too little is known.
+     * Looked at again once a minute.
+     */
+    int[] safeSpot(int map) {
+        if (heat.total(map) < HEAT_ENOUGH) {
+            return null;
+        }
+        Long at = safeSpotAt.get(map);
+        if (at != null && ctx.now() - at < 60_000_000_000L && safeSpots.containsKey(map)) {
+            return safeSpots.get(map);
+        }
+        WorldSnapshot w = ctx.world().get();
+        if (w.zones().isEmpty()) {
+            return null; // the walls not known yet
+        }
+        orbit.bot.nav.PathFinder pf = orbit.bot.nav.PathFinder.of(w, ctx.maps(), false);
+        orbit.world.maps.MapCatalog.MapInfo info = ctx.maps().info(map);
+        int width = info.width() > 0 ? info.width() : 21_000;
+        int height = info.height() > 0 ? info.height() : 13_100;
+        int[] sp = spawnPoint(map);
+        BotConfig.Zones zones = ctx.config().get().zones().get(map);
+        BotConfig.ZoneGrid avoided = zones == null ? null : zones.avoided();
+        double total = heat.total(map);
+        int[] best = null;
+        double bestCost = Double.MAX_VALUE;
+        double bestHeat = 0;
+        for (int r = 1_500; r <= 3_000; r += 250) {
+            for (int i = 0; i < 36; i++) {
+                double a = 2 * Math.PI * i / 36;
+                int[] p = {(int) (sp[0] + r * Math.cos(a)), (int) (sp[1] + r * Math.sin(a))};
+                if (p[0] < 600 || p[1] < 600 || p[0] > width - 600 || p[1] > height - 600
+                        || avoided != null && avoided.contains(p[0], p[1], width, height)
+                        || !pf.free(p[0], p[1]) || !pf.clear(p[0], p[1], sp[0], sp[1])) {
+                    continue;
+                }
+                double near = heat.around(map, p[0], p[1], 3_000);
+                // a share of the map's heat, and a little for the way to the spawn
+                double cost = near / total * 100 + (r - 1_500) / 1_000.0;
+                if (cost < bestCost) {
+                    bestCost = cost;
+                    best = p;
+                    bestHeat = near;
+                }
+            }
+        }
+        safeSpotAt.put(map, ctx.now());
+        if (best != null) {
+            int[] was = safeSpots.put(map, best);
+            if (was == null || Math.hypot(was[0] - best[0], was[1] - best[1]) > 400) {
+                log.info("{}: жду там, где врагов видели меньше всего — {}/{} ({} от места появления, рядом {} из {} отметок)",
+                        info.name(), best[0] / 100, best[1] / 100, (int) Math.hypot(best[0] - sp[0], best[1] - sp[1]),
+                        (int) bestHeat, (int) total);
+            }
+        }
+        return best;
     }
 
     private JsonNode settings() {
@@ -436,6 +532,10 @@ public final class BehemothModule implements BotModule {
      */
     private void countDeaths() {
         int d = ctx.stats().deaths.get();
+        if (lastDeaths >= 0 && d > lastDeaths && lastPos != null) {
+            heat.add(lastPos[0], lastPos[1], lastPos[2], DEATH_HEAT); // killed here: a place to keep off
+            heat.saveSometimes(Long.MAX_VALUE / 2);
+        }
         if (lastDeaths >= 0 && d > lastDeaths && fightMap != 0 && ctx.now() - fightMapAt < 90_000_000_000L) {
             JsonNode s = settings();
             int n = deathsAt.merge(fightMap, d - lastDeaths, Integer::sum);
@@ -1665,7 +1765,9 @@ public final class BehemothModule implements BotModule {
     int[] standPoint(JsonNode s, WorldSnapshot w) {
         int map = w.hero().mapId();
         int[] zone = on(s, "waitInZone", false) ? zonePoint(map) : null;
-        int[] base = zone != null ? zone : on(s, "awayFromPortals", false) ? awayFromPortals(s, map) : waitPoint(map);
+        int[] safe = zone == null && on(s, "learnSafeSpot", false) ? safeSpot(map) : null;
+        int[] base = zone != null ? zone : safe != null ? safe
+                : on(s, "awayFromPortals", false) ? awayFromPortals(s, map) : waitPoint(map);
         if (!on(s, "freeSide", false)) {
             return base;
         }
@@ -2031,6 +2133,7 @@ public final class BehemothModule implements BotModule {
         }
         watchTrain(w, h, now);
         watchTrainLeave(w, h);
+        learnHeat(w, h);
         for (WorldSnapshot.Ship s : w.ships().values()) {
             if (s.npc() && isBehemoth(s)) {
                 if (!seen.containsKey(s.id())) {
