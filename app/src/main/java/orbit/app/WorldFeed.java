@@ -103,6 +103,13 @@ public final class WorldFeed {
 
     /** The map left by the last jump, until the ship appears on the next one. */
     private volatile int jumpedFrom;
+    /**
+     * Arrived by a jump at a spot the data has no way back from: {map, x, y, from map}. Learned as a portal only when the
+     * server shows a gate there ({@link #BACK_GATE_NEAR}) — a jump CPU lands at the station, not at a portal (live
+     * 2026-11-14 on the VPS: 2-8's repair dock learned as a portal to 3-BL; the ship stood on it till the server kicked it).
+     */
+    private volatile int[] backPortal;
+    static final double BACK_GATE_NEAR = 600;
 
     public WorldFeed(String mode) {
         this(mode, null);
@@ -247,11 +254,8 @@ public final class WorldFeed {
                 // (5-1 → 4-5, live 2026-11-12)
                 int from = jumpedFrom;
                 jumpedFrom = 0;
-                if (from > 0 && from != si.mapId && maps.portals(si.mapId).stream().noneMatch(pt -> pt.toId() == from)
-                        && maps.learn(si.mapId, si.x, si.y, from, 0)) {
-                    log.info("Запомнил портал: {} ({}/{}) ведёт на {} (обратный)", where, si.x / 100, si.y / 100,
-                            maps.info(from).name());
-                }
+                backPortal = from > 0 && from != si.mapId && maps.portals(si.mapId).stream().noneMatch(pt -> pt.toId() == from)
+                        ? new int[] {si.mapId, si.x, si.y, from} : null;
                 if (!mode.startsWith("бот")) {
                     state = "В игре: " + where;
                 }
@@ -271,6 +275,16 @@ public final class WorldFeed {
                                         g.x() / 100, g.y() / 100, maps.info(j.mapId).name());
                             }
                         });
+            }
+            case orbit.protocol.gen.JumpgateCreateCommand jg when backPortal != null
+                    && backPortal[0] == world.snapshot(now()).hero().mapId()
+                    && Math.hypot(jg.x - backPortal[1], jg.y - backPortal[2]) <= BACK_GATE_NEAR -> {
+                int[] b = backPortal;
+                backPortal = null;
+                if (maps.learn(b[0], jg.x, jg.y, b[3], jg.factionId)) {
+                    log.info("Запомнил портал: {} ({}/{}) ведёт на {} (обратный)", maps.info(b[0]).name(), jg.x / 100,
+                            jg.y / 100, maps.info(b[3]).name());
+                }
             }
             case orbit.protocol.gen.JumpgateCreateCommand jg when maps.portalNear(
                     world.snapshot(now()).hero().mapId(), jg.x, jg.y, 400) == null && world.snapshot(now()).hero().mapId() > 0 ->
