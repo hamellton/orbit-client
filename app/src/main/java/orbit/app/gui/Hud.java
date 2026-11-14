@@ -91,6 +91,7 @@ final class Hud {
             out.put(ViewSettings.Block.GROUP, group(w));
         }
         put(out, ViewSettings.Block.QUESTS, quests(w.quests()));
+        put(out, ViewSettings.Block.GATES, gates(w, feed));
         if (feed.stats() != null || !w.rewards().equals(WorldSnapshot.Rewards.NONE)) {
             out.put(ViewSettings.Block.STATS, stats(w, feed));
         }
@@ -98,6 +99,67 @@ final class Hud {
     }
 
     static final Color QUEST_BAR = new Color(0xa855f7);
+    static final Color GATE_BAR = new Color(0x06b6d4);
+
+    /** The gates the card lists: ABG, ζ, κ first (the user's first test), then any other the builder tells of. */
+    static final List<String> GATE_ORDER = List.of("alpha", "beta", "gamma", "zeta", "kappa", "delta", "epsilon", "lambda",
+            "kronos", "hades", "kuiper");
+
+    /**
+     * «Врата»: the builder as the gate module sees it (the user, 2026-11-14: «а как мы показываем в боте билд гг?») —
+     * free energy and uridium, each gate's parts of all with a bar, its lives and wave; the gate the ship is in marked.
+     * Shown while the gate module runs, or in a gate.
+     */
+    private Card gates(WorldSnapshot w, WorldFeed feed) {
+        WorldSnapshot.Gates gs = w.gates();
+        orbit.config.GateCatalog.Gate in = orbit.config.GateCatalog.byMap(w.hero().mapId());
+        orbit.bot.run.BotRunner r = feed.runner();
+        boolean module = r != null && r.moduleKind() == orbit.config.BotConfig.Module.GALAXY_GATE;
+        if (gs.infoNanos() == 0 || !module && in == null) {
+            return null;
+        }
+        List<orbit.config.GateCatalog.Gate> list = new ArrayList<>();
+        for (String k : GATE_ORDER) {
+            orbit.config.GateCatalog.Gate g = orbit.config.GateCatalog.byKey(k);
+            WorldSnapshot.Gate st = gs.gate(g.builderId());
+            boolean first = k.equals("alpha") || k.equals("beta") || k.equals("gamma") || k.equals("zeta") || k.equals("kappa");
+            if (st != null && (first || st.parts() > 0 || st.lives() > 0 || g == in)) {
+                list.add(g);
+            }
+        }
+        int rowH = line + 12;
+        return new Card() {
+            @Override
+            public int height(int width) {
+                return pad + line + list.size() * rowH + pad - 4;
+            }
+
+            @Override
+            public void paint(Graphics2D g, int x, int y, int width) {
+                frame(g, x, y, width, height(width), GATE_BAR);
+                g.setFont(font(Font.PLAIN, 11f));
+                g.setColor(DIM);
+                String head = "Врата · энергия " + money((long) Math.max(0, gs.samples())) + " · уридий "
+                        + money((long) Math.max(0, gs.money()));
+                g.drawString(clip(g, head, width - 2 * pad), x + pad, y + pad + 10);
+                int ry = y + pad + line;
+                for (orbit.config.GateCatalog.Gate gate : list) {
+                    WorldSnapshot.Gate st = gs.gate(gate.builderId());
+                    int parts = Math.max(0, st.parts());
+                    boolean placed = st.lives() > 0;
+                    // the parts are on the bar: the line says what the bar does not
+                    String text = (gate == in ? "▶ " : "") + gate.name()
+                            + (placed ? " · жизней " + st.lives() : parts >= gate.parts() ? " · собраны" : "")
+                            + (st.wave() > 0 ? " · волна " + st.wave() + "/" + gate.waves() : "");
+                    g.setFont(font(gate == in ? Font.BOLD : Font.PLAIN, 11f));
+                    g.setColor(placed || gate == in ? TEXT : DIM);
+                    g.drawString(clip(g, text, width - 2 * pad), x + pad, ry + 10);
+                    bar(g, x + pad, ry + 13, width - 2 * pad, 9, parts, gate.parts(), placed ? HP_BAR : GATE_BAR, false);
+                    ry += rowH;
+                }
+            }
+        };
+    }
     static final int MAX_QUESTS = 6;
 
     /** The taken quests: type and number, then each condition with its progress (the HUD's quest first). */

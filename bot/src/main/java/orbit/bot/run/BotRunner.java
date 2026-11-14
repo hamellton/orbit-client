@@ -264,6 +264,11 @@ public final class BotRunner {
         activeHangar = id;
     }
 
+    /** The module running ({@code null} before the first tick). */
+    public orbit.config.BotConfig.Module moduleKind() {
+        return moduleKind;
+    }
+
     /** The hangar the module asked for: the app switches to it after this session ({@code 0} none). */
     public int hangarRequest() {
         return hangarRequest;
