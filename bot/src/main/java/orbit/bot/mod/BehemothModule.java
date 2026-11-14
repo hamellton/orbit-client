@@ -1322,6 +1322,8 @@ public final class BehemothModule implements BotModule {
     static final long EXIT_WINDOW_NS = 30_000_000_000L;
     /** The ship goes after a train this long after it left, not on its heels. */
     static final long FOLLOW_DELAY_NS = 20_000_000_000L;
+    /** A train is followed only to a map whose behemoth is unknown or due within this. */
+    static final long FOLLOW_KNOWN_MS = 120_000;
     /** A train's leaving is acted on within this. */
     static final long FOLLOW_MAX_NS = 180_000_000_000L;
     private final Map<Integer, int[]> enemiesSeen = new HashMap<>();
@@ -1392,6 +1394,17 @@ public final class BehemothModule implements BotModule {
             return false;
         }
         if (since < FOLLOW_DELAY_NS) {
+            return false;
+        }
+        long wall = wallMs();
+        long there = dueAt(trainLeftTo, wall);
+        long here = dueAt(h.mapId(), wall);
+        if (there > 0 && there - wall > FOLLOW_KNOWN_MS || behemothListed || here > 0 && here - wall < FOLLOW_KNOWN_MS) {
+            // its timer is known and far, or ours comes first (live 2026-11-14 on the VPS: off after a train to 3-BL, its
+            // behemoth dead 2 min before, while 1-BL's came by the clock)
+            log.info("Поезд ушёл на {}, но там бегемот {} — не лечу за ним", ctx.maps().info(trainLeftTo).name(),
+                    there > 0 ? "через " + clock(there - wall) : "неизвестно когда");
+            trainLeftTo = 0;
             return false;
         }
         chosen = trainLeftTo;

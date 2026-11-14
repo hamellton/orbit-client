@@ -1014,4 +1014,28 @@ class BehemothModuleTest {
         sim.run(m::tick, 1_000);
         assertTrue(m.status().contains("пеленгатор"), "after the one here: " + m.status());
     }
+
+    @Test
+    void aTrainIsNotFollowedToAMapWhoseBehemothIsFarByItsTimer() throws Exception {
+        // live 2026-11-14 on the VPS: off after a train to 3-BL, its behemoth dead 2 min before
+        Sim sim = new Sim(with(config(300), "{\"followTrain\": true}"), 308, 5_700, 2_600);
+        SpawnMemory mem = SpawnMemory.inMemory();
+        mem.killed(307, 6_900, 5_000, System.currentTimeMillis()); // 2-BL in 15 min
+        BehemothModule m = new BehemothModule(sim.ctx, mem);
+        m.workingMap();
+        var portal = sim.ctx.maps().portals(308).stream().filter(q -> q.toId() == 307).findFirst().orElseThrow();
+        sim.run(m::tick, 6_000);
+        for (int i = 0; i < 4; i++) {
+            enemy(sim, 900 + i, "Train" + i, portal.x() + 100 * i, portal.y());
+        }
+        sim.run(m::tick, 2_000);
+        for (int i = 0; i < 4; i++) {
+            orbit.protocol.gen.ShipRemoveCommand r = new orbit.protocol.gen.ShipRemoveCommand();
+            r.userId = 900 + i;
+            sim.world.apply(r, sim.now);
+            sim.run(m::tick, 1_000);
+        }
+        sim.run(m::tick, 25_000);
+        assertEquals(308, m.workingMap(), "2-BL's behemoth is 15 min off: not after them");
+    }
 }
