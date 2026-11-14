@@ -926,6 +926,42 @@ class BehemothModuleTest {
     }
 
     @Test
+    void theBehemothsBoxesByItsSpawnArePickedUpWhileWaitingWhateverTheirType() throws Exception {
+        // the user, 2026-11-14: «на месте бегемота жёлтые точки — коробки, но он их не собирает»
+        Sim sim = new Sim(with(config(300), "{\"trainMode\": true}"), 307, 5_200, 5_000);
+        BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
+        m.workingMap();
+        orbit.protocol.gen.AddBoxCommand box = new orbit.protocol.gen.AddBoxCommand();
+        box.hash = "behebox";
+        box.boxType = "SOME_UNLISTED_BOX";
+        box.x = 6_950;
+        box.y = 5_050;
+        sim.world.apply(box, sim.now);
+        enemy(sim, 900, "Train", 7_000, 5_100); // a train by it: no matter
+        sim.run(m::tick, 15_000);
+        assertTrue(sim.sent.stream().anyMatch(p -> p instanceof orbit.protocol.gen.CollectBoxRequest),
+                "the box by the spawn is collected, its type not in the list");
+    }
+
+    @Test
+    void noSpawnBoxRunWhenTheBehemothIsDueWithinAMinute() throws Exception {
+        Sim sim = new Sim(with(config(300), "{\"trainMode\": true, \"respawnSeconds\": 915}"), 307, 5_200, 5_000);
+        SpawnMemory mem = SpawnMemory.inMemory();
+        mem.killed(307, 6_900, 5_000, System.currentTimeMillis() - 915_000 + 30_000); // due in 30 s
+        BehemothModule m = new BehemothModule(sim.ctx, mem);
+        m.workingMap();
+        orbit.protocol.gen.AddBoxCommand box = new orbit.protocol.gen.AddBoxCommand();
+        box.hash = "behebox";
+        box.boxType = "SOME_UNLISTED_BOX";
+        box.x = 6_950;
+        box.y = 5_050;
+        sim.world.apply(box, sim.now);
+        sim.run(m::tick, 10_000);
+        assertTrue(sim.sent.stream().noneMatch(p -> p instanceof orbit.protocol.gen.CollectBoxRequest),
+                "its behemoth in 30 s: the ship stays at its wait");
+    }
+
+    @Test
     void outOfSightButStillListedIsNoDeath() throws Exception {
         // live 2026-11-14 on the VPS, 2-BL 13:42: gone from view 1 300 away, taken for dead, the ship waited for a box and
         // left while it lived 15 s more

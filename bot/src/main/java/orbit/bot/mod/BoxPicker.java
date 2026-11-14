@@ -72,6 +72,21 @@ public final class BoxPicker {
     }
 
     private boolean anywhere;
+    private boolean anyType;
+
+    /**
+     * Boxes of any type within {@code within} of (ax, ay), the config's box list and «contested» aside: the behemoth's
+     * boxes by its spawn (the user, 2026-11-14: «на месте бегемота жёлтые точки — коробки, но он их не собирает»; their
+     * type is not in the train configs' list and a train always stands by them). Mines and fireworks still not.
+     */
+    public boolean tickAnyType(double ax, double ay, double within) {
+        anyType = true;
+        try {
+            return tick(ax, ay, within);
+        } finally {
+            anyType = false;
+        }
+    }
 
     /** True while busy with a box (the caller should not move the ship). Boxes near the ship. */
     public boolean tick() {
@@ -115,7 +130,7 @@ public final class BoxPicker {
             boxes++;
             ctx.stats().boxes.incrementAndGet();
             int n = ctx.stats().picked(orbit.config.LootNames.of(current));
-            log.info("Подобрал {} (за сессию: {})", orbit.config.LootNames.of(current), n);
+            log.info("Подобрал {} (тип {}, за сессию: {})", orbit.config.LootNames.of(current), current, n);
             hash = null;
         }
         if (hash == null) {
@@ -125,6 +140,9 @@ public final class BoxPicker {
             }
             hash = box.hash();
             current = key(box);
+            if (anyType) {
+                log.info("Ящик у места бегемота: тип {} у {}/{}", current, box.x() / 100, box.y() / 100);
+            }
             startedAt = now;
             collectAt = 0;
             collectedAt = 0;
@@ -170,9 +188,12 @@ public final class BoxPicker {
         ignored.values().removeIf(t -> now - t > 120_000_000_000L);
         java.util.function.BiPredicate<Integer, Integer> reach = anywhere ? ctx.nav().reachability() : null;
         return w.collectables().values().stream()
-                .filter(b -> b.kind() == WorldSnapshot.CollectableKind.BOX || b.kind() == WorldSnapshot.CollectableKind.ORE)
+                .filter(b -> b.kind() == WorldSnapshot.CollectableKind.BOX || !anyType && b.kind() == WorldSnapshot.CollectableKind.ORE)
                 .filter(b -> !ignored.containsKey(b.hash()))
                 .filter(b -> {
+                    if (anyType) {
+                        return orbit.config.BoxCatalog.collectable(key(b));
+                    }
                     BotConfig.BoxRule r = c.collect().boxes().get(key(b));
                     // mines and fireworks show among the resources but are no boxes (the user's list, 2026-11-12)
                     return r != null && r.collect() && orbit.config.BoxCatalog.collectable(key(b));
@@ -188,7 +209,7 @@ public final class BoxPicker {
                 .filter(b -> reach != null ? reach.test(b.x(), b.y()) : Double.isNaN(anchorX)
                         ? Math.hypot(b.x() - h.x(), b.y() - h.y()) <= c.collect().radius()
                         : Math.hypot(b.x() - anchorX, b.y() - anchorY) <= (within > 0 ? within : c.collect().radius()))
-                .filter(b -> !c.collect().ignoreContested() || !contested(w, b))
+                .filter(b -> anyType || !c.collect().ignoreContested() || !contested(w, b))
                 .filter(b -> !c.general().avoidMines() || !orbit.bot.nav.PathFinder.nearMine(w, b.x(), b.y()))
                 // not by a player who attacked the ship this session (the config's «Обходить тех, кто стрелял»)
                 .filter(b -> !ctx.nav().inDanger(b.x(), b.y()))

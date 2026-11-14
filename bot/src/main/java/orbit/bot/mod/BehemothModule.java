@@ -522,6 +522,9 @@ public final class BehemothModule implements BotModule {
             if (locate(s, w)) {
                 return;
             }
+            if (spawnBoxes(s, w, h)) {
+                return;
+            }
             if (fightWhileWaiting(c, s, w)) {
                 return;
             }
@@ -536,10 +539,42 @@ public final class BehemothModule implements BotModule {
         if (locate(s, w)) {
             return;
         }
+        if (spawnBoxes(s, w, h)) {
+            return;
+        }
         if (fightWhileWaiting(c, s, w)) {
             return;
         }
         waitHere(s, h);
+    }
+
+    /** {@code collectSpawnBoxes}: boxes this close to the spawn are the behemoth's. */
+    static final double SPAWN_BOX_RADIUS = 1_000;
+    /** …and are flown to only while its next one is at least this far off. */
+    static final long SPAWN_BOX_SPARE_MS = 60_000;
+
+    /**
+     * {@code collectSpawnBoxes} (on unless turned off; the user, 2026-11-14: «на месте бегемота жёлтые точки — коробки,
+     * но он их не собирает, и то же на других картах»): the behemoth not on the map (not in sight, not in the locator's
+     * list) and its next one more than {@link #SPAWN_BOX_SPARE_MS} off — the boxes by its spawn are picked up, whatever
+     * their type and whoever is near, then the ship goes back to its wait. True while busy with them.
+     */
+    private boolean spawnBoxes(JsonNode s, WorldSnapshot w, WorldSnapshot.Hero h) {
+        if (!on(s, "collectSpawnBoxes", true) || behemothListed || findBehemoth(ctx.config().get(), w) != null
+                || !maps(s).contains(h.mapId())) {
+            return false;
+        }
+        long wall = wallMs();
+        long due = dueAt(h.mapId(), wall);
+        if (due > 0 && due - wall < SPAWN_BOX_SPARE_MS && !boxes.busy()) {
+            return false;
+        }
+        int[] sp = spawnPoint(h.mapId());
+        if (boxes.tickAnyType(sp[0], sp[1], SPAWN_BOX_RADIUS)) {
+            status = "Подбираю ящик бегемота: " + boxes.currentName();
+            return true;
+        }
+        return false;
     }
 
     /**
