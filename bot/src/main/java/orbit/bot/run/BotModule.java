@@ -108,6 +108,10 @@ public interface BotModule {
         return calm();
     }
 
+    /** Each tick while the runner flies the ship to the module's map (between maps). */
+    default void travelling() {
+    }
+
     /** A new cloaking CPU when the fitted one is empty ({@link CloakCare}), {@code null} = not wanted. */
     default CloakPlan cloakPlan() {
         return null;

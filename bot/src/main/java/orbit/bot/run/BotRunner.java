@@ -762,6 +762,7 @@ public final class BotRunner {
         }
         state = State.TRAVELLING;
         ctx.ship().want(ctx.config().get().general().travel());
+        module.travelling();
         t.tick();
         show("Лечу на " + ctx.maps().info(map).name());
     }

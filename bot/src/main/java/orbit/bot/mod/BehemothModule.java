@@ -1038,10 +1038,23 @@ public final class BehemothModule implements BotModule {
      * there is; {@code cloakFormation} (BLCycle: Heart) is set first. Attacking takes the cloak off by itself.
      */
     private void cloak(JsonNode s, WorldSnapshot.Hero h) {
+        cloak(s, h, true);
+    }
+
+    /**
+     * Between maps too (the user, 2026-11-14: «на перелётах невид тоже нужен»): the runner flies the ship, the cloak is
+     * used by the same rules; the formation stays the travel one.
+     */
+    @Override
+    public void travelling() {
+        cloak(settings(), ctx.world().get().hero(), false);
+    }
+
+    private void cloak(JsonNode s, WorldSnapshot.Hero h, boolean setFormation) {
         if (!on(s, "useCloak", false)) {
             return;
         }
-        String formation = formation(text(s, "cloakFormation", ""));
+        String formation = setFormation ? formation(text(s, "cloakFormation", "")) : null;
         if (formation != null) {
             ctx.ship().want(new BotConfig.ShipMode(ctx.config().get().general().roam().config(), formation));
         }

@@ -511,6 +511,18 @@ class BehemothModuleTest {
     }
 
     @Test
+    void cloakedBetweenMapsToo() throws Exception {
+        // the user, 2026-11-14: «на перелётах невид тоже нужен» — the runner flies 2-8 → BL, the cloak is used on the way
+        Sim sim = new Sim(with(config(300), "{\"useCloak\": true}"), 24, 11_200, 1_200);
+        sim.lasers("ammunition_laser_ucb-100", orbit.config.ItemCatalog.CLOAK_BAR);
+        BotRunner r = new BotRunner(sim.ctx, () -> false, x -> { });
+        sim.run(r::tick, 8_000);
+        assertEquals(24, sim.hero().map(), "still on its way");
+        assertTrue(sim.sent.stream().anyMatch(p -> p instanceof orbit.protocol.gen.MenuActionRequest a
+                && a.menuItemId.equals(orbit.config.ItemCatalog.CLOAK_BAR)), "cloaked on the way between maps");
+    }
+
+    @Test
     void cloakedWhileWaitingInTheCloakFormation() throws Exception {
         Sim sim = new Sim(with(config(300), "{\"useCloak\": true, \"cloakFormation\": \"drone_formation_f-11-he\"}"),
                 308, 5_700, 2_600);
