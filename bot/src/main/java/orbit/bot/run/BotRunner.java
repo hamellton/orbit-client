@@ -45,8 +45,18 @@ public final class BotRunner {
         }
     }
 
-    /** After an order is done the module waits this long before it takes the ship back (DarkBot does the same). */
-    static final long HOLD_MS = 5_000;
+    /**
+     * After an order is done the module waits this long before it takes the ship back — the account's setting
+     * ({@code clickHoldMs} in {@code local/accounts.json}, the user, 2026-11-14: «настраиваемым на акке, по дефолту 1
+     * секунду»; DarkBot waits 5 s).
+     */
+    static final long HOLD_MS = 1_000;
+    private volatile long holdMs = HOLD_MS;
+
+    /** The account's wait after a click on the map, ms. */
+    public void setClickHold(long ms) {
+        holdMs = Math.max(0, ms);
+    }
     /** An order not done in this time is given up. */
     static final long ORDER_LIMIT_MS = 3 * 60_000L;
 
@@ -533,8 +543,8 @@ public final class BotRunner {
         long now = ctx.now();
         Order o = pending.getAndSet(null);
         if (o != null) {
-            if (module != null) {
-                module.pause();
+            if (module != null && !paused) {
+                module.pause(); // paused: the module's plan is kept for the moment the pause ends
             }
             current = o;
             orderAt = now;
@@ -575,7 +585,7 @@ public final class BotRunner {
                 return true;
             }
             if (holdUntil == 0) {
-                holdUntil = now + HOLD_MS * 1_000_000;
+                holdUntil = now + holdMs * 1_000_000;
             }
             if (paused || now < holdUntil) {
                 state = paused ? State.PAUSED : State.MANUAL;
@@ -589,9 +599,8 @@ public final class BotRunner {
             if (!pauseShown) {
                 pauseShown = true;
                 log.info("Пауза: бот ждёт, корабль летает только по кликам на карте");
-                if (module != null) {
-                    module.pause();
-                }
+                // the module's plan is kept (the user, 2026-11-14: «сохранять поведение до паузы и после снятия паузы
+                // сразу же возобновлять поведение до паузы»)
                 ctx.nav().halt(); // stop where it is: it would fly on to the module's last click
             }
             state = State.PAUSED;
@@ -600,7 +609,10 @@ public final class BotRunner {
         }
         if (pauseShown) {
             pauseShown = false;
-            log.info("Пауза снята — продолжаю");
+            log.info("Пауза снята — продолжаю, как было до паузы");
+            if (module != null) {
+                module.resumed();
+            }
         }
         return false;
     }

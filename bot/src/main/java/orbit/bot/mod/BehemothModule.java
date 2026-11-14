@@ -351,6 +351,13 @@ public final class BehemothModule implements BotModule {
      * «DoWarBoy рядом — ухожу» in the behemoth's fight, the train config says to stay).
      */
     @Override
+    public void resumed() {
+        // the box being taken is chosen again (its fly-to was given by the click's route), the navigator asked anew
+        boxes.clear();
+        ctx.nav().stop();
+    }
+
+    @Override
     public boolean holdsGround() {
         // and on the way to it and to its beacon (live 2026-11-14 on the VPS, 2-BL: the navigator led to the behemoth,
         // the escape from the train round it took the ship away — 3 400 → 5 400 in 5 s)

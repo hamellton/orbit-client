@@ -27,6 +27,13 @@ public interface BotModule {
     }
 
     /**
+     * The user's pause is over: the plan from before it goes on at once; only the movement is asked again (the ship
+     * may have been flown elsewhere by clicks meanwhile).
+     */
+    default void resumed() {
+    }
+
+    /**
      * Uridium the jump CPU may spend today on the way to {@link #workingMap} when no voucher is left;
      * {@code -1} = no CPU jumps, portals only.
      */

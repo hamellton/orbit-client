@@ -174,10 +174,27 @@ class BotRunnerTest {
         }
         var h = sim.hero();
         assertTrue(Math.hypot(h.x() - 12_000, h.y() - 9_000) < 150, "there: " + h);
-        sim.run(r::tick, BotRunner.HOLD_MS - 1_000);
+        sim.run(r::tick, (int) BotRunner.HOLD_MS - 500);
         assertEquals(BotRunner.State.MANUAL, r.state(), "the module waits a moment");
         sim.run(r::tick, (int) BotRunner.HOLD_MS + 1_000);
         assertEquals(BotRunner.State.WORKING, r.state(), "the module goes on after the pause");
+    }
+
+    @Test
+    void theWaitAfterAClickIsTheAccountsSetting() throws Exception {
+        Sim sim = new Sim(CubikonModuleTest.config(90, false), 26, 10_000, 6_000);
+        BotRunner r = new BotRunner(sim.ctx, () -> false, s -> { });
+        r.setClickHold(4_000);
+        sim.run(r::tick, 2_000);
+        r.order(BotRunner.Order.move(12_000, 9_000));
+        sim.run(r::tick, 500);
+        for (int i = 0; i < 200 && !sim.ctx.nav().idle(); i++) {
+            sim.run(r::tick, 100);
+        }
+        sim.run(r::tick, 3_000);
+        assertEquals(BotRunner.State.MANUAL, r.state(), "4 s set: still waiting after 3");
+        sim.run(r::tick, 2_000);
+        assertEquals(BotRunner.State.WORKING, r.state(), "and on after it");
     }
 
     @Test

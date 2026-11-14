@@ -671,6 +671,7 @@ public final class OrbitMain {
                     ModuleRun run = startModule(feed, conn, cfgName, cfg, end, why, profile, stopFile,
                             shopFor(auth, conn), () -> !game.isAlive(), ships, previous);
                     current.set(run);
+                    run.runner().setClickHold(clickHold(accountName));
                     // every module: which ship is in use, and the list the «Ангар» window shows (the user, 2026-11-14:
                     // «в кораблях пусто» — it was read for palladium only)
                     watchHangar(auth, conn, run.runner(), lastHost, accountName, cfg, ships);
@@ -818,6 +819,16 @@ public final class OrbitMain {
                 log.warn("Ангары с сайта не прочитать: {}", e.getMessage());
             }
         });
+    }
+
+    /** The account's wait after a click on the map (its settings, 1 s when none). */
+    private static int clickHold(String accountName) {
+        try {
+            return orbit.config.AccountSettings.load(orbit.config.AccountSettings.DEFAULT_FILE).account(accountName)
+                    .clickHold();
+        } catch (java.io.IOException e) {
+            return orbit.config.AccountSettings.Entry.DEFAULT_CLICK_HOLD_MS;
+        }
     }
 
     /**

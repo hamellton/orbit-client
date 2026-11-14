@@ -46,6 +46,8 @@ final class AccountDialog {
     private final JCheckBox showProxy = new JCheckBox("показать");
     private final JLabel proxyResult = new JLabel(" ");
     private final JComboBox<String> config = new JComboBox<>();
+    private final javax.swing.JSpinner clickHold = new javax.swing.JSpinner(
+            new javax.swing.SpinnerNumberModel(1.0, 0.0, 30.0, 0.5));
     private final JLabel error = new JLabel(" ");
     private final JComboBox<ShipItem> collectShip = new JComboBox<>();
     private final JComboBox<ShipItem> sellShip = new JComboBox<>();
@@ -82,6 +84,7 @@ final class AccountDialog {
                 String c = entry.config();
                 config.setSelectedItem(c == null ? NO_CONFIG : c);
                 fillShips(entry.ships(), entry.palladium());
+                clickHold.setValue(entry.clickHold() / 1000.0);
             } catch (java.io.IOException ignored) {
                 // stays «—»
                 fillShips(java.util.List.of(), null);
@@ -111,6 +114,8 @@ final class AccountDialog {
         checkRow.add(proxyResult, BorderLayout.CENTER);
         row = row(form, row, "", checkRow, null);
         row = row(form, row, "Конфиг", config, "Что бот делает в игре");
+        row = row(form, row, "После клика по карте ждать, с", clickHold,
+                "Корабль долетел, куда вы кликнули, — столько стоит, потом бот продолжает (по умолчанию 1 с)");
         JLabel palladium = new JLabel("Палладий, два корабля");
         palladium.setFont(palladium.getFont().deriveFont(java.awt.Font.BOLD));
         row = row(form, row, "", palladium, null);
@@ -308,7 +313,8 @@ final class AccountDialog {
             var file = AccountSettings.DEFAULT_FILE;
             var all = AccountSettings.load(file);
             var entry = all.account(n);
-            var next = entry.withConfig(cfg).withPalladium(pair);
+            var next = entry.withConfig(cfg).withPalladium(pair)
+                    .withClickHold((int) Math.round(((Number) clickHold.getValue()).doubleValue() * 1000));
             if (!next.equals(entry) || !all.accounts().containsKey(n)) {
                 all.with(n, next).save(file);
             }

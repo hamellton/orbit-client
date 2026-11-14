@@ -27,33 +27,53 @@ public record AccountSettings(Map<String, Entry> accounts) {
      * @param config    the config when no timetable is on (or between its windows, if {@code schedule} is off)
      * @param hangars   the account's ships as the site listed them at the last login (shown when picking ships)
      * @param palladium the ships of the two-ship palladium sale, {@code null} = not chosen
+     * @param clickHoldMs how long the ship stays where a click on the map sent it before the bot goes on, {@code null}
+     *                  = {@link #DEFAULT_CLICK_HOLD_MS}
      */
     @JsonInclude(JsonInclude.Include.NON_NULL)
-    public record Entry(String config, Schedule schedule, java.util.List<Ship> hangars, PalladiumShips palladium) {
+    public record Entry(String config, Schedule schedule, java.util.List<Ship> hangars, PalladiumShips palladium,
+                        Integer clickHoldMs) {
+
+        /** The user, 2026-11-14: «по дефолту поставь 1 секунду». */
+        public static final int DEFAULT_CLICK_HOLD_MS = 1_000;
 
         public Entry {
             schedule = schedule == null ? Schedule.OFF : schedule;
             hangars = hangars == null || hangars.isEmpty() ? null : java.util.List.copyOf(hangars);
+            clickHoldMs = clickHoldMs == null || clickHoldMs == DEFAULT_CLICK_HOLD_MS ? null : Math.max(0, clickHoldMs);
+        }
+
+        public Entry(String config, Schedule schedule, java.util.List<Ship> hangars, PalladiumShips palladium) {
+            this(config, schedule, hangars, palladium, null);
         }
 
         public Entry(String config, Schedule schedule) {
-            this(config, schedule, null, null);
+            this(config, schedule, null, null, null);
         }
 
         public Entry withConfig(String c) {
-            return new Entry(c, schedule, hangars, palladium);
+            return new Entry(c, schedule, hangars, palladium, clickHoldMs);
         }
 
         public Entry withSchedule(Schedule s) {
-            return new Entry(config, s, hangars, palladium);
+            return new Entry(config, s, hangars, palladium, clickHoldMs);
         }
 
         public Entry withHangars(java.util.List<Ship> list) {
-            return new Entry(config, schedule, list, palladium);
+            return new Entry(config, schedule, list, palladium, clickHoldMs);
         }
 
         public Entry withPalladium(PalladiumShips p) {
-            return new Entry(config, schedule, hangars, p);
+            return new Entry(config, schedule, hangars, p, clickHoldMs);
+        }
+
+        public Entry withClickHold(int ms) {
+            return new Entry(config, schedule, hangars, palladium, ms);
+        }
+
+        /** The wait after a click on the map, ms. */
+        public int clickHold() {
+            return clickHoldMs == null ? DEFAULT_CLICK_HOLD_MS : clickHoldMs;
         }
 
         /** The ships known from the site ({@code []} until the first login reads them). */
