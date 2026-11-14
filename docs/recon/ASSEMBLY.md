@@ -69,4 +69,5 @@ Flash `swf_global/inventory/inventory.swf` (декомпилирован FFDec):
 - Питомец: в `getHangar` рядом с `ship` — `config{"1","2"}.pet.EQ.{lasers,generators,gears,protocols}` (gb2: по 7 лазеров
   в конфиге), `general.pet.lockedSlots`. Перенос — тот же `move` с `"target":"pet"` и `slotset` (`ActionIdentifiers.PET`);
   `from.items` — массив: страница переносит несколько выбранных предметов одним вызовом. Снятие лазеров питомца у нас —
-  `Hangars.move(h, ids, c, false, "pet", "lasers")`, вживую ещё не проверено.
+  `Hangars.move(h, ids, c, false, "pet", "lasers")`. Проверено 2026-11-14 на VPS (GE1): у штаба 2-8, 24 лазера
+  из двух конфигов за два вызова, сайт после этого лазеров не показывает, перевход 4 с.
