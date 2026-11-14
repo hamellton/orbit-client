@@ -79,6 +79,7 @@ public final class BotRunner {
     private final Safety safety;
     private final Revive revive;
     private final BuyWatch buy;
+    private final CraftWatch craft;
     private final Flee flee;
     private final GroupWatch groupWatch;
     private final PetCare pet;
@@ -109,6 +110,7 @@ public final class BotRunner {
         this.safety = new Safety(ctx);
         this.revive = new Revive(ctx);
         this.buy = new BuyWatch(ctx);
+        this.craft = new CraftWatch(ctx);
         this.flee = new Flee(ctx);
         this.groupWatch = new GroupWatch(ctx);
         this.pet = new PetCare(ctx);
@@ -421,6 +423,7 @@ public final class BotRunner {
             module.observe();
         }
         buy.tick();
+        craft.tick();
         groupWatch.tick();
         pet.tick();
         if (state == State.STOPPING) {

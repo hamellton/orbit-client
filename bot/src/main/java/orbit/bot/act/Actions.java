@@ -136,6 +136,28 @@ public final class Actions {
         sender.accept(m);
     }
 
+    /** Opens or closes the assembly window, as the client's button does ({@code UIButtonTriggerRequest}). */
+    public void assemblyWindow() {
+        orbit.protocol.gen.UIButtonTriggerRequest r = new orbit.protocol.gen.UIButtonTriggerRequest();
+        r.itemId = "assembly";
+        sender.accept(r);
+    }
+
+    /** Starts building {@code amount} of a recipe in the assembly ({@code AssemblyBuildRequest}). */
+    public void assemblyBuild(String recipe, int amount) {
+        orbit.protocol.gen.AssemblyBuildRequest r = new orbit.protocol.gen.AssemblyBuildRequest();
+        r.amount = amount;
+        r.recipeLootId = recipe;
+        sender.accept(r);
+    }
+
+    /** Collects a recipe's finished batch ({@code AssemblyCollectRequest}). */
+    public void assemblyCollect(String recipe) {
+        orbit.protocol.gen.AssemblyCollectRequest r = new orbit.protocol.gen.AssemblyCollectRequest();
+        r.recipeLootId = recipe;
+        sender.accept(r);
+    }
+
     /** Picks up a box (the ship must be on it, as after the client's move) or harvests ore. */
     public void collect(WorldSnapshot.Collectable c) {
         if (c.kind() == WorldSnapshot.CollectableKind.ORE) {

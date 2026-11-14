@@ -449,6 +449,14 @@ public final class World {
                     ores.put(o.oreType != null ? (int) o.oreType.typeValue : -1, o.count);
                 }
             }
+            case orbit.protocol.gen.AssemblyRecipeContentModule p -> {
+                if (p.recipes != null) {
+                    for (orbit.protocol.gen.AssemblyRecipeModule r : p.recipes) {
+                        recipe(r.recipeLootId, r.status, nanos);
+                    }
+                }
+            }
+            case orbit.protocol.gen.AssemblyRecipeStatusUpdateCommand p -> recipe(p.lootId, p.status, nanos);
             case InventoryItemUpdatedCommand p -> {
                 if (p.item != null) {
                     resources.put(p.item.lootId, p.item.amount);
@@ -577,7 +585,7 @@ public final class World {
         return new WorldSnapshot(nanos, h, Map.copyOf(shipViews), Map.copyOf(collectables), Map.copyOf(portals),
                 Map.copyOf(assets), Map.copyOf(zones), group, Map.copyOf(items),
                 new WorldSnapshot.Inventory(Map.copyOf(ores), Map.copyOf(resources), Map.copyOf(bootyKeys),
-                        Map.copyOf(tradePrices), tradeNanos, petTradeNanos), pet,
+                        Map.copyOf(tradePrices), tradeNanos, petTradeNanos, Map.copyOf(recipes)), pet,
                 Map.copyOf(activatable), jumpingTo, death, java.util.Set.copyOf(slotItems), recentKills(nanos),
                 new WorldSnapshot.Rewards(gainedCredits, gainedUridium, gainedHonor, gainedExperience, Map.copyOf(loot)),
                 List.copyOf(invitations), List.copyOf(contacts.values()), Map.copyOf(mines),
@@ -587,6 +595,28 @@ public final class World {
                         jumpConfirmedMap, jumpConfirmedPrice, jumpConfirmedNanos, jumpCountdownMap, jumpCountdownSeconds,
                         jumpCountdownNanos), boxCheck, quests.snapshot(),
                 new WorldSnapshot.Damage(Map.copyOf(dealt), Map.copyOf(received), Map.copyOf(taken)));
+    }
+
+    /** The assembly's recipes by their loot id (kept over map changes: the assembly is the account's). */
+    private final Map<String, WorldSnapshot.Recipe> recipes = new HashMap<>();
+
+    private void recipe(String id, orbit.protocol.gen.AssemblyRecipeStatusModule st, long nanos) {
+        if (id == null || id.isBlank() || st == null) {
+            return;
+        }
+        WorldSnapshot.Recipe r = switch (st) {
+            case orbit.protocol.gen.AssemblyRecipeAvailableStatusModule a ->
+                    new WorldSnapshot.Recipe(id, WorldSnapshot.RecipeState.AVAILABLE, 0, 0, -1);
+            case orbit.protocol.gen.AssemblyRecipeUnavailableStatusModule u ->
+                    new WorldSnapshot.Recipe(id, WorldSnapshot.RecipeState.UNAVAILABLE, 0, 0, u.type);
+            case orbit.protocol.gen.AssemblyRecipeBuildStatusModule b ->
+                    new WorldSnapshot.Recipe(id, WorldSnapshot.RecipeState.BUILDING, b.buildAmount,
+                            nanos + (long) (b.remainingTimeMillis * 1_000_000L), -1);
+            case orbit.protocol.gen.AssemblyRecipeReadyToCollectStatusModule c ->
+                    new WorldSnapshot.Recipe(id, WorldSnapshot.RecipeState.READY, c.buildAmount, 0, -1);
+            default -> new WorldSnapshot.Recipe(id, WorldSnapshot.RecipeState.OTHER, 0, 0, -1);
+        };
+        recipes.put(id, r);
     }
 
     /** {@link WorldSnapshot.Damage}: since the map was entered. */

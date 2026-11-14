@@ -34,6 +34,17 @@ public record WorldSnapshot(long nanos, Hero hero, Map<Integer, Ship> ships, Map
                 Damage.NONE);
     }
 
+    /** A recipe's state in the assembly ({@code AssemblyRecipeContentModule}, {@code AssemblyRecipeStatusUpdateCommand}). */
+    public enum RecipeState { AVAILABLE, UNAVAILABLE, BUILDING, READY, OTHER }
+
+    /**
+     * An assembly recipe as the server last told it: its state, the batch being built or ready ({@code amount}), when
+     * the build is done ({@code readyNanos}, building only) and why it is unavailable ({@code unavailable}, the
+     * client's {@code RECIPEUNAVAILABLETYPE_*}: 0 the item is owned at its maximum, 1/2 the recipe used up).
+     */
+    public record Recipe(String id, RecipeState state, double amount, long readyNanos, int unavailable) {
+    }
+
     /**
      * The damage the hits ({@code AttackHitCommand}) told since the map was entered, summed: the hero's on each
      * target ({@code dealt}), everyone's on each target ({@code received}, as far as the server sends others' hits)
@@ -264,7 +275,13 @@ public record WorldSnapshot(long nanos, Hero hero, Map<Integer, Ship> ships, Map
      * @param petTradeNanos when the pet's trade pod opened the trade window ({@code PetTradeWindowShowCommand})
      */
     public record Inventory(Map<Integer, Double> ores, Map<String, Double> resources, Map<String, Integer> bootyKeys,
-                            Map<Integer, Integer> tradePrices, long tradeNanos, long petTradeNanos) {
+                            Map<Integer, Integer> tradePrices, long tradeNanos, long petTradeNanos,
+                            Map<String, Recipe> recipes) {
+
+        public Inventory(Map<Integer, Double> ores, Map<String, Double> resources, Map<String, Integer> bootyKeys,
+                         Map<Integer, Integer> tradePrices, long tradeNanos, long petTradeNanos) {
+            this(ores, resources, bootyKeys, tradePrices, tradeNanos, petTradeNanos, Map.of());
+        }
 
         /** Xenomit does not take room in the hold (cargoSpace = max − the other ores, both recordings agree). */
         public static final int XENOMIT = 3;

@@ -255,7 +255,7 @@ public record BotConfig(
      */
     @JsonInclude(JsonInclude.Include.NON_EMPTY)
     public record Buy(boolean enabled, List<BuyRule> items, double keepCredits, double keepUridium,
-                      List<String> boosters, int boosterMinutes) {
+                      List<String> boosters, int boosterMinutes, List<CraftRule> crafts) {
 
         public static final Buy OFF = new Buy(false, List.of(), 0, 0);
 
@@ -263,10 +263,34 @@ public record BotConfig(
             items = items == null ? List.of() : List.copyOf(items);
             boosters = boosters == null ? List.of() : List.copyOf(boosters);
             boosterMinutes = Math.max(0, boosterMinutes);
+            crafts = crafts == null ? List.of() : List.copyOf(crafts);
+        }
+
+        public Buy(boolean enabled, List<BuyRule> items, double keepCredits, double keepUridium, List<String> boosters,
+                   int boosterMinutes) {
+            this(enabled, items, keepCredits, keepUridium, boosters, boosterMinutes, List.of());
         }
 
         public Buy(boolean enabled, List<BuyRule> items, double keepCredits, double keepUridium) {
-            this(enabled, items, keepCredits, keepUridium, List.of(), 0);
+            this(enabled, items, keepCredits, keepUridium, List.of(), 0, List.of());
+        }
+
+        public Buy withCrafts(List<CraftRule> c) {
+            return new Buy(enabled, items, keepCredits, keepUridium, boosters, boosterMinutes, c);
+        }
+    }
+
+    /**
+     * Crafting in the game's assembly (the user, 2026-11-14: «крафт буквально всего можно добавить»; packets in
+     * docs/recon/ASSEMBLY.md): the recipe {@code recipe} ({@code recipe_blueprint-rsb75-blacklight}) is built
+     * {@code amount} at a time when fewer than {@code below} of {@code item} ({@code ammunition_laser_rsb-75}) are
+     * left; {@code below} 0 — whenever the recipe is free (as many batches as the resources give).
+     */
+    public record CraftRule(String recipe, String item, int below, int amount) {
+
+        public CraftRule {
+            amount = Math.max(1, amount);
+            below = Math.max(0, below);
         }
     }
 

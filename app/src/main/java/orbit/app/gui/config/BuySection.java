@@ -29,6 +29,14 @@ final class BuySection implements Section {
     private final JTable table = new JTable(rules);
     private final java.util.Map<String, JCheckBox> boosters = new java.util.LinkedHashMap<>();
     private final JSpinner boosterMinutes = Form.number(0, 600, 10);
+    private final DefaultTableModel crafts = new DefaultTableModel(
+            new Object[] {"Рецепт", "Предмет (что считать)", "Если меньше", "За раз"}, 0) {
+        @Override
+        public Class<?> getColumnClass(int c) {
+            return c <= 1 ? String.class : Integer.class;
+        }
+    };
+    private final JTable craftTable = new JTable(crafts);
     private final JComponent view;
 
     static List<ItemCatalog.Item> items() {
@@ -60,6 +68,34 @@ final class BuySection implements Section {
             boosters.put(i.id(), box);
             boosterBoxes.add(box);
         }
+        JComboBox<String> recipeBox = new JComboBox<>(orbit.config.CraftCatalog.RECIPES.stream()
+                .map(orbit.config.CraftCatalog.Recipe::label).toArray(String[]::new));
+        recipeBox.setEditable(true); // any recipe id the game has
+        craftTable.getColumnModel().getColumn(0).setCellEditor(new DefaultCellEditor(recipeBox));
+        crafts.addTableModelListener(e -> {
+            // a known recipe chosen: its item filled in
+            if (e.getColumn() == 0 && e.getFirstRow() >= 0 && e.getFirstRow() < crafts.getRowCount()) {
+                String item = orbit.config.CraftCatalog.item(orbit.config.CraftCatalog.id(
+                        String.valueOf(crafts.getValueAt(e.getFirstRow(), 0))));
+                if (!item.isEmpty() && !item.equals(crafts.getValueAt(e.getFirstRow(), 1))) {
+                    crafts.setValueAt(item, e.getFirstRow(), 1);
+                }
+            }
+        });
+        JButton addCraft = new JButton("Добавить");
+        addCraft.addActionListener(e -> {
+            orbit.config.CraftCatalog.Recipe first = orbit.config.CraftCatalog.RECIPES.getFirst();
+            crafts.addRow(new Object[] {first.label(), first.item(), 5, 50});
+        });
+        JButton removeCraft = new JButton("Удалить");
+        removeCraft.addActionListener(e -> {
+            int r = craftTable.getSelectedRow();
+            if (r >= 0) {
+                crafts.removeRow(r);
+            }
+        });
+        JScrollPane craftScroll = new JScrollPane(craftTable);
+        craftScroll.setPreferredSize(new java.awt.Dimension(620, 160));
         view = new Form()
                 .section("Боеприпасы")
                 .row("", enabled)
@@ -74,6 +110,12 @@ final class BuySection implements Section {
                 .row("Докупать, когда меньше, мин", boosterMinutes)
                 .note("0 — когда закончился.")
                 .wide(boosterBoxes, false)
+                .section("Крафт")
+                .note("Окно «Сборка» в игре: когда «Предмет» меньше «Если меньше», бот запускает рецепт на «За раз» штук и"
+                        + " забирает готовое. «Если меньше» 0 — крафтит всегда, пока рецепт свободен и хватает ресурсов."
+                        + " Рецепт — из списка или его id из игры (recipe_blueprint-…). Работает и без «Включить закупку».")
+                .wide(Form.inline(addCraft, removeCraft), false)
+                .wide(craftScroll, true)
                 .build(true);
     }
 
@@ -99,6 +141,11 @@ final class BuySection implements Section {
         for (BotConfig.BuyRule r : b.items()) {
             rules.addRow(new Object[] {ItemCatalog.label(r.item()), r.below(), r.amount()});
         }
+        crafts.setRowCount(0);
+        for (BotConfig.CraftRule r : b.crafts()) {
+            crafts.addRow(new Object[] {orbit.config.CraftCatalog.label(r.recipe()), r.item() == null ? "" : r.item(),
+                    r.below(), r.amount()});
+        }
     }
 
     @Override
@@ -119,8 +166,21 @@ final class BuySection implements Section {
         }
         List<String> chosen = boosters.entrySet().stream().filter(e -> e.getValue().isSelected())
                 .map(java.util.Map.Entry::getKey).toList();
+        if (craftTable.isEditing()) {
+            craftTable.getCellEditor().stopCellEditing();
+        }
+        List<BotConfig.CraftRule> craftList = new ArrayList<>();
+        for (int r = 0; r < crafts.getRowCount(); r++) {
+            String recipe = orbit.config.CraftCatalog.id(String.valueOf(crafts.getValueAt(r, 0)).strip());
+            if (recipe.isBlank()) {
+                continue;
+            }
+            Object item = crafts.getValueAt(r, 1);
+            craftList.add(new BotConfig.CraftRule(recipe, item == null ? "" : item.toString().strip(),
+                    Math.max(0, (Integer) crafts.getValueAt(r, 2)), Math.max(1, (Integer) crafts.getValueAt(r, 3))));
+        }
         BotConfig.Buy b = new BotConfig.Buy(enabled.isSelected(), list, Form.intOf(keepCredits), Form.intOf(keepUridium),
-                chosen, Form.intOf(boosterMinutes));
+                chosen, Form.intOf(boosterMinutes), craftList);
         return b.equals(c.buy()) ? c : c.withBuy(b);
     }
 }
