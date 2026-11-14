@@ -1025,6 +1025,7 @@ public final class BehemothModule implements BotModule {
                 ctx.nav().moveTo(p[0], p[1], dist < 2_500);
             }
             ctx.nav().tick();
+            cloak(s, h); // on the way to the point too: NPCs by the portal lose sight of us
         } else {
             ctx.ship().want(g.roam());
             cloak(s, h);
@@ -1061,8 +1062,9 @@ public final class BehemothModule implements BotModule {
             }
         }
         WorldSnapshot w0 = ctx.world().get();
-        // in a fight or under fire it breaks at once and the charge is gone
-        boolean fighting = attacker.targetId() != 0 || players.targetId() != 0 || !h.attackers().isEmpty();
+        // our own attack takes the cloak off at once and the charge is gone; an NPC that has locked on is no reason to
+        // wait — the cloak makes it lose us (live 2026-11-14 on int1: Attend IX locked on, no cloak, it killed the ship)
+        boolean fighting = attacker.targetId() != 0 || players.targetId() != 0;
         if (fighting || now < cloakRestUntil || now - cloakAskedAt < CLOAK_GAP_NS) {
             return;
         }
@@ -1880,6 +1882,7 @@ public final class BehemothModule implements BotModule {
                 ctx.nav().moveTo(p[0], p[1], dist < 2_500);
             }
             ctx.nav().tick();
+            cloak(s, h); // on the way to the point too: NPCs by the portal lose sight of us
             status = "Лечу ждать бегемота: " + p[0] / 100 + "/" + p[1] / 100;
             return;
         }

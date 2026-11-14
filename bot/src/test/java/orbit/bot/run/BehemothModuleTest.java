@@ -496,6 +496,21 @@ class BehemothModuleTest {
     }
 
     @Test
+    void cloakedOnTheWayToThePointEvenWithAnNpcLockedOn() throws Exception {
+        // live 2026-11-14 on int1: after a revive Attend IX locked on by the 1-BL point, no cloak came, it killed the ship
+        Sim sim = new Sim(with(config(300), "{\"useCloak\": true}"), 308, 12_000, 8_000); // far from the point
+        sim.holdShip = true;
+        sim.lasers("ammunition_laser_ucb-100", orbit.config.ItemCatalog.CLOAK_BAR);
+        BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
+        m.workingMap();
+        sim.npc(500, "\\\\ Attend IX //", 12_400, 8_000);
+        shoots(sim, 500, 1); // it has us as its target
+        sim.run(m::tick, 3_000);
+        assertTrue(sim.sent.stream().anyMatch(p -> p instanceof orbit.protocol.gen.MenuActionRequest a
+                && a.menuItemId.equals(orbit.config.ItemCatalog.CLOAK_BAR)), "cloaked on the way, the lock is no reason to wait");
+    }
+
+    @Test
     void cloakedWhileWaitingInTheCloakFormation() throws Exception {
         Sim sim = new Sim(with(config(300), "{\"useCloak\": true, \"cloakFormation\": \"drone_formation_f-11-he\"}"),
                 308, 5_700, 2_600);
