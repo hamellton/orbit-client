@@ -47,7 +47,9 @@ class StartupSequenceTest {
 
         List<StartupSequence.Step> noSettings = StartupSequence.ClientLike.steps(ClientProfile.minimal(),
                 new StartupSequence.Context(true, null));
-        assertNull(packet(noSettings, "AudioSettingsRequest"));
+        // a cold start as today's client (2026-11-14) has no audio step at all; any other gives none without settings
+        assertTrue(noSettings.stream().filter(st -> st.name().equals("AudioSettingsRequest"))
+                .allMatch(st -> st.packet().get() == null), "no audio sent without the server's settings");
     }
 
     @Test

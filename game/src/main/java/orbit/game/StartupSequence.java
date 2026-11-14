@@ -134,34 +134,51 @@ public interface StartupSequence {
          * of independent UI parts in any order (audio settings not always), then the keep-alive.
          */
         private static List<List<Step>> cold(ClientProfile profile, Context ctx, String view) {
-            List<Step> prefix = new ArrayList<>();
-            // pauses: the envelope of four recorded cold starts with some room; they vary a lot
-            prefix.add(new Step("HangarListRequest", 900, 9_500, HangarListRequest::new));
-            prefix.add(new Step("SpaceSearchRequest", 10, 100, () -> spaceSearch(0)));
-            prefix.add(new Step("SpaceSearchRequest", 0, 100, () -> spaceSearch(4)));
-            prefix.add(new Step("SpaceSearchRequest", 0, 100, () -> spaceSearch(2)));
-            prefix.add(new Step("LabUpdateRequest", 0, 60, LabUpdateRequest::new));
-            prefix.add(new Step("ReadyRequest", 1, 100, () -> ready(view, ReadyType.MAP_LOADED)));
-            prefix.add(new Step("ReadyRequest", 10, 100, () -> ready(view, ReadyType.UI_READY)));
-            prefix.add(new Step("LegacyModule", 0, 250, () -> legacy("LF|w")));
-
             List<Step> settings = List.of(
                     new Step("CommandCenterGetDontShowRequest", 0, 250, CommandCenterGetDontShowRequest::new),
                     new Step("UserKeyBindingsUpdate", 0, 250, profile::keyBindingsPacket),
                     new Step("GalaxyGateBuilderInfoRequest", 0, 250, GalaxyGateBuilderInfoRequest::new));
             List<List<Step>> variants = new ArrayList<>();
-            for (boolean audio : new boolean[] {true, false}) {
-                for (List<Step> order : permutations(settings)) {
-                    List<Step> v = new ArrayList<>(prefix);
-                    if (audio) {
-                        v.add(new Step("AudioSettingsRequest", 0, 100, () -> audio(ctx.settings())));
+            // the client of 2026-11-14 (gb2, build 71960444) sends no space searches at a cold start and no audio
+            // settings: the hangar list, the lab, ready twice, LF|w, then the command centre, the gate builder and the
+            // key table — first, so the bot starts as today's client; the older starts below stay accepted
+            List<Step> today = new ArrayList<>(prefix(view, false));
+            today.add(settings.get(0));
+            today.add(settings.get(2));
+            today.add(settings.get(1));
+            today.add(new Step("KeepAlive", 0, 800, StartupSequence.ClientLike::keepAlive));
+            variants.add(List.copyOf(today));
+            for (boolean searches : new boolean[] {false, true}) {
+                for (boolean audio : new boolean[] {true, false}) {
+                    for (List<Step> order : permutations(settings)) {
+                        List<Step> v = new ArrayList<>(prefix(view, searches));
+                        if (audio) {
+                            v.add(new Step("AudioSettingsRequest", 0, 100, () -> audio(ctx.settings())));
+                        }
+                        v.addAll(order);
+                        v.add(new Step("KeepAlive", 0, 800, StartupSequence.ClientLike::keepAlive));
+                        variants.add(List.copyOf(v)); // today's order repeats among these: harmless
                     }
-                    v.addAll(order);
-                    v.add(new Step("KeepAlive", 0, 800, StartupSequence.ClientLike::keepAlive));
-                    variants.add(List.copyOf(v));
                 }
             }
             return List.copyOf(variants);
+        }
+
+        /** The fixed loading part of a cold start; the four recordings of 2026-11-11/12 had three space searches in it. */
+        private static List<Step> prefix(String view, boolean searches) {
+            List<Step> prefix = new ArrayList<>();
+            // pauses: the envelope of the recorded cold starts with some room; they vary a lot
+            prefix.add(new Step("HangarListRequest", 900, 9_500, HangarListRequest::new));
+            if (searches) {
+                prefix.add(new Step("SpaceSearchRequest", 10, 100, () -> spaceSearch(0)));
+                prefix.add(new Step("SpaceSearchRequest", 0, 100, () -> spaceSearch(4)));
+                prefix.add(new Step("SpaceSearchRequest", 0, 100, () -> spaceSearch(2)));
+            }
+            prefix.add(new Step("LabUpdateRequest", 0, 60, LabUpdateRequest::new));
+            prefix.add(new Step("ReadyRequest", 1, 100, () -> ready(view, ReadyType.MAP_LOADED)));
+            prefix.add(new Step("ReadyRequest", 10, 100, () -> ready(view, ReadyType.UI_READY)));
+            prefix.add(new Step("LegacyModule", 0, 250, () -> legacy("LF|w")));
+            return prefix;
         }
 
         private static <T> List<List<T>> permutations(List<T> items) {
