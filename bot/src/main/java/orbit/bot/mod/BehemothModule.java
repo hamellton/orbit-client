@@ -1737,6 +1737,7 @@ public final class BehemothModule implements BotModule {
     /** Trains come from a portal to the spawn and go on to another: a free side keeps this far from those ways. */
     static final double PATH_KEEP = 1_000;
     private final Map<String, int[]> pathPoints = new HashMap<>();
+    private int[] lastPathLogged;
 
     /**
      * {@code awayFromPortals} (the user, 2026-11-13: «точку недалеко от бегемота, но не со стороны порта, чтобы поезд
@@ -1785,7 +1786,8 @@ public final class BehemothModule implements BotModule {
         }
         if (best == null) {
             best = waitPoint(map);
-        } else if (!best.equals(pathPoints.get(key))) {
+        } else if (!java.util.Arrays.equals(best, lastPathLogged)) {
+            lastPathLogged = best;
             log.info("{}: жду в стороне от путей порталов к месту появления — {}/{} ({} от ближайшего пути, место появления"
                     + " видно напрямую)", info.name(), best[0] / 100, best[1] / 100, (int) fromPaths(map, sp, best));
         }
