@@ -362,8 +362,9 @@ public final class Attacker {
         // CARNAGE's behemoth (BeheSolo: the ship's ability by the NPC's flag, EblExtraFlags' offensive EMP and ISH; the user,
         // 2026-11-14: «как подлетает к бегемоту сразу включает навык, когда начинают бить другие корабли, а не нпс, —
         // импульс, сразу же после импульса — стенка»)
-        if (plan.abilityAtStart() && (useFirstReady(w, PRISMATIC, now, "призматический щит (подлетел к бегемоту)")
-                || useFirstReady(w, FIGHT_ABILITIES, now, "способность корабля (подлетел к бегемоту)"))) {
+        // the prismatic shield only: Citadel's Fortify roots the ship, used 1 700 out it stood 11 s short of the behemoth
+        // (live 2026-11-14 on the VPS, 2-BL 13:57; the user: «призматик шилд нужно включать у цитадель плюс»)
+        if (plan.abilityAtStart() && useFirstReady(w, PRISMATIC, now, "призматический щит (подлетел к бегемоту)")) {
             abilityAt = now;
             return;
         }

@@ -32,7 +32,7 @@ final class BehemothSection implements Section {
     private final JSpinner empBelow = Form.percent();
     private final JCheckBox empOnlyPlayers = new JCheckBox("ЭМИ — только когда по нам стреляет игрок");
     private final JCheckBox empThenIsh = new JCheckBox("Стреляет игрок (не NPC) — ЭМИ, сразу за ним стенка ISH");
-    private final JCheckBox abilityAtStart = new JCheckBox("Навык корабля — сразу, как подлетел к бегемоту");
+    private final JCheckBox abilityAtStart = new JCheckBox("Призматический щит (Citadel+, Spectrum) — сразу, как подлетел к бегемоту");
     private final JCheckBox pushThrough = new JCheckBox("Поезд стреляет в пути — ЭМИ и всё равно лететь к месту появления");
     private final JCheckBox ish = new JCheckBox("ISH-01 при HP корабля ниже");
     private final JSpinner ishBelow = Form.percent();
@@ -114,8 +114,8 @@ final class BehemothSection implements Section {
                 + " пеленгатора на ней; снова в выборе за 3 мин до следующего бегемота");
         empThenIsh.setToolTipText("Как CARNAGE: по нам начал стрелять игрок — сразу ЭМИ (сбивает их захват), в ту же"
                 + " секунду стенка ISH-01; без порогов HP. Нужна галочка «Навык, ISH, EMP — только у бегемота»");
-        abilityAtStart.setToolTipText("Как CARNAGE: навык (призма первой) включается, как только бот подлетел к бегемоту,"
-                + " и снова, как откатится");
+        abilityAtStart.setToolTipText("Как CARNAGE: призматический щит включается, как только бот подлетел к бегемоту,"
+                + " и снова, как откатится. Fortify не включается — он делает корабль неподвижным");
         pushThrough.setToolTipText("На картах бегемота бот не уходит от поезда, а ЭМИ сбивает их захват; дальше — к месту"
                 + " появления, как задумано (CARNAGE не убегает никогда)");
         empOnlyPlayers.setToolTipText("ЭМИ снимает только захват игроков: если стреляют одни NPC, он пропадёт зря");
