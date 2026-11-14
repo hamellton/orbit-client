@@ -312,13 +312,19 @@ public final class BehemothModule implements BotModule {
         WorldSnapshot w = ctx.world().get();
         WorldSnapshot.Hero h = w.hero();
         watch(w);
-        attacker.setAbilityPlan(new Attacker.AbilityPlan(on(s, "useEmp", true), percent(s, "empPercent", 35),
-                on(s, "useIsh", true), percent(s, "ishPercent", 60),
-                on(s, "usePrismatic", false) ? percent(s, "prismaticPercent", 50) : -1,
-                on(s, "useSpearheadJamx", false) ? number(s, "jamxDistance", 750) : -1));
-
         countDeaths();
         WorldSnapshot.Ship b = findBehemoth(c, w);
+        boolean saved = on(s, "powersForBehemoth", false);
+        if (saved && b == null) {
+            // the user, 2026-11-14: ability, ISH and EMP only on the behemoth — never spent on an Impulse before it comes
+            attacker.setAbilityPlan(Attacker.AbilityPlan.OFF);
+        } else {
+            attacker.setAbilityPlan(new Attacker.AbilityPlan(on(s, "useEmp", true), percent(s, "empPercent", 35),
+                    on(s, "useIsh", true), percent(s, "ishPercent", 60),
+                    on(s, "usePrismatic", false) ? percent(s, "prismaticPercent", 50) : -1,
+                    on(s, "useSpearheadJamx", false) ? number(s, "jamxDistance", 750) : -1,
+                    saved ? (int) number(s, "threatPlayers", 3) : 0, false));
+        }
         if (fightPlayers(c, s, w, b)) {
             return;
         }

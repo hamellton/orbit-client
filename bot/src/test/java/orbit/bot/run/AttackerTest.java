@@ -617,4 +617,55 @@ class AttackerTest {
         assertTrue(gone, "left");
         assertTrue(a.tooStrong("-=[ Strong ]=-"), "its kind is skipped a while");
     }
+
+    private static void hull(Sim sim, double fraction) {
+        orbit.protocol.gen.AttackHitCommand hit = new orbit.protocol.gen.AttackHitCommand();
+        hit.attackerId = 7;
+        hit.victimId = 1;
+        hit.victimHitpoints = sim.world.snapshot(sim.now).hero().health().hpMax() * fraction;
+        sim.world.apply(hit, sim.now);
+    }
+
+    @Test
+    void underATrainTheAbilityFirstThenIshThenEmpNeverTogether() {
+        // the user, 2026-11-14: «навык, потом пониже HP стенка, потом импульс — не одновременно»
+        Sim sim = new Sim(invoke(Set.of(), null), 1, 10_500, 6_000);
+        sim.lasers("ammunition_laser_lcb-10", "ability_citadel-plus_prismatic-endurance", "equipment_extra_cpu_ish-01",
+                "ammunition_specialammo_emp-01");
+        sim.npc(7, "-=[ Target ]=-", 10_000, 6_000);
+        Attacker a = new Attacker(sim.ctx);
+        a.setAbilityPlan(new Attacker.AbilityPlan(true, 0.35, true, 0.6, 0.5, -1, 3, false));
+        a.target(sim.world.snapshot(sim.now).ships().get(7));
+        sim.run(() -> a.tick(true), 2_000);
+        assertEquals(0, used(sim, "ability_citadel-plus_prismatic-endurance"), "nobody shoots: nothing");
+        for (int i = 0; i < 3; i++) {
+            otherPlayerShoots(sim, 900 + i, 1);
+        }
+        sim.run(() -> a.tick(true), 1_000);
+        assertEquals(1, used(sim, "ability_citadel-plus_prismatic-endurance"), "three players: the ability first");
+        assertEquals(0, used(sim, "equipment_extra_cpu_ish-01"), "full hull: no ISH yet");
+        hull(sim, 0.5);
+        sim.run(() -> a.tick(true), 1_500);
+        assertEquals(1, used(sim, "equipment_extra_cpu_ish-01"), "below 60 %: ISH");
+        assertEquals(0, used(sim, "ammunition_specialammo_emp-01"), "not EMP with it");
+        hull(sim, 0.3);
+        sim.run(() -> a.tick(true), 1_000);
+        assertEquals(0, used(sim, "ammunition_specialammo_emp-01"), "ISH still holds: no EMP");
+        sim.run(() -> a.tick(true), 3_000);
+        assertEquals(1, used(sim, "ammunition_specialammo_emp-01"), "below 35 % after the ISH: EMP");
+    }
+
+    @Test
+    void offTheBehemothNothingIsSpent() {
+        Sim sim = new Sim(invoke(Set.of("USE_EMP", "USE_ISH", "USE_ABILITY"), null), 1, 10_500, 6_000);
+        sim.lasers("ammunition_laser_lcb-10", "ability_venom", "equipment_extra_cpu_ish-01", "ammunition_specialammo_emp-01");
+        sim.npc(7, "-=[ Target ]=-", 10_000, 6_000);
+        Attacker a = new Attacker(sim.ctx);
+        a.setAbilityPlan(Attacker.AbilityPlan.OFF);
+        a.target(sim.world.snapshot(sim.now).ships().get(7));
+        hull(sim, 0.3);
+        sim.run(() -> a.tick(true), 4_000);
+        assertEquals(0, used(sim, "ability_venom") + used(sim, "equipment_extra_cpu_ish-01")
+                + used(sim, "ammunition_specialammo_emp-01"), "nothing spent off the behemoth");
+    }
 }

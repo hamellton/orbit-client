@@ -237,12 +237,24 @@ public final class Attacker {
      * empPercent, useIsh / ishPercent): each below its hull fraction ({@code -1} = EMP at once, ISH never).
      */
     public record AbilityPlan(boolean emp, double empBelow, boolean ish, double ishBelow, double prismaticBelow,
-                              double jamxWithin) {
+                              double jamxWithin, int threatPlayers, boolean off) {
 
         public AbilityPlan(boolean emp, double empBelow, boolean ish, double ishBelow) {
-            this(emp, empBelow, ish, ishBelow, -1, -1);
+            this(emp, empBelow, ish, ishBelow, -1, -1, 0, false);
         }
+
+        public AbilityPlan(boolean emp, double empBelow, boolean ish, double ishBelow, double prismaticBelow,
+                           double jamxWithin) {
+            this(emp, empBelow, ish, ishBelow, prismaticBelow, jamxWithin, 0, false);
+        }
+
+        /** Nothing at all — not the NPC list's flags either (the behemoth module off its behemoth). */
+        public static final AbilityPlan OFF = new AbilityPlan(false, -1, false, -1, -1, -1, 0, true);
     }
+
+    /** ISH-01's shield lasts about this: EMP-01 not while it holds (the user: not both at once). */
+    static final long ISH_HOLDS_NS = 3_000_000_000L;
+    private long abilityAt = Long.MIN_VALUE / 2;
 
     private AbilityPlan plan;
 
@@ -257,11 +269,18 @@ public final class Attacker {
      */
     private void abilities(BotConfig c, BotConfig.NpcRule rule, WorldSnapshot w, WorldSnapshot.Hero h, double dist,
                            double radius, long now) {
-        if (rule == null && plan == null || dist > radius + 100 || !shotAt) {
+        if (rule == null && plan == null || dist > radius + 100 || !shotAt || plan != null && plan.off()) {
             return;
         }
         BotConfig.FightOptions fo = c.loot().fight();
         double hp = h.health().hpPercent();
+        if (plan != null && plan.threatPlayers() > 0) {
+            if (rule != null && rule.has(BotConfig.NpcFlag.USE_LEECH)) {
+                useFirstReady(w, java.util.List.of(LEECH), now, "Энергетическая пиявка");
+            }
+            staged(w, h, hp, now);
+            return;
+        }
         boolean emp = plan != null ? plan.emp() && (plan.empBelow() < 0 || hp >= 0 && hp < plan.empBelow())
                 : rule.has(BotConfig.NpcFlag.USE_EMP);
         double ishBelow = plan != null ? (plan.ish() ? plan.ishBelow() : -1)
@@ -294,6 +313,54 @@ public final class Attacker {
         }
         if (plan != null && plan.jamxWithin() > 0 && dist <= plan.jamxWithin()) {
             useFirstReady(w, JAMX, now, "JAM-X");
+        }
+    }
+
+    /**
+     * The behemoth's fight under a train (the user, 2026-11-14: «навык, потом пониже HP стенка, потом импульс — не
+     * одновременно, и только когда бьём бегемота»): the ship's abilities (prismatic first) once {@code threatPlayers}
+     * players shoot it or the hull is below the prismatic threshold; then ISH-01 below its threshold; then EMP-01 below
+     * its threshold and not while the ISH shield holds — one a tick, none at once.
+     */
+    private void staged(WorldSnapshot w, WorldSnapshot.Hero h, double hp, long now) {
+        int players = 0;
+        for (int id : h.attackers()) {
+            WorldSnapshot.Ship s = w.ships().get(id);
+            if (s != null && s.kind() == WorldSnapshot.ShipKind.PLAYER) {
+                players++;
+            }
+        }
+        boolean threat = players >= plan.threatPlayers();
+        if (threat || plan.prismaticBelow() > 0 && hp >= 0 && hp < plan.prismaticBelow()) {
+            String why = threat ? players + " игроков стреляют" : "HP " + Math.round(hp * 100) + "%";
+            if (useFirstReady(w, PRISMATIC, now, "призматический щит (" + why + ")")
+                    || useFirstReady(w, FIGHT_ABILITIES, now, "способность корабля (" + why + ")")) {
+                abilityAt = now;
+                return;
+            }
+        }
+        if (now - abilityAt < 1_000_000_000L) {
+            return; // not two at once
+        }
+        BotConfig.FightOptions fo = ctx.config().get().loot().fight();
+        if (plan.ish() && plan.ishBelow() > 0 && hp >= 0 && hp < plan.ishBelow()
+                && may(w, h, ISH, fo.ishSpend(), ishUses, ishAt, now)) {
+            log.info("ISH-01: HP {}%, стреляют {} игроков (за сутки {})", Math.round(hp * 100), players,
+                    AbilityUse.today(h.id(), ISH, System.currentTimeMillis()) + 1);
+            ctx.actions().useItem(ISH);
+            AbilityUse.used(h.id(), ISH, System.currentTimeMillis());
+            ishUses++;
+            ishAt = now;
+            return;
+        }
+        if (plan.emp() && plan.empBelow() > 0 && hp >= 0 && hp < plan.empBelow() && now - ishAt > ISH_HOLDS_NS
+                && may(w, h, EMP, fo.empSpend(), empUses, empAt, now)) {
+            log.info("EMP-01: HP {}%, стреляют {} игроков (за сутки {})", Math.round(hp * 100), players,
+                    AbilityUse.today(h.id(), EMP, System.currentTimeMillis()) + 1);
+            ctx.actions().useItem(EMP);
+            AbilityUse.used(h.id(), EMP, System.currentTimeMillis());
+            empUses++;
+            empAt = now;
         }
     }
 

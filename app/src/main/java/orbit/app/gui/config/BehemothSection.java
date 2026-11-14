@@ -43,6 +43,8 @@ final class BehemothSection implements Section {
     private final JSpinner reward = Form.number(0, 100_000, 500);
     private final JCheckBox useLocator = new JCheckBox("Искать бегемота пеленгатором питомца");
     private final JCheckBox followTrain = new JCheckBox("Поезд ушёл через портал — лететь за ним на ту карту (через 20 с)");
+    private final JCheckBox powers = new JCheckBox("Навык, ISH, EMP — только у бегемота: навык, когда стреляют игроков не меньше");
+    private final JSpinner threatPlayers = Form.number(1, 20, 1);
     private final JCheckBox waitFirst = new JCheckBox("Пока таймеров нет — ждать на первой карте, пока не придёт бегемот (до 17 мин)");
     private final JCheckBox locatorList = new JCheckBox("Нет бегемота в списке целей пеленгатора — сразу на другую карту");
     private final JCheckBox useCloak = new JCheckBox("Маскировка, пока ждём бегемота (CL04K)");
@@ -89,6 +91,10 @@ final class BehemothSection implements Section {
         trainMode.addActionListener(e -> sync());
         useCloak.addActionListener(e -> sync());
         freeSide.addActionListener(e -> sync());
+        powers.addActionListener(e -> sync());
+        powers.setToolTipText("Не тратить навык, ISH-01 и EMP-01 ни на кого, кроме бегемота. У него — по очереди: навык"
+                + " (призма первой), когда по нам стреляет столько игроков (или HP ниже порога призмы); потом ISH ниже своего"
+                + " порога; потом EMP ниже своего, не пока держится стенка");
         followTrain.setToolTipText("Поезда знают таймеры: 3 и больше врагов пропали у одного портала за 30 с — поезд ушёл"
                 + " туда, бегемот, похоже, там; бот летит следом, выждав 20 с, чтобы не прилететь им на хвост");
         waitFirst.setToolTipText("Как scoutMinutes у BLCycle (CARNAGE): пока бот не видел ни одного бегемота, он не облетает"
@@ -164,6 +170,7 @@ final class BehemothSection implements Section {
                 .row("", Form.inline(ish, ishBelow, new javax.swing.JLabel("%")))
                 .row("", Form.inline(prismatic, prismaticBelow, new javax.swing.JLabel("%")))
                 .row("", Form.inline(jamx, jamxDistance))
+                .row("", Form.inline(powers, threatPlayers))
                 .row("", defence)
                 .row("", killOthers)
                 .section("Питомец")
@@ -222,6 +229,7 @@ final class BehemothSection implements Section {
         huntRadius.setEnabled(hunt.isSelected());
         leader.setEnabled(follow.isSelected());
         cloakFormation.setEnabled(useCloak.isSelected());
+        threatPlayers.setEnabled(powers.isSelected());
         freeSideRadius.setEnabled(freeSide.isSelected() || awayFromPortals.isSelected());
         avoidSpawnRadius.setEnabled(avoidSpawn.isSelected());
         followDistance.setEnabled(follow.isSelected());
@@ -268,6 +276,8 @@ final class BehemothSection implements Section {
         useLocator.setSelected(m.path("useLocator").asBoolean(false));
         locatorList.setSelected(m.path("locatorList").asBoolean(false));
         waitFirst.setSelected(m.path("waitFirst").asBoolean(false));
+        powers.setSelected(m.path("powersForBehemoth").asBoolean(false));
+        Form.set(threatPlayers, m.path("threatPlayers").asInt(3));
         followTrain.setSelected(m.path("followTrain").asBoolean(false));
         Form.set(reward, m.path("rewardUridium").asInt(5_000));
         useCloak.setSelected(m.path("useCloak").asBoolean(false));
@@ -354,6 +364,8 @@ final class BehemothSection implements Section {
         m.put("useLocator", useLocator.isSelected());
         m.put("locatorList", locatorList.isSelected());
         m.put("waitFirst", waitFirst.isSelected());
+        m.put("powersForBehemoth", powers.isSelected());
+        m.put("threatPlayers", Form.intOf(threatPlayers));
         m.put("followTrain", followTrain.isSelected());
         m.put("rewardUridium", Form.intOf(reward));
         m.put("useCloak", useCloak.isSelected());
