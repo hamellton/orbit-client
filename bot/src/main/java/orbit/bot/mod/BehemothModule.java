@@ -1729,6 +1729,11 @@ public final class BehemothModule implements BotModule {
 
     /** NPCs shoot from about this far; one farther is not shot back at. */
     static final double DEFEND_REACH = 900;
+    /**
+     * Shot back at only this close to the wait point (the user, 2026-11-14: «когда летим на точку, не стреляем нпс — только
+     * на точке, когда ждём, пассивно, если сами стрельнут»); the step aside from a train is ~300.
+     */
+    static final double DEFEND_AT_POINT = 700;
 
     /**
      * {@code defenceMode}: an NPC shooting at the ship is shot back at where the ship is — it does not chase it nor
@@ -1737,6 +1742,11 @@ public final class BehemothModule implements BotModule {
      * times). Always false: the wait goes on in the same tick.
      */
     private boolean defendInPlace(WorldSnapshot w, WorldSnapshot.Hero h) {
+        int[] p = side != null && sideMap == h.mapId() ? side : waitPoint(h.mapId());
+        if (p != null && Math.hypot(h.x() - p[0], h.y() - p[1]) > DEFEND_AT_POINT) {
+            attacker.clear(); // on the way to the point: no fight
+            return false;
+        }
         if (attacker.targetId() != 0) {
             WorldSnapshot.Ship t = w.ships().get(attacker.targetId());
             if (t != null && t.distanceTo(h.x(), h.y()) <= DEFEND_REACH && attacker.tick(false)) {

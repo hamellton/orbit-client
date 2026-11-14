@@ -141,6 +141,29 @@ class BehemothModuleTest {
     }
 
     @Test
+    void onTheWayToThePointNpcFireIsNotAnsweredOnlyAtThePoint() throws Exception {
+        // the user, 2026-11-14: «когда летим на точку, не стреляем нпс — только на точке, когда ждём, если сами стрельнут»
+        Sim sim = new Sim(config(300), 308, 12_000, 8_000); // far from 3-BL's point 5 700/2 600
+        sim.holdShip = true;
+        BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
+        m.workingMap();
+        sim.npc(500, "\\\\ Impulse II //", 12_200, 8_000);
+        shoots(sim, 500, 1);
+        sim.run(m::tick, 3_000);
+        assertTrue(sim.sent.stream().noneMatch(p -> p instanceof orbit.protocol.gen.ShipSelectRequest r && r.targetId == 500),
+                "on the way: not shot back at");
+
+        Sim at = new Sim(config(300), 308, 5_700, 2_600); // at the point
+        BehemothModule m2 = new BehemothModule(at.ctx, SpawnMemory.inMemory());
+        m2.workingMap();
+        at.npc(500, "\\\\ Impulse II //", 5_900, 2_600);
+        shoots(at, 500, 1);
+        at.run(m2::tick, 3_000);
+        assertTrue(at.sent.stream().anyMatch(p -> p instanceof orbit.protocol.gen.ShipSelectRequest r && r.targetId == 500),
+                "at the point: shot back at");
+    }
+
+    @Test
     void aTrainByTheBehemothIsNotRunFromAndTheShipStandsOnTheFarSide() throws Exception {
         // CARNAGE's BLCycle: their attacks ignored, avoidEnemyOrbit (the user, 2026-11-13)
         Sim sim = new Sim(with(config(300), "{\"trainMode\": true, \"avoidEnemyOrbit\": true}"), 308, 8_000, 5_700);
