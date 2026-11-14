@@ -195,6 +195,34 @@ class BehemothModuleTest {
     }
 
     @Test
+    void aMapSkippedForItsCrowdIsLeftAtOnceNotFlownBackToByTheLocator() throws Exception {
+        // live 2026-11-14 on the VPS, 2-BL: 15 by the behemoth, skipped, then the locator's point took the ship into them
+        Sim sim = new Sim(with(config(30), "{\"useLocator\": true, \"arriveOnTime\": true, \"trainMode\": true, "
+                + "\"trainEnemyLimit\": 2}"), 308, 5_700, 2_600);
+        SpawnMemory mem = SpawnMemory.inMemory();
+        mem.killed(306, 19_400, 5_800, System.currentTimeMillis() - 12 * 60_000); // 1-BL in 3 min
+        mem.killed(308, 4_700, 3_900, System.currentTimeMillis());
+        mem.killed(307, 6_900, 5_000, System.currentTimeMillis());
+        BehemothModule m = new BehemothModule(sim.ctx, mem);
+        locatorPet(sim);
+        m.workingMap();
+        sim.run(m::tick, 8_000);
+        assertTrue(m.status().startsWith("Жду вылета"), m.status());
+        targets(sim, 178, 175);
+        sim.npc(77, BEHEMOTH, 6_000, 3_000);
+        for (int i = 0; i < 3; i++) {
+            enemy(sim, 900 + i, "Train" + i, 6_300, 3_000 + i * 100);
+        }
+        sim.run(m::tick, 500);
+        orbit.protocol.gen.ShipRemoveCommand gone = new orbit.protocol.gen.ShipRemoveCommand();
+        gone.userId = 77;
+        sim.world.apply(gone, sim.now); // out of sight, still listed
+        sim.run(m::tick, 3_000);
+        assertEquals(306, m.workingMap(), "skipped here: off to 1-BL at once");
+        assertTrue(!m.status().contains("пеленгатор") && !m.status().startsWith("Жду вылета"), m.status());
+    }
+
+    @Test
     void diesTooOftenByTheBehemothThenAnotherMap() throws Exception {
         // CARNAGE's DEATH_COUNT
         Sim sim = new Sim(with(config(300), "{\"trainMode\": true, \"deathsPerSpawn\": 2}"), 308, 8_000, 5_700);

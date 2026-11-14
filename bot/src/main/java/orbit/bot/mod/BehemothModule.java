@@ -289,7 +289,7 @@ public final class BehemothModule implements BotModule {
         if (chosen == 0) {
             chosen = choose(h.mapId(), 0);
         }
-        if (holding(h.mapId())) {
+        if (holding(h.mapId()) && !skipped(h.mapId())) {
             return h.mapId();
         }
         if (chosen != h.mapId() && departFrom != h.mapId()) {
@@ -492,7 +492,8 @@ public final class BehemothModule implements BotModule {
         if (followTrain(h)) {
             return; // the runner flies there
         }
-        if (h.mapId() != chosen && holding(h.mapId())) {
+        if (h.mapId() != chosen && holding(h.mapId()) && !skipped(h.mapId())) {
+            // a map given up for its crowd is left at once: the next one is waited on, not this one's train
             // the locator looks here too: one coming on this map while holding for another is gone for (live
             // 2026-11-14 on the VPS, 3-BL: listed while holding for 1-BL, not gone for)
             if (locate(s, w)) {
@@ -1058,6 +1059,11 @@ public final class BehemothModule implements BotModule {
         // the pet in after a fight — the ship stayed by an Impulse II while the behemoth lived its 19 s)
         if (listSaysGone(s, pet, h, now)) {
             return true;
+        }
+        if (skipped(h.mapId())) {
+            // given up for its crowd: the list still dates it, but its point is not flown to (live 2026-11-14 on the
+            // VPS, 2-BL: 15 by it, skipped, then the locator's point took the ship back into them)
+            return false;
         }
         if (behemothListed && (lastPoint == null || lastPoint[0] != h.mapId() || lastPointNs < mapEnteredNanos)) {
             int[] sp = spawnPoint(h.mapId());
