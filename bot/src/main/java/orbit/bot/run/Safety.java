@@ -121,7 +121,10 @@ public final class Safety {
             double limit = attacked || fighting ? s.repairHpMin() : s.repairHpNoNpc();
             // losing hull fast: leave the more early, so as to reach the portal (live 2026-11-13: 25 % → 5 % on the
             // 7 s way to it, killed)
-            double early = attacked && !almostDead ? Math.min(EARLY_MAX, hpLossPerSecond(now) * EARLY_SECONDS) : 0;
+            // a repair at 0 % is «fight to the end» (the behemoth's train configs): nothing early either (live 2026-11-14
+            // on the VPS: alive at the behemoth's death, off to the portal at 26 % — killed, its box left)
+            double early = attacked && !almostDead && limit > 0
+                    ? Math.min(EARLY_MAX, hpLossPerSecond(now) * EARLY_SECONDS) : 0;
             if (early > 0.02 && hp >= limit && hp < limit + early) {
                 log.info("Теряю {}% HP в секунду — ухожу на ремонт раньше", pct(hpLossPerSecond(now)));
             }

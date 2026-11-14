@@ -331,6 +331,12 @@ public final class Attacker {
             }
         }
         boolean threat = players >= plan.threatPlayers();
+        // the prismatic shield from the fight's first moment (the user, 2026-11-14: «призму можно с самого начала, как
+        // начал бить бегемота»); the other abilities when the train shoots
+        if (plan.prismaticBelow() > 0 && useFirstReady(w, PRISMATIC, now, "призматический щит (начало боя)")) {
+            abilityAt = now;
+            return;
+        }
         if (threat || plan.prismaticBelow() > 0 && hp >= 0 && hp < plan.prismaticBelow()) {
             String why = threat ? players + " игроков стреляют" : "HP " + Math.round(hp * 100) + "%";
             if (useFirstReady(w, PRISMATIC, now, "призматический щит (" + why + ")")
