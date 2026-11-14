@@ -120,7 +120,7 @@ class CloakCareTest {
         CloakCare care = new CloakCare(sim.ctx);
         care.setHangar(site);
         sim.now += (CloakCare.SETTLE_MS + 1_000) * Sim.MS;
-        run(sim, care, true, CRAFT, 25_000);
+        run(sim, care, true, CRAFT, 75_000);
         assertEquals(List.of("out old@1", "in full@1", "out old@2", "in full@2"), site.moves);
         assertTrue(care.active(), "waits for the game to count the new CPU");
         cloak(sim, 50);
@@ -138,7 +138,7 @@ class CloakCareTest {
         CloakCare care = new CloakCare(sim.ctx);
         care.setHangar(site);
         sim.now += (CloakCare.SETTLE_MS + 1_000) * Sim.MS;
-        run(sim, care, true, CRAFT, 20_000);
+        run(sim, care, true, CRAFT, 75_000);
         AssemblyBuildRequest b = (AssemblyBuildRequest) sim.sent.stream().filter(p -> p instanceof AssemblyBuildRequest)
                 .findFirst().orElseThrow(() -> new AssertionError("no build"));
         assertEquals(CloakCare.RECIPE, b.recipeLootId);
@@ -179,5 +179,39 @@ class CloakCareTest {
         sim.now += (CloakCare.SETTLE_MS + 1_000) * Sim.MS;
         assertFalse(run(sim, care, true, CRAFT, 5_000));
         assertFalse(care.active());
+    }
+    @Test
+    void aBuildingByThePortalIsNotTheStationTheShipFliesToTheHq() throws Exception {
+        // live 2026-11-14 on 2-8: «at the base» by the portal, 9 000 off the HQ — the site refused the fitting
+        int map = MapCatalog.bundled().byName("3-8").id();
+        Sim sim = new Sim(BotConfig.empty(), map, 10_000, 6_000);
+        orbit.protocol.gen.AssetCreateCommand dock = new orbit.protocol.gen.AssetCreateCommand();
+        dock.assetId = 901;
+        dock.type = new orbit.protocol.gen.AssetTypeModule();
+        dock.type.typeValue = 53;
+        dock.factionId = 3;
+        dock.posX = 10_050;
+        dock.posY = 6_000;
+        dock.userName = "RepairDock";
+        sim.world.apply(dock, sim.now);
+        orbit.protocol.gen.AssetCreateCommand hq = new orbit.protocol.gen.AssetCreateCommand();
+        hq.assetId = 900;
+        hq.type = new orbit.protocol.gen.AssetTypeModule();
+        hq.type.typeValue = 46;
+        hq.factionId = 3;
+        hq.posX = 13_000;
+        hq.posY = 6_000;
+        hq.userName = "HQ";
+        sim.world.apply(hq, sim.now);
+        cloak(sim, 0);
+        Site site = new Site();
+        site.cpus.add(new HangarAccess.Cpu("full", true, 50, Set.of()));
+        CloakCare care = new CloakCare(sim.ctx);
+        care.setHangar(site);
+        sim.now += (CloakCare.SETTLE_MS + 1_000) * Sim.MS;
+        run(sim, care, true, CRAFT, 3_000);
+        assertTrue(sim.sent.stream().anyMatch(p -> p instanceof orbit.protocol.gen.MoveRequest m
+                && Math.abs(m.targetX - 13_000) < 50), "to the HQ");
+        assertTrue(site.moves.isEmpty(), "nothing on the site before the station");
     }
 }

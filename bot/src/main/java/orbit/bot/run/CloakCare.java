@@ -40,8 +40,12 @@ final class CloakCare {
     static final long RETRY_MS = 15 * 60_000L;
     /** A trip longer than this is given up (the module's work comes first). */
     static final long TRIP_MS = 10 * 60_000L;
-    /** In the base this long without the station flag: on anyway (the site says if it minds). */
-    static final long STATION_MS = 15_000;
+    /** By the HQ this long without the station flag: on anyway (the site says if it minds). */
+    static final long STATION_MS = 60_000;
+    /** In the station this long before the site's calls. */
+    static final long STATION_SETTLE_MS = 8_000;
+    /** {@code AssetTypeModule}: a base's headquarters. */
+    static final int HQ = 46;
     /** A started build still not seen building after this: it did not start. */
     static final long BUILD_START_MS = 20_000;
     static final long BUILD_MS = 5 * 60_000L;
@@ -55,6 +59,8 @@ final class CloakCare {
      */
     static volatile long SITE_GAP_MIN_MS = 3_000;
     static volatile long SITE_GAP_MAX_MS = 6_000;
+    /** A refused move is tried again after these waits. */
+    static final long[] RETRY_WAITS_MS = {20_000, 40_000};
 
     private enum Step { TO_BASE, TO_STATION, ASK, CRAFT, FIT, GAME }
 
@@ -74,6 +80,7 @@ final class CloakCare {
     private long failedAt = Long.MIN_VALUE / 2;
     private final long startedAt;
     private int baseMap;
+    private long stationSince;
     private boolean crafted;
     private boolean buildAsked;
     private boolean collectAsked;
@@ -188,22 +195,36 @@ final class CloakCare {
             go(Step.TO_BASE, now);
             return true;
         }
-        SafePlaces.Place base = SafePlaces.bases(w).stream().min(Comparator.comparingDouble(p -> p.distance(h))).orElse(null);
-        if (base == null) {
-            return ms(now - since) > 10_000 ? fail("на " + ctx.maps().info(h.mapId()).name() + " не видно своей базы") : true;
+        // the HQ itself: any base building counted (live 2026-11-14 on 2-8: «at the base» by the portal, 9 000 off the HQ,
+        // and the site refused the fitting)
+        WorldSnapshot.Asset hq = w.assets().values().stream()
+                .filter(a -> (a.type() == HQ || "HQ".equalsIgnoreCase(a.name())) && (a.factionId() == 0 || a.factionId() == h.factionId()))
+                .min(Comparator.comparingDouble(a -> Math.hypot(a.x() - h.x(), a.y() - h.y()))).orElse(null);
+        if (hq == null) {
+            return ms(now - since) > 10_000 ? fail("на " + ctx.maps().info(h.mapId()).name() + " не видно штаба базы") : true;
         }
-        if (base.distance(h) > base.reach()) {
-            if (ctx.nav().idle() || ctx.nav().destination().x() != base.x()) {
-                ctx.nav().moveTo(base.x(), base.y(), true);
+        if (Math.hypot(hq.x() - h.x(), hq.y() - h.y()) > SafePlaces.AT_BASE) {
+            if (ctx.nav().idle() || ctx.nav().destination().x() != hq.x()) {
+                ctx.nav().moveTo(hq.x(), hq.y(), true);
             }
             ctx.ship().want(ctx.config().get().general().travel());
             ctx.nav().tick();
             since = now;
+            stationSince = 0;
             return true;
         }
         ctx.nav().stop();
-        if (!h.beacon().inStation() && ms(now - since) < STATION_MS) {
+        if (h.beacon().inStation()) {
+            if (stationSince == 0) {
+                stationSince = now;
+            }
+            if (ms(now - stationSince) < STATION_SETTLE_MS) {
+                return true; // a moment in the station first, as a player opening the site
+            }
+        } else if (ms(now - since) < STATION_MS) {
             return true;
+        } else {
+            log.info("У штаба {} с, а игра не говорит «в станции» — пробую всё равно", STATION_MS / 1000);
         }
         log.info("На базе — смотрю на сайте запасные процессоры маскировки");
         askSite(now);
@@ -339,11 +360,19 @@ final class CloakCare {
     /** One move after the site's gap; refused as too soon — once more after another gap. */
     private void move(HangarAccess site, String id, int config, boolean toShip) throws Exception {
         gap();
-        try {
-            site.move(id, config, toShip);
-        } catch (java.io.IOException e) {
-            gap();
-            site.move(id, config, toShip);
+        for (int attempt = 0; ; attempt++) {
+            try {
+                site.move(id, config, toShip);
+                return;
+            } catch (java.io.IOException e) {
+                if (attempt >= RETRY_WAITS_MS.length) {
+                    throw e;
+                }
+                log.info("Сайт: «{}» — повторю через {} с", e.getMessage(), RETRY_WAITS_MS[attempt] / 1000);
+                if (SITE_GAP_MAX_MS > 0) {
+                    Thread.sleep(RETRY_WAITS_MS[attempt]);
+                }
+            }
         }
     }
 
