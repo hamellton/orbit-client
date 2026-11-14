@@ -1778,6 +1778,7 @@ public final class BehemothModule implements BotModule {
     static final int SIDE_DIRECTIONS = 16;
 
     private int[] side;
+    private int[] sideBase;
     private int sideMap;
     private long sideAt = Long.MIN_VALUE / 2;
     /** The spawn circle flown round now (map, x, y, r), set by the bot thread, read by any. */
@@ -1797,6 +1798,13 @@ public final class BehemothModule implements BotModule {
         if (!on(s, "freeSide", false)) {
             return base;
         }
+        if (sideBase != null && sideMap == map && Math.hypot(sideBase[0] - base[0], sideBase[1] - base[1]) > 400) {
+            // the base moved (the walls came, the safe spot was learned): a side taken from the old one is dropped (live
+            // 2026-11-14 on the VPS, 2-BL: 69/70 taken before the walls came, behind one, kept over the safe 68/20)
+            side = null;
+            sideAt = Long.MIN_VALUE / 2;
+        }
+        sideBase = base;
         int[] current = side != null && sideMap == map ? side : base;
         long now = ctx.now();
         if (now - sideAt < SIDE_LOOK_NS && sideMap == map) {
