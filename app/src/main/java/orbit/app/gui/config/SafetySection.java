@@ -25,6 +25,7 @@ final class SafetySection implements Section {
     private final JCheckBox oneWay = new JCheckBox("Прыгать и в порталы без пути назад (5-2 → 5-3, 5-3 → 4-4)");
     private final JSpinner maxDeaths = Form.number(0, 100_000, 1);
     private final JSpinner maxDeathsPerPlayer = Form.number(0, 1_000, 1);
+    private final JSpinner honorBreak = Form.number(0, 600, 5);
     private final JComboBox<String> revive = new JComboBox<>(REVIVE_NAMES);
     private final JSpinner paidRevives = Form.number(0, 50, 1);
     private final JSpinner paidMinutes = Form.number(1, 120, 1);
@@ -49,6 +50,8 @@ final class SafetySection implements Section {
     SafetySection() {
         maxDeathsPerPlayer.setToolTipText("Сколько раз один игрок может уничтожить корабль за запуск, потом бот "
                 + "останавливается; 0 — без лимита. Как maxDeathsPerPlayer в AstraBot");
+        honorBreak.setToolTipText("Игра написала минус честь за убийство — бот выходит из игры на столько минут, потом"
+                + " заходит снова; 0 — не выходить. В DarkBot за это бот останавливается совсем");
         stations.addActionListener(e -> stationRadius.setEnabled(stations.isSelected()));
         view = new Form()
                 .section("Ремонт")
@@ -85,6 +88,7 @@ final class SafetySection implements Section {
                 .section("Гибель")
                 .row("Стоп после смертей", maxDeaths)
                 .row("…из них от одного игрока", maxDeathsPerPlayer)
+                .row("Минус честь — перерыв, мин (0 — нет)", honorBreak)
                 .note("0 — без ограничения.")
                 .row("Возрождение", revive)
                 .note("Любой ценой; не хватит средств — на базе.")
@@ -121,6 +125,7 @@ final class SafetySection implements Section {
         healPod.set(s.heal().hpPodBelow());
         Form.set(maxDeaths, Math.max(0, s.maxDeaths()));
         Form.set(maxDeathsPerPlayer, s.maxDeathsPerPlayer());
+        Form.set(honorBreak, s.honorBreakMinutes());
         int r = java.util.Arrays.asList(REVIVE).indexOf(s.revive());
         revive.setSelectedIndex(r < 0 ? 1 : r);
         Form.set(paidRevives, Math.max(0, s.paidRevives()));
@@ -160,7 +165,7 @@ final class SafetySection implements Section {
                 new BotConfig.Heal(healHp.get(), healShield.get(), healPod.get()), Form.intOf(maxDeaths),
                 REVIVE[revive.getSelectedIndex()], Form.intOf(waitBefore), Form.intOf(waitAfter),
                 Form.intOf(paidRevives), Form.intOf(paidMinutes), escape.get(), oneWay.isSelected(),
-                Form.intOf(maxDeathsPerPlayer)));
+                Form.intOf(maxDeathsPerPlayer), Form.intOf(honorBreak)));
     }
 
     static java.util.Set<String> names(String text) {

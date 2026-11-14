@@ -763,6 +763,14 @@ public final class OrbitMain {
                             || run.runner().state() == orbit.bot.run.BotRunner.State.FAILED) {
                         break;
                     }
+                    int honorBreak = run.runner().honorBreak();
+                    if (honorBreak > 0) {
+                        // honor lost for a kill: out for a while, then the same plan again (a new session)
+                        restUntil(feed, closed, stopFile, earlier(java.time.LocalDateTime.now().plusMinutes(honorBreak), limit),
+                                "Перерыв: минус честь");
+                        rested = true;
+                        continue;
+                    }
                     if (!plan.breakAfter().isZero() && System.currentTimeMillis() >= end - 1_000) {
                         restUntil(feed, closed, stopFile, earlier(java.time.LocalDateTime.now().plus(plan.breakAfter()), limit),
                                 "Перерыв");

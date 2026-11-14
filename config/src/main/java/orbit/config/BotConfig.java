@@ -901,13 +901,17 @@ public record BotConfig(
      *                      5-3 → 4-4): the way back is then the whole loop round the maps; {@code null} = no
      * @param maxDeathsPerPlayer stop the bot when one player has destroyed the ship this many times in the session
      *                      (AstraBot's {@code maxDeathsPerPlayer}); 0 or {@code null} = no limit
+     * @param honorBreakMinutes honor lost for a kill (a minus in the game's reward log): out of the game for this many
+     *                      minutes, then on (DarkBot's honor check logs out and stops; the user, 2026-11-15: «мінус честь —
+     *                      перерва 15 хв»); {@code null} = {@link #DEFAULT_HONOR_BREAK_MINUTES}, 0 = off
      */
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public record Safety(double repairHpMin, double repairHpMax, double repairHpNoNpc, double repairToShield,
                          ShipMode repairMode, Heal heal, int maxDeaths, String revive,
                          int waitBeforeReviveSec, int waitAfterReviveSec, int paidRevives, int paidReviveMinutes,
-                         Double escapeHp, Boolean oneWayJumps, Integer maxDeathsPerPlayer) {
+                         Double escapeHp, Boolean oneWayJumps, Integer maxDeathsPerPlayer, Integer honorBreakMinutes) {
 
+        public static final int DEFAULT_HONOR_BREAK_MINUTES = 15;
         public static final int DEFAULT_PAID_REVIVES = 2;
         public static final int DEFAULT_PAID_REVIVE_MINUTES = 3;
         public static final double DEFAULT_ESCAPE_HP = 0.25;
@@ -934,6 +938,16 @@ public record BotConfig(
             escapeHp = escapeHp == null ? DEFAULT_ESCAPE_HP : escapeHp;
             oneWayJumps = oneWayJumps != null && oneWayJumps;
             maxDeathsPerPlayer = maxDeathsPerPlayer == null ? 0 : Math.max(0, maxDeathsPerPlayer);
+            honorBreakMinutes = honorBreakMinutes == null ? DEFAULT_HONOR_BREAK_MINUTES : Math.max(0, honorBreakMinutes);
+        }
+
+        public Safety(double repairHpMin, double repairHpMax, double repairHpNoNpc, double repairToShield,
+                      ShipMode repairMode, Heal heal, int maxDeaths, String revive,
+                      int waitBeforeReviveSec, int waitAfterReviveSec, int paidRevives, int paidReviveMinutes,
+                      Double escapeHp, Boolean oneWayJumps, Integer maxDeathsPerPlayer) {
+            this(repairHpMin, repairHpMax, repairHpNoNpc, repairToShield, repairMode, heal, maxDeaths, revive,
+                    waitBeforeReviveSec, waitAfterReviveSec, paidRevives, paidReviveMinutes, escapeHp, oneWayJumps,
+                    maxDeathsPerPlayer, null);
         }
 
         public Safety(double repairHpMin, double repairHpMax, double repairHpNoNpc, double repairToShield,
@@ -948,7 +962,7 @@ public record BotConfig(
         public Safety withJumps(double escapeHp, boolean oneWayJumps) {
             return new Safety(repairHpMin, repairHpMax, repairHpNoNpc, repairToShield, repairMode, heal, maxDeaths,
                     revive, waitBeforeReviveSec, waitAfterReviveSec, paidRevives, paidReviveMinutes, escapeHp,
-                    oneWayJumps, maxDeathsPerPlayer);
+                    oneWayJumps, maxDeathsPerPlayer, honorBreakMinutes);
         }
     }
 

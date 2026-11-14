@@ -68,6 +68,11 @@ public final class BotRunner {
     private volatile int activeHangar;
     private volatile int hangarRequest;
     private boolean logoutHere;
+    /** Honor by the reward log and the pilot's total at the last tick ({@code NaN} before the first). */
+    private double honorGained = Double.NaN;
+    private double honorTotal = Double.NaN;
+    /** Minutes out of the game the app keeps after this session, asked by a lost honor ({@code 0} none). */
+    private volatile int honorBreak;
     /** The game's box check is up: everything stopped until it is gone. */
     private boolean inBoxCheck;
     private long orderAt;
@@ -255,6 +260,43 @@ public final class BotRunner {
         return hangarRequest;
     }
 
+    /** Minutes of break after this session for honor lost ({@code 0} none). */
+    public int honorBreak() {
+        return honorBreak;
+    }
+
+    /**
+     * Honor lost for a kill (DarkBot's {@code StatsManager.checkHonor}: lost in one go — logs out and stops; the user,
+     * 2026-11-15: «якщо буде за якесь вбивство мінус честь, то нехай робить перерву в 15 хв»): the game's reward log
+     * ({@code 0|LM|ST|HON|<gained>|<total>}) with a minus, the pilot's total down with it — out of the game for
+     * {@code honorBreakMinutes}. DarkBot reads the total from memory and counts only 100·2ⁿ as a kill's; the reward
+     * line is the server's own word for it, any minus counts.
+     */
+    private void watchHonor(WorldSnapshot w) {
+        WorldSnapshot.Hero h = w.hero();
+        if (h.id() == 0) {
+            return;
+        }
+        double gained = w.rewards().honor();
+        double total = h.honor();
+        double lostGained = Double.isNaN(honorGained) ? 0 : honorGained - gained;
+        double lostTotal = Double.isNaN(honorTotal) ? 0 : honorTotal - total;
+        honorGained = gained;
+        honorTotal = total;
+        if (lostGained <= 0 || lostTotal <= 0 || honorBreak > 0) {
+            return;
+        }
+        int minutes = ctx.config().get().safety().honorBreakMinutes();
+        String lost = String.format("%,.0f", lostGained).replace(',', ' ');
+        if (minutes <= 0) {
+            log.warn("Минус {} чести — перерыв за это выключен, продолжаю", lost);
+            return;
+        }
+        log.warn("Минус {} чести за убийство — выхожу из игры, перерыв {} мин", lost, minutes);
+        honorBreak = minutes;
+        stop("минус честь, перерыв " + minutes + " мин");
+    }
+
     /** Paused: the module rests, the ship does only what the user orders; any thread. */
     public void setPaused(boolean on) {
         paused = on;
@@ -406,6 +448,7 @@ public final class BotRunner {
             log.info("Проверки больше нет — продолжаю");
         }
         offenders.observe(w);
+        watchHonor(w);
         if (w.death() != null && module != null && hangarRequest == 0 && state != State.STOPPING) {
             int want = module.hangarOnDeath(activeHangar, w);
             if (want != 0 && want != activeHangar) {

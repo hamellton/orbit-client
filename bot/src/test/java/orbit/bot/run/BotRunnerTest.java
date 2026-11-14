@@ -25,6 +25,42 @@ class BotRunnerTest {
         assertTrue(r.status().contains("3-6"), r.status());
     }
 
+    static void legacy(Sim sim, String m) {
+        orbit.protocol.gen.LegacyModule l = new orbit.protocol.gen.LegacyModule();
+        l.message = m;
+        sim.world.apply(l, sim.now);
+    }
+
+    @Test
+    void honorLostForAKillMeansABreakOutOfTheGame() throws Exception {
+        // the user, 2026-11-15: «якщо буде за якесь вбивство мінус честь, то нехай робить перерву в 15 хв»
+        Sim sim = new Sim(CubikonModuleTest.config(90, false), 25, 10_000, 6_000);
+        legacy(sim, "0|LM|ST|HON|0|1000000");
+        BotRunner r = new BotRunner(sim.ctx, () -> false, s -> { });
+        sim.run(r::tick, 1_000);
+        legacy(sim, "0|LM|ST|HON|1600|1001600");
+        sim.run(r::tick, 1_000);
+        assertEquals(0, r.honorBreak(), "honor gained: no break");
+        legacy(sim, "0|LM|ST|HON|-12800|988800");
+        sim.run(r::tick, 1_000);
+        assertEquals(BotConfig.Safety.DEFAULT_HONOR_BREAK_MINUTES, r.honorBreak());
+        assertEquals(BotRunner.State.STOPPING, r.state(), "out of the game");
+    }
+
+    @Test
+    void honorBreakOffGoesOn() throws Exception {
+        BotConfig c = CubikonModuleTest.config(90, false)
+                .withSafety(new BotConfig.Safety(0.5, 0.9, 0.5, 0, null, null, 10, "PORTAL", 0, 0, 2, 3, null, null, 0, 0));
+        Sim sim = new Sim(c, 25, 10_000, 6_000);
+        legacy(sim, "0|LM|ST|HON|0|1000000");
+        BotRunner r = new BotRunner(sim.ctx, () -> false, s -> { });
+        sim.run(r::tick, 1_000);
+        legacy(sim, "0|LM|ST|HON|-12800|987200");
+        sim.run(r::tick, 1_000);
+        assertEquals(0, r.honorBreak());
+        assertEquals(BotRunner.State.TRAVELLING, r.state());
+    }
+
     @Test
     void doesNothingWhileTheLinkIsLostAndGoesOnAfter() throws Exception {
         Sim sim = new Sim(CubikonModuleTest.config(90, false), 25, 10_000, 6_000);
