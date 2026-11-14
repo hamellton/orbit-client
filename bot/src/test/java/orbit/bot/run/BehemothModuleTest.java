@@ -884,4 +884,38 @@ class BehemothModuleTest {
         sim.run(m::tick, 2 * 60_000);
         assertTrue(m.workingMap() != 308, "none for 17 min: on");
     }
+
+    @Test
+    void theLocatorsFlickerDoesNotTurnTheShipBack() throws Exception {
+        // live 2026-11-13 on the VPS, 2-BL: a point, «nothing» 9 s later, the point again — the ship turned back each time
+        Sim sim = new Sim(with(config(300), "{\"useLocator\": true}"), 308, 5_700, 2_600);
+        BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
+        locatorPet(sim);
+        m.workingMap();
+        sim.run(m::tick, 6_000);
+        locator(sim, 15_000, 9_000);
+        sim.run(m::tick, 2_000);
+        locator(sim, -1, -1);
+        sim.run(m::tick, 3_000);
+        assertTrue(m.status().contains("пеленгатор"), "still after the behemoth: " + m.status());
+        assertEquals(15_000, (int) sim.ctx.nav().destination().x());
+        sim.run(m::tick, 10_000);
+        assertTrue(!m.status().contains("по пеленгатору"), "no point for over 10 s: given up, " + m.status());
+    }
+
+    @Test
+    void theBehemothLeavingTheLocatorsListIsTakenAsItsDeath() throws Exception {
+        // BLCycle times the respawn from the locator losing it; live 2026-11-13: 178 listed 23:58:18, gone 23:59:15
+        Sim sim = new Sim(with(config(300), "{\"useLocator\": true}"), 308, 5_700, 2_600);
+        BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
+        locatorPet(sim);
+        m.workingMap();
+        sim.run(m::tick, 7_000);
+        targets(sim, 178, 175);
+        sim.run(m::tick, 2_000);
+        targets(sim, 175);
+        sim.run(m::tick, 2_000);
+        long due = m.dueAt(308, m.wallMs()) - m.wallMs();
+        assertTrue(due > 13 * 60_000 && due < 16 * 60_000, "the next in about 15 min: " + due);
+    }
 }

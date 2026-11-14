@@ -138,6 +138,10 @@ public final class BehemothModule implements BotModule {
     private long noneHandled;
     /** Leave this long before the flight says (a turn, a slow start). */
     static final long LEAD_MS = 5_000;
+    /** The locator's last point is kept this long through its «nothing» (BLCycle: 10 s). */
+    static final long LOCATOR_GRACE_MS = 10_000;
+    private int[] lastPoint;
+    private long lastPointNs;
 
     public BehemothModule(BotContext ctx, SpawnMemory memory) {
         this.ctx = ctx;
@@ -819,8 +823,15 @@ public final class BehemothModule implements BotModule {
             return true;
         }
         if (pet.locatorWithin(now, LOCATOR_FRESH_MS) && pet.locatorNanos() > settled) {
-            int x = pet.locatorX();
-            int y = pet.locatorY();
+            lastPoint = new int[] {h.mapId(), pet.locatorX(), pet.locatorY()};
+            lastPointNs = pet.locatorNanos();
+        }
+        // the locator flickers: a point, «nothing», the point again (live 2026-11-13 on the VPS, 2-BL; BLCycle's log the
+        // same, «approx_death_pending graceMs=10000») — its last point is kept LOCATOR_GRACE_MS through a «nothing»
+        boolean pointHeld = lastPoint != null && lastPoint[0] == h.mapId() && now - lastPointNs <= LOCATOR_GRACE_MS * 1_000_000;
+        if (pointHeld) {
+            int x = lastPoint[1];
+            int y = lastPoint[2];
             double dist = Math.hypot(x - h.x(), y - h.y());
             if (dist < 900) {
                 // close: it comes into sight — stay by it, not back to the wait point (live 2026-11-13 on the VPS, 2-BL:
@@ -883,6 +894,8 @@ public final class BehemothModule implements BotModule {
     static final long LIST_SETTLE_MS = 6_000;
     private String listTold = "";
     private long listedNanos;
+    private int wasListedMap;
+    private long wasListedNs;
     private int listedMap;
     private long listedAtNs = Long.MIN_VALUE / 2;
     private boolean behemothListed;
@@ -900,6 +913,18 @@ public final class BehemothModule implements BotModule {
         }
         boolean there = pet.locatorTargets().contains(BEHEMOTH_NPC);
         behemothListed = there;
+        if (!there && wasListedMap == h.mapId() && pet.locatorTargetsNanos() > wasListedNs) {
+            // gone from the list on the same map: dead (BLCycle times the respawn from the locator losing it)
+            int[] sp = spawnPoint(h.mapId());
+            memory.killed(h.mapId(), sp[0], sp[1], wallMs());
+            log.info("Пеленгатор: бегемот пропал из списка на {} — убит, следующий через {}", ctx.maps().info(h.mapId()).name(),
+                    clock(respawn(h.mapId())));
+            wasListedMap = 0;
+        }
+        if (there) {
+            wasListedMap = h.mapId();
+            wasListedNs = pet.locatorTargetsNanos();
+        }
         if (there && pet.locatorTargetsNanos() != listedNanos) {
             // its coming into the list is its coming to the map (live 2026-11-13 on the VPS, 3-BL: 178 listed 8 s after
             // the ship left) — a sighting at its spawn: the timers start from it
