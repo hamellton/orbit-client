@@ -48,6 +48,13 @@ final class CloakCare {
     /** The game counts the new CPU's charges within this, else a new login. */
     static final long GAME_MS = 20_000;
     static final long AFTER_REFRESH_MS = 120_000;
+    /**
+     * Between two site calls (live 2026-11-14 on int1: the move right after the hangar view — «En son eylemden çok kısa bir
+     * süre sonra bir eylem…», an action too soon after the last one); a refusal of that kind is tried once more after it.
+     * Tests set it to 0.
+     */
+    static volatile long SITE_GAP_MIN_MS = 3_000;
+    static volatile long SITE_GAP_MAX_MS = 6_000;
 
     private enum Step { TO_BASE, TO_STATION, ASK, CRAFT, FIT, GAME }
 
@@ -295,11 +302,12 @@ final class CloakCare {
                 .max(Comparator.comparingInt(HangarAccess.Cpu::charges)).orElse(null);
     }
 
-    /** The configs to fit: those whose ship had a cloak, both when none had. */
+    /**
+     * The configs to fit: both, always — the bot switches between them, and a trip cut short may have left one without
+     * its cloak (live 2026-11-14: the site refused the second move).
+     */
     static Set<Integer> configs(List<HangarAccess.Cpu> cpus) {
-        Set<Integer> out = new java.util.TreeSet<>();
-        cpus.forEach(c -> out.addAll(c.configs()));
-        return out.isEmpty() ? Set.of(1, 2) : out;
+        return new java.util.TreeSet<>(Set.of(1, 2));
     }
 
     private void fitAll(List<HangarAccess.Cpu> cpus, HangarAccess.Cpu spare, long now) {
@@ -313,11 +321,12 @@ final class CloakCare {
             for (int config : configs) {
                 for (HangarAccess.Cpu old : cpus) {
                     if (old.configs().contains(config) && old.charges() <= 0) {
-                        site.move(old.id(), config, false); // the empty one out: its slot for the new
+                        move(site, old.id(), config, false); // the empty one out: its slot for the new
                     }
                 }
-                site.move(spare.id(), config, true);
+                move(site, spare.id(), config, true);
             }
+            gap();
             List<HangarAccess.Cpu> after = site.cpus(CLOAK);
             HangarAccess.Cpu now2 = after.stream().filter(c -> c.id().equals(spare.id())).findFirst().orElse(null);
             if (now2 == null || !now2.configs().containsAll(configs)) {
@@ -325,6 +334,25 @@ final class CloakCare {
             }
             answer = after;
         });
+    }
+
+    /** One move after the site's gap; refused as too soon — once more after another gap. */
+    private void move(HangarAccess site, String id, int config, boolean toShip) throws Exception {
+        gap();
+        try {
+            site.move(id, config, toShip);
+        } catch (java.io.IOException e) {
+            gap();
+            site.move(id, config, toShip);
+        }
+    }
+
+    private void gap() throws InterruptedException {
+        long min = SITE_GAP_MIN_MS;
+        long max = SITE_GAP_MAX_MS;
+        if (max > 0) {
+            Thread.sleep(min + (long) (ctx.random().nextDouble() * (max - min)));
+        }
     }
 
     private boolean fit(long now) {

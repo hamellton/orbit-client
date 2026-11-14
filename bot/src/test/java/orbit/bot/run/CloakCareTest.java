@@ -105,6 +105,11 @@ class CloakCareTest {
 
     static final CloakPlan CRAFT = new CloakPlan(true, 1);
 
+    static {
+        CloakCare.SITE_GAP_MIN_MS = 0;
+        CloakCare.SITE_GAP_MAX_MS = 0;
+    }
+
     @Test
     void theEmptyCpuGivesWayToTheFullestSpareInBothConfigs() throws Exception {
         Sim sim = atHome(0);
@@ -149,7 +154,7 @@ class CloakCareTest {
             site.cpus.add(new HangarAccess.Cpu("new", true, 50, Set.of()));
         }
         run(sim, care, true, CRAFT, 6_000);
-        assertEquals(List.of("out old@1", "in new@1"), site.moves, "only the config that had a cloak");
+        assertEquals(List.of("out old@1", "in new@1", "in new@2"), site.moves, "both configs");
     }
 
     @Test
