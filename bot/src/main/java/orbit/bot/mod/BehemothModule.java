@@ -1731,27 +1731,40 @@ public final class BehemothModule implements BotModule {
         int height = info.height() > 0 ? info.height() : 13_100;
         BotConfig.Zones zones = ctx.config().get().zones().get(map);
         BotConfig.ZoneGrid avoided = zones == null ? null : zones.avoided();
+        // the walls of the map count: no wall between the point and the spawn (the user, 2026-11-14 on the VPS, 2-BL:
+        // 69/70 was behind the L-shaped wall from the spawn 69/50 — near by the line, far by the way)
+        WorldSnapshot w = ctx.world().get();
+        orbit.bot.nav.PathFinder pf = orbit.bot.nav.PathFinder.of(w, ctx.maps(), false);
         int[] best = null;
         double bestAway = -1;
-        for (int i = 0; i < 72; i++) {
-            double a = 2 * Math.PI * i / 72;
-            int[] p = {(int) (sp[0] + r * Math.cos(a)), (int) (sp[1] + r * Math.sin(a))};
-            if (p[0] < 600 || p[1] < 600 || p[0] > width - 600 || p[1] > height - 600
-                    || avoided != null && avoided.contains(p[0], p[1], width, height)) {
-                continue;
+        for (int ring : new int[] {r, r - 400, r + 400, r - 800, r + 800}) {
+            for (int i = 0; i < 72; i++) {
+                double a = 2 * Math.PI * i / 72;
+                int[] p = {(int) (sp[0] + ring * Math.cos(a)), (int) (sp[1] + ring * Math.sin(a))};
+                if (p[0] < 600 || p[1] < 600 || p[0] > width - 600 || p[1] > height - 600
+                        || avoided != null && avoided.contains(p[0], p[1], width, height)
+                        || !pf.free(p[0], p[1]) || !pf.clear(p[0], p[1], sp[0], sp[1])) {
+                    continue;
+                }
+                // on the ring most points are as far from the ways as the spawn is: the farther from the portals wins
+                double away = fromPaths(map, sp, p) + 0.1 * fromPortals(map, p);
+                if (away > bestAway) {
+                    bestAway = away;
+                    best = p;
+                }
             }
-            // on the ring most points are as far from the ways as the spawn is: the farther from the portals wins
-            double away = fromPaths(map, sp, p) + 0.1 * fromPortals(map, p);
-            if (away > bestAway) {
-                bestAway = away;
-                best = p;
+            if (best != null) {
+                break;
             }
         }
         if (best == null) {
             best = waitPoint(map);
-        } else {
-            log.info("{}: жду в стороне от путей порталов к месту появления — {}/{} ({} от ближайшего пути)",
-                    info.name(), best[0] / 100, best[1] / 100, (int) fromPaths(map, sp, best));
+        } else if (!best.equals(pathPoints.get(key))) {
+            log.info("{}: жду в стороне от путей порталов к месту появления — {}/{} ({} от ближайшего пути, место появления"
+                    + " видно напрямую)", info.name(), best[0] / 100, best[1] / 100, (int) fromPaths(map, sp, best));
+        }
+        if (w.zones().isEmpty() && ctx.now() - mapEnteredNanos < 10_000_000_000L) {
+            return best; // the map's zones not here yet: looked at again later
         }
         pathPoints.put(key, best);
         return best;
