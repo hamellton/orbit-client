@@ -50,6 +50,7 @@ final class BehemothSection implements Section {
     private final JCheckBox useCloak = new JCheckBox("Маскировка, пока ждём бегемота (CL04K)");
     private final ItemBox cloakFormation = new ItemBox(ItemCatalog.FORMATIONS, true);
     private final JSpinner beaconSeconds = Form.number(0, 120, 1);
+    private final JSpinner closeSeconds = Form.number(0, 300, 5);
     // where to wait (the user, 2026-11-13: trains camp the spawn and BeheFarm's wait points)
     private final JCheckBox trainTimer = new JCheckBox("Поезд стоит у места появления, бегемота не видно — считать его убитым (таймер)");
     private final JCheckBox waitForTrain = new JCheckBox("Не улетать, пока поезд идёт к месту появления (до 3 мин)");
@@ -91,6 +92,8 @@ final class BehemothSection implements Section {
         trainMode.addActionListener(e -> sync());
         useCloak.addActionListener(e -> sync());
         freeSide.addActionListener(e -> sync());
+        closeSeconds.setToolTipText("Столько секунд до появления (по таймеру) — подлететь как можно ближе к месту появления,"
+                + " насколько позволяют враги там (не ближе 1100 к ним), и ждать там, не уходя от поезда");
         powers.addActionListener(e -> sync());
         powers.setToolTipText("Не тратить навык, ISH-01 и EMP-01 ни на кого, кроме бегемота. У него — по очереди: навык"
                 + " (призма первой), когда по нам стреляет столько игроков (или HP ниже порога призмы); потом ISH ниже своего"
@@ -178,6 +181,7 @@ final class BehemothSection implements Section {
                 .row("HP Link, пока HP корабля ниже, %", linkBelow)
                 .row("", beacon)
                 .row("Маяк урона за, с до появления (0 — нет)", beaconSeconds)
+                .row("Встать как можно ближе за, с до появления (0 — нет)", closeSeconds)
                 .note("Энергетическая пиявка и способность корабля — галочки USE_LEECH и USE_ABILITY в строке бегемота.")
                 .section("Маскировка")
                 .row("", useCloak)
@@ -284,6 +288,7 @@ final class BehemothSection implements Section {
         String cf = m.path("cloakFormation").asText("");
         cloakFormation.set(cf.isBlank() ? null : cf.startsWith("drone_formation_") ? cf : formationId(cf));
         Form.set(beaconSeconds, m.path("beaconBeforeSeconds").asInt(0));
+        Form.set(closeSeconds, m.path("closeBeforeSeconds").asInt(0));
         awayFromPortals.setSelected(m.path("awayFromPortals").asBoolean(false));
         waitInZone.setSelected(m.path("waitInZone").asBoolean(false));
         avoidTrainPaths.setSelected(m.path("avoidTrainPaths").asBoolean(false));
@@ -371,6 +376,7 @@ final class BehemothSection implements Section {
         m.put("useCloak", useCloak.isSelected());
         m.put("cloakFormation", cloakFormation.get() != null ? cloakFormation.get() : "");
         m.put("beaconBeforeSeconds", Form.intOf(beaconSeconds));
+        m.put("closeBeforeSeconds", Form.intOf(closeSeconds));
         m.put("awayFromPortals", awayFromPortals.isSelected());
         m.put("waitInZone", waitInZone.isSelected());
         m.put("avoidTrainPaths", avoidTrainPaths.isSelected());

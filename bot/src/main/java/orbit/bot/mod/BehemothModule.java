@@ -138,6 +138,11 @@ public final class BehemothModule implements BotModule {
     private long noneHandled;
     /** Leave this long before the flight says (a turn, a slow start). */
     static final long LEAD_MS = 5_000;
+
+    /** How early to be on the behemoth's map: the near point's time ({@code closeBeforeSeconds}) and a little more. */
+    private long lead() {
+        return Math.max(LEAD_MS, (long) number(settings(), "closeBeforeSeconds", 0) * 1_000 + 10_000);
+    }
     /** The locator's last point is kept this long through its «nothing» (BLCycle: 10 s). */
     static final long LOCATOR_GRACE_MS = 10_000;
     private int[] lastPoint;
@@ -202,7 +207,7 @@ public final class BehemothModule implements BotModule {
         }
         long wall = wallMs();
         long due = dueAt(chosen, wall);
-        return due > 0 && due - wall > travelMs(here, chosen) + LEAD_MS;
+        return due > 0 && due - wall > travelMs(here, chosen) + lead();
     }
 
     /**
@@ -241,7 +246,7 @@ public final class BehemothModule implements BotModule {
     public boolean holdsGround() {
         // and on the way to it and to its beacon (live 2026-11-14 on the VPS, 2-BL: the navigator led to the behemoth,
         // the escape from the train round it took the ship away — 3 400 → 5 400 in 5 s)
-        return (onBehemoth || toBehemoth || beaconOn) && on(settings(), "trainMode", false);
+        return (onBehemoth || toBehemoth || beaconOn || closing) && on(settings(), "trainMode", false);
     }
 
     @Override
@@ -694,7 +699,7 @@ public final class BehemothModule implements BotModule {
     /** Holding on this map until it is time to fly on: by its wait point, cloaked if set. */
     private void hold(JsonNode s, WorldSnapshot.Hero h) {
         long wall = wallMs();
-        long leaveIn = dueAt(chosen, wall) - travelMs(h.mapId(), chosen) - LEAD_MS - wall;
+        long leaveIn = dueAt(chosen, wall) - travelMs(h.mapId(), chosen) - lead() - wall;
         if (!holdTold) {
             holdTold = true;
             log.info("Бегемот на {} через {}, перелёт {} — жду здесь, вылет через {}", ctx.maps().info(chosen).name(),
@@ -757,34 +762,114 @@ public final class BehemothModule implements BotModule {
      */
     private boolean beacon(JsonNode s, WorldSnapshot.Hero h, long wall) {
         long before = (long) number(s, "beaconBeforeSeconds", 0) * 1_000;
+        long close = (long) number(s, "closeBeforeSeconds", 0) * 1_000;
         long due = dueAt(h.mapId(), wall);
-        boolean window = before > 0 && due > 0 && wall >= due - before
+        long lead = Math.max(before, close);
+        boolean window = lead > 0 && due > 0 && wall >= due - lead
                 && wall <= due + (long) number(s, "changeMapSeconds", 30) * 1_000;
         if (!window) {
             beaconOn = false;
+            closing = false;
             return false;
         }
         spawnCircle = null; // to the spawn itself
-        if (!beaconOn) {
-            beaconOn = true;
-            log.info("Бегемот через {} — ставлю боевой маяк питомца у места появления", clock(Math.max(0, due - wall)));
+        boolean beaconNow = before > 0 && wall >= due - before;
+        if (beaconNow && !beaconOn) {
+            log.info("Бегемот через {} — ставлю боевой маяк питомца", clock(Math.max(0, due - wall)));
         }
-        int[] sp = spawnPoint(h.mapId());
-        double dist = Math.hypot(sp[0] - h.x(), sp[1] - h.y());
-        if (dist > 400) {
+        beaconOn = beaconNow;
+        // {@code closeBeforeSeconds} (the user, 2026-11-14: «не прямо возле него, но как можно ближе, как позволяют
+        // атакующие корабли, и там ждать» — from afar it came when the behemoth was already dead): that long before it
+        // is due, as near its spawn as the enemies there let, and wait there
+        int[] target;
+        double arrive;
+        if (close > 0) {
+            if (!closing) {
+                closing = true;
+                closeAt = 0;
+            }
+            if (closeAt == 0 || ctx.now() - closeAt > SIDE_LOOK_NS) {
+                closeAt = ctx.now();
+                int[] was = closeTarget;
+                closeTarget = closePoint(h.mapId());
+                if (was == null || Math.hypot(was[0] - closeTarget[0], was[1] - closeTarget[1]) > 300) {
+                    int[] sp = spawnPoint(h.mapId());
+                    log.info("Бегемот через {} — встаю как можно ближе: {}/{} ({} от места появления)",
+                            clock(Math.max(0, due - wall)), closeTarget[0] / 100, closeTarget[1] / 100,
+                            (int) Math.hypot(closeTarget[0] - sp[0], closeTarget[1] - sp[1]));
+                }
+            }
+            target = closeTarget;
+            arrive = 200;
+        } else {
+            target = spawnPoint(h.mapId());
+            arrive = 400;
+        }
+        double dist = Math.hypot(target[0] - h.x(), target[1] - h.y());
+        if (dist > arrive) {
             ctx.ship().want(ctx.config().get().general().travel());
-            if (ctx.nav().idle() || Math.hypot(ctx.nav().destination().x() - sp[0], ctx.nav().destination().y() - sp[1]) > 100) {
-                ctx.nav().moveTo(sp[0], sp[1], true);
+            if (ctx.nav().idle() || Math.hypot(ctx.nav().destination().x() - target[0], ctx.nav().destination().y() - target[1]) > 100) {
+                ctx.nav().moveTo(target[0], target[1], true);
             }
             ctx.nav().tick();
-            status = "Лечу ставить маяк у места появления";
+            status = close > 0 ? "Подлетаю к месту появления" : "Лечу ставить маяк у места появления";
             return true;
         }
         ctx.nav().stop();
         ctx.ship().want(ctx.config().get().general().roam());
-        status = "Маяк у места появления, бегемот через " + clock(Math.max(0, due - wall));
+        status = "У места появления, бегемот через " + clock(Math.max(0, due - wall));
         arrivedAt = 0; // the wait counts afresh after the window
         return true;
+    }
+
+    /** The near point keeps at least this far from every enemy in sight. */
+    static final double CLOSE_KEEP = 1_100;
+    private boolean closing;
+    private long closeAt;
+    private int[] closeTarget;
+
+    /**
+     * As near the spawn as the enemies let: rings of 600 … 2 400 round it, the nearest point at least {@link #CLOSE_KEEP}
+     * from every enemy in sight (none in sight: 600 off it); none such — the point farthest from them within 2 400.
+     */
+    int[] closePoint(int map) {
+        WorldSnapshot w = ctx.world().get();
+        WorldSnapshot.Hero h = w.hero();
+        JsonNode s = settings();
+        java.util.Set<Integer> group = PlayerFight.group(w);
+        List<String> black = names(s, "blacklist");
+        List<WorldSnapshot.Ship> enemies = w.ships().values().stream()
+                .filter(x -> PlayerFight.enemy(x, h, group, black)).toList();
+        int[] sp = spawnPoint(map);
+        orbit.world.maps.MapCatalog.MapInfo info = ctx.maps().info(map);
+        int width = info.width() > 0 ? info.width() : 21_000;
+        int height = info.height() > 0 ? info.height() : 13_100;
+        int[] farthest = null;
+        double farthestScore = -1;
+        for (int r = 600; r <= 2_400; r += 150) {
+            int[] best = null;
+            double bestScore = -1;
+            for (int i = 0; i < 24; i++) {
+                double a = 2 * Math.PI * i / 24;
+                int[] p = {(int) (sp[0] + r * Math.cos(a)), (int) (sp[1] + r * Math.sin(a))};
+                if (p[0] < 300 || p[1] < 300 || p[0] > width - 300 || p[1] > height - 300) {
+                    continue;
+                }
+                double score = enemies.isEmpty() ? Double.MAX_VALUE : freeness(p, enemies);
+                if (score > bestScore) {
+                    bestScore = score;
+                    best = p;
+                }
+                if (score > farthestScore) {
+                    farthestScore = score;
+                    farthest = p;
+                }
+            }
+            if (best != null && bestScore >= CLOSE_KEEP) {
+                return best;
+            }
+        }
+        return farthest != null ? farthest : sp.clone();
     }
 
     /** Where the behemoth appears on the map: seen, else BeheFarm's point, else the wait point. */
@@ -1802,7 +1887,7 @@ public final class BehemothModule implements BotModule {
             out.add(new double[] {c[1], c[2], c[3]});
         }
         JsonNode s = settings();
-        if (toBehemoth || onBehemoth) {
+        if (toBehemoth || onBehemoth || closing) {
             return List.of(); // to the behemoth or fighting it: through them, the train mode does not run (live 2026-11-14)
         }
         if (on(s, "avoidTrainPaths", false) && !onBehemoth && !beaconOn && maps(s).contains(h.mapId())) {

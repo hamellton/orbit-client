@@ -1064,4 +1064,22 @@ class BehemothModuleTest {
         sim.run(m::tick, 1_000);
         assertTrue(m.holdsGround(), "on the way to the behemoth: held");
     }
+
+    @Test
+    void beforeTheBehemothTheShipWaitsAsNearItsSpawnAsTheEnemiesLet() throws Exception {
+        // the user, 2026-11-14: «не прямо возле него, но как можно ближе, как позволяют атакующие корабли, и там ждать»
+        Sim sim = new Sim(with(config(300), "{\"closeBeforeSeconds\": 45, \"trainMode\": true}"), 308, 5_700, 2_600);
+        SpawnMemory mem = SpawnMemory.inMemory();
+        mem.killed(308, 4_700, 3_900, System.currentTimeMillis() - 15 * 60_000 + 40_000); // due in 40 s
+        BehemothModule m = new BehemothModule(sim.ctx, mem);
+        m.workingMap();
+        enemy(sim, 900, "Camper", 4_700, 4_500); // south of the spawn
+        sim.run(m::tick, 20_000);
+        var h = sim.hero();
+        double fromSpawn = Math.hypot(h.x() - 4_700, h.y() - 3_900);
+        double fromEnemy = Math.hypot(h.x() - 4_700, h.y() - 4_500);
+        assertTrue(fromSpawn < 1_400, "near the spawn: " + (int) fromSpawn + " " + h);
+        assertTrue(fromEnemy >= 1_000, "not on the enemy: " + (int) fromEnemy);
+        assertTrue(m.holdsGround(), "the ground held there");
+    }
 }
