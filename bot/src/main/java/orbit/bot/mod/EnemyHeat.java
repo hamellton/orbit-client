@@ -105,7 +105,15 @@ public final class EnemyHeat {
 
     /** Written at most once a minute. */
     public synchronized void saveSometimes(long nowNanos) {
-        if (file == null || nowNanos - savedAt < 60_000_000_000L) {
+        if (nowNanos - savedAt < 60_000_000_000L) {
+            return;
+        }
+        save(nowNanos);
+    }
+
+    /** Written now (e.g. right after a death), {@code nowNanos} being the clock's time for the next {@link #saveSometimes}. */
+    public synchronized void save(long nowNanos) {
+        if (file == null) {
             return;
         }
         savedAt = nowNanos;

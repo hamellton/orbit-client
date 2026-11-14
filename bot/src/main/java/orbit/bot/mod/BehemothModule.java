@@ -539,7 +539,7 @@ public final class BehemothModule implements BotModule {
         int d = ctx.stats().deaths.get();
         if (lastDeaths >= 0 && d > lastDeaths && lastPos != null) {
             heat.add(lastPos[0], lastPos[1], lastPos[2], DEATH_HEAT); // killed here: a place to keep off
-            heat.saveSometimes(Long.MAX_VALUE / 2);
+            heat.save(ctx.now());
         }
         if (lastDeaths >= 0 && d > lastDeaths && fightMap != 0 && ctx.now() - fightMapAt < 90_000_000_000L) {
             JsonNode s = settings();
