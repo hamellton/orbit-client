@@ -144,6 +144,7 @@ public final class BehemothModule implements BotModule {
     private long lastPointNs;
     /** Flying to the behemoth the locator shows: no circles kept off on the way (the trains stand round it). */
     private volatile boolean toBehemoth;
+    private long approachToldAt = Long.MIN_VALUE / 2;
 
     public BehemothModule(BotContext ctx, SpawnMemory memory) {
         this.ctx = ctx;
@@ -884,6 +885,13 @@ public final class BehemothModule implements BotModule {
                         x / 100, y / 100, (int) dist);
             }
             spawnCircle = null; // to the behemoth the locator shows
+            if (now - approachToldAt > 5_000_000_000L) {
+                approachToldAt = now;
+                // live 2026-11-14 on the VPS, 2-BL: listed 35 s, 2 000 away, never reached — where is the ship
+                log.info("К бегемоту: корабль {}/{}, цель {}/{} ({}), навигатор {}", h.x() / 100, h.y() / 100, x / 100, y / 100,
+                        (int) dist, ctx.nav().idle() ? "стоит" : "ведёт к " + (int) (ctx.nav().destination().x() / 100) + "/"
+                                + (int) (ctx.nav().destination().y() / 100));
+            }
             ctx.ship().want(ctx.config().get().general().travel());
             if (ctx.nav().idle() || Math.hypot(ctx.nav().destination().x() - x, ctx.nav().destination().y() - y) > 300) {
                 ctx.nav().moveTo(x, y, false);
