@@ -457,15 +457,27 @@ public final class OrbitMain {
                 return new orbit.auth.Hangars(auth.http(), conn.session().host());
             }
 
+            /** The active ship's hangar, asked once: the site refuses a call right after another (live 2026-11-14). */
+            private volatile int hangar;
+
             private int active() throws java.io.IOException {
-                return site().list().stream().filter(orbit.auth.Hangars.Hangar::active).findFirst()
-                        .orElseThrow(() -> new java.io.IOException("на сайте не понять активный корабль")).id();
+                if (hangar == 0) {
+                    hangar = site().list().stream().filter(orbit.auth.Hangars.Hangar::active).findFirst()
+                            .orElseThrow(() -> new java.io.IOException("на сайте не понять активный корабль")).id();
+                    try {
+                        Thread.sleep(3_000 + (long) (Math.random() * 3_000));
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        throw new java.io.IOException("прервано");
+                    }
+                }
+                return hangar;
             }
 
             @Override
             public java.util.List<Cpu> cpus(String loot) throws java.io.IOException {
-                int hangar = active();
-                return site().items(hangar, loot).stream().filter(i -> i.spare() || i.hangar() == hangar)
+                int h = active();
+                return site().items(h, loot).stream().filter(i -> i.spare() || i.hangar() == h)
                         .map(i -> new Cpu(i.id(), i.spare(), i.charges(), i.configs())).toList();
             }
 
