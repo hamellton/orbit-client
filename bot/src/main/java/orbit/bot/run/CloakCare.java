@@ -122,6 +122,7 @@ final class CloakCare {
         long now = ctx.now();
         if (step == null) {
             if (plan == null || hangar == null || busy || !free || w.hero().id() == 0 || w.death() != null
+                    || w.jumpingTo() != 0 // mid-jump the map is about to change (live 2026-11-14: decided on 2-8 as it left)
                     || ms(now - startedAt) < SETTLE_MS || ms(now - failedAt) < RETRY_MS || !empty(w)) {
                 if (plan != null && hangar == null && empty(w)) {
                     tell("Маскировка кончилась, а сайт аккаунта недоступен — новый процессор не поставить");
@@ -174,6 +175,12 @@ final class CloakCare {
 
     private boolean toStation(WorldSnapshot w, long now) {
         WorldSnapshot.Hero h = w.hero();
+        if (h.mapId() != baseMap) {
+            // left the base map after all (a jump under way, a death): fly back first
+            ctx.traveler().travel(baseMap, Double.NaN, Double.NaN);
+            go(Step.TO_BASE, now);
+            return true;
+        }
         SafePlaces.Place base = SafePlaces.bases(w).stream().min(Comparator.comparingDouble(p -> p.distance(h))).orElse(null);
         if (base == null) {
             return ms(now - since) > 10_000 ? fail("на " + ctx.maps().info(h.mapId()).name() + " не видно своей базы") : true;
