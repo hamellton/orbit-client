@@ -434,6 +434,33 @@ public final class GateModule implements BotModule {
 
     // ---- out of a gate ----
 
+    /** SharedPlugin: out of a gate the ship goes to the refinery first (over 500 off it, in the run mode); the builder
+     *  and the way to the next gate start there (the user, 2026-11-15: spins were made amid 3-1's NPCs, shot at). */
+    static final double AT_REFINERY = 500;
+
+    private boolean toBase(WorldSnapshot w) {
+        WorldSnapshot.Hero h = w.hero();
+        if (h.mapId() != workingMap()) {
+            return false;
+        }
+        WorldSnapshot.Asset base = w.assets().values().stream()
+                .filter(a -> "OreTrade".equalsIgnoreCase(a.name()) || "HQ".equalsIgnoreCase(a.name()))
+                .filter(a -> a.factionId() == 0 || a.factionId() == h.factionId())
+                .min(java.util.Comparator.<WorldSnapshot.Asset>comparingInt(a -> "OreTrade".equalsIgnoreCase(a.name()) ? 0 : 1)
+                        .thenComparingDouble(a -> Math.hypot(a.x() - h.x(), a.y() - h.y())))
+                .orElse(null);
+        if (base == null || Math.hypot(base.x() - h.x(), base.y() - h.y()) <= AT_REFINERY) {
+            return false;
+        }
+        ctx.ship().want(config().general().run());
+        if (ctx.nav().idle() || ctx.nav().destination().x() != base.x() || ctx.nav().destination().y() != base.y()) {
+            ctx.nav().moveTo(base.x(), base.y(), true);
+        }
+        ctx.nav().tick();
+        show("Врата: лечу на базу — постройка и выход к вратам оттуда (как DarkBot)");
+        return true;
+    }
+
     private void outside(JsonNode s, WorldSnapshot w) {
         long now = ctx.now();
         WorldSnapshot.Gates gates = w.gates();
@@ -447,6 +474,9 @@ public final class GateModule implements BotModule {
                 show("Врата: жду ответ окна постройки");
                 return;
             }
+        }
+        if (toBase(w)) {
+            return;
         }
         for (Entry e : entries(s)) {
             GateCatalog.Gate g = e.gate();
