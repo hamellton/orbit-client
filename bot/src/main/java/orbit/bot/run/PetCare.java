@@ -255,6 +255,11 @@ public final class PetCare {
             n++;
             if (k.flagged()) {
                 BotConfig.NpcRule r = orbit.bot.mod.Targets.rule(c, s, h.mapId());
+                if (r == null) {
+                    // a gate NPC the config does not list: the catalog's rule, as the gate module fights it (live
+                    // 2026-11-15 on gb2, GG α: Kristallins fought by lasers, the pet never went off)
+                    r = orbit.config.GateCatalog.defaultRule(orbit.config.GateCatalog.byMap(h.mapId()), s.name());
+                }
                 if (r != null && r.has(BotConfig.NpcFlag.KAMIKAZE)) {
                     return s.name().replaceAll("^[^A-Za-zА-Яа-я]+|[^A-Za-zА-Яа-я]+$", "") + " (у него флаг KAMIKAZE)";
                 }

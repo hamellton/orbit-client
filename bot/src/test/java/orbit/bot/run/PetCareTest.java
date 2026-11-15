@@ -224,6 +224,21 @@ class PetCareTest {
     }
 
     @Test
+    void kamikazeOnAGatesKristallinTheConfigDoesNotList() {
+        // live 2026-11-15 on gb2, GG α: Kristallins fought by lasers, the pet never went off
+        BotConfig c = BotConfig.empty()
+                .withPet(new BotConfig.Pet(true, "GUARD", 13, false, 0, new BotConfig.Kamikaze(true, 0, true, 600, 0)));
+        Sim sim = new Sim(c, 51, 10_000, 6_000);
+        owned(sim);
+        PetCare pet = new PetCare(sim.ctx);
+        sim.run(pet::tick, 6_000);
+        launched(sim);
+        sim.npc(70, "-=[ Kristallin ]=- α21", 10_200, 6_000);
+        sim.run(pet::tick, 5_000);
+        assertEquals(PetGearTypeModule.PETGEARTYPE_KAMIKAZE, gears(sim).getLast().gearTypeToActivate.typeValue);
+    }
+
+    @Test
     void withNoLimitOfItsOwnKamikazeWaitsForTheGamesCooldownOnly() {
         BotConfig c = BotConfig.empty()
                 .withNpcs(java.util.Map.of("-=[ Cubikon ]=-", new BotConfig.NpcRule(550, 0, true,
