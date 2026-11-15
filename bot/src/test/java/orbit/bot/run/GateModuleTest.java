@@ -265,6 +265,24 @@ class GateModuleTest {
     }
 
     @Test
+    void aWaveOfFlaggedOnesIsNotShotEvenBeforeTheyAimAndFarFromThePoint() throws Exception {
+        // live 2026-11-15 on gb2, GG β: Kristallins β21–24 by the map's edge — the bot shot them; DarkBot does not
+        Sim sim = new Sim(config("{\"gates\":[\"beta\"],\"kamikaze\":{\"enabled\":true,\"minNpcs\":5}}")
+                .withPet(new BotConfig.Pet(true, "GUARD")), 52, 17_000, 11_000);
+        sim.lasers("ammunition_laser_lcb-10");
+        PetCareTest.owned(sim);
+        PetCareTest.launched(sim);
+        GateModule m = new GateModule(sim.ctx);
+        for (int i = 0; i < 5; i++) {
+            sim.npc(800 + i, "-=[ Kristallin ]=- β2" + (i % 4 + 1), 18_000 + i * 200, 12_000);
+        }
+        run(sim, m, 3_000);
+        assertEquals(0, m.fightTarget(), "a kamikaze wave: not shot");
+        assertEquals(orbit.protocol.gen.PetGearTypeModule.PETGEARTYPE_PASSIVE, m.petGear(), "gathered");
+        assertTrue(sim.sent.stream().noneMatch(p -> p instanceof orbit.protocol.gen.AttackLaserRequest));
+    }
+
+    @Test
     void fewerThanFiveFlaggedOnesTheFightGoesOnAsUsual() throws Exception {
         Sim sim = new Sim(config("{\"gates\":[\"alpha\"],\"kamikaze\":{\"enabled\":true,\"minNpcs\":5}}")
                 .withPet(new BotConfig.Pet(true, "GUARD")), 51, 8_500, 6_200);

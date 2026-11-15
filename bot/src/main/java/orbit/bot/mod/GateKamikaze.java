@@ -58,6 +58,10 @@ final class GateKamikaze {
     private double orbitAngle = Double.NaN;
     private int gear = -1;
     private int lockedId;
+    /** The wave started with nothing about (between waves): kept till the blast, as SharedPlugin's PRIMED. */
+    private boolean primed;
+    /** The flagged ones within this of the ship count for the blast when they do not all aim at it yet. */
+    static final double NEAR_SHIP = 2_000;
     private long lockAskedAt = Long.MIN_VALUE / 2;
 
     GateKamikaze(BotContext ctx) {
@@ -98,13 +102,24 @@ final class GateKamikaze {
         if (stage == Stage.ACTIVE) {
             return active(k, w, h, pet, now);
         }
+        // the wave is a kamikaze wave when so many flagged ones are on the map — DarkBot knows it by the wave (the user,
+        // 2026-11-15: «на кристаллинах он начал их бить, даркбот не бьёт их»): they are not shot then, but gathered,
+        // even before they aim at the ship; the blast counts the ones bunched about the ship
+        List<WorldSnapshot.Ship> flagged = flagged(c, w, h);
         List<WorldSnapshot.Ship> valid = valid(c, w, h, now);
         int min = Math.max(1, k.path("minNpcs").asInt(5));
+        if (flagged.size() >= min && valid.size() < min) {
+            valid = flagged.stream().filter(sh -> Math.hypot(sh.x() - h.x(), sh.y() - h.y()) <= NEAR_SHIP).toList();
+            if (valid.size() < min) {
+                valid = flagged;
+            }
+        }
         if (valid.size() < min) {
             if (stage == Stage.GATHERING) {
                 log.info("Камикадзе: NPC для взрыва меньше {} — обычный бой", min);
             }
             stage = stage == Stage.PRIMED ? Stage.PRIMED : Stage.INACTIVE;
+            primed = stage == Stage.PRIMED;
             tightSince = 0;
             return false;
         }
@@ -112,7 +127,9 @@ final class GateKamikaze {
             log.info("Камикадзе: {} NPC для взрыва — собираю их в кучу (питомец пассивный, по ним не стреляю)", valid.size());
             orbitAngle = Double.NaN;
         }
-        boolean primed = stage == Stage.PRIMED;
+        if (stage == Stage.PRIMED) {
+            primed = true; // SharedPlugin keeps the wave's start till the blast
+        }
         stage = Stage.GATHERING;
         if (attacker.targetId() != 0) {
             attacker.clear();
@@ -134,6 +151,7 @@ final class GateKamikaze {
         WorldSnapshot.Ship near = nearest(valid, h);
         lock(h, near, now);
         if (ready && tight && waited) {
+            primed = false;
             stage = Stage.ACTIVE;
             activeSince = now;
             petSeenAlive = pet.alive() && pet.active();
@@ -199,10 +217,22 @@ final class GateKamikaze {
         };
     }
 
+    /** Every flagged NPC on the map. */
+    private static List<WorldSnapshot.Ship> flagged(BotConfig c, WorldSnapshot w, WorldSnapshot.Hero h) {
+        List<WorldSnapshot.Ship> out = new ArrayList<>();
+        for (WorldSnapshot.Ship s : w.ships().values()) {
+            BotConfig.NpcRule r = s.npc() ? Targets.rule(c, s, h.mapId()) : null;
+            if (r != null && r.has(BotConfig.NpcFlag.KAMIKAZE)) {
+                out.add(s);
+            }
+        }
+        return out;
+    }
+
     /** The flagged NPCs aiming at the ship (now or within 1 s), near K or at a primed wave's start. */
     private List<WorldSnapshot.Ship> valid(BotConfig c, WorldSnapshot w, WorldSnapshot.Hero h, long now) {
         List<WorldSnapshot.Ship> out = new ArrayList<>();
-        boolean primed = stage == Stage.PRIMED;
+        boolean primed = this.primed || stage == Stage.PRIMED;
         for (WorldSnapshot.Ship s : w.ships().values()) {
             if (!s.npc()) {
                 continue;
