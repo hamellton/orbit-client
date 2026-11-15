@@ -1376,7 +1376,9 @@ public final class Attacker {
         }
         // RSB when it is ready (the config's «RSB»; AstraBot «Use RSB»): one salvo, then the usual ammunition while it
         // reloads (its cooldown is the item's timer)
-        if (l.rsb() != null && ready(w, l.rsb(), w.nanos()) && w.items().get(l.rsb()).counter() >= MIN_AMMO) {
+        // AstraBot «Use RSB»: once the config flags some NPC with it, only those get it
+        boolean rsbHere = r != null && r.has(BotConfig.NpcFlag.USE_RSB) || !c.anyNpc(BotConfig.NpcFlag.USE_RSB);
+        if (rsbHere && l.rsb() != null && ready(w, l.rsb(), w.nanos()) && w.items().get(l.rsb()).counter() >= MIN_AMMO) {
             return l.rsb();
         }
         return r != null && r.ammo() != null ? r.ammo() : l.ammo();

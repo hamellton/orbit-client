@@ -227,6 +227,52 @@ class GateModuleTest {
         assertTrue(spins.stream().allMatch(id -> id == 2), "β: " + spins);
     }
 
+    static void kristallins(Sim sim, int cx, int cy, int spread) {
+        for (int i = 0; i < 5; i++) {
+            sim.npc(800 + i, "-=[ Kristallin ]=- α2" + (i % 4 + 1), cx + (i - 2) * spread, cy);
+            orbit.protocol.gen.AttackLaserRunCommand shot = new orbit.protocol.gen.AttackLaserRunCommand();
+            shot.attackerId = 800 + i;
+            shot.targetId = 1;
+            sim.world.apply(shot, sim.now);
+        }
+    }
+
+    @Test
+    void kamikazeAsDarkBotGathersTheFlaggedOnesThenStopsAndBlowsWhenTheyAreTight() throws Exception {
+        // the user, 2026-11-15: «камикадзе как у даркбота 1 в 1, и поведение корабля тоже» (SharedPlugin KamikazeHandler)
+        Sim sim = new Sim(config("{\"gates\":[\"alpha\"],\"kamikaze\":{\"enabled\":true,\"minNpcs\":5}}")
+                .withPet(new BotConfig.Pet(true, "GUARD")), 51, 8_500, 6_200);
+        PetCareTest.owned(sim);
+        PetCareTest.launched(sim);
+        GateModule m = new GateModule(sim.ctx);
+        kristallins(sim, 8_500, 5_000, 250); // spread 1 000: not tight yet
+        run(sim, m, 300);
+        assertEquals(orbit.protocol.gen.PetGearTypeModule.PETGEARTYPE_PASSIVE, m.petGear(), "gathering: the pet passive");
+        assertEquals(0, m.fightTarget(), "no shooting at them");
+        assertTrue(m.status().contains("камикадзе"), m.status());
+        for (int i = 0; i < 5; i++) {
+            orbit.protocol.gen.ShipRemoveCommand gone = new orbit.protocol.gen.ShipRemoveCommand();
+            gone.userId = 800 + i;
+            sim.world.apply(gone, sim.now);
+        }
+        kristallins(sim, 8_500, 5_000, 50); // spread 200: tight
+        run(sim, m, 300);
+        assertEquals(orbit.protocol.gen.PetGearTypeModule.PETGEARTYPE_KAMIKAZE, m.petGear(), "tight and full hull: the blast");
+    }
+
+    @Test
+    void fewerThanFiveFlaggedOnesTheFightGoesOnAsUsual() throws Exception {
+        Sim sim = new Sim(config("{\"gates\":[\"alpha\"],\"kamikaze\":{\"enabled\":true,\"minNpcs\":5}}")
+                .withPet(new BotConfig.Pet(true, "GUARD")), 51, 8_500, 6_200);
+        sim.lasers("ammunition_laser_lcb-10");
+        PetCareTest.owned(sim);
+        PetCareTest.launched(sim);
+        GateModule m = new GateModule(sim.ctx);
+        sim.npc(900, "-=[ Kristallin ]=- α21", 8_700, 6_200);
+        run(sim, m, 2_000);
+        assertEquals(900, m.fightTarget());
+    }
+
     @Test
     void twoLivesLeftOneMoreIsBoughtWhileTheUridiumLasts() throws Exception {
         // the user, 2026-11-14: «если осталось 2 жизни, то докупаем за уридиум ещё одну, если урика хватает»

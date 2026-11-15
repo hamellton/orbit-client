@@ -44,6 +44,7 @@ final class FlagsEditor extends AbstractCellEditor implements TableCellEditor {
             case HP_LINK -> "питомец в режиме HP Link, пока бьём его";
             case USE_LEECH -> "техника «Энергетическая пиявка», когда готова";
             case USE_ABILITY -> "способность корабля (Venom, Sentinel, Solace, Spectrum…), когда готова";
+            case USE_RSB -> "RSB по нему (если хоть у одного NPC стоит — RSB только по отмеченным)";
             case HOLD_TARGET -> "держать цель до смерти, не бросать, даже если она долго не теряет HP (врата)";
         };
     }

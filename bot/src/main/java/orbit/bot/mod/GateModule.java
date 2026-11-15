@@ -55,6 +55,7 @@ public final class GateModule implements BotModule {
     private final BotContext gctx;
     private final Attacker attacker;
     private final BoxPicker boxes;
+    private final GateKamikaze kamikaze;
     private volatile Runnable refresh;
     private String status = "";
     private String told = "";
@@ -91,6 +92,7 @@ public final class GateModule implements BotModule {
                 ctx.random(), ctx.clock(), ctx.repair(), ctx.ship(), ctx.dataDir(), ctx.stats(), ctx.ships());
         this.attacker = new Attacker(gctx);
         this.boxes = new BoxPicker(gctx);
+        this.kamikaze = new GateKamikaze(gctx);
     }
 
     @Override
@@ -128,6 +130,25 @@ public final class GateModule implements BotModule {
     public void pause() {
         attacker.clear();
         boxes.clear();
+    }
+
+    /**
+     * The pet in HP Link (AstraBot «useHpLink» with «hpLinkMinPercent» 75 and the NPC option «HP Link» on β/γ
+     * Kristallon): while an NPC flagged so is fought, or the hull is below {@code hpLinkBelow} % in a gate.
+     */
+    @Override
+    public int petGear() {
+        int link = orbit.protocol.gen.PetGearTypeModule.PETGEARTYPE_HP_LINK;
+        if (kamikaze.gear() >= 0) {
+            return kamikaze.gear(); // gathering: passive; the blast: kamikaze
+        }
+        if (attacker.fighting(BotConfig.NpcFlag.HP_LINK)) {
+            return link;
+        }
+        WorldSnapshot.Hero h = ctx.world().get().hero();
+        double below = num(settings(), "hpLinkBelow", 0) / 100.0;
+        double hp = h.health().hpPercent();
+        return below > 0 && hp >= 0 && hp < below && GateCatalog.byMap(h.mapId()) != null ? link : -1;
     }
 
     /**
@@ -683,6 +704,13 @@ public final class GateModule implements BotModule {
         }
         buyLives(settings(), g, w.gates(), now); // a life lost in the gate: the stock again (the request goes on aside)
         BotConfig c = config();
+        // DarkBot's SharedPlugin: the kamikaze first — gathering the flagged ones, the blast; the fight waits meanwhile
+        if (kamikaze.tick(settings(), c, w, attacker)) {
+            quietSince = 0;
+            status = "Врата " + g.name() + ": камикадзе — " + (kamikaze.stage() == GateKamikaze.Stage.ACTIVE
+                    ? "взрыв" : "собираю NPC") + wave(st);
+            return;
+        }
         // the fight
         if (attacker.targetId() != 0 && attacker.tick(true)) {
             quietSince = 0;
@@ -707,6 +735,7 @@ public final class GateModule implements BotModule {
         if (quietSince == 0) {
             quietSince = now;
         }
+        kamikaze.waiting(); // between waves: the next one's start is primed (SharedPlugin)
         boolean quiet = ms(now - quietSince) > QUIET_MS;
         // a portal of the gate: the next stage (ABG), the next map (ζ); home only once the gate is done (or Trinity)
         WorldSnapshot.Portal next = w.portals().values().stream().filter(p -> p.designId() != GateCatalog.HOME_PORTAL)

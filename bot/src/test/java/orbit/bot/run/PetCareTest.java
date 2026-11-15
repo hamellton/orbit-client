@@ -17,7 +17,7 @@ class PetCareTest {
     }
 
     /** The account has a pet, alive with fuel, not launched (as after a login). */
-    private static void owned(Sim sim) {
+    static void owned(Sim sim) {
         orbit.protocol.gen.PetInitializationCommand init = new orbit.protocol.gen.PetInitializationCommand();
         init.hasPet = true;
         init.hasFuel = true;
@@ -26,7 +26,7 @@ class PetCareTest {
     }
 
     /** What the server answered to the launch on 2026-11-11: the pet, its modes, Passive. */
-    private static void launched(Sim sim) {
+    static void launched(Sim sim) {
         orbit.protocol.gen.PetHeroActivationCommand a = new orbit.protocol.gen.PetHeroActivationCommand();
         a.ownerId = 1;
         a.petId = 500;

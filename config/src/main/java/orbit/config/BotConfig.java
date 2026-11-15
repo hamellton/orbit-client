@@ -650,7 +650,17 @@ public record BotConfig(
          * ends only with its NPCs dead — live 2026-11-15 on gb2, GG α: Protegits dropped one after another, their shields
          * back as fast as MCB-25 took them)
          */
-        HOLD_TARGET
+        HOLD_TARGET,
+        /**
+         * RSB fighting it (AstraBot «Use RSB»): once any NPC of the config has this flag, RSB only on those; a config
+         * with none flagged — on every NPC, as before
+         */
+        USE_RSB
+    }
+
+    /** Some NPC rule of the config carries {@code flag}. */
+    public boolean anyNpc(NpcFlag flag) {
+        return npcs.values().stream().anyMatch(r -> r.has(flag));
     }
 
     /**
