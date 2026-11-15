@@ -295,6 +295,31 @@ class GateModuleTest {
     }
 
     @Test
+    void flaggedOnesFlyingAtTheShipCountFromTheStartAsDarkBotsIsAiming() throws Exception {
+        // live 2026-11-15 on gb2, GG β: Sibelonits coming at the ship, not shooting yet — fought by lasers; DarkBot's
+        // isAiming is the way the NPC faces, so it gathers them from the wave's start
+        Sim sim = new Sim(config("{\"gates\":[\"beta\"],\"kamikaze\":{\"enabled\":true,\"minNpcs\":5}}")
+                .withPet(new BotConfig.Pet(true, "GUARD")), 52, 9_500, 5_500);
+        sim.lasers("ammunition_laser_lcb-10");
+        PetCareTest.owned(sim);
+        PetCareTest.launched(sim);
+        GateModule m = new GateModule(sim.ctx);
+        for (int i = 0; i < 6; i++) {
+            sim.npc(800 + i, "-=[ Sibelonit ]=- β2" + (9 + i % 4), 7_000 + i * 300, 3_000);
+            orbit.protocol.gen.MoveCommand mv = new orbit.protocol.gen.MoveCommand();
+            mv.userId = 800 + i;
+            mv.x = 9_500;
+            mv.y = 5_500;
+            mv.timeToTarget = 60_000;
+            sim.world.apply(mv, sim.now);
+        }
+        run(sim, m, 1_000);
+        assertEquals(0, m.fightTarget(), "not shot: gathered");
+        assertTrue(m.status().contains("камикадзе"), m.status());
+        assertTrue(sim.sent.stream().noneMatch(p -> p instanceof orbit.protocol.gen.AttackLaserRequest));
+    }
+
+    @Test
     void flaggedOnesNotAimingAreFoughtAsUsualAsInDarkBot() throws Exception {
         // SharedPlugin counts only the ones aiming at the ship; no «wave of flagged ones» guess
         Sim sim = new Sim(config("{\"gates\":[\"beta\"],\"kamikaze\":{\"enabled\":true,\"minNpcs\":5}}")

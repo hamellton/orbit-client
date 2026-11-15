@@ -309,7 +309,7 @@ final class GateKamikaze {
             if (r == null || !r.has(BotConfig.NpcFlag.KAMIKAZE)) {
                 continue;
             }
-            if (s.attackTargetId() == h.id()) {
+            if (aiming(s, h)) {
                 aimedAt.put(s.id(), now);
             }
             Long at = aimedAt.get(s.id());
@@ -320,8 +320,34 @@ final class GateKamikaze {
             }
         }
         aimedAt.keySet().removeIf(id -> !w.ships().containsKey(id));
+        heading.keySet().removeIf(id -> !w.ships().containsKey(id));
         return out;
     }
+
+    /** The way each NPC faces: to its laser's target, else the way it flies; kept while it stands. */
+    private final Map<Integer, Double> heading = new HashMap<>();
+
+    /**
+     * DarkBot's {@code Ship.isAiming}: the NPC faces the ship within {@link #AIM_ANGLE} — it comes at it or shoots it,
+     * not only shoots (the user, 2026-11-15: Sibelonits were fought by lasers, DarkBot gathers them from the start).
+     */
+    private boolean aiming(WorldSnapshot.Ship s, WorldSnapshot.Hero h) {
+        if (s.attackTargetId() == h.id()) {
+            heading.put(s.id(), Math.atan2(h.y() - s.y(), h.x() - s.x()));
+        } else if (s.moving() && Math.hypot(s.targetX() - s.x(), s.targetY() - s.y()) > 1) {
+            heading.put(s.id(), Math.atan2(s.targetY() - s.y(), s.targetX() - s.x()));
+        }
+        Double a = heading.get(s.id());
+        if (a == null) {
+            return false;
+        }
+        double to = Math.atan2(h.y() - s.y(), h.x() - s.x());
+        double phi = Math.abs(to - a) % (2 * Math.PI);
+        return (phi > Math.PI ? 2 * Math.PI - phi : phi) < AIM_ANGLE;
+    }
+
+    /** DarkBot's isAiming: within this of the way to the ship (rad). */
+    static final double AIM_ANGLE = 0.2;
 
     /** How many NPCs aimed at the ship within the last second. */
     private int aiming(WorldSnapshot w, WorldSnapshot.Hero h, long now) {
