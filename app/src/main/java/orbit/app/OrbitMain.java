@@ -728,6 +728,7 @@ public final class OrbitMain {
                     // every module: which ship is in use, and the list the «Ангар» window shows (the user, 2026-11-14:
                     // «в кораблях пусто» — it was read for palladium only)
                     watchHangar(auth, conn, run.runner(), lastHost, accountName, cfg, ships);
+                    watchSkylab(auth, conn, feed, game);
                     planRefresh(conn, run.runner(), game);
                     if (closed.get()) {
                         // stopped while logging in: the stop found no module to finish, so finish this one
@@ -879,6 +880,49 @@ public final class OrbitMain {
                 Thread.currentThread().interrupt();
             } catch (java.io.IOException | RuntimeException e) {
                 log.warn("Ангары с сайта не прочитать: {}", e.getMessage());
+            }
+        });
+    }
+
+    /** The Skylab page is read this often (DarkBot's SkylabBuilder: 5 min, SkylabSender: 20), and up to this much later. */
+    static final long SKYLAB_EVERY_MS = 20 * 60_000L;
+    static final long SKYLAB_SPREAD_MS = 5 * 60_000L;
+
+    /**
+     * The account's Skylab from the website for the window's card (the user, 2026-11-15: «бот сам это делает, мне нужен
+     * результат — чтобы в боте всё отображалось, на каждом аке»): once the game session is known, then every 20–25 min
+     * while the game thread lives. Read only.
+     */
+    private static void watchSkylab(AuthClient auth, GameConnection conn, WorldFeed feed, Thread game) {
+        java.util.Map<String, String> ctx = org.slf4j.MDC.getCopyOfContextMap();
+        Thread.ofVirtual().name("skylab").start(() -> {
+            if (ctx != null) {
+                org.slf4j.MDC.setContextMap(ctx);
+            }
+            java.util.Random random = new java.util.Random();
+            boolean told = false;
+            try {
+                Thread.sleep(20_000 + random.nextInt(40_000)); // after the login's own page loads, not in their burst
+                while (game.isAlive()) {
+                    var session = conn.session();
+                    if (session != null && session.host() != null) {
+                        try {
+                            orbit.auth.Skylab.Info info = new orbit.auth.Skylab(auth.http(), session.host()).read();
+                            feed.setSkylab(info);
+                            if (!told) {
+                                told = true;
+                                long top = info.modules().stream().filter(m -> m.level() >= 20).count();
+                                log.info("Skylab: модулей {}, на 20-м уровне {}; транспорт {}", info.modules().size(), top,
+                                        info.transporting() ? "в пути" : "свободен");
+                            }
+                        } catch (java.io.IOException | RuntimeException e) {
+                            log.warn("Skylab с сайта не прочитать: {}", e.getMessage());
+                        }
+                    }
+                    Thread.sleep(SKYLAB_EVERY_MS + (long) (random.nextDouble() * SKYLAB_SPREAD_MS));
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
             }
         });
     }

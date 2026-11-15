@@ -92,6 +92,7 @@ final class Hud {
         }
         put(out, ViewSettings.Block.QUESTS, quests(w.quests()));
         put(out, ViewSettings.Block.GATES, gates(w, feed));
+        put(out, ViewSettings.Block.SKYLAB, skylab(feed.skylab()));
         if (feed.stats() != null || !w.rewards().equals(WorldSnapshot.Rewards.NONE)) {
             out.put(ViewSettings.Block.STATS, stats(w, feed));
         }
@@ -168,6 +169,81 @@ final class Hud {
             }
         };
     }
+    static final Color SKYLAB_BAR = new Color(0x22c55e);
+
+    /** The page names of the Skylab's modules, in the window's words. */
+    static final Map<String, String> SKYLAB_MODULES = Map.ofEntries(Map.entry("baseModule", "база"),
+            Map.entry("solarModule", "солнечный"), Map.entry("storageModule", "склад"),
+            Map.entry("transportModule", "транспорт"), Map.entry("xenoModule", "ксено"),
+            Map.entry("prometiumCollector", "сбор prometium"), Map.entry("enduriumCollector", "сбор endurium"),
+            Map.entry("terbiumCollector", "сбор terbium"), Map.entry("prometidRefinery", "prometid"),
+            Map.entry("duraniumRefinery", "duranium"), Map.entry("promeriumRefinery", "promerium"),
+            Map.entry("sepromRefinery", "seprom"));
+
+    /**
+     * «Скайлаб» (the user, 2026-11-15: «чтобы в боте всё отображалось, на каждом аке»): the website's Skylab, read by
+     * the bot every 20 min — the transport, the modules not at the top level (or all at 20) with the stopped ones, and
+     * each ore's stock of the storage with a bar.
+     */
+    Card skylab(orbit.auth.Skylab.Info s) {
+        if (s == null) {
+            return null;
+        }
+        List<String> modules = new ArrayList<>();
+        int top = 0;
+        for (orbit.auth.Skylab.Module m : s.modules()) {
+            String name = SKYLAB_MODULES.getOrDefault(m.name(), m.name());
+            if (m.level() >= 20 && m.active()) {
+                top++;
+            } else {
+                modules.add(name + " " + m.level() + (m.active() ? "" : " (выкл.)"));
+            }
+        }
+        String modLine = (top > 0 ? "на 20 ур.: " + top + (modules.isEmpty() ? "" : " · ") : "") + String.join(" · ", modules);
+        int rowH = line + 12;
+        int robots = s.robots().values().stream().mapToInt(Integer::intValue).sum();
+        String age = java.time.LocalTime.ofInstant(java.time.Instant.ofEpochMilli(s.readMillis()),
+                java.time.ZoneId.systemDefault()).withNano(0).withSecond(0).toString();
+        return new Card() {
+            @Override
+            public int height(int width) {
+                return pad + 2 * line + wrap(measure(font(Font.PLAIN, 11f)), modLine, width - 2 * pad).size() * line
+                        + s.ores().size() * rowH + pad - 4;
+            }
+
+            @Override
+            public void paint(Graphics2D g, int x, int y, int width) {
+                frame(g, x, y, width, height(width), SKYLAB_BAR);
+                g.setFont(font(Font.BOLD, 12f));
+                g.setColor(TEXT);
+                g.drawString("Скайлаб", x + pad, y + pad + 10);
+                g.setFont(font(Font.PLAIN, 11f));
+                g.setColor(DIM);
+                String right = "сайт " + age;
+                g.drawString(right, x + width - pad - g.getFontMetrics().stringWidth(right), y + pad + 10);
+                int ry = y + pad + line;
+                g.setColor(s.transporting() ? TEXT : DIM);
+                g.drawString(clip(g, "Транспорт: " + (s.transporting() ? "в пути" : "свободен")
+                        + (robots > 0 ? " · роботов ждут: " + robots : ""), width - 2 * pad), x + pad, ry + 10);
+                ry += line;
+                g.setColor(DIM);
+                for (String part : wrap(g.getFontMetrics(), modLine, width - 2 * pad)) {
+                    g.drawString(part, x + pad, ry + 10);
+                    ry += line;
+                }
+                for (orbit.auth.Skylab.Ore o : s.ores()) {
+                    g.setColor(TEXT);
+                    String name = Character.toUpperCase(o.name().charAt(0)) + o.name().substring(1);
+                    g.drawString(clip(g, name + "  " + money(o.amount()) + (o.capacity() > 0 ? " / " + money(o.capacity()) : ""),
+                            width - 2 * pad), x + pad, ry + 10);
+                    bar(g, x + pad, ry + 13, width - 2 * pad, 7, Math.max(0, o.amount()), Math.max(1, o.capacity()),
+                            SKYLAB_BAR, false);
+                    ry += rowH;
+                }
+            }
+        };
+    }
+
     static final int MAX_QUESTS = 6;
 
     /** The taken quests: type and number, then each condition with its progress (the HUD's quest first). */

@@ -372,6 +372,17 @@ public final class WorldFeed {
         this.state = state;
     }
 
+    private volatile orbit.auth.Skylab.Info skylab;
+
+    /** The account's Skylab as the website showed it last ({@code null} not read yet). */
+    public orbit.auth.Skylab.Info skylab() {
+        return skylab;
+    }
+
+    public void setSkylab(orbit.auth.Skylab.Info info) {
+        this.skylab = info;
+    }
+
     private volatile boolean linkLost;
 
     /** The connection dropped and is being restored (until the ship is in game again). */

@@ -28,6 +28,7 @@ public final class ViewSettings {
         GROUP("Группа"),
         QUESTS("Квесты"),
         GATES("Врата"),
+        SKYLAB("Скайлаб"),
         STATS("Итоги сессии");
 
         public final String label;
