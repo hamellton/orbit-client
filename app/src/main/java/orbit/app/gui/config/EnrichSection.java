@@ -22,18 +22,23 @@ final class EnrichSection implements Section {
     /** The defaults: as the user's own ship was enriched (recording of 2026-11-14). */
     static final String[] DEFAULT_ORE = {"PROMERIUM", "SEPROM", "PROMERIUM", "SEPROM"};
     static final String[] SKYLAB_ORES = {"promerium", "seprom", "prometid", "duranium"};
+    /** The game's units of each item's enrichment (its lab window): shots, rockets, minutes, minutes. */
+    static final String[] UNITS = {"выстр.", "шт.", "мин.", "мин."};
+    /** Defaults in those units: a laser shoots far more than the others last. */
+    static final int[] DEFAULT_BELOW = {50_000, 1_000, 1_000, 1_000};
+    static final int[] DEFAULT_LOAD = {10_000, 100, 100, 100};
+    static final int[] DEFAULT_FILL = {200_000, 5_000, 5_000, 5_000};
 
     private final JCheckBox enrich = new JCheckBox("Обогащать из трюма");
     private final JCheckBox[] on = new JCheckBox[4];
     private final JComboBox<String>[] ore = newCombos();
     private final JSpinner[] below = new JSpinner[4];
     private final JSpinner[] load = new JSpinner[4];
+    private final JSpinner[] fillTo = new JSpinner[4];
     private final JSpinner keepInCargo = Form.number(0, 1_000_000, 100);
     private final JSpinner perHour = Form.number(1, 600, 1);
 
     private final JCheckBox visit = new JCheckBox("Пересаживаться на корабль для Скайлаба и обогащения");
-    private final JSpinner visitBelow = Form.number(0, 100_000_000, 1_000);
-    private final JSpinner fillTo = Form.number(1, 1_000_000_000, 10_000);
     private final JCheckBox visitFast = new JCheckBox("Быстрый транспорт при пересадке (за уридий)");
     private final JSpinner visitWait = Form.number(1, 240, 1);
     private final JSpinner visitEvery = Form.number(1, 72, 1);
@@ -59,9 +64,10 @@ final class EnrichSection implements Section {
         Form f = new Form()
                 .section("Обогащение")
                 .row("", enrich)
-                .note("Когда у предмета остаётся меньше порога, бот кладёт руду из трюма (как кнопка в лаборатории"
-                        + " игры). Порог — в числах карточки «Обогащение» (1 руда = 10). Если предмет уже обогащён"
-                        + " другой рудой, бот догружает ту же, чтобы не смешивать.");
+                .note("Остаток — как в лаборатории игры: у лазеров выстрелы, у ракет штуки, у двигателей и щитов"
+                        + " минуты. Когда остаток меньше порога, бот кладёт руду из трюма (как перетаскивание в"
+                        + " лаборатории); 1 руда = 10 выстрелов, штук или минут. Если предмет уже обогащён другой рудой,"
+                        + " бот догружает ту же, чтобы не смешивать.");
         int w = 0;
         for (int i = 0; i < 4; i++) {
             on[i] = new JCheckBox(ITEM_LABELS[i]);
@@ -69,20 +75,25 @@ final class EnrichSection implements Section {
         }
         for (int i = 0; i < 4; i++) {
             on[i].setPreferredSize(new java.awt.Dimension(w, on[i].getPreferredSize().height)); // the fields in a column
-            below[i] = Form.number(0, 100_000_000, 1_000);
-            load[i] = Form.number(1, 10_000_000, 100);
-            f.row("", Form.inline(on[i], ore[i], new JLabel("если меньше"), below[i], new JLabel("класть по"), load[i]));
+            below[i] = Form.number(0, 100_000_000, 100);
+            load[i] = Form.number(1, 10_000_000, 10);
+            fillTo[i] = Form.number(1, 1_000_000_000, 100);
+            f.row("", Form.inline(on[i], ore[i], new JLabel("меньше"), below[i], new JLabel(UNITS[i] + " · по"), load[i],
+                    new JLabel("руды")));
         }
         f.row("Оставлять в трюме руды", keepInCargo)
                 .row("Не чаще, раз в час", perHour)
                 .section("Пересадка на корабль для Скайлаба")
                 .row("", visit)
                 .note("Корабль выбирается в настройках аккаунта («Аккаунты» → «Изменить» → «Скайлаб и обогащение»),"
-                        + " например Цитадель с большим трюмом. Когда у отмеченного предмета остаётся меньше порога, а"
-                        + " руды в трюме нет, бот в спокойный момент модуля (не во вратах, не в бою) пересаживается на"
-                        + " него, привозит руду со Скайлаба, обогащает всё до уровня ниже и пересаживается обратно.")
-                .row("Пересаживаться, если меньше", visitBelow)
-                .row("Обогащать до", fillTo)
+                        + " например Цитадель с большим трюмом. Когда у отмеченного предмета остаток меньше его порога"
+                        + " выше, а руды в трюме нет, бот в спокойный момент модуля (не во вратах, не в бою) пересаживается"
+                        + " на него, привозит руду со Скайлаба, обогащает каждый отмеченный предмет до его уровня ниже и"
+                        + " пересаживается обратно.");
+        for (int i = 0; i < 4; i++) {
+            f.row(ITEM_LABELS[i] + ": обогащать до", Form.inline(fillTo[i], new JLabel(UNITS[i])));
+        }
+        f
                 .row("", visitFast)
                 .row("Ждать транспорт, мин", visitWait)
                 .row("Не чаще, раз в часов", visitEvery)
@@ -121,14 +132,13 @@ final class EnrichSection implements Section {
             String o = it.path("ore").asText(DEFAULT_ORE[i]).toUpperCase(java.util.Locale.ROOT);
             int k = java.util.Arrays.asList(ORES).indexOf(o);
             ore[i].setSelectedIndex(k < 0 ? 0 : k);
-            Form.set(below[i], it.path("below").asInt(50_000));
-            Form.set(load[i], it.path("load").asInt(10_000));
+            Form.set(below[i], it.path("below").asInt(DEFAULT_BELOW[i]));
+            Form.set(load[i], it.path("load").asInt(DEFAULT_LOAD[i]));
+            Form.set(fillTo[i], it.path("fillTo").asInt(e.path("fillTo").asInt(DEFAULT_FILL[i])));
         }
         Form.set(keepInCargo, e.path("keepInCargo").asInt(0));
         Form.set(perHour, e.path("maxPerHour").asInt(30));
         visit.setSelected(e.path("visit").asBoolean(false));
-        Form.set(visitBelow, e.path("visitBelow").asInt(50_000));
-        Form.set(fillTo, e.path("fillTo").asInt(200_000));
         visitFast.setSelected(e.path("visitFast").asBoolean(false));
         Form.set(visitWait, e.path("visitWaitMinutes").asInt(15));
         Form.set(visitEvery, e.path("visitEveryHours").asInt(3));
@@ -156,12 +166,13 @@ final class EnrichSection implements Section {
                 it.put("ore", ORES[ore[i].getSelectedIndex()]);
                 it.put("below", Form.intOf(below[i]));
                 it.put("load", Form.intOf(load[i]));
+                it.put("fillTo", Form.intOf(fillTo[i]));
             }
             e.put("keepInCargo", Form.intOf(keepInCargo));
             e.put("maxPerHour", Form.intOf(perHour));
             e.put("visit", visit.isSelected());
-            e.put("visitBelow", Form.intOf(visitBelow));
-            e.put("fillTo", Form.intOf(fillTo));
+            e.remove("visitBelow"); // the items' own thresholds now
+            e.remove("fillTo");
             e.put("visitFast", visitFast.isSelected());
             e.put("visitWaitMinutes", Form.intOf(visitWait));
             e.put("visitEveryHours", Form.intOf(visitEvery));

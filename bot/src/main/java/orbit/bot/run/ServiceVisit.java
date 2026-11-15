@@ -149,7 +149,6 @@ public final class ServiceVisit {
         if (lab.items().isEmpty() && lab.nanos() == 0) {
             return false;
         }
-        long below = s.path("visitBelow").asLong(s.path("fillTo").asLong(200_000) / 4);
         for (int item = 0; item < Enricher.ITEMS.length; item++) {
             JsonNode it = s.path("items").path(Enricher.ITEMS[item]);
             if (!it.path("on").asBoolean(false)) {
@@ -157,7 +156,7 @@ public final class ServiceVisit {
             }
             WorldSnapshot.Enrichment e = lab.items().get(item);
             long left = e == null ? 0 : e.left();
-            if (left >= below) {
+            if (left >= it.path("below").asLong(s.path("visitBelow").asLong(50_000))) {
                 continue;
             }
             int ore = ore(it, e);
@@ -188,7 +187,7 @@ public final class ServiceVisit {
                 return back("обогащение у кораблей своё");
             }
         }
-        long fillTo = Math.max(1, s.path("fillTo").asLong(200_000));
+        Map<Integer, Long> fill = new LinkedHashMap<>(); // item → its level to fill up to (its own units)
         Map<Integer, Long> want = new LinkedHashMap<>(); // ore → units to fill every item up to fillTo
         Map<Integer, Integer> itemOre = new LinkedHashMap<>();
         for (int item = 0; item < Enricher.ITEMS.length; item++) {
@@ -198,15 +197,17 @@ public final class ServiceVisit {
             }
             WorldSnapshot.Enrichment e = lab.items().get(item);
             long left = e == null ? 0 : e.left();
+            long fillTo = fillTo(s, it);
             if (left >= fillTo) {
                 continue;
             }
             int ore = ore(it, e);
             itemOre.put(item, ore);
+            fill.put(item, fillTo);
             want.merge(ore, (fillTo - left + WorldSnapshot.Lab.PER_ORE - 1) / WorldSnapshot.Lab.PER_ORE, Long::sum);
         }
         if (want.isEmpty()) {
-            log.info("Обслуживание: всё обогащено до {} — обратно", fillTo);
+            log.info("Обслуживание: всё обогащено до своих уровней — обратно");
             return back(null);
         }
         // the enrichment from the hold, one at a time, the lab's answer awaited
@@ -221,6 +222,7 @@ public final class ServiceVisit {
                 }
                 WorldSnapshot.Enrichment en = lab.items().get(item);
                 long left = en == null ? 0 : en.left();
+                long fillTo = fill.get(item);
                 long need = (fillTo - left + WorldSnapshot.Lab.PER_ORE - 1) / WorldSnapshot.Lab.PER_ORE;
                 long n = Math.min(need, have);
                 ctx.actions().labEnrich(item, ore, n);
@@ -349,6 +351,12 @@ public final class ServiceVisit {
             }
         }
         return false;
+    }
+
+    /** The item's level to fill up to on the service ship: its own {@code fillTo}, else the old common one, else 4× below. */
+    static long fillTo(JsonNode s, JsonNode it) {
+        long below = it.path("below").asLong(50_000);
+        return Math.max(1, it.path("fillTo").asLong(s.path("fillTo").asLong(below * 4)));
     }
 
     private static int ore(JsonNode it, WorldSnapshot.Enrichment e) {

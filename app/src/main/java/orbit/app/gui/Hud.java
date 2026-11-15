@@ -175,6 +175,8 @@ final class Hud {
 
     /** The lab's items in the window's words (LabItemModule: laser 0, rockets 1, drive 2, shield 3). */
     static final List<String> LAB_ITEMS = List.of("Лазеры", "Ракеты", "Двигатели", "Щиты");
+    /** The game's units of what is left (its lab window, 2026-11-15): shots, rockets, minutes, minutes. */
+    static final List<String> LAB_UNITS = List.of("выстр.", "шт.", "мин.", "мин.");
 
     /** OreTypeModule numbers of the enriching ores. */
     static String oreName(int ore) {
@@ -225,7 +227,7 @@ final class Hud {
                     boolean has = e != null && e.left() > 0;
                     g.setColor(has ? TEXT : DIM);
                     g.drawString(LAB_ITEMS.get(i), x + pad, ry + 10);
-                    String v = has ? oreName(e.ore()) + "  " + money(e.left()) : "нет";
+                    String v = has ? oreName(e.ore()) + "  " + money(e.left()) + " " + LAB_UNITS.get(i) : "нет";
                     g.drawString(v, x + width - pad - g.getFontMetrics().stringWidth(v), ry + 10);
                     ry += line;
                 }

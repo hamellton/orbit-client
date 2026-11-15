@@ -74,7 +74,8 @@ final class InfoWindows {
             for (int i = 0; i < Hud.LAB_ITEMS.size(); i++) {
                 WorldSnapshot.Enrichment e = lab.items().get(i);
                 it.put(Hud.LAB_ITEMS.get(i), e == null || e.left() <= 0 ? "нет"
-                        : Hud.oreName(e.ore()) + " · " + money(e.left()) + " (≈ " + money(e.left() / WorldSnapshot.Lab.PER_ORE)
+                        : Hud.oreName(e.ore()) + " · " + money(e.left()) + " " + Hud.LAB_UNITS.get(i) + " (≈ "
+                        + money(e.left() / WorldSnapshot.Lab.PER_ORE)
                         + " руды)");
             }
             items.set(it);
