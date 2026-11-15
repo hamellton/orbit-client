@@ -524,6 +524,7 @@ public final class Attacker {
         ledFrom.clear();
         standAt = null;
         modeTold = null;
+        edgeTold = false;
         watchedSince = ctx.now();
         judgeTarget0 = -1;
         judgeHull0 = -1;
@@ -944,6 +945,16 @@ public final class Attacker {
         if (m == BotConfig.FightMove.CIRCLE && rule != null && rule.has(BotConfig.NpcFlag.NO_CIRCLE)) {
             m = BotConfig.FightMove.STAND;
         }
+        if (m == BotConfig.FightMove.CIRCLE && byEdge(t, h, Targets.radius(c, t, h.mapId()))) {
+            // by the map's edge the circle runs into it and the ship ends next to the target, the others shooting too
+            // (live 2026-11-15 on gb2, GG α: Protegits in a corner, «там нельзя», 60 from one) — the distance held from
+            // the open side, backing off as it comes (the user: «добивать НПС в углу, но чтобы НПС не доставали»)
+            if (!edgeTold) {
+                edgeTold = true;
+                log.info("{} у края карты — не кружу, держу дистанцию со стороны центра", t.name());
+            }
+            m = BotConfig.FightMove.KITE;
+        }
         if (m != modeTold) {
             modeTold = m;
             log.info("{}: {}", t.name(), switch (m) {
@@ -954,6 +965,21 @@ public final class Attacker {
         }
         return m;
     }
+
+    private boolean edgeTold;
+
+    /** The target this close to an edge of the map that the ship's circle round it would cross the edge. */
+    private boolean byEdge(WorldSnapshot.Ship t, WorldSnapshot.Hero h, double radius) {
+        orbit.world.maps.MapCatalog.MapInfo m = ctx.maps().info(h.mapId());
+        if (m == null || m.width() <= 0) {
+            return false;
+        }
+        double edge = Math.min(Math.min(t.x(), m.width() - t.x()), Math.min(t.y(), m.height() - t.y()));
+        return edge < radius + EDGE_GAP;
+    }
+
+    /** Room the circle needs beyond its radius from an edge. */
+    static final double EDGE_GAP = 250;
 
     /**
      * The point to come in at: on the radius round the target, at most 60° off the straight way, where the threats

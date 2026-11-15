@@ -57,6 +57,26 @@ class AttackerTest {
     }
 
     @Test
+    void byTheMapsEdgeTheDistanceIsHeldFromTheOpenSideNoCircle() {
+        // live 2026-11-15 on gb2, GG α: Protegits in a corner, the circle ran into the edge, 60 from one
+        Sim sim = new Sim(config(true, null, Set.of()), 1, 1_500, 6_000);
+        sim.lasers("ammunition_laser_lcb-10");
+        sim.npc(7, "-=[ Target ]=-", 300, 6_000);
+        Attacker a = new Attacker(sim.ctx);
+        a.target(sim.world.snapshot(sim.now).ships().get(7));
+        double minDist = Double.MAX_VALUE;
+        for (int i = 0; i < 200; i++) {
+            a.tick(true);
+            sim.now += 100 * Sim.MS;
+            var h = sim.hero();
+            minDist = Math.min(minDist, Math.hypot(h.x() - 300, h.y() - 6_000));
+        }
+        var h = sim.hero();
+        assertTrue(h.x() > 300, "on the open side: " + h.x());
+        assertTrue(minDist > 300, "never next to it: " + minDist);
+    }
+
+    @Test
     void noCirclingWhenOffOrFlagged() {
         for (BotConfig c : List.of(config(false, null, Set.of()), config(true, null, Set.of("NO_CIRCLE")))) {
             Sim sim = new Sim(c, 1, 10_500, 6_000);
