@@ -101,6 +101,8 @@ public final class SkylabCare {
             return;
         }
         long room = ctx.world().get().cargoFree();
+        long cargoMax = ctx.world().get().hero().cargoMax();
+        int fastMinFree = Math.max(0, Math.min(100, s.path("fastMinFreePercent").asInt(50)));
         long keep = Math.max(0, s.path("keepOnSkylab").asLong(0));
         boolean fast = s.path("fast").asBoolean(false);
         busy = true;
@@ -117,13 +119,32 @@ public final class SkylabCare {
                 }
                 Map<String, Long> send = new LinkedHashMap<>();
                 long free = room < 0 ? Long.MAX_VALUE : room;
+                long total = 0;
                 for (Map.Entry<String, Long> e : want.entrySet()) {
                     long there = Math.max(0, st.ores().getOrDefault(e.getKey(), 0L) - keep);
-                    long n = Math.min(Math.min(e.getValue(), there), free);
+                    if (there < e.getValue()) {
+                        // a warning, not a refusal: what there is goes (the user, 2026-11-16)
+                        tellOnce("Скайлаб: на складе " + e.getKey() + " " + there + " из нужных " + e.getValue()
+                                + " — везу сколько есть");
+                    }
+                    long n = Math.min(e.getValue(), there);
+                    total += n;
+                    n = Math.min(n, free);
                     if (n > 0) {
                         send.put(e.getKey(), n);
                         free -= n;
                     }
+                }
+                long sending = send.values().stream().mapToLong(Long::longValue).sum();
+                if (room >= 0 && total > room) {
+                    // the paid one only into a hold at least half free (the user, 2026-11-16: «без премиума у Цитадели
+                    // 8 000 трюма… хотя бы 50 % трюма свободно, если размер большой»), else not in small paid trips
+                    if (fast && cargoMax > 0 && room * 100 < (long) fastMinFree * cargoMax) {
+                        tellOnce("Скайлаб: быстрый транспорт — в трюме свободно " + room + " из " + cargoMax + " (меньше "
+                                + fastMinFree + " %), нужно " + total + " — жду, пока освободится");
+                        return;
+                    }
+                    tellOnce("Скайлаб: в трюме свободно " + room + " из нужных " + total + " — везу " + sending);
                 }
                 if (send.isEmpty()) {
                     tellOnce(room == 0 ? "Скайлаб: в трюме нет места — жду"

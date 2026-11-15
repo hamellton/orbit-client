@@ -49,6 +49,7 @@ final class EnrichSection implements Section {
     private final JCheckBox forEnrich = new JCheckBox("И сразу, когда обогащению не хватает руды в трюме");
     private final JSpinner keepOnSkylab = Form.number(0, 10_000_000, 100);
     private final JCheckBox fast = new JCheckBox("Быстрый транспорт (за уридий)");
+    private final JSpinner fastMinFree = Form.number(0, 100, 5);
     private final JComponent view;
 
     @SuppressWarnings("unchecked")
@@ -109,6 +110,9 @@ final class EnrichSection implements Section {
                 .row("", forEnrich)
                 .row("Оставлять на складе Скайлаба", keepOnSkylab)
                 .row("", fast)
+                .row("Быстрый: если всё не влезает — везти, когда свободно трюма, %", fastMinFree)
+                .note("Если нужное не влезает в трюм целиком, платный транспорт ждёт, пока свободно хотя бы столько"
+                        + " процентов трюма, — чтобы не платить за мелкие поездки. Что влезает целиком — везёт сразу.")
                 .build(true);
     }
 
@@ -151,6 +155,7 @@ final class EnrichSection implements Section {
         forEnrich.setSelected(s.path("forEnrich").asBoolean(true));
         Form.set(keepOnSkylab, s.path("keepOnSkylab").asInt(0));
         fast.setSelected(s.path("fast").asBoolean(false));
+        Form.set(fastMinFree, s.path("fastMinFreePercent").asInt(50));
     }
 
     @Override
@@ -189,6 +194,7 @@ final class EnrichSection implements Section {
             s.put("forEnrich", forEnrich.isSelected());
             s.put("keepOnSkylab", Form.intOf(keepOnSkylab));
             s.put("fast", fast.isSelected());
+            s.put("fastMinFreePercent", Form.intOf(fastMinFree));
             c = c.withModuleSettings("skylab", s);
         }
         return c; // an untouched config of another kind keeps no such sections

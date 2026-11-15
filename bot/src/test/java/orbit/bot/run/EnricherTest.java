@@ -138,4 +138,46 @@ class EnricherTest {
         assertEquals(List.of(0, 1, 2, 4, 5), CargoCare.keepEnrichOres(c, plan).ores(), "promerium kept");
         assertEquals(plan, CargoCare.keepEnrichOres(BotConfig.empty(), plan), "no enrichment: as it was");
     }
+
+    static Map<String, Long> fastSend(int free, int max) throws Exception {
+        Sim sim = new Sim(config(ON, """
+                {"enabled":true,"ores":{"promerium":10000},"everyMinutes":20,"fast":true,"fastMinFreePercent":50}"""),
+                1, 1_000, 1_000);
+        orbit.protocol.gen.ShipInitializationCommand si = new orbit.protocol.gen.ShipInitializationCommand();
+        si.userId = 1;
+        si.mapId = 1;
+        si.x = 1_000;
+        si.y = 1_000;
+        si.hitPoints = 100;
+        si.hitMax = 100;
+        si.cargoSpace = free;
+        si.cargoSpaceMax = max;
+        sim.world.apply(si, sim.now);
+        java.util.concurrent.CompletableFuture<Map<String, Long>> sent = new java.util.concurrent.CompletableFuture<>();
+        SkylabCare care = new SkylabCare(sim.ctx, Map::of);
+        care.setAccess(new SkylabAccess() {
+            @Override
+            public Stock stock() {
+                return new Stock(false, Map.of("promerium", 1_000_000L));
+            }
+
+            @Override
+            public void transport(Map<String, Long> amounts, boolean fast) {
+                sent.complete(amounts);
+            }
+        });
+        care.tick();
+        try {
+            return sent.get(1, java.util.concurrent.TimeUnit.SECONDS);
+        } catch (java.util.concurrent.TimeoutException e) {
+            return Map.of();
+        }
+    }
+
+    @Test
+    void thePaidTransportGoesIntoAHoldAtLeastHalfFreeElseWaits() throws Exception {
+        // the user, 2026-11-16: the citadel without premium holds 8 000; 6 000 free of 10 000 wanted — 6 000 go
+        assertEquals(Map.of("promerium", 6_000L), fastSend(6_000, 8_000));
+        assertEquals(Map.of(), fastSend(3_000, 8_000), "3 000 of 8 000 free: under 50 %, the paid one waits");
+    }
 }
