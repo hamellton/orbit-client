@@ -333,4 +333,30 @@ class HealingTest {
         assertTrue(d.x() == 593 && d.y() == 5_884 || d.x() == 20_377 && d.y() == 7_996,
                 "the 2-8 portal or the own (3-BL) one, not 1-BL: " + d.x() + "/" + d.y());
     }
+
+    @Test
+    void inAGateTheRepairIsAwayFromTheNpcsNotAtAPortal() {
+        // live 2026-11-15 on gb2, GG α: off to the learned portal home at 59 %, shot there, jumped at 21 %, killed
+        BotConfig c = BotConfig.empty().withSafety(new BotConfig.Safety(0.5, 0.9, 0.5, 0, null, null, 10, "BASE", 0, 0));
+        Sim sim = new Sim(c, 51, 10_000, 6_500);
+        orbit.protocol.gen.JumpgateCreateCommand home = new orbit.protocol.gen.JumpgateCreateCommand();
+        home.gateId = 601;
+        home.designId = 1;
+        home.x = 10_000;
+        home.y = 7_000;
+        sim.world.apply(home, sim.now);
+        sim.npc(70, "-=[ Protegit ]=- α37", 9_500, 6_500);
+        sim.npc(71, "-=[ Protegit ]=- α38", 9_600, 6_800);
+        orbit.protocol.gen.AttackHitCommand hit = new orbit.protocol.gen.AttackHitCommand();
+        hit.attackerId = 70;
+        hit.victimId = 1;
+        hit.victimHitpoints = 30_000;
+        hit.victimShield = 0;
+        sim.world.apply(hit, sim.now);
+        Safety s = new Safety(sim.ctx);
+        sim.run(() -> s.tick(true), 8_000);
+        var h = sim.hero();
+        assertTrue(h.x() > 11_000, "away from the NPCs on the west: " + h.x() + "/" + h.y());
+        assertTrue(sim.sent.stream().noneMatch(p -> p instanceof orbit.protocol.gen.JumpRequest), "no jump out of the gate");
+    }
 }

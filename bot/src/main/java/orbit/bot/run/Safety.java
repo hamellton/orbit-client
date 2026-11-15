@@ -138,8 +138,13 @@ public final class Safety {
                 ctx.stats().repairs.incrementAndGet();
                 repairMap = h.mapId();
                 ctx.nav().stop();
-                SafePlaces.Place to = SafePlaces.nearest(w, ctx.maps(), ctx.stats().closedPortals, s.oneWayJumps(), repairMap);
-                log.info("HP {}% — ухожу на ремонт{}", pct(hp), to == null ? "" : ": " + to.name());
+                if (orbit.config.GateCatalog.byMap(h.mapId()) != null) {
+                    log.info("HP {}% — во вратах: отхожу от NPC и чинюсь там же (порталы не трогаю)", pct(hp));
+                } else {
+                    SafePlaces.Place to = SafePlaces.nearest(w, ctx.maps(), ctx.stats().closedPortals, s.oneWayJumps(),
+                            repairMap);
+                    log.info("HP {}% — ухожу на ремонт{}", pct(hp), to == null ? "" : ": " + to.name());
+                }
             } else {
                 return false;
             }
@@ -150,6 +155,13 @@ public final class Safety {
             return false;
         }
         ctx.ship().want(s.repairMode());
+        if (orbit.config.GateCatalog.byMap(h.mapId()) != null) {
+            // in a galaxy gate no portal is a shelter: the one learned there leads home, out of the gate, and the NPCs
+            // follow to it (live 2026-11-15 on gb2, GG α: off to it at 59 %, shot there by the Protegits, jumped at
+            // 21 % and killed) — away from the NPCs inside the gate, the repair there (DarkBot repairs in the gate too)
+            awayInGate(w, h);
+            return true;
+        }
         // a base (own or shared) or a portal that lets the ship through (on 5-2: the shared base)
         SafePlaces.Place place = SafePlaces.nearest(w, ctx.maps(), ctx.stats().closedPortals, s.oneWayJumps(), repairMap);
         if (place == null) {
@@ -197,6 +209,67 @@ public final class Safety {
             }
         }
         return true;
+    }
+
+    /** NPCs this close count for the way off them in a gate. */
+    static final double GATE_NPC_SIGHT = 2_500;
+    /** How far from the NPCs the ship goes in a gate, and how far from the map's edges it keeps. */
+    static final double GATE_AWAY = 3_000;
+    static final double GATE_EDGE = 800;
+
+    /**
+     * In a gate: off the NPCs about — the point {@link #GATE_AWAY} from their middle, on the far side, kept off the
+     * map's edges; when that side is an edge, along it (not into a corner).
+     */
+    private void awayInGate(WorldSnapshot w, WorldSnapshot.Hero h) {
+        double sx = 0;
+        double sy = 0;
+        int n = 0;
+        for (WorldSnapshot.Ship sh : w.ships().values()) {
+            if (sh.npc() && sh.distanceTo(h.x(), h.y()) <= GATE_NPC_SIGHT) {
+                sx += sh.x();
+                sy += sh.y();
+                n++;
+            }
+        }
+        if (n == 0) {
+            ctx.nav().stop(); // none about: the repair where the ship is
+            return;
+        }
+        double[] to = gateAway(sx / n, sy / n, h.x(), h.y(), ctx.maps().info(h.mapId()));
+        if (ctx.nav().idle() || Math.hypot(ctx.nav().destination().x() - to[0], ctx.nav().destination().y() - to[1]) > 400) {
+            ctx.nav().moveTo(to[0], to[1], false);
+        }
+        ctx.nav().tick();
+    }
+
+    /** The point off the NPCs' middle ({@code cx}, {@code cy}) through the ship, inside the map. */
+    static double[] gateAway(double cx, double cy, double x, double y, MapCatalog.MapInfo m) {
+        double dx = x - cx;
+        double dy = y - cy;
+        double len = Math.hypot(dx, dy);
+        if (len < 1) {
+            dx = m.width() / 2.0 - x;
+            dy = m.height() / 2.0 - y;
+            len = Math.max(1, Math.hypot(dx, dy));
+        }
+        double tx = clamp(x + dx / len * GATE_AWAY, GATE_EDGE, m.width() - GATE_EDGE);
+        double ty = clamp(y + dy / len * GATE_AWAY, GATE_EDGE, m.height() - GATE_EDGE);
+        if (Math.hypot(tx - x, ty - y) < GATE_AWAY / 3) {
+            // pressed to an edge: along it, the way that is farther from the NPCs
+            double px = -dy / len;
+            double py = dx / len;
+            double ax = clamp(x + px * GATE_AWAY, GATE_EDGE, m.width() - GATE_EDGE);
+            double ay = clamp(y + py * GATE_AWAY, GATE_EDGE, m.height() - GATE_EDGE);
+            double bx = clamp(x - px * GATE_AWAY, GATE_EDGE, m.width() - GATE_EDGE);
+            double by = clamp(y - py * GATE_AWAY, GATE_EDGE, m.height() - GATE_EDGE);
+            return Math.hypot(ax - cx, ay - cy) >= Math.hypot(bx - cx, by - cy) ? new double[] {ax, ay} : new double[] {bx, by};
+        }
+        return new double[] {tx, ty};
+    }
+
+    private static double clamp(double v, double lo, double hi) {
+        return Math.max(lo, Math.min(hi, v));
     }
 
     /**
