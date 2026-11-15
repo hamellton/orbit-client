@@ -122,6 +122,12 @@ public final class GateModule implements BotModule {
     }
 
     @Override
+    public double targetHp() {
+        WorldSnapshot.Ship t = ctx.world().get().ships().get(attacker.targetId());
+        return t != null && t.health().known() ? t.health().hpPercent() : -1;
+    }
+
+    @Override
     public int fightTarget() {
         return attacker.targetId();
     }
@@ -172,6 +178,16 @@ public final class GateModule implements BotModule {
     /** The gate's centre: SharedPlugin's GateHandler (10 000, 6 000), not the map's middle (GG β is 21 000 × 13 160). */
     private static double[] centre(WorldSnapshot w) {
         return new double[] {10_000, 6_000};
+    }
+
+    /** SharedPlugin's collect.radius from the user's profile: boxes this close are taken in a fight. */
+    static final double FIGHT_BOX_RADIUS = 400;
+
+    /** A box within 400 of the ship lies inside the target's radius (SharedPlugin leaves it for later). */
+    private static boolean boxNearTarget(WorldSnapshot w, WorldSnapshot.Ship t, double radius) {
+        WorldSnapshot.Hero h = w.hero();
+        return w.collectables().values().stream().filter(b -> Math.hypot(b.x() - h.x(), b.y() - h.y()) <= FIGHT_BOX_RADIUS)
+                .anyMatch(b -> Math.hypot(b.x() - t.x(), b.y() - t.y()) < radius);
     }
 
     /** SharedPlugin's targetSwitchOffset: the one being shot is kept unless another is this much nearer. */
@@ -817,6 +833,16 @@ public final class GateModule implements BotModule {
             quietSince = 0;
             stuckStep = 0;
             attacker.target(t);
+            // SharedPlugin's shouldCollectWhileAttacking: a box within the collect radius (400) of the ship, not inside
+            // the target's radius — picked up, the attack going on
+            double tr = Targets.radius(c, t, h.mapId());
+            if (boxes.busy() || !boxNearTarget(w, t, tr)) {
+                if (boxes.tickNearInFight(h.x(), h.y(), FIGHT_BOX_RADIUS)) {
+                    attacker.tick(false);
+                    status = "Врата " + g.name() + ": бой, подбираю " + boxes.currentName() + wave(st);
+                    return;
+                }
+            }
             attacker.tick(true);
             status = "Врата " + g.name() + ": бой" + wave(st);
             return;

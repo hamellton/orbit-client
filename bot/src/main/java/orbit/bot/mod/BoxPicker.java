@@ -112,6 +112,16 @@ public final class BoxPicker {
         }
     }
 
+    /** The config's boxes within {@code within} of (ax, ay) in a fight: the ship's mode stays the fight's. */
+    public boolean tickNearInFight(double ax, double ay, double within) {
+        keepShipMode = true;
+        try {
+            return tick(ax, ay, within);
+        } finally {
+            keepShipMode = false;
+        }
+    }
+
     /** True while busy with a box (the caller should not move the ship). Boxes near the ship. */
     public boolean tick() {
         return tick(Double.NaN, Double.NaN);

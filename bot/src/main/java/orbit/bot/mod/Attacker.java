@@ -632,7 +632,9 @@ public final class Attacker {
             return new double[] {t.x(), t.y()};
         }
         double dist = t.distanceTo(h.x(), h.y());
-        double lead = Math.min(LEAD_MAX_S, LEAD_MIN_S + Math.max(0, dist - radius) / Math.max(200, h.speed()));
+        // DarkBot's moveToAnSafePosition: destinationInTime(400) in a gate
+        double lead = gate != null ? 0.4
+                : Math.min(LEAD_MAX_S, LEAD_MIN_S + Math.max(0, dist - radius) / Math.max(200, h.speed()));
         double px = t.x() + vx * lead;
         double py = t.y() + vy * lead;
         double toDest = Math.hypot(t.targetX() - t.x(), t.targetY() - t.y());
@@ -818,8 +820,8 @@ public final class Attacker {
         abilities(c, rule, w, h, dist, radius, now);
         // close enough to shoot: it must lose something soon, whether the attack started or not (without
         // ammunition the game never starts it)
-        if (cannotWin(c, t, h, now)) {
-            return false;
+        if (gate == null && cannotWin(c, t, h, now)) {
+            return false; // in a gate DarkBot never gives a target up as too strong
         }
         if (dist <= radius + 200) {
             if ((rule == null || !rule.has(BotConfig.NpcFlag.HOLD_TARGET)) && noDamage(t, now)) {
@@ -1204,7 +1206,22 @@ public final class Attacker {
         double r = radius;
         // DarkBot comes nearer to a still or nearly dead NPC — not when its kind was learned to hit the ship nearer
         // (live 2026-11-13 on 2-7: Boss Kristallon learned 675, fought at 593, the learning took it for 675)
-        if (!raw && !learnedFarther && (!t.moving() || t.health().known() && t.health().hpPercent() < 0.25)) {
+        if (gate != null) {
+            if (!raw) {
+                // DarkBot's NpcAttacker.modifyRadius exactly: not shooting it yet — 550 at most, so the first shot
+                // reaches; a still or nearly dead one — 600; a nearly dead follower ×0.75
+                boolean low = t.health().known() && t.health().hpPercent() < 0.25;
+                BotConfig.NpcRule rr0 = Targets.rule(ctx.config().get(), t, h.mapId());
+                if (low && rr0 != null && rr0.has(BotConfig.NpcFlag.AGGRESSIVE_FOLLOW)) {
+                    r *= 0.75;
+                }
+                if (h.attackTargetId() != t.id()) {
+                    r = Math.min(550, r);
+                } else if (!t.moving() || low) {
+                    r = Math.min(600, r);
+                }
+            }
+        } else if (!raw && !learnedFarther && (!t.moving() || t.health().known() && t.health().hpPercent() < 0.25)) {
             r = Math.min(r, 600); // DarkBot's modifyRadius; the repair's 2 000 is taken raw
         }
         if (gate == null && fleeing(t, h)) {

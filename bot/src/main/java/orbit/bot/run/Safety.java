@@ -93,6 +93,12 @@ public final class Safety {
     }
 
     private java.util.function.BooleanSupplier gateRepair;
+    private java.util.function.DoubleSupplier gateTargetHp;
+
+    /** The gate's target's HP share ({@code -1} no target), for SharedPlugin's repair start. */
+    public void gateTargetHp(java.util.function.DoubleSupplier hp) {
+        this.gateTargetHp = hp;
+    }
 
     /** The module's own repair in a galaxy gate ({@link BotModule#repairTick}). */
     public void gateRepair(java.util.function.BooleanSupplier r) {
@@ -125,6 +131,22 @@ public final class Safety {
         checkJump(w, h, now);
         heal(w, s, now, hp, attacked);
         noteHp(hp, now);
+        boolean gate = orbit.config.GateCatalog.byMap(h.mapId()) != null;
+        if (!repairing && gate) {
+            // SharedPlugin's needsRepairing: below the range's min, or below «no NPC» with no target or one above 90 %
+            double t = gateTargetHp == null ? -1 : gateTargetHp.getAsDouble();
+            if (hp >= s.repairHpMin() && (hp >= s.repairHpNoNpc() || t >= 0 && t <= 0.9)) {
+                return false;
+            }
+            if (repaired(h, s, hp)) {
+                return false;
+            }
+            repairing = true;
+            oneWayTold = false;
+            ctx.stats().repairs.incrementAndGet();
+            repairMap = h.mapId();
+            log.info("HP {}% — во вратах: чинюсь, кружа вокруг цели на 2000 (как SharedPlugin)", pct(hp));
+        }
         if (!repairing) {
             double limit = attacked || fighting ? s.repairHpMin() : s.repairHpNoNpc();
             // losing hull fast: leave the more early, so as to reach the portal (live 2026-11-13: 25 % → 5 % on the
