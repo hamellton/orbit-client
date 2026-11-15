@@ -440,9 +440,12 @@ public final class GateModule implements BotModule {
      *  and the way to the next gate start there (the user, 2026-11-15: spins were made amid 3-1's NPCs, shot at). */
     static final double AT_REFINERY = 500;
 
+    /** SharedPlugin's shouldMoveToRefinery: set at the start and on leaving a gate, cleared at the refinery. */
+    private boolean toRefinery = true;
+
     private boolean toBase(WorldSnapshot w) {
         WorldSnapshot.Hero h = w.hero();
-        if (h.mapId() != workingMap()) {
+        if (!toRefinery || h.mapId() != workingMap()) {
             return false;
         }
         WorldSnapshot.Asset base = w.assets().values().stream()
@@ -451,7 +454,11 @@ public final class GateModule implements BotModule {
                 .min(java.util.Comparator.<WorldSnapshot.Asset>comparingInt(a -> "OreTrade".equalsIgnoreCase(a.name()) ? 0 : 1)
                         .thenComparingDouble(a -> Math.hypot(a.x() - h.x(), a.y() - h.y())))
                 .orElse(null);
-        if (base == null || Math.hypot(base.x() - h.x(), base.y() - h.y()) <= AT_REFINERY) {
+        if (base == null) {
+            return false; // not seen yet (just logged in): asked again next tick
+        }
+        if (Math.hypot(base.x() - h.x(), base.y() - h.y()) <= AT_REFINERY) {
+            toRefinery = false; // there: the builder and the way to the gate from here
             return false;
         }
         ctx.ship().want(config().general().run());
@@ -1041,6 +1048,7 @@ public final class GateModule implements BotModule {
         }
         inGate = null;
         lastWave = -1;
+        toRefinery = true;
         attacker.gateStyle(null);
         stillSince = 0;
         stuckStep = 0;
