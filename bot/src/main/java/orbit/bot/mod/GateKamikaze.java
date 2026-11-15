@@ -123,12 +123,6 @@ final class GateKamikaze {
             tightSince = 0;
             return false;
         }
-        if (now < cooldownUntil) {
-            // after a blast they are hurt, not dead (live 2026-11-15 on gb2, GG β: 17 Kristallins before and after two
-            // blasts) — shot meanwhile, gathered again once the pet can go off again
-            stage = Stage.INACTIVE;
-            return false;
-        }
         if (stage != Stage.GATHERING) {
             log.info("Камикадзе: {} NPC для взрыва — собираю их в кучу (питомец пассивный, по ним не стреляю)", valid.size());
             orbitAngle = Double.NaN;
