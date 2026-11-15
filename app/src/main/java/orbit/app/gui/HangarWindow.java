@@ -188,7 +188,7 @@ final class HangarWindow {
         return out;
     }
 
-    private static JScrollPane table(Rows model) {
+    static JScrollPane table(Rows model) {
         JTable t = new JTable(model);
         t.setFillsViewportHeight(true);
         t.setAutoCreateRowSorter(true);
