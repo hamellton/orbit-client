@@ -517,6 +517,7 @@ public final class BehemothModule implements BotModule {
         watch(w);
         countDeaths();
         skipsEnded(h);
+        relearnCheck(s, wallMs());
         WorldSnapshot.Ship b = findBehemoth(c, w);
         boolean saved = on(s, "powersForBehemoth", false);
         if (saved && b == null) {
@@ -1813,6 +1814,9 @@ public final class BehemothModule implements BotModule {
      * not left — at most a respawn and {@link #FIRST_SPARE_MS}; after that the round as usual, by the timers.
      */
     private boolean waitingFirst(int map) {
+        if (relearnMaps.contains(map)) {
+            return relearning(map);
+        }
         if (!on(settings(), "waitFirst", false) || firstDone) {
             return false;
         }
@@ -1830,6 +1834,65 @@ public final class BehemothModule implements BotModule {
         if (!firstTold) {
             firstTold = true;
             log.info("Жду первого бегемота на {}, не улетая (до {})", ctx.maps().info(map).name(),
+                    clock(respawn(map) + FIRST_SPARE_MS));
+        }
+        return true;
+    }
+
+    /**
+     * {@code relearnTimers} (the user, 2026-11-15: «если уже запомнил тайминги, а потом что-то поменялось и не может найти
+     * бегемота какое-то время — ждать на карте до появления, и так на трёх картах»; live the night before on the VPS:
+     * from 01:00 to 07:44 the ship came early by its timers, waited ~2 min, «бегемота нет», on — forever): no behemoth
+     * seen for {@code relearnMinutes} (20) while working by the timers — the timers of the BL maps forgotten, and on each
+     * map without one the ship waits, not leaving, until its behemoth comes (at most a respawn and
+     * {@link #FIRST_SPARE_MS}); all three learned — the round by the timers again.
+     */
+    private final java.util.Set<Integer> relearnMaps = new java.util.TreeSet<>();
+    private final java.util.Set<Integer> relearnTold = new java.util.HashSet<>();
+    private long relearnAt;
+    /** When the module began (wall ms), the start of the silence before the first behemoth. */
+    private long startedWall;
+
+    private void relearnCheck(JsonNode s, long wall) {
+        if (startedWall == 0) {
+            startedWall = wall;
+        }
+        if (!on(s, "relearnTimers", false) || !relearnMaps.isEmpty()) {
+            return;
+        }
+        long last = Math.max(Math.max(behemothSeenAt, startedWall), relearnAt);
+        long limit = (long) number(s, "relearnMinutes", 20) * 60_000;
+        boolean byTimers = maps(s).stream().anyMatch(m -> dueAt(m, wall) > 0);
+        if (limit <= 0 || wall - last < limit || !byTimers) {
+            return;
+        }
+        log.warn("Бегемота не видно {} — тайминги, похоже, сбились: забываю их и учу заново (на каждой карте жду до"
+                + " появления)", clock(wall - last));
+        for (int m : maps(s)) {
+            memory.forget(m);
+            relearnMaps.add(m);
+        }
+        relearnTold.clear();
+        relearnAt = wall;
+        waitStarted = ctx.now();
+    }
+
+    /** On a map being learned again: wait till its behemoth comes; true while waiting. */
+    private boolean relearning(int map) {
+        if (dueAt(map, wallMs()) > 0 || behemothSeenMap == map && behemothSeenAt >= relearnAt) {
+            relearnMaps.remove(map);
+            log.info("{}: тайминг бегемота выучен заново{}", ctx.maps().info(map).name(),
+                    relearnMaps.isEmpty() ? " — все карты, дальше по таймерам" : ", осталось " + relearnMaps.size());
+            return false;
+        }
+        long waited = (ctx.now() - waitStarted) / 1_000_000;
+        if (waited > respawn(map) + FIRST_SPARE_MS) {
+            relearnMaps.remove(map);
+            log.info("На {} за {} бегемота не было — дальше", ctx.maps().info(map).name(), clock(waited));
+            return false;
+        }
+        if (relearnTold.add(map)) {
+            log.info("Учу тайминг заново: жду бегемота на {}, не улетая (до {})", ctx.maps().info(map).name(),
                     clock(respawn(map) + FIRST_SPARE_MS));
         }
         return true;

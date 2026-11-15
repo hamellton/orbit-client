@@ -58,6 +58,9 @@ final class BehemothSection implements Section {
     private final JSpinner closeKeep = Form.number(300, 4_000, 100);
     private final JSpinner respawnSec = Form.number(0, 3_600, 5);
     private final JCheckBox waitFirst = new JCheckBox("Пока таймеров нет — ждать на первой карте, пока не придёт бегемот (до 17 мин)");
+    private final JCheckBox relearnTimers = new JCheckBox("Тайминги сбились (бегемота долго нет) — забыть и выучить заново:"
+            + " на каждой карте ждать до появления");
+    private final JSpinner relearnMinutes = Form.number(5, 240, 5);
     private final JCheckBox locatorList = new JCheckBox("Нет бегемота в списке целей пеленгатора — сразу на другую карту");
     private final JCheckBox useCloak = new JCheckBox("Маскировка, пока ждём бегемота (CL04K)");
     private final ItemBox cloakFormation = new ItemBox(ItemCatalog.FORMATIONS, true);
@@ -152,6 +155,11 @@ final class BehemothSection implements Section {
                 + " порога; потом EMP ниже своего, не пока держится стенка");
         followTrain.setToolTipText("Поезда знают таймеры: 3 и больше врагов пропали у одного портала за 30 с — поезд ушёл"
                 + " туда, бегемот, похоже, там; бот летит следом, выждав 20 с, чтобы не прилететь им на хвост");
+        relearnTimers.setToolTipText("Бот уже работал по таймерам, но столько минут не видел ни одного бегемота: тайминги"
+                + " трёх BL-карт забываются, и на каждой карте бот ждёт, не улетая, пока бегемот не появится (до 17 мин),"
+                + " — так по кругу, пока все три не выучит, потом снова по таймерам");
+        relearnMinutes.setToolTipText("Сколько минут без единого бегемота считать, что тайминги сбились");
+        relearnTimers.addActionListener(e -> relearnMinutes.setEnabled(relearnTimers.isSelected()));
         waitFirst.setToolTipText("Как scoutMinutes у BLCycle (CARNAGE): пока бот не видел ни одного бегемота, он не облетает"
                 + " карты, а ждёт на первой — до времени появления и 2 минут запаса; дальше — по кругу, по таймерам");
         locatorList.setToolTipText("В пеленгаторе можно выбрать только тех NPC, что есть на карте: бегемота в списке нет —"
@@ -207,6 +215,8 @@ final class BehemothSection implements Section {
                 .row("…или точно, с (0 — по минутам)", respawnSec)
                 .row("", onTime)
                 .row("", waitFirst)
+                .row("", relearnTimers)
+                .row("Без бегемота столько минут — учить заново", relearnMinutes)
                 .row("", followTrain)
                 .row("Засчитывать убийство от, уридия", reward)
                 .row("", useLocator)
@@ -409,6 +419,9 @@ final class BehemothSection implements Section {
         useLocator.setSelected(m.path("useLocator").asBoolean(false));
         locatorList.setSelected(m.path("locatorList").asBoolean(false));
         waitFirst.setSelected(m.path("waitFirst").asBoolean(false));
+        relearnTimers.setSelected(m.path("relearnTimers").asBoolean(false));
+        Form.set(relearnMinutes, m.path("relearnMinutes").asInt(20));
+        relearnMinutes.setEnabled(relearnTimers.isSelected());
         powers.setSelected(m.path("powersForBehemoth").asBoolean(false));
         prismaticAtStart.setSelected(m.path("prismaticAtStart").asBoolean(false));
         Form.set(empAfterIsh, m.path("empAfterIshSeconds").asInt(3));
@@ -518,6 +531,8 @@ final class BehemothSection implements Section {
         m.put("useLocator", useLocator.isSelected());
         m.put("locatorList", locatorList.isSelected());
         m.put("waitFirst", waitFirst.isSelected());
+        m.put("relearnTimers", relearnTimers.isSelected());
+        m.put("relearnMinutes", Form.intOf(relearnMinutes));
         m.put("powersForBehemoth", powers.isSelected());
         m.put("prismaticAtStart", prismaticAtStart.isSelected());
         m.put("empAfterIshSeconds", Form.intOf(empAfterIsh));

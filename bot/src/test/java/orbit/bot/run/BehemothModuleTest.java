@@ -1241,6 +1241,26 @@ class BehemothModuleTest {
     }
 
     @Test
+    void timersThatFoundNothingForAWhileAreForgottenAndEachMapIsWaitedOnAgain() throws Exception {
+        // the user, 2026-11-15: «запомнил тайминги, потом что-то поменялось и не может найти бегемота какое-то время —
+        // ждать на карте до появления, и так на трёх картах»; the VPS night before: 01:00–07:44 «бегемота нет», on, on
+        Sim sim = new Sim(with(config(30), "{\"relearnTimers\": true, \"relearnMinutes\": 10}"), 308, 5_700, 2_600);
+        SpawnMemory memory = SpawnMemory.inMemory();
+        BehemothModule m = new BehemothModule(sim.ctx, memory);
+        long wall = m.wallMs();
+        for (int map : BehemothModule.BL_MAPS) {
+            memory.killed(map, 4_700, 3_900, wall - 5 * 60_000); // timers known: due in ~10 min, wrong as it turns out
+        }
+        m.workingMap();
+        sim.run(m::tick, 11 * 60_000);
+        assertTrue(memory.spawns(308).isEmpty() || BehemothModule.BL_MAPS.stream().allMatch(x -> m.dueAt(x, m.wallMs()) == 0),
+                "10 min with none: the timers forgotten");
+        int here = m.workingMap();
+        sim.run(m::tick, 8 * 60_000);
+        assertEquals(here, m.workingMap(), "waited on the map, not off after ~2 min");
+    }
+
+    @Test
     void theFirstMapIsLeftAfterARespawnWithNone() throws Exception {
         Sim sim = new Sim(with(config(30), "{\"waitFirst\": true}"), 308, 5_700, 2_600);
         BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
