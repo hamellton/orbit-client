@@ -307,6 +307,8 @@ final class Hud {
         if (h.id() != 0 && !feed.loggedOut()) {
             lines.add(MapCatalog.bundled().info(h.mapId()).name() + "  ·  " + h.x() / 100 + "/" + h.y() / 100
                     + "  ·  " + heroStatus(h));
+            // the configuration and the formation chosen now (the user, 2026-11-15: «в карточке выбранную формацию показывать»)
+            lines.add("Конфигурация " + (h.config() > 0 ? h.config() : "—") + "  ·  " + formation(w.items()));
             lines.add("Лазер: " + item(w.selected("lasers")));
             lines.add("Ракеты: " + item(w.selected("rockets")));
             // the launcher only on a ship that has one; with its load (the button's counter, 0…5 on the HST)

@@ -267,9 +267,13 @@ final class MinimapPanel extends JPanel {
             g.setStroke(new BasicStroke(1f));
             // where it leads (known for regular portals); gates and event portals stay unlabelled
             MapCatalog.Portal known = catalog.portalNear(hero.mapId(), portal.x(), portal.y(), 50);
-            if (known != null && !compact) {
-                int tw = g.getFontMetrics().stringWidth(known.toName());
-                drawLabel(g, known.toName(), px - tw / 2.0, py - 9 * u, PORTAL_LABEL);
+            String label = gateLabel(hero.mapId(), portal);
+            if (label == null && known != null) {
+                label = known.toName();
+            }
+            if (label != null && !compact) {
+                int tw = g.getFontMetrics().stringWidth(label);
+                drawLabel(g, label, px - tw / 2.0, py - 9 * u, PORTAL_LABEL);
             }
         }
         for (WorldSnapshot.Collectable c : w.collectables().values()) {
@@ -591,6 +595,10 @@ final class MinimapPanel extends JPanel {
                 if (Math.hypot(portal.x() - mx, portal.y() - my) < reach) {
                     MapCatalog.Portal known = catalog.portalNear(hero.mapId(), portal.x(), portal.y(), 50);
                     orbit.bot.run.BotRunner r = feed.runner();
+                    String gl = gateLabel(hero.mapId(), portal);
+                    if (gl != null) {
+                        return "Портал: " + gl + "  (" + portal.x() / 100 + "/" + portal.y() / 100 + ")";
+                    }
                     return "Портал" + (known != null ? " на " + known.toName() : "") + "  (" + portal.x() / 100 + "/"
                             + portal.y() / 100 + ")" + (!compact && known != null && r != null && r.takesOrders()
                             ? " — правый клик: прыгнуть" : "");
@@ -678,5 +686,16 @@ final class MinimapPanel extends JPanel {
         double y(double mapY) {
             return oy + mapY * scale;
         }
+    }
+
+    /**
+     * In a galaxy gate a portal by its type: home (type 1, out of the gate) or on (the next stage, the next map);
+     * {@code null} out of a gate (the user, 2026-11-15: «в АБГ порт слева показывает 3-1, а это в следующую волну»).
+     */
+    static String gateLabel(int mapId, WorldSnapshot.Portal p) {
+        if (orbit.config.GateCatalog.byMap(mapId) == null) {
+            return null;
+        }
+        return p.designId() == orbit.config.GateCatalog.HOME_PORTAL ? "домой" : "дальше";
     }
 }

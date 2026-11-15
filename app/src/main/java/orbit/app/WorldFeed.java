@@ -254,7 +254,10 @@ public final class WorldFeed {
                 // (5-1 → 4-5, live 2026-11-12)
                 int from = jumpedFrom;
                 jumpedFrom = 0;
-                backPortal = from > 0 && from != si.mapId && maps.portals(si.mapId).stream().noneMatch(pt -> pt.toId() == from)
+                // not in or out of a galaxy gate: its portals differ by gate and stage, and the stage's portal stands
+                // by the arrival (live 2026-11-15 on gb2: GG β's way on was learned as «to 3-1»)
+                boolean gate = orbit.config.GateCatalog.byMap(si.mapId) != null || orbit.config.GateCatalog.byMap(from) != null;
+                backPortal = !gate && from > 0 && from != si.mapId && maps.portals(si.mapId).stream().noneMatch(pt -> pt.toId() == from)
                         ? new int[] {si.mapId, si.x, si.y, from} : null;
                 if (!mode.startsWith("бот")) {
                     state = "В игре: " + where;
@@ -266,6 +269,9 @@ public final class WorldFeed {
                 WorldSnapshot ws = world.snapshot(now());
                 WorldSnapshot.Hero hh = ws.hero();
                 jumpedFrom = hh.mapId();
+                if (orbit.config.GateCatalog.byMap(hh.mapId()) != null || orbit.config.GateCatalog.byMap(j.mapId) != null) {
+                    break; // a gate's portals are placed anew each time: nothing to learn
+                }
                 ws.portals().values().stream()
                         .filter(g -> Math.hypot(g.x() - hh.x(), g.y() - hh.y()) <= 600)
                         .min(java.util.Comparator.comparingDouble(g -> Math.hypot(g.x() - hh.x(), g.y() - hh.y())))
