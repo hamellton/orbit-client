@@ -743,6 +743,14 @@ public final class GateModule implements BotModule {
         WorldSnapshot.Portal home = w.portals().values().stream().filter(p -> p.designId() == GateCatalog.HOME_PORTAL)
                 .min(java.util.Comparator.comparingDouble(p -> Math.hypot(p.x() - h.x(), p.y() - h.y()))).orElse(null);
         boolean done = completed || g.builderId() == 0 && home != null && ms(now - enteredAt) > 60_000;
+        if (quiet && next != null && !done && on(settings(), "holdBeforePortal", false)) {
+            // a safe moment for a new build: the stage over, nothing about, the next not begun (the user, 2026-11-15:
+            // «между волнами, прежде чем прыгнуть в портал — идеальное место для перезапуска»)
+            tellOnce("Врата " + g.name() + ": этап пройден — жду перед порталом (держать перед порталом)");
+            ctx.nav().stop();
+            status = "Врата " + g.name() + ": жду перед порталом";
+            return;
+        }
         if (quiet && next != null && !done) {
             tellOnce("Врата " + g.name() + ": портал (тип " + next.designId() + ") — дальше");
             jumpInto(w, next, now);
