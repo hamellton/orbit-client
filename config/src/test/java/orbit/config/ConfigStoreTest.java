@@ -23,7 +23,7 @@ class ConfigStoreTest {
 
     @Test
     void savesAndLoadsTheSameConfig(@TempDir Path dir) throws IOException {
-        ConfigStore store = new ConfigStore(dir);
+        ConfigStore store = new ConfigStore(dir, false);
         BotConfig c = sample();
         store.save("Кубы 3-6", c);
         assertEquals(c, store.load("Кубы 3-6"));
@@ -36,7 +36,7 @@ class ConfigStoreTest {
 
     @Test
     void copyRenameDelete(@TempDir Path dir) throws IOException {
-        ConfigStore store = new ConfigStore(dir);
+        ConfigStore store = new ConfigStore(dir, false);
         store.save("a", BotConfig.empty());
         store.copy("a", "b");
         assertThrows(IOException.class, () -> store.copy("a", "b"));
@@ -48,7 +48,7 @@ class ConfigStoreTest {
 
     @Test
     void refusesBadNames(@TempDir Path dir) {
-        ConfigStore store = new ConfigStore(dir);
+        ConfigStore store = new ConfigStore(dir, false);
         for (String bad : new String[] {"", "../x", "a/b", ".hidden", "a\\b"}) {
             assertThrows(IllegalArgumentException.class, () -> store.save(bad, BotConfig.empty()), bad);
         }
@@ -57,7 +57,7 @@ class ConfigStoreTest {
     @Test
     void missingSectionsReadAsDefaults(@TempDir Path dir) throws IOException {
         Files.writeString(dir.resolve("min.json"), "{\"module\": \"CUBIKON\", \"general\": {\"workingMap\": 26}}");
-        BotConfig c = new ConfigStore(dir).load("min");
+        BotConfig c = new ConfigStore(dir, false).load("min");
         assertEquals(BotConfig.Module.CUBIKON, c.module());
         assertEquals(26, c.general().workingMap());
         assertEquals(1, c.general().offensive().config());
@@ -69,7 +69,7 @@ class ConfigStoreTest {
     @Test
     void refusesNewerSchema(@TempDir Path dir) throws IOException {
         Files.writeString(dir.resolve("new.json"), "{\"schema\": 99}");
-        IOException e = assertThrows(IOException.class, () -> new ConfigStore(dir).load("new"));
+        IOException e = assertThrows(IOException.class, () -> new ConfigStore(dir, false).load("new"));
         assertTrue(e.getMessage().contains("обновите"));
     }
 

@@ -1,0 +1,833 @@
+{
+  "schema": 3,
+  "description": "[Default] PALLADIUM profile (DmPlugin Palladium Hangar + free Palladium Module backup)\r\n\r\nABG is NOT modified. Switch profiles in DarkBot UI: ABG <-> PALLADIUM\r\n\r\nSetup after loading PALLADIUM:\r\n1. Plugins -> DmPlugin -> enable Palladium Hangar (if donor/ad gate appears, try ad link or use free module)\r\n2. In Palladium Hangar settings: Update HangarList, set Collect hangar (5-3 ship) and Sell hangar (5-2 ship)\r\n3. Both ships in favorites; sell ship parked at 5-2 trade; collect ship for 5-3\r\n4. PET: Resource collector gear equipped in hangar\r\n5. Collect tab: ore_8 wait ~800ms\r\n6. Preferred zone: palladium field on 5-3; portals Safety = Never jump if needed\r\n7. If Hangar module blocked: Main module -> Palladium Module (free, same ship flies 5-3<->5-2)\r\n\r\nMap IDs: 5-3=93, 5-2=92",
+  "module": "PALLADIUM",
+  "general": {
+    "workingMap": 93,
+    "offensive": {
+      "config": 1,
+      "formation": "drone_formation_f-11-he"
+    },
+    "roam": {
+      "config": 1,
+      "formation": "drone_formation_f-11-he"
+    },
+    "run": {
+      "config": 1,
+      "formation": "drone_formation_f-11-he"
+    },
+    "runFromEnemies": false,
+    "runFromEnemiesInSight": false,
+    "rememberEnemiesSec": 300,
+    "roamSequential": false,
+    "onlyKillPreferred": false,
+    "runModeTravel": true,
+    "runModeChase": false,
+    "avoidMines": true,
+    "baseRadius": 500
+  },
+  "npcs": {
+    "( Uber Annihilator )": {
+      "radius": 560.0,
+      "priority": 0,
+      "kill": false,
+      "maps": [
+        92
+      ],
+      "sab": false
+    },
+    "( Uber Barracuda )": {
+      "radius": 560.0,
+      "priority": 0,
+      "kill": false,
+      "maps": [
+        91,
+        92,
+        93
+      ],
+      "sab": false
+    },
+    "( Uber Battleray )": {
+      "radius": 560.0,
+      "priority": 0,
+      "kill": false,
+      "maps": [
+        29
+      ],
+      "sab": false
+    },
+    "( Uber Interceptor )": {
+      "radius": 560.0,
+      "priority": 0,
+      "kill": false,
+      "maps": [
+        92,
+        93
+      ],
+      "sab": false
+    },
+    "( Uber Saboteur )": {
+      "radius": 560.0,
+      "priority": 0,
+      "kill": false,
+      "maps": [
+        29,
+        92
+      ],
+      "sab": false
+    },
+    "( UberDevolarium )": {
+      "radius": 560.0,
+      "priority": 0,
+      "kill": false,
+      "maps": [
+        29
+      ],
+      "sab": false
+    },
+    "( UberKristallin )": {
+      "radius": 560.0,
+      "priority": 0,
+      "kill": false,
+      "maps": [
+        29
+      ],
+      "sab": false
+    },
+    "( UberKristallon )": {
+      "radius": 560.0,
+      "priority": 0,
+      "kill": false,
+      "maps": [
+        29
+      ],
+      "sab": false
+    },
+    "( UberLordakia )": {
+      "radius": 560.0,
+      "priority": 0,
+      "kill": false,
+      "maps": [
+        29
+      ],
+      "sab": false
+    },
+    "( UberLordakium )": {
+      "radius": 560.0,
+      "priority": 0,
+      "kill": false,
+      "maps": [
+        29
+      ],
+      "sab": false
+    },
+    "( UberSaimon )": {
+      "radius": 560.0,
+      "priority": 0,
+      "kill": false,
+      "maps": [
+        29
+      ],
+      "sab": false
+    },
+    "( UberSibelonit )": {
+      "radius": 560.0,
+      "priority": 0,
+      "kill": false,
+      "maps": [
+        29
+      ],
+      "sab": false
+    },
+    "( UberStreuneR )": {
+      "radius": 560.0,
+      "priority": 0,
+      "kill": false,
+      "maps": [
+        29
+      ],
+      "sab": false
+    },
+    "-=[ Annihilator ]=-": {
+      "radius": 2000.0,
+      "priority": 0,
+      "kill": false,
+      "flags": [
+        "NO_CIRCLE",
+        "PASSIVE"
+      ],
+      "maps": [
+        91,
+        92,
+        93
+      ],
+      "sab": false
+    },
+    "-=[ Barracuda ]=-": {
+      "radius": 2000.0,
+      "priority": 0,
+      "kill": false,
+      "flags": [
+        "NO_CIRCLE",
+        "PASSIVE"
+      ],
+      "maps": [
+        91,
+        92,
+        93
+      ],
+      "sab": false
+    },
+    "-=[ Battleray ]=-": {
+      "radius": 2000.0,
+      "priority": 0,
+      "kill": false,
+      "flags": [
+        "NO_CIRCLE",
+        "PASSIVE"
+      ],
+      "maps": [
+        93
+      ],
+      "sab": false
+    },
+    "-=[ Cubikon ]=-": {
+      "radius": 560.0,
+      "priority": 0,
+      "kill": false,
+      "maps": [
+        26
+      ],
+      "sab": false
+    },
+    "-=[ Deadly Battleray ]=-": {
+      "radius": 560.0,
+      "priority": 0,
+      "kill": false,
+      "maps": [
+        29
+      ],
+      "sab": false
+    },
+    "-=[ Interceptor ]=-": {
+      "radius": 2000.0,
+      "priority": 0,
+      "kill": false,
+      "flags": [
+        "NO_CIRCLE",
+        "PASSIVE"
+      ],
+      "maps": [
+        91,
+        92,
+        93
+      ],
+      "sab": false
+    },
+    "-=[ Kristallin ]=-": {
+      "radius": 560.0,
+      "priority": 0,
+      "kill": false,
+      "maps": [
+        26
+      ],
+      "sab": false
+    },
+    "-=[ Kristallon ]=-": {
+      "radius": 560.0,
+      "priority": 0,
+      "kill": false,
+      "maps": [
+        26
+      ],
+      "sab": false
+    },
+    "-=[ Lordakia ]=-": {
+      "radius": 560.0,
+      "priority": 0,
+      "kill": false,
+      "maps": [
+        25
+      ],
+      "sab": false
+    },
+    "-=[ Lordakium ]=-": {
+      "radius": 560.0,
+      "priority": 0,
+      "kill": false,
+      "maps": [
+        25
+      ],
+      "sab": false
+    },
+    "-=[ Plagued Kristallin ]=-": {
+      "radius": 560.0,
+      "priority": 0,
+      "kill": false,
+      "maps": [
+        26
+      ],
+      "sab": false
+    },
+    "-=[ Protegit ]=-": {
+      "radius": 560.0,
+      "priority": 0,
+      "kill": false,
+      "maps": [
+        26
+      ],
+      "sab": false
+    },
+    "-=[ Raider ]=-": {
+      "radius": 2000.0,
+      "priority": 0,
+      "kill": false,
+      "flags": [
+        "NO_CIRCLE",
+        "PASSIVE"
+      ],
+      "maps": [
+        93
+      ],
+      "sab": false
+    },
+    "-=[ Saboteur ]=-": {
+      "radius": 2000.0,
+      "priority": 0,
+      "kill": false,
+      "flags": [
+        "NO_CIRCLE",
+        "PASSIVE"
+      ],
+      "maps": [
+        91,
+        92,
+        93
+      ],
+      "sab": false
+    },
+    "-=[ Sibelonit ]=-": {
+      "radius": 560.0,
+      "priority": 0,
+      "kill": false,
+      "maps": [
+        25
+      ],
+      "sab": false
+    },
+    "-=[ Spinel ]=-": {
+      "radius": 560.0,
+      "priority": 0,
+      "kill": false,
+      "maps": [
+        25
+      ],
+      "sab": false
+    },
+    "-=[ StreuneR ]=-": {
+      "radius": 560.0,
+      "priority": 0,
+      "kill": false,
+      "maps": [
+        28
+      ],
+      "sab": false
+    },
+    "-=[ Streuner ]=-": {
+      "radius": 560.0,
+      "priority": 0,
+      "kill": false,
+      "maps": [
+        9
+      ],
+      "sab": false
+    },
+    "..::{ Battleray }::..": {
+      "radius": 2000.0,
+      "priority": 0,
+      "kill": false,
+      "flags": [
+        "NO_CIRCLE",
+        "PASSIVE"
+      ],
+      "maps": [
+        93
+      ],
+      "sab": false
+    },
+    "..::{ Boss Devolarium }::..": {
+      "radius": 560.0,
+      "priority": 0,
+      "kill": false,
+      "maps": [
+        29
+      ],
+      "sab": false
+    },
+    "..::{ Boss Kristallin }::..": {
+      "radius": 560.0,
+      "priority": 0,
+      "kill": false,
+      "maps": [
+        26,
+        29
+      ],
+      "sab": false
+    },
+    "..::{ Boss Kristallon }::..": {
+      "radius": 560.0,
+      "priority": 0,
+      "kill": false,
+      "maps": [
+        29
+      ],
+      "sab": false
+    },
+    "..::{ Boss Lordakium }::...": {
+      "radius": 560.0,
+      "priority": 0,
+      "kill": false,
+      "maps": [
+        25,
+        29
+      ],
+      "sab": false
+    },
+    "..::{ Boss Mordon }::..": {
+      "radius": 560.0,
+      "priority": 0,
+      "kill": false,
+      "maps": [
+        29
+      ],
+      "sab": false
+    },
+    "..::{ Boss Sibelonit }::..": {
+      "radius": 560.0,
+      "priority": 0,
+      "kill": false,
+      "maps": [
+        25,
+        29
+      ],
+      "sab": false
+    },
+    "..::{ Boss StreuneR }::..": {
+      "radius": 560.0,
+      "priority": 0,
+      "kill": false,
+      "maps": [
+        28,
+        29
+      ],
+      "sab": false
+    },
+    "\\\\ Impulse II //": {
+      "radius": 560.0,
+      "priority": 0,
+      "kill": false,
+      "maps": [
+        308
+      ],
+      "sab": false
+    },
+    "\\\\ Purpose XXI //": {
+      "radius": 560.0,
+      "priority": 0,
+      "kill": false,
+      "maps": [
+        28
+      ],
+      "sab": false
+    }
+  },
+  "loot": {
+    "ammo": "ammunition_laser_lcb-10",
+    "sabBelow": 0.8,
+    "sabNpcShieldMin": 12000,
+    "groupNpcs": true,
+    "ignoreFartherThan": 3000,
+    "rocket": "ammunition_rocket_plt-2026",
+    "fireRockets": false,
+    "circle": true,
+    "fallback": [],
+    "launcher": "ammunition_rocketlauncher_eco-10",
+    "fireLauncher": false,
+    "runCircle": false
+  },
+  "collect": {
+    "boxes": {
+      "ASTRAL_BOOTY_BOX": {
+        "collect": false,
+        "waitMs": 0,
+        "priority": 0
+      },
+      "ASTRAL_PRIME_BOOTY_BOX": {
+        "collect": false,
+        "waitMs": 0,
+        "priority": 0
+      },
+      "AURUS_BOX": {
+        "collect": false,
+        "waitMs": 0,
+        "priority": 0
+      },
+      "BATTLEPASS": {
+        "collect": false,
+        "waitMs": 0,
+        "priority": 0
+      },
+      "BIFENON": {
+        "collect": false,
+        "waitMs": 0,
+        "priority": 0
+      },
+      "BIFENON_2": {
+        "collect": false,
+        "waitMs": 0,
+        "priority": 0
+      },
+      "BLACK_BOOTY_BOX": {
+        "collect": false,
+        "waitMs": 0,
+        "priority": 0
+      },
+      "BONUS_BOX": {
+        "collect": false,
+        "waitMs": 0,
+        "priority": 0
+      },
+      "BONUS_BOX_RED": {
+        "collect": false,
+        "waitMs": 0,
+        "priority": 0
+      },
+      "CANDY_CARGO": {
+        "collect": false,
+        "waitMs": 0,
+        "priority": 0
+      },
+      "COSMIC_CACHE": {
+        "collect": false,
+        "waitMs": 0,
+        "priority": 0
+      },
+      "EMPYRIAN_BOOTY_BOX": {
+        "collect": false,
+        "waitMs": 0,
+        "priority": 0
+      },
+      "FROM_SHIP": {
+        "collect": false,
+        "waitMs": 0,
+        "priority": 0
+      },
+      "FROM_SHIP_BLOCKED": {
+        "collect": false,
+        "waitMs": 0,
+        "priority": 0
+      },
+      "MASQUE_BOOTY_BOX": {
+        "collect": false,
+        "waitMs": 0,
+        "priority": 0
+      },
+      "MINI_PUMPKIN": {
+        "collect": false,
+        "waitMs": 0,
+        "priority": 0
+      },
+      "PERSEUS_BLESSING_BOOTY_BOX": {
+        "collect": false,
+        "waitMs": 0,
+        "priority": 0
+      },
+      "PIRATE_BOOTY": {
+        "collect": false,
+        "waitMs": 0,
+        "priority": 0
+      },
+      "PIRATE_BOOTY_BLUE": {
+        "collect": false,
+        "waitMs": 0,
+        "priority": 0
+      },
+      "PIRATE_BOOTY_GOLD": {
+        "collect": false,
+        "waitMs": 0,
+        "priority": 0
+      },
+      "PIRATE_BOOTY_RED": {
+        "collect": false,
+        "waitMs": 0,
+        "priority": 0
+      },
+      "POISON_PUSAT_BOX_BLACK": {
+        "collect": false,
+        "waitMs": 0,
+        "priority": 0
+      },
+      "ore_0": {
+        "collect": false,
+        "waitMs": 0,
+        "priority": 0
+      },
+      "ore_1": {
+        "collect": false,
+        "waitMs": 0,
+        "priority": 0
+      },
+      "ore_8": {
+        "collect": true,
+        "waitMs": 800,
+        "priority": 0
+      }
+    },
+    "radius": 400,
+    "stayAwayFromEnemies": false,
+    "ignoreContested": true,
+    "cargo": "NONE",
+    "cargoFullAt": 0,
+    "sellOres": [
+      0,
+      1,
+      2,
+      4,
+      5
+    ]
+  },
+  "pet": {
+    "enabled": true,
+    "gear": "AUTO_RESOURCE_COLLECTION",
+    "locatorTarget": 13,
+    "noRepair": false,
+    "comboRepairBelow": 0.0,
+    "kamikaze": {
+      "enabled": false,
+      "minNpcs": 0,
+      "flagged": true,
+      "radius": 600,
+      "everyMinutes": 0
+    },
+    "buyFuel": false
+  },
+  "safety": {
+    "repairHpMin": 0.0,
+    "repairHpMax": 0.0,
+    "repairHpNoNpc": 0.15,
+    "repairToShield": 0.0,
+    "repairMode": {
+      "config": 1,
+      "formation": "drone_formation_f-11-he"
+    },
+    "heal": {
+      "hpBelow": 0.9,
+      "shieldBelow": -1.0,
+      "hpPodBelow": -1.0
+    },
+    "maxDeaths": 1000,
+    "revive": "PORTAL",
+    "waitBeforeReviveSec": 60,
+    "waitAfterReviveSec": 15,
+    "paidRevives": 0,
+    "paidReviveMinutes": 3,
+    "escapeHp": 0.25,
+    "oneWayJumps": false,
+    "maxDeathsPerPlayer": 0,
+    "honorBreakMinutes": 15
+  },
+  "zones": {
+    "93": {
+      "preferred": {
+        "resolution": 30,
+        "rows": [
+          "..............................",
+          "..............................",
+          "..............................",
+          "..............................",
+          "..............................",
+          "..............................",
+          "..............................",
+          "..............................",
+          "..............................",
+          "..............................",
+          "..............................",
+          "..............................",
+          "..............................",
+          "..............................",
+          "..............................",
+          "..............................",
+          "..............................",
+          "..............................",
+          "..............................",
+          "..............................",
+          ".........##############.......",
+          ".........##############.......",
+          ".........##############.......",
+          ".........##############.......",
+          ".........##############.......",
+          ".........##############.......",
+          ".........##############.......",
+          ".........##############.......",
+          "..............................",
+          ".............................."
+        ],
+        "empty": false
+      },
+      "avoided": {
+        "resolution": 30,
+        "rows": [
+          "##############################",
+          "##############################",
+          "##############################",
+          "########################.#####",
+          "########################.#####",
+          "########################.#####",
+          "########################.#####",
+          "########################.#..##",
+          "########################.#.###",
+          "########################.#.###",
+          "########################.#.###",
+          "########################.#.###",
+          "########################.#.###",
+          "########################.....#",
+          "####################.........#",
+          "####################........##",
+          "####################.#########",
+          "####################.#########",
+          "####################..########",
+          "#.###################.########",
+          "#......................#######",
+          "#########..............#######",
+          "#########..............#######",
+          "#########..............#######",
+          "#########..............#######",
+          "#########..............#######",
+          "#########..............#######",
+          "#########..............#######",
+          "##############################",
+          "##############################"
+        ],
+        "empty": false
+      }
+    }
+  },
+  "safetySpots": {
+    "93": [
+      {
+        "type": "PORTAL",
+        "x": 39400,
+        "y": 12400,
+        "run": "NEVER",
+        "jump": "NEVER"
+      },
+      {
+        "type": "PORTAL",
+        "x": 38200,
+        "y": 6600,
+        "run": "NEVER",
+        "jump": "NEVER"
+      },
+      {
+        "type": "PORTAL",
+        "x": 33900,
+        "y": 2500,
+        "run": "NEVER",
+        "jump": "NEVER"
+      },
+      {
+        "type": "PORTAL",
+        "x": 2000,
+        "y": 9500,
+        "run": "NEVER",
+        "jump": "NEVER"
+      },
+      {
+        "type": "PORTAL",
+        "x": 2000,
+        "y": 13500,
+        "run": "NEVER",
+        "jump": "NEVER"
+      },
+      {
+        "type": "PORTAL",
+        "x": 2000,
+        "y": 17500,
+        "run": "NEVER",
+        "jump": "NEVER"
+      }
+    ]
+  },
+  "modules": {
+    "palladium": {
+      "goPortalChange": false,
+      "sellOnDie": false,
+      "ignoreSID": false,
+      "aditionalWaitingTime": 5
+    }
+  },
+  "extra": {
+    "darkbot.GROUP": {
+      "ACCEPT_INVITES": true,
+      "OPEN_INVITES": false,
+      "BLOCK_INVITES": false,
+      "LEAVE_NO_WHITELISTED": false,
+      "KICK_NO_INVITED": false
+    },
+    "darkbot.MISCELLANEOUS": {
+      "REFRESH_AFTER_REVIVE": false,
+      "REFRESH_TIME": 0,
+      "PAUSE_FOR": 0,
+      "RESET_REFRESH": true,
+      "SOLVE_BACKPAGE_CAPTCHA": false,
+      "UPDATE_STATS_WHILE_PAUSED": true,
+      "DRONE_REPAIR_PERCENTAGE": 0.9,
+      "HONOR_LOST_EXACT": true,
+      "LOG_CHAT": false,
+      "LOG_DEATHS": false,
+      "AVOID_MINES": true,
+      "AVOID_CBS": true,
+      "AVOID_RADIATION": true,
+      "USERNAME_ON_TITLE": false,
+      "AUTO_REFINE": false
+    },
+    "darkbot.feature.eu.darkbot.popcorn.def.AntiPush": {
+      "DRAWFIRE_PAUSE_TIME": 0,
+      "MAX_DEATHS": 100,
+      "DEATH_PAUSE_TIME": -1
+    },
+    "darkbot.feature.eu.darkbot.popcorn.def.UserAgentUpdater": {
+      "USER_AGENT": "BigpointClient/1.6.9",
+      "NEXT_UPDATE": 1794244146080
+    }
+  },
+  "buy": {
+    "enabled": false,
+    "keepCredits": 0.0,
+    "keepUridium": 0.0,
+    "boosterMinutes": 0
+  },
+  "session": {
+    "workMinutes": 0,
+    "breakMinutes": 0,
+    "jitterMinutes": 0
+  },
+  "flee": {
+    "mode": "OFF",
+    "sight": 500,
+    "rememberSec": 60,
+    "jump": true,
+    "waitSec": 90,
+    "avoid": true,
+    "avoidRadius": 3000,
+    "stationRadius": 1600,
+    "npcs": false
+  },
+  "group": {
+    "accept": "ANY",
+    "rejectOthers": false,
+    "invite": false,
+    "leaveWithoutListed": false,
+    "kickUnlisted": false
+  }
+}

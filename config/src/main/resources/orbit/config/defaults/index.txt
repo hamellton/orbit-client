@@ -1,0 +1,8 @@
+# The program's default configs (folder «Default»): read-only, copied to be changed.
+Cubikon
+Palladium
+Galaxy Gates ABG
+Behemoth
+Behemoth Train
+Blacklight Invoke
+Blacklight Impulse

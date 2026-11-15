@@ -8,18 +8,15 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import javax.swing.BorderFactory;
-import javax.swing.DefaultListModel;
 import javax.swing.JButton;
 import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
-import javax.swing.JList;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
 import javax.swing.JTabbedPane;
-import javax.swing.ListSelectionModel;
 import javax.swing.SwingUtilities;
 import javax.swing.WindowConstants;
 import orbit.config.BotConfig;
@@ -38,8 +35,24 @@ public final class ConfigWindow {
     private final ConfigStore store;
     private final MapCatalog maps;
     private final JFrame frame = new JFrame("Orbit — конфиги");
-    private final DefaultListModel<String> names = new DefaultListModel<>();
-    private final JList<String> list = new JList<>(names);
+    /** The folders and their configs (the user, 2026-11-16: «фасовка конфигов по папкам»). */
+    private final javax.swing.tree.DefaultMutableTreeNode root = new javax.swing.tree.DefaultMutableTreeNode();
+    private final javax.swing.tree.DefaultTreeModel model = new javax.swing.tree.DefaultTreeModel(root);
+    private final javax.swing.JTree list = new javax.swing.JTree(model);
+    /** The names shown, to select one by name. */
+    private final java.util.Set<String> names = new java.util.HashSet<>();
+    private JButton saveButton;
+
+    /** A tree node: a folder ({@code name == null}) or a config in it. */
+    private record Node(String folder, String name) {
+        @Override
+        public String toString() {
+            if (name != null) {
+                return name;
+            }
+            return folder.isEmpty() ? "Без папки" : ConfigStore.DEFAULT_FOLDER.equals(folder) ? "🔒 " + folder : folder;
+        }
+    }
     private final List<Section> sections = new ArrayList<>();
     private final JTabbedPane tabs = new JTabbedPane();
     private final JLabel title = new JLabel(" ");
@@ -78,15 +91,20 @@ public final class ConfigWindow {
         tabs.putClientProperty("JTabbedPane.scrollButtonsPolicy", "asNeeded");
         accounts = new AccountsPanel(accountsFile, this::configNames);
 
-        list.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-        list.addListSelectionListener(e -> {
-            if (!e.getValueIsAdjusting() && list.getSelectedValue() != null && !list.getSelectedValue().equals(current)) {
-                open(list.getSelectedValue());
+        list.setRootVisible(false);
+        list.setShowsRootHandles(true);
+        list.getSelectionModel().setSelectionMode(javax.swing.tree.TreeSelectionModel.SINGLE_TREE_SELECTION);
+        list.addTreeSelectionListener(e -> {
+            Node n = selectedNode();
+            if (n != null && n.name() != null && !n.name().equals(current)) {
+                open(n.name());
             }
         });
         JPanel buttons = new JPanel(new java.awt.GridLayout(0, 1, 0, 4));
         buttons.add(button("Новый", this::create));
         buttons.add(button("Копия", this::copy));
+        buttons.add(button("В папку…", this::moveToFolder));
+        buttons.add(button("Новая папка", this::createFolder));
         buttons.add(button("Переименовать", this::rename));
         buttons.add(button("Удалить", this::delete));
         buttons.add(button("Импорт DarkBot…", this::importDarkBot));
@@ -102,7 +120,7 @@ public final class ConfigWindow {
         check.setMinimumSize(new Dimension(0, 0)); // a narrow window cuts it with «…»; the tooltip has it all
         javax.swing.ToolTipManager.sharedInstance().registerComponent(check);
         bottom.add(check, BorderLayout.CENTER);
-        JButton saveButton = button("Сохранить", this::save);
+        saveButton = button("Сохранить", this::save);
         // the main action in the accent colour
         saveButton.setBackground(new java.awt.Color(0x0e4a66));
         saveButton.setForeground(orbit.app.gui.Theme.TEXT);
@@ -266,8 +284,31 @@ public final class ConfigWindow {
 
     private void reloadList(String select) {
         names.clear();
-        configNames().forEach(names::addElement);
-        String target = select != null ? select : (names.isEmpty() ? null : names.firstElement());
+        root.removeAllChildren();
+        String first = null;
+        try {
+            for (var e : store.folders().entrySet()) {
+                javax.swing.tree.DefaultMutableTreeNode f = new javax.swing.tree.DefaultMutableTreeNode(new Node(e.getKey(), null));
+                for (String n : e.getValue()) {
+                    f.add(new javax.swing.tree.DefaultMutableTreeNode(new Node(e.getKey(), n)));
+                    names.add(n);
+                    if (first == null && !ConfigStore.DEFAULT_FOLDER.equals(e.getKey())) {
+                        first = n;
+                    }
+                }
+                root.add(f);
+            }
+        } catch (IOException ex) {
+            JOptionPane.showMessageDialog(frame, ex.getMessage(), "Конфиги", JOptionPane.ERROR_MESSAGE);
+        }
+        model.reload();
+        for (int i = 0; i < list.getRowCount(); i++) {
+            list.expandRow(i);
+        }
+        if (first == null && !names.isEmpty()) {
+            first = names.iterator().next();
+        }
+        String target = select != null && names.contains(select) ? select : first;
         if (target == null) {
             current = null;
             loaded = null;
@@ -276,7 +317,7 @@ public final class ConfigWindow {
             return;
         }
         current = null;
-        list.setSelectedValue(target, true);
+        selectConfig(target);
         if (current == null) {
             open(target); // already selected: no selection event
         }
@@ -284,22 +325,78 @@ public final class ConfigWindow {
 
     private void open(String name) {
         if (!confirmLeave()) {
-            list.setSelectedValue(current, true);
+            selectConfig(current);
             return;
         }
         try {
             loaded = store.load(name);
         } catch (IOException e) {
             JOptionPane.showMessageDialog(frame, e.getMessage(), "Конфиг", JOptionPane.ERROR_MESSAGE);
-            list.setSelectedValue(current, true);
+            selectConfig(current);
             return;
         }
         current = name;
         tabs.setEnabled(true);
+        boolean readOnly = store.isDefault(name);
+        setFormEnabled(true); // first: a section's load sets its own dependent fields off again
         sections.forEach(s -> s.load(loaded));
         baseline = collect(loaded);
-        title.setText(name);
+        String folder = store.folderOf(name);
+        title.setText(readOnly ? "🔒 " + folder + " / " + name + " — конфиг программы, только просмотр («Копия» — чтобы менять)"
+                : (folder.isEmpty() ? "" : folder + " / ") + name);
+        if (readOnly) {
+            setFormEnabled(false);
+        }
         runCheck();
+    }
+
+    /** The default configs are shown, never edited: the form's fields off, «Сохранить» off. */
+    private void setFormEnabled(boolean on) {
+        for (Section sec : sections) {
+            enableAll(sec.view(), on);
+        }
+        if (saveButton != null) {
+            saveButton.setEnabled(on);
+        }
+    }
+
+    private static void enableAll(java.awt.Component c, boolean on) {
+        if (!(c instanceof JScrollPane) && !(c instanceof javax.swing.JViewport) && !(c instanceof JPanel)
+                && !(c instanceof JTabbedPane)) {
+            c.setEnabled(on);
+        }
+        if (c instanceof java.awt.Container k) {
+            for (java.awt.Component child : k.getComponents()) {
+                enableAll(child, on);
+            }
+        }
+    }
+
+    private Node selectedNode() {
+        Object o = list.getLastSelectedPathComponent();
+        return o instanceof javax.swing.tree.DefaultMutableTreeNode t && t.getUserObject() instanceof Node n ? n : null;
+    }
+
+    /** The selected folder: the config's own, or the folder node's ({@code null} none selected). */
+    private String selectedFolder() {
+        Node n = selectedNode();
+        return n == null ? null : n.folder();
+    }
+
+    private void selectConfig(String name) {
+        if (name == null) {
+            return;
+        }
+        java.util.Enumeration<javax.swing.tree.TreeNode> e = root.depthFirstEnumeration();
+        while (e.hasMoreElements()) {
+            if (e.nextElement() instanceof javax.swing.tree.DefaultMutableTreeNode t && t.getUserObject() instanceof Node n
+                    && name.equals(n.name())) {
+                javax.swing.tree.TreePath path = new javax.swing.tree.TreePath(t.getPath());
+                list.setSelectionPath(path);
+                list.scrollPathToVisible(path);
+                return;
+            }
+        }
     }
 
     /** All tabs applied to {@code base}. */
@@ -426,19 +523,60 @@ public final class ConfigWindow {
         }
     }
 
+    /** The folder a new config or a copy goes to: the selected one unless it is the defaults' («» = no folder). */
+    private String targetFolder() {
+        String f = selectedFolder();
+        return f == null || ConfigStore.DEFAULT_FOLDER.equals(f) ? "" : f;
+    }
+
+    /** The user's folders to pick from (no folder first, the defaults' never). */
+    private List<String> userFolders() {
+        List<String> out = new ArrayList<>();
+        out.add("");
+        try {
+            for (String f : store.folders().keySet()) {
+                if (!f.isEmpty() && !ConfigStore.DEFAULT_FOLDER.equals(f)) {
+                    out.add(f);
+                }
+            }
+        } catch (IOException ignored) {
+            // just the top level
+        }
+        return out;
+    }
+
+    /** A folder chosen from the user's ones, or a new one typed in; {@code null} cancelled. */
+    private String askFolder(String question, String initial) {
+        List<String> folders = userFolders();
+        String none = "— без папки";
+        List<String> shown = new ArrayList<>();
+        folders.forEach(f -> shown.add(f.isEmpty() ? none : f));
+        javax.swing.JComboBox<String> box = new javax.swing.JComboBox<>(shown.toArray(new String[0]));
+        box.setEditable(true);
+        box.setSelectedItem(initial == null || initial.isEmpty() ? none : initial);
+        int ok = JOptionPane.showConfirmDialog(frame, new Object[] {question, box}, "Папка", JOptionPane.OK_CANCEL_OPTION,
+                JOptionPane.PLAIN_MESSAGE);
+        if (ok != JOptionPane.OK_OPTION || box.getSelectedItem() == null) {
+            return null;
+        }
+        String f = box.getSelectedItem().toString().strip();
+        return f.equals(none) ? "" : f;
+    }
+
     private void create() {
         if (!confirmLeave()) {
             return;
         }
-        String n = askName("Имя нового конфига:", "");
+        String folder = targetFolder();
+        String n = askName("Имя нового конфига" + (folder.isEmpty() ? "" : " в «" + folder + "»") + ":", "");
         if (n == null) {
             return;
         }
         try {
-            store.save(n, BotConfig.empty());
+            store.save(folder, n, BotConfig.empty());
             current = null;
             reloadList(n);
-        } catch (IOException e) {
+        } catch (IOException | IllegalArgumentException e) {
             JOptionPane.showMessageDialog(frame, e.getMessage());
         }
     }
@@ -451,17 +589,70 @@ public final class ConfigWindow {
         if (n == null) {
             return;
         }
+        String from = store.folderOf(current);
+        String folder = askFolder("В какую папку положить «" + n + "»:", ConfigStore.DEFAULT_FOLDER.equals(from) ? ""
+                : from);
+        if (folder == null) {
+            return;
+        }
         try {
-            store.copy(current, n);
+            store.copy(current, n, folder);
             current = null;
             reloadList(n);
-        } catch (IOException e) {
+        } catch (IOException | IllegalArgumentException e) {
+            JOptionPane.showMessageDialog(frame, e.getMessage());
+        }
+    }
+
+    private void moveToFolder() {
+        if (current == null || !confirmLeave()) {
+            return;
+        }
+        if (store.isDefault(current)) {
+            JOptionPane.showMessageDialog(frame, "«" + current + "» — конфиг программы: его не переносят, сделайте копию");
+            return;
+        }
+        String folder = askFolder("Перенести «" + current + "» в папку:", store.folderOf(current));
+        if (folder == null) {
+            return;
+        }
+        try {
+            String n = current;
+            store.move(n, folder);
+            current = null;
+            reloadList(n);
+        } catch (IOException | IllegalArgumentException e) {
+            JOptionPane.showMessageDialog(frame, e.getMessage());
+        }
+    }
+
+    private void createFolder() {
+        String f = (String) JOptionPane.showInputDialog(frame, "Имя новой папки:", "Папка", JOptionPane.PLAIN_MESSAGE,
+                null, null, "");
+        if (f == null || f.isBlank()) {
+            return;
+        }
+        try {
+            store.createFolder(f.strip());
+            String keep = current;
+            current = null;
+            reloadList(keep);
+        } catch (IOException | IllegalArgumentException e) {
             JOptionPane.showMessageDialog(frame, e.getMessage());
         }
     }
 
     private void rename() {
+        Node sel = selectedNode();
+        if (sel != null && sel.name() == null) {
+            renameFolder(sel.folder());
+            return;
+        }
         if (current == null || !confirmLeave()) {
+            return;
+        }
+        if (store.isDefault(current)) {
+            JOptionPane.showMessageDialog(frame, "«" + current + "» — конфиг программы: его не переименовывают, сделайте копию");
             return;
         }
         String n = askName("Новое имя «" + current + "»:", current);
@@ -477,8 +668,46 @@ public final class ConfigWindow {
         }
     }
 
+    private void renameFolder(String folder) {
+        if (folder.isEmpty() || ConfigStore.DEFAULT_FOLDER.equals(folder)) {
+            return;
+        }
+        String to = (String) JOptionPane.showInputDialog(frame, "Новое имя папки «" + folder + "»:", "Папка",
+                JOptionPane.PLAIN_MESSAGE, null, null, folder);
+        if (to == null || to.isBlank() || to.strip().equals(folder)) {
+            return;
+        }
+        try {
+            store.renameFolder(folder, to.strip());
+            String keep = current;
+            current = null;
+            reloadList(keep);
+        } catch (IOException | IllegalArgumentException e) {
+            JOptionPane.showMessageDialog(frame, e.getMessage());
+        }
+    }
+
     private void delete() {
+        Node sel = selectedNode();
+        if (sel != null && sel.name() == null) {
+            if (sel.folder().isEmpty() || ConfigStore.DEFAULT_FOLDER.equals(sel.folder())) {
+                return;
+            }
+            try {
+                store.deleteFolder(sel.folder());
+                String keep = current;
+                current = null;
+                reloadList(keep);
+            } catch (IOException | IllegalArgumentException e) {
+                JOptionPane.showMessageDialog(frame, e.getMessage());
+            }
+            return;
+        }
         if (current == null) {
+            return;
+        }
+        if (store.isDefault(current)) {
+            JOptionPane.showMessageDialog(frame, "«" + current + "» — конфиг программы: его не удаляют");
             return;
         }
         if (JOptionPane.showConfirmDialog(frame, "Удалить конфиг «" + current + "»?", "Конфиг",
