@@ -15,6 +15,7 @@ import orbit.protocol.gen.GalaxyGateBuilderInfoCommand;
 import orbit.protocol.gen.JumpRequest;
 import orbit.protocol.gen.JumpgateCreateCommand;
 import orbit.protocol.gen.MapAssetActionAvailableCommand;
+import orbit.world.WorldSnapshot;
 import orbit.world.maps.MapCatalog;
 import org.junit.jupiter.api.Test;
 
@@ -307,6 +308,46 @@ class GateModuleTest {
         }
         run(sim, m, 3_000);
         assertTrue(m.fightTarget() >= 800 && m.fightTarget() < 805, "fought: " + m.fightTarget());
+    }
+
+    @Test
+    void betweenWavesTheShipWaitsByTheCentreAsSharedPluginInTheRunMode() throws Exception {
+        // SharedPlugin moveToCenter: (centre − 500, centre − 500), within 250; useRunConfig
+        Sim sim = new Sim(config("{\"gates\":[\"beta\"]}"), 52, 13_000, 8_000);
+        GateModule m = new GateModule(sim.ctx);
+        run(sim, m, 30_000);
+        var h = sim.world.snapshot(sim.now).hero();
+        assertTrue(Math.hypot(h.x() - 9_500, h.y() - 5_500) <= 260, h.x() + "/" + h.y() + " " + m.status());
+        assertTrue(m.status().contains("жду волну"), m.status());
+    }
+
+    @Test
+    void aFarNearlyDeadTargetIsLeftForAHealthyOneNearerTheCentre() throws Exception {
+        // SharedPlugin skipFarTarget
+        WorldSnapshot.Hero h = new Sim(config("{}"), 52, 14_000, 6_000).world.snapshot(0).hero();
+        double[] c = {10_000, 6_000};
+        orbit.world.World world = new orbit.world.World();
+        WorldSnapshot.Ship far = ship(world, 1, 15_500, 8_000, 20);
+        WorldSnapshot.Ship near = ship(world, 2, 12_000, 7_000, 90);
+        assertTrue(GateModule.skipFar(far, java.util.List.of(far, near), h, c));
+        WorldSnapshot.Ship healthy = ship(world, 1, 15_500, 8_000, 80);
+        assertFalse(GateModule.skipFar(healthy, java.util.List.of(healthy, near), h, c), "over 25 %: kept");
+    }
+
+    static WorldSnapshot.Ship ship(orbit.world.World world, int id, int x, int y, int hpPercent) {
+        orbit.protocol.gen.ShipCreateCommand cr = new orbit.protocol.gen.ShipCreateCommand();
+        cr.userId = id;
+        cr.npc = true;
+        cr.userName = "-=[ Sibelon ]=- β25";
+        cr.x = x;
+        cr.y = y;
+        world.apply(cr, 0);
+        orbit.protocol.gen.ShipSelectionCommand sel = new orbit.protocol.gen.ShipSelectionCommand();
+        sel.userId = id;
+        sel.hitpoints = hpPercent * 1_000;
+        sel.hitpointsMax = 100_000;
+        world.apply(sel, 0);
+        return world.snapshot(0).ships().get(id);
     }
 
     @Test

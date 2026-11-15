@@ -169,6 +169,31 @@ public final class Attacker {
         this.ctx = ctx;
     }
 
+    /**
+     * The galaxy gate's way (SharedPlugin's CustomLootModule): always DarkBot's circle (no kiting, standing or leading
+     * off), roam beyond {@link #GATE_ROAM}, the circle's way fixed toward the map's centre ({@code approachToCenter});
+     * {@code null} the usual way.
+     */
+    public void gateStyle(double[] centre) {
+        this.gate = centre;
+    }
+
+    /** For the next {@link #tick}: the repair's circle (SharedPlugin: round the target at 2 000 in this mode). */
+    public void repairCircle(BotConfig.ShipMode mode) {
+        this.repairMode = mode;
+    }
+
+    /** SharedPlugin's setConfig: farther from the target than this — the roam configuration. */
+    static final double GATE_ROAM = 2_000;
+    /** SharedPlugin's repairRadius. */
+    static final double GATE_REPAIR_RADIUS = 2_000;
+    /** approachToCenter: on when the ship and the target are both this far from the centre, off below it − 800. */
+    static final double CENTER_ON = 4_000;
+    static final double CENTER_OFF = 3_200;
+    private double[] gate;
+    private BotConfig.ShipMode repairMode;
+    private boolean towardCentre;
+
     public int targetId() {
         return targetId;
     }
@@ -678,7 +703,9 @@ public final class Attacker {
             clear();
             return false;
         }
-        double radius = Targets.radius(c, t, h.mapId());
+        BotConfig.ShipMode repair = repairMode;
+        repairMode = null;
+        double radius = gate != null && repair != null ? GATE_REPAIR_RADIUS : Targets.radius(c, t, h.mapId());
         double dist = t.distanceTo(h.x(), h.y());
         BotConfig.NpcRule rule = Targets.rule(c, t, h.mapId());
         targetRule = rule; // the pet's HP Link and the boxes go by it from the first moment of the fight
@@ -697,7 +724,12 @@ public final class Attacker {
             // the NPC's own formation (AstraBot: Invoke XVI in Drill), the config's configuration
             fightMode = new BotConfig.ShipMode(fightMode.config(), rule.formation());
         }
-        ctx.ship().want(chasing || runCircle ? c.general().run() : onTheWay ? c.general().travel() : fightMode);
+        if (gate != null) {
+            // SharedPlugin's setConfig: the repair's mode as it is, beyond 2 000 roam, else the fight's
+            ctx.ship().want(repair != null ? repair : dist > GATE_ROAM ? c.general().roam() : fightMode);
+        } else {
+            ctx.ship().want(chasing || runCircle ? c.general().run() : onTheWay ? c.general().travel() : fightMode);
+        }
         Threats threats = move ? new Threats(ctx, ctx.world().get(), c, t.id()) : null;
         double baseRadius = Targets.baseRadius(c, t, h.mapId());
         learnedFarther = radius > baseRadius + 1;
@@ -708,7 +740,19 @@ public final class Attacker {
             default -> "кружу";
         }, now);
         boolean holding = mode == BotConfig.FightMove.KITE || mode == BotConfig.FightMove.STAND;
-        if (move && dist > (holding ? radius * KITE_APPROACH : radius + 60) && now >= nextApproach) {
+        if (gate != null && move) {
+            // SharedPlugin's moveToAnSafePosition: the circle near and far alike (its pull to the radius brings the
+            // ship in), NO_CIRCLE stands
+            if (now >= nextApproach) {
+                if (mode == BotConfig.FightMove.STAND) {
+                    stand(threats, h, t, radius);
+                    nextApproach = now + ctx.pause(500, 900);
+                } else {
+                    circle(threats, h, t, radius, repair != null);
+                    nextApproach = now + ctx.pause(250, 400);
+                }
+            }
+        } else if (move && dist > (holding ? radius * KITE_APPROACH : radius + 60) && now >= nextApproach) {
             // a fleeing target: aim where it will be and go well inside the radius, re-aiming often (live 2026-11-12:
             // Boss Kristallon ran, the ship stopped at the radius of where it had been and never fired); the
             // «aggressive follow» flag aims at where it flies; one that stays: come in from its safer side
@@ -757,7 +801,7 @@ public final class Attacker {
                         nextApproach = now + ctx.pause(300, 450);
                     } else {
                         leadingFrom = null;
-                        circle(threats, h, t, radius);
+                        circle(threats, h, t, radius, false);
                         nextApproach = now + ctx.pause(250, 400);
                     }
                 }
@@ -933,6 +977,13 @@ public final class Attacker {
      */
     private BotConfig.FightMove mode(BotConfig c, BotConfig.NpcRule rule, WorldSnapshot.Ship t, WorldSnapshot.Hero h,
                                      long now) {
+        if (gate != null) {
+            BotConfig.FightMove g = rule != null && rule.has(BotConfig.NpcFlag.NO_CIRCLE) ? BotConfig.FightMove.STAND
+                    : BotConfig.FightMove.CIRCLE;
+            edgeHold = false;
+            modeTold = g;
+            return g;
+        }
         BotConfig.FightMove m = rule != null ? rule.fightMove(c.loot().fightMove()) : c.loot().fightMove();
         if (m == BotConfig.FightMove.AUTO) {
             double top = KIND_SPEED.getOrDefault(t.name(), 0.0);
@@ -1077,7 +1128,7 @@ public final class Attacker {
             }
         }
         if (to == null) {
-            circle(th, h, t, radius);
+            circle(th, h, t, radius, false);
             return;
         }
         kiteAngle = bestAngle;
@@ -1139,7 +1190,7 @@ public final class Attacker {
     /** The radius of this fight was learned farther than the base one (the target hit the ship nearer). */
     private boolean learnedFarther;
 
-    private void circle(Threats th, WorldSnapshot.Hero h, WorldSnapshot.Ship t, double radius) {
+    private void circle(Threats th, WorldSnapshot.Hero h, WorldSnapshot.Ship t, double radius, boolean raw) {
         if (circleDir == 0) {
             circleDir = ctx.random().nextBoolean() ? 1 : -1;
             log.info("Кружу вокруг {} ({}, радиус {})", t.name(), circleDir > 0 ? "по часовой" : "против часовой",
@@ -1153,10 +1204,10 @@ public final class Attacker {
         double r = radius;
         // DarkBot comes nearer to a still or nearly dead NPC — not when its kind was learned to hit the ship nearer
         // (live 2026-11-13 on 2-7: Boss Kristallon learned 675, fought at 593, the learning took it for 675)
-        if (!learnedFarther && (!t.moving() || t.health().known() && t.health().hpPercent() < 0.25)) {
-            r = Math.min(r, 600);
+        if (!raw && !learnedFarther && (!t.moving() || t.health().known() && t.health().hpPercent() < 0.25)) {
+            r = Math.min(r, 600); // DarkBot's modifyRadius; the repair's 2 000 is taken raw
         }
-        if (fleeing(t, h)) {
+        if (gate == null && fleeing(t, h)) {
             r *= 0.8; // one going away does not leave the radius while the ship goes round
         }
         double dist = Math.hypot(h.x() - cx, h.y() - cy);
@@ -1165,6 +1216,9 @@ public final class Attacker {
         double gap = Math.hypot(cx + Math.cos(angle) * rr - h.x(), cy + Math.sin(angle) * rr - h.y());
         double npcSpeed = Math.max(200, Math.hypot(vx, vy));
         double step = Math.max(0.05, Math.max(0, 0.625 * Math.max(1, h.speed()) + 0.625 * npcSpeed - gap) / rr);
+        if (gate != null && towardCentre(h, t)) {
+            th = null; // approachToCenter: the way fixed, no scoring
+        }
         if (th != null) {
             // DarkBot's getBestDir (the user, 2026-11-13: «как в даркботе»): up to N points each way (the config's
             // «smart circling», DarkBot's MAX_CIRCLE_ITERATIONS, 0 = never turn); stop as soon as one side is clear and
@@ -1199,6 +1253,30 @@ public final class Attacker {
             to = ok != null ? ok : new double[] {cx + Math.cos(angle) * 500, cy + Math.sin(angle) * 500};
         }
         ctx.nav().moveTo(to[0], to[1], false);
+    }
+
+    /**
+     * SharedPlugin's approachToCenter: with the ship and the target both over {@link #CENTER_ON} from the gate's centre
+     * (till both are under {@link #CENTER_OFF}) and the target above 30 % HP, the circle's way is fixed: when the ship
+     * and the target lie on (nearly) the same ray from the centre, the way is set by the side the ship is on.
+     */
+    private boolean towardCentre(WorldSnapshot.Hero h, WorldSnapshot.Ship t) {
+        double heroC = Math.hypot(h.x() - gate[0], h.y() - gate[1]);
+        double tC = Math.hypot(t.x() - gate[0], t.y() - gate[1]);
+        if (heroC > CENTER_ON && tC > CENTER_ON) {
+            towardCentre = true;
+        } else if (heroC < CENTER_OFF && tC < CENTER_OFF) {
+            towardCentre = false;
+        }
+        if (!towardCentre || t.health().known() && t.health().hpPercent() <= 0.3) {
+            return false;
+        }
+        double diff = Math.toDegrees(Math.atan2(gate[1] - h.y(), gate[0] - h.x()) - Math.atan2(gate[1] - t.y(), gate[0] - t.x()));
+        diff = ((diff + 540) % 360) - 180;
+        if (Math.abs(diff) < 2) {
+            circleDir = diff < 0 ? -1 : 1;
+        }
+        return true;
     }
 
     /** Rockets are launched this close at most (a little beyond the laser radius). */

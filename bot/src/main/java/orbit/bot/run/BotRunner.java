@@ -124,6 +124,7 @@ public final class BotRunner {
         this.loggedOut = loggedOut;
         this.statusSink = statusSink;
         this.safety = new Safety(ctx);
+        safety.gateRepair(() -> module != null && module.repairTick());
         this.revive = new Revive(ctx);
         this.buy = new BuyWatch(ctx);
         this.craft = new CraftWatch(ctx);

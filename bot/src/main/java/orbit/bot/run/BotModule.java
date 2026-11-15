@@ -23,6 +23,11 @@ public interface BotModule {
     }
 
     /** Safety took over or the module is being replaced: drop targets and plans. */
+    /** The repair is the module's own this tick (a galaxy gate: round the target); false — {@link Safety}'s way. */
+    default boolean repairTick() {
+        return false;
+    }
+
     default void pause() {
     }
 

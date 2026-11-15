@@ -92,6 +92,13 @@ public final class Safety {
         heal(w, ctx.config().get().safety(), now, hp, attacked);
     }
 
+    private java.util.function.BooleanSupplier gateRepair;
+
+    /** The module's own repair in a galaxy gate ({@link BotModule#repairTick}). */
+    public void gateRepair(java.util.function.BooleanSupplier r) {
+        this.gateRepair = r;
+    }
+
     public boolean tick(boolean fighting) {
         return tick(fighting, false);
     }
@@ -160,6 +167,9 @@ public final class Safety {
             // in a galaxy gate no portal is a shelter: the one learned there leads home, out of the gate, and the NPCs
             // follow to it (live 2026-11-15 on gb2, GG α: off to it at 59 %, shot there by the Protegits, jumped at
             // 21 % and killed) — away from the NPCs inside the gate, the repair there (DarkBot repairs in the gate too)
+            if (gateRepair != null && gateRepair.getAsBoolean()) {
+                return true; // SharedPlugin: round the target at 2 000, the module's
+            }
             awayInGate(w, h);
             return true;
         }

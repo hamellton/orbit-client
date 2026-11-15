@@ -128,8 +128,102 @@ public final class GateModule implements BotModule {
 
     @Override
     public void pause() {
+        if (repairedHere) {
+            repairedHere = false; // the gate's repair goes on round the target: the fight kept
+            return;
+        }
         attacker.clear();
         boxes.clear();
+    }
+
+    private boolean repairedHere;
+
+    /**
+     * The repair in a gate (SharedPlugin's repairHandler): the kamikaze first, then round the nearest target at 2 000
+     * in the repair mode, shooting on; nothing about — the ship stays.
+     */
+    @Override
+    public boolean repairTick() {
+        WorldSnapshot w = ctx.world().get();
+        GateCatalog.Gate g = GateCatalog.byMap(w.hero().mapId());
+        if (g == null || inGate == null) {
+            return false;
+        }
+        repairedHere = true;
+        BotConfig c = config();
+        attacker.gateStyle(centre(w));
+        if (kamikaze.tick(settings(), c, w, attacker)) {
+            status = "Врата " + g.name() + ": ремонт, камикадзе";
+            return true;
+        }
+        WorldSnapshot.Ship t = pick(c, w);
+        if (t != null) {
+            attacker.target(t);
+            attacker.repairCircle(ctx.config().get().safety().repairMode());
+            attacker.tick(true);
+            status = "Врата " + g.name() + ": ремонт — кружу вокруг " + t.name() + " на 2000";
+        } else {
+            ctx.nav().stop();
+            status = "Врата " + g.name() + ": ремонт на месте";
+        }
+        return true;
+    }
+
+    /** The gate's centre: SharedPlugin's GateHandler (10 000, 6 000), not the map's middle (GG β is 21 000 × 13 160). */
+    private static double[] centre(WorldSnapshot w) {
+        return new double[] {10_000, 6_000};
+    }
+
+    /** SharedPlugin's targetSwitchOffset: the one being shot is kept unless another is this much nearer. */
+    static final double SWITCH_OFFSET = 100;
+
+    /**
+     * SharedPlugin's closestNpc: the best by priority, distance, HP; the current one kept while it is the best, or
+     * shot at and not {@link #SWITCH_OFFSET} farther than the best — unless it is a far one to skip.
+     */
+    private WorldSnapshot.Ship pick(BotConfig c, WorldSnapshot w) {
+        WorldSnapshot.Hero h = w.hero();
+        List<WorldSnapshot.Ship> all = w.ships().values().stream()
+                .filter(s -> Targets.attackable(c, s, h.mapId()) && !Targets.taken(c, w, s) && !attacker.gaveUp(s.id()))
+                .toList();
+        WorldSnapshot.Ship best = all.stream().min(java.util.Comparator
+                        .<WorldSnapshot.Ship>comparingInt(s -> Targets.rule(c, s, h.mapId()).priority())
+                        .thenComparingDouble(s -> s.distanceTo(h.x(), h.y()))
+                        .thenComparingDouble(s -> s.health().known() ? s.health().hpPercent() : 1))
+                .orElse(null);
+        WorldSnapshot.Ship cur = w.ships().get(attacker.targetId());
+        if (cur == null || !all.contains(cur) || best == null || cur.id() == best.id()) {
+            return cur != null && all.contains(cur) ? cur : best;
+        }
+        if (skipFar(cur, all, h, centre(w))) {
+            return best;
+        }
+        if (h.attackTargetId() == cur.id()
+                && cur.distanceTo(h.x(), h.y()) < best.distanceTo(h.x(), h.y()) + SWITCH_OFFSET) {
+            return cur;
+        }
+        return best;
+    }
+
+    /**
+     * SharedPlugin's skipFarTarget: the target over 4 000 from the centre, farther than the ship, at most 25 % HP, while
+     * a healthier one (over 30 %) stands 800 nearer the centre in the same quarter.
+     */
+    public static boolean skipFar(WorldSnapshot.Ship cur, List<WorldSnapshot.Ship> all, WorldSnapshot.Hero h, double[] c) {
+        double curC = Math.hypot(cur.x() - c[0], cur.y() - c[1]);
+        if (curC <= 4_000 || curC <= Math.hypot(h.x() - c[0], h.y() - c[1])
+                || !cur.health().known() || cur.health().hpPercent() > 0.25) {
+            return false;
+        }
+        for (WorldSnapshot.Ship n : all) {
+            if (n.id() != cur.id() && n.health().known() && n.health().hpPercent() > 0.3
+                    && Math.hypot(n.x() - c[0], n.y() - c[1]) < curC - 800
+                    && Math.signum(n.x() - c[0]) == Math.signum(cur.x() - c[0])
+                    && Math.signum(n.y() - c[1]) == Math.signum(cur.y() - c[1])) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -711,15 +805,17 @@ public final class GateModule implements BotModule {
                     ? "взрыв" : "собираю NPC") + wave(st);
             return;
         }
-        // the fight
-        if (attacker.targetId() != 0 && attacker.tick(true)) {
-            quietSince = 0;
+        // the fight: SharedPlugin's closestNpc each tick, the gate's way of circling
+        attacker.gateStyle(centre(w));
+        WorldSnapshot.Ship t = pick(c, w);
+        if (t == null && attacker.targetId() != 0 && attacker.tick(true)) {
+            quietSince = 0; // the target out of sight a moment: after it
             status = "Врата " + g.name() + ": бой" + wave(st);
             return;
         }
-        WorldSnapshot.Ship t = Targets.best(c, w, Double.MAX_VALUE, s -> attacker.gaveUp(s.id()));
         if (t != null) {
             quietSince = 0;
+            stuckStep = 0;
             attacker.target(t);
             attacker.tick(true);
             status = "Врата " + g.name() + ": бой" + wave(st);
@@ -775,16 +871,71 @@ public final class GateModule implements BotModule {
             status = "Врата " + g.name() + ": пройдены";
             return;
         }
-        // nothing yet: the next wave comes — wait in the centre (DarkBot: moveToCenter)
-        orbit.world.maps.MapCatalog.MapInfo m = ctx.maps().info(h.mapId());
-        double cx = m.width() / 2.0;
-        double cy = m.height() / 2.0;
-        if (Math.hypot(cx - h.x(), cy - h.y()) > 600 && (ctx.nav().idle() || ctx.nav().destination().x() != cx)) {
-            ctx.ship().want(c.general().roam());
-            ctx.nav().moveTo(cx, cy, false);
+        // nothing yet: the next wave comes — SharedPlugin's moveToCenter: to (centre − 500, centre − 500), within 250
+        // it stops, in the run configuration (useRunConfig)
+        double[] cc = centre(w);
+        double wx = cc[0] - WAIT_OFFSET;
+        double wy = cc[1] - WAIT_OFFSET;
+        ctx.ship().want(c.general().run());
+        if (stuck(w, cc, now)) {
+            status = "Врата " + g.name() + ": долго жду волну" + wave(st);
+            return;
+        }
+        if (Math.hypot(wx - h.x(), wy - h.y()) > WAIT_NEAR) {
+            if (ctx.nav().idle() || ctx.nav().destination().x() != wx || ctx.nav().destination().y() != wy) {
+                ctx.nav().moveTo(wx, wy, false);
+            }
+        } else if (!ctx.nav().idle()) {
+            ctx.nav().stop();
         }
         ctx.nav().tick();
         status = "Врата " + g.name() + ": жду волну" + wave(st);
+    }
+
+    static final double WAIT_OFFSET = 500;
+    static final double WAIT_NEAR = 250;
+    /** SharedPlugin's stuckInGateTimerMinutes (1): waiting still so long — refresh; again — to (centre x, 0). */
+    static final long STUCK_MS = 60_000;
+    private long stillSince;
+    private int stuckStep;
+
+    /** SharedPlugin's handleStuckInGate; true while it steers the ship. */
+    private boolean stuck(WorldSnapshot w, double[] cc, long now) {
+        WorldSnapshot.Hero h = w.hero();
+        if (stuckStep == 2) {
+            if (Math.hypot(cc[0] - h.x(), h.y()) > 50) {
+                if (ctx.nav().idle()) {
+                    ctx.nav().moveTo(cc[0], 0, false);
+                }
+                ctx.nav().tick();
+                return true;
+            }
+            stuckStep = 0;
+            stillSince = now + STUCK_MS * 1_000_000L; // there: again after twice the time (SharedPlugin re-arms 2 N)
+            return false;
+        }
+        if (!ctx.nav().idle()) {
+            stillSince = 0;
+            return false;
+        }
+        long from = Math.max(stillSince == 0 ? now : stillSince, quietSince);
+        stillSince = from;
+        if (now - from < STUCK_MS * 1_000_000L) {
+            return false;
+        }
+        stillSince = now;
+        if (stuckStep == 0) {
+            stuckStep = 1;
+            Runnable r = refresh;
+            log.info("Во вратах {} с волны нет — перевхожу (как SharedPlugin)", STUCK_MS / 1000);
+            if (r != null) {
+                Thread.ofVirtual().name("refresh").start(r);
+            }
+            return false;
+        }
+        stuckStep = 2;
+        log.info("Во вратах волны всё нет — лечу к верхнему краю (как SharedPlugin)");
+        return true;
     }
 
     private static String wave(WorldSnapshot.Gate st) {
@@ -806,6 +957,9 @@ public final class GateModule implements BotModule {
         }
         inGate = null;
         lastWave = -1;
+        attacker.gateStyle(null);
+        stillSince = 0;
+        stuckStep = 0;
         infoAskedAt = Long.MIN_VALUE / 2; // the builder's state again: lives, parts after it
         attacker.clear();
         boxes.clear();
