@@ -340,7 +340,26 @@ public final class GateModule implements BotModule {
                 }
                 continue;
             }
-            if (on(s, "build", false) && spin(s, g, st, gates, now)) {
+        }
+        // nothing placed or built: spins for the gate of the list nearest its parts (the user's list first on a tie) —
+        // not the first one from naught while another lacks one part (live 2026-11-15 on gb2: α done, α spun from 0/34
+        // with β at 47/48)
+        if (on(s, "build", false)) {
+            Entry best = null;
+            double bestShare = -1;
+            for (Entry e : entries(s)) {
+                GateCatalog.Gate g = e.gate();
+                WorldSnapshot.Gate st = g.builderId() == 0 ? null : gates.gate(g.builderId());
+                if (st == null || skipped(g, now) || st.lives() > 0 || g.parts() <= 0 || st.parts() >= g.parts()) {
+                    continue;
+                }
+                double share = Math.max(0, st.parts()) / (double) g.parts();
+                if (share > bestShare) {
+                    bestShare = share;
+                    best = e;
+                }
+            }
+            if (best != null && spin(s, best.gate(), gates.gate(best.gate().builderId()), gates, now)) {
                 return;
             }
         }

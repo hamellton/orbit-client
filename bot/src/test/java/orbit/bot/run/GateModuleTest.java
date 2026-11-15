@@ -215,6 +215,19 @@ class GateModuleTest {
     }
 
     @Test
+    void theSpinsGoToTheGateNearestItsPartsNotTheFirstOfTheList() throws Exception {
+        // live 2026-11-15 on gb2: α done, α spun from 0/34 while β had 47/48
+        Sim sim = new Sim(config("{\"gates\":[\"alpha\",\"beta\",\"gamma\"],\"build\":true}"), home(), 10_000, 6_000);
+        info(sim, 50, new int[] {1, 0, -1}, new int[] {2, 47, -1}, new int[] {3, 6, -1});
+        GateModule m = new GateModule(sim.ctx);
+        run(sim, m, 2_000);
+        var spins = sim.sent.stream().filter(p -> p instanceof orbit.protocol.gen.GalaxyGateBuilderMultiEnergyRequest)
+                .map(p -> (int) ((orbit.protocol.gen.GalaxyGateBuilderMultiEnergyRequest) p).gateId).toList();
+        assertFalse(spins.isEmpty());
+        assertTrue(spins.stream().allMatch(id -> id == 2), "β: " + spins);
+    }
+
+    @Test
     void twoLivesLeftOneMoreIsBoughtWhileTheUridiumLasts() throws Exception {
         // the user, 2026-11-14: «если осталось 2 жизни, то докупаем за уридиум ещё одну, если урика хватает»
         Sim sim = new Sim(config("{\"gates\":[\"alpha\"],\"buyLives\":true}"), home(), 10_000, 6_000);
