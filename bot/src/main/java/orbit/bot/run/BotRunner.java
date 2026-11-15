@@ -909,9 +909,31 @@ public final class BotRunner {
                 return;
             }
         }
-        // in a galaxy gate no portal: the stage's or the home one stands among the NPCs, and the way there through them
-        // killed the ship twice (live 2026-11-15 on gb2, GG β) — out where it is, the gate kept
+        // in a galaxy gate the game lets nobody log out (the user, 2026-11-15: «во вратах выйти нельзя — прыгнуть в портал
+        // на x-1 и выйти там, на базе»): through the gate's home portal (type 1), out on x-1; the gate is kept
         boolean inGate = orbit.config.GateCatalog.byMap(h.mapId()) != null;
+        if (inGate) {
+            WorldSnapshot.Portal home = w.portals().values().stream()
+                    .filter(g -> g.designId() == orbit.config.GateCatalog.HOME_PORTAL)
+                    .min(java.util.Comparator.comparingDouble(g -> Math.hypot(g.x() - h.x(), g.y() - h.y()))).orElse(null);
+            if (home != null) {
+                double d = Math.hypot(home.x() - h.x(), home.y() - h.y());
+                if (d > 300 || !w.activatable().containsKey(home.id())) {
+                    if (ctx.nav().idle() || ctx.nav().destination().x() != home.x()) {
+                        ctx.nav().moveTo(home.x(), home.y(), true);
+                    }
+                    ctx.nav().tick();
+                } else if (w.jumpingTo() == 0 && now - stopJumpAt > 10_000_000_000L) {
+                    log.info("Выхожу из игры во вратах — сначала прыгаю домой на x-1, выйду там");
+                    ctx.nav().stop();
+                    ctx.actions().jump();
+                    stopJumpAt = now;
+                }
+                show("Во вратах: к порталу домой — выйду на x-1");
+                logoutAt = 0;
+                return;
+            }
+        }
         int[] p = logoutHere || inGate ? null : logoutPortal(w);
         if (p != null && Math.hypot(p[0] - h.x(), p[1] - h.y()) > Safety.AT_PORTAL) {
             if (ctx.nav().idle() || ctx.nav().destination().x() != p[0]) {
