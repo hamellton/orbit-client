@@ -170,7 +170,6 @@ public final class Threats {
 
     double score(double x, double y) {
         if (x < margin || y < margin || x > map.width() - margin || y > map.height() - margin
-                || margin < MARGIN && !GateBounds.inside(w.hero().mapId(), x, y)
                 || avoided != null && avoided.contains(x, y, map.width(), map.height()) || ctx.nav().inDanger(x, y)
                 || orbit.world.maps.ZoneGeometry.blocked(w, x, y)) {
             return BLOCKED;
@@ -218,6 +217,15 @@ public final class Threats {
         // DarkBot's searchValidLocation: +0.3 rad and +2 a step up to 10 000 (a gate: the corner of the field by a
         // target outside it — live 2026-11-15 on gb2, GG β: a Sibelonit at 210/135, our +25 steps ended 800 off)
         boolean dark = margin < MARGIN;
+        if (dark) {
+            // off the map: its nearest point on the edge first (the 0.3 rad steps skip past the corner, ending 620 off
+            // a target 400 beyond it — the laser's very edge)
+            double ex = Math.max(margin, Math.min(map.width() - margin, x));
+            double ey = Math.max(margin, Math.min(map.height() - margin, y));
+            if ((ex != x || ey != y) && !blocked(ex, ey)) {
+                return new double[] {ex, ey};
+            }
+        }
         double grow = dark ? 2 : 25;
         int steps = dark ? 5_000 : 400;
         for (int i = 0; i < steps; i++) {

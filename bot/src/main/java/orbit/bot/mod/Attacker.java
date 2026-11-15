@@ -1212,6 +1212,19 @@ public final class Attacker {
         double[] c0 = ahead(t, h, radius);
         double cx = c0[0];
         double cy = c0[1];
+        if (gate != null && !raw) {
+            // a gate's NPC beyond the map's edge (Sibelonits at 210/135 on the 21 000 × 13 100 GG β, live 2026-11-15):
+            // no circle round it fits the map — the nearest point of the map to it, the laser reaches from there
+            orbit.world.maps.MapCatalog.MapInfo m = ctx.maps().info(h.mapId());
+            double ex = Math.max(1, Math.min(m.width() - 1, cx));
+            double ey = Math.max(1, Math.min(m.height() - 1, cy));
+            if (Math.hypot(ex - cx, ey - cy) > 100) {
+                if (Math.hypot(ex - h.x(), ey - h.y()) > 30) {
+                    ctx.nav().moveTo(ex, ey, false);
+                }
+                return;
+            }
+        }
         double r = radius;
         // DarkBot comes nearer to a still or nearly dead NPC — not when its kind was learned to hit the ship nearer
         // (live 2026-11-13 on 2-7: Boss Kristallon learned 675, fought at 593, the learning took it for 675)
@@ -1250,10 +1263,9 @@ public final class Attacker {
             gap = Math.hypot(cx + Math.cos(angle) * rr - h.x(), cy + Math.sin(angle) * rr - h.y());
             step = Math.max(0, 0.625 * Math.max(1, h.speed()) + 0.625 * Math.min(200, Math.hypot(vx, vy)) - gap) / rr;
         }
-        if (gate != null && towardCentre(h, t)) {
-            th = null; // approachToCenter: the way fixed, no scoring
-        }
-        if (th != null) {
+        // approachToCenter: the way fixed, no scoring (the point is still searched valid)
+        boolean fixedWay = gate != null && towardCentre(h, t);
+        if (th != null && !fixedWay) {
             // DarkBot's getBestDir (the user, 2026-11-13: «как в даркботе»): up to N points each way (the config's
             // «smart circling», DarkBot's MAX_CIRCLE_ITERATIONS, 0 = never turn); stop as soon as one side is clear and
             // the other not, or one is better by 300; turn to the better side then, else keep the way

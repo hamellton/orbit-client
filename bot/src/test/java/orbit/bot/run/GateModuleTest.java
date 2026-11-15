@@ -376,6 +376,19 @@ class GateModuleTest {
     }
 
     @Test
+    void aTargetBeyondTheFieldsCornerIsShotFromTheCornerAsDarkBot() throws Exception {
+        // live 2026-11-15 on gb2, GG β: Sibelonits at 210/135, past the 21 000 × 13 100 field — DarkBot's
+        // searchValidLocation (+0.3 rad, +2) finds the corner, within the laser's reach
+        Sim sim = new Sim(config("{\"gates\":[\"beta\"]}"), 52, 19_000, 11_500);
+        sim.lasers("ammunition_laser_lcb-10");
+        GateModule m = new GateModule(sim.ctx);
+        sim.npc(900, "-=[ Sibelonit ]=- β29", 21_000, 13_500);
+        run(sim, m, 20_000);
+        var h = sim.world.snapshot(sim.now).hero();
+        assertTrue(Math.hypot(h.x() - 21_000, h.y() - 13_500) <= 500, h.x() + "/" + h.y());
+    }
+
+    @Test
     void fewerThanFiveFlaggedOnesTheFightGoesOnAsUsual() throws Exception {
         Sim sim = new Sim(config("{\"gates\":[\"alpha\"],\"kamikaze\":{\"enabled\":true,\"minNpcs\":5}}")
                 .withPet(new BotConfig.Pet(true, "GUARD")), 51, 8_500, 6_200);
