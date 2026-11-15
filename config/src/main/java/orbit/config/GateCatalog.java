@@ -179,7 +179,10 @@ public final class GateCatalog {
             return null;
         }
         Integer radius = gate.npcs().get(bare);
-        Set<String> flags = gate.kamikaze().contains(bare) ? Set.of(BotConfig.NpcFlag.KAMIKAZE.name()) : Set.of();
+        // held till dead: a wave ends only with its NPCs dead (CARNAGE «holdTargetUntilKill»)
+        Set<String> flags = gate.kamikaze().contains(bare)
+                ? Set.of(BotConfig.NpcFlag.KAMIKAZE.name(), BotConfig.NpcFlag.HOLD_TARGET.name())
+                : Set.of(BotConfig.NpcFlag.HOLD_TARGET.name());
         return new BotConfig.NpcRule(radius != null ? radius : 560, 0, true, flags, Set.copyOf(gate.maps()), null);
     }
 }

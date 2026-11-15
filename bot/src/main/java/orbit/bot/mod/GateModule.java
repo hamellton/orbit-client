@@ -166,6 +166,14 @@ public final class GateModule implements BotModule {
                     r = new BotConfig.NpcRule(r.radius(), r.priority(), r.kill(), r.flags(), r.maps(), r.ammo(), r.sab(),
                             r.rocket(), r.launcher(), r.move(), f);
                 }
+                // the NPC's ammunition (DarkBot ABG: key 3 on Kristallin, Kristallon, Protegit; AstraBot RSB on them) —
+                // only while the item bar has enough of it, else the config's
+                String a = s.path("npcAmmo").path(GateCatalog.gateNpc(n)).asText("");
+                WorldSnapshot.Item stock = a.isBlank() ? null : w.items().get(a);
+                if (stock != null && stock.counter() >= s.path("npcAmmoMin").asInt(1_000)) {
+                    r = new BotConfig.NpcRule(r.radius(), r.priority(), r.kill(), r.flags(), r.maps(), a, r.sab(),
+                            r.rocket(), r.launcher(), r.move(), r.formation());
+                }
                 npcs.put(n, r);
             }
             BotConfig c = base.withNpcs(npcs);

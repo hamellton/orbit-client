@@ -644,7 +644,13 @@ public record BotConfig(
         /** the Energy Leech tech ({@code tech_energy-leech}) fighting it, when ready (AstraBot «Use Energy Leech») */
         USE_LEECH,
         /** the ship's own fight ability fighting it, when ready (AstraBot «Use Ship Ability») */
-        USE_ABILITY
+        USE_ABILITY,
+        /**
+         * kept till it dies, not dropped for losing nothing a while (CARNAGE Trinity «holdTargetUntilKill»; gates: a wave
+         * ends only with its NPCs dead — live 2026-11-15 on gb2, GG α: Protegits dropped one after another, their shields
+         * back as fast as MCB-25 took them)
+         */
+        HOLD_TARGET
     }
 
     /**

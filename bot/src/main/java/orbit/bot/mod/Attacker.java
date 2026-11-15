@@ -767,7 +767,7 @@ public final class Attacker {
             return false;
         }
         if (dist <= radius + 200) {
-            if (noDamage(t, now)) {
+            if ((rule == null || !rule.has(BotConfig.NpcFlag.HOLD_TARGET)) && noDamage(t, now)) {
                 return false;
             }
         } else {
