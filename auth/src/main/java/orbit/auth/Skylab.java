@@ -74,6 +74,48 @@ public final class Skylab {
         return info;
     }
 
+    /** The website's ore fields of the transport form, in its order (DmPlugin's SkylabSender, OrbitHelper). */
+    static final List<String> TRANSPORT_ORES = List.of("prometium", "endurium", "terbium", "prometid", "duranium",
+            "xenomit", "promerium", "seprom");
+    private static final Pattern TOKEN = Pattern.compile("name=\"reloadToken\"\s+value=\"([^\"]+)\"");
+
+    /**
+     * Starts the transport module: these amounts by ore name into the ship's hold, {@code fast} the quick paid one
+     * ({@code mode=fast}) else the normal one. The page is read again after it: the transport must be on its way, else
+     * the site refused (the answer itself is not read by DarkBot either).
+     *
+     * @return the page after the request
+     */
+    public Info transport(Map<String, Long> amounts, boolean fast) throws IOException {
+        String page = origin + "/indexInternal.es?action=internalSkylab";
+        HttpSession.Response r = http.get(page, origin + "/indexInternal.es?action=internalStart");
+        Matcher t = TOKEN.matcher(r.body());
+        if (!t.find()) {
+            throw new IOException("Skylab: на странице нет токена формы");
+        }
+        if (r.body().contains("progress_timer_transportModule")) {
+            throw new IOException("Skylab: транспорт ещё в пути");
+        }
+        Map<String, String> form = new LinkedHashMap<>();
+        form.put("reloadToken", t.group(1));
+        form.put("action", "internalSkylab");
+        form.put("subaction", "startTransport");
+        form.put("mode", fast ? "fast" : "normal");
+        form.put("construction", "TRANSPORT_MODULE");
+        for (String ore : TRANSPORT_ORES) {
+            form.put("count_" + ore, String.valueOf(Math.max(0, amounts.getOrDefault(ore, 0L))));
+        }
+        HttpSession.Response sent = http.postForm(origin + "/indexInternal.es", form, page);
+        if (sent.status() >= 400) {
+            throw new IOException("Skylab: HTTP " + sent.status() + " на отправку");
+        }
+        Info after = parse(http.get(page, page).body(), System.currentTimeMillis());
+        if (!after.transporting()) {
+            throw new IOException("Skylab: после отправки транспорт не в пути — сайт не принял (" + amounts + ")");
+        }
+        return after;
+    }
+
     /** The page's modules, ores, transport and robots; whatever is missing is left out. */
     public static Info parse(String html, long readMillis) {
         Map<String, Module> modules = new LinkedHashMap<>();

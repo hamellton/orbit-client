@@ -181,6 +181,8 @@ public final class World {
     /** Items placed on the slot bars (keys 1–0 and the extra bars). */
     private final java.util.Set<String> slotItems = new java.util.LinkedHashSet<>();
     private final Map<Integer, Double> ores = new LinkedHashMap<>();
+    /** The lab's enrichment (kept over map changes: the ship's). */
+    private WorldSnapshot.Lab lab = WorldSnapshot.Lab.NONE;
     /** The trade window's prices (the ores it buys) and when they came; the pet trade pod's window. */
     private final Map<Integer, Integer> tradePrices = new LinkedHashMap<>();
     private long tradeNanos;
@@ -506,6 +508,16 @@ public final class World {
                 log.error("Проверка с ящиками не пройдена — корабль взорван");
                 boxCheck = null;
             }
+            case orbit.protocol.gen.LabUpdateItemCommand p -> {
+                Map<Integer, WorldSnapshot.Enrichment> items = new java.util.TreeMap<>(lab.items());
+                for (orbit.protocol.gen.UpdateItemModule u : p.itemsUpdatedInfo) {
+                    if (u.itemToUpdate != null && u.oreCountToUpdateWith != null && u.oreCountToUpdateWith.oreType != null) {
+                        items.put((int) u.itemToUpdate.itemValue, new WorldSnapshot.Enrichment(
+                                u.oreCountToUpdateWith.oreType.typeValue, Math.round(u.oreCountToUpdateWith.count)));
+                    }
+                }
+                lab = new WorldSnapshot.Lab(Map.copyOf(items), nanos);
+            }
             case AttributeOreCountUpdateCommand p -> {
                 ores.clear();
                 for (OreCountModule o : p.oreCountList) {
@@ -648,7 +660,7 @@ public final class World {
         return new WorldSnapshot(nanos, h, Map.copyOf(shipViews), Map.copyOf(collectables), Map.copyOf(portals),
                 Map.copyOf(assets), Map.copyOf(zones), group, Map.copyOf(items),
                 new WorldSnapshot.Inventory(Map.copyOf(ores), Map.copyOf(resources), Map.copyOf(bootyKeys),
-                        Map.copyOf(tradePrices), tradeNanos, petTradeNanos, Map.copyOf(recipes)), pet,
+                        Map.copyOf(tradePrices), tradeNanos, petTradeNanos, Map.copyOf(recipes), lab), pet,
                 Map.copyOf(activatable), jumpingTo, death, java.util.Set.copyOf(slotItems), recentKills(nanos),
                 new WorldSnapshot.Rewards(gainedCredits, gainedUridium, gainedHonor, gainedExperience, Map.copyOf(loot)),
                 List.copyOf(invitations), List.copyOf(contacts.values()), Map.copyOf(mines),

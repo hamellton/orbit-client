@@ -70,6 +70,7 @@ public final class ConfigWindow {
         sections.add(new PalladiumSection());
         sections.add(new QuestsSection());
         sections.add(new GateSection());
+        sections.add(new EnrichSection());
         sections.add(new BuySection());
         sections.add(new GroupSection());
         sections.forEach(s -> tabs.addTab(s.title(), s.view()));

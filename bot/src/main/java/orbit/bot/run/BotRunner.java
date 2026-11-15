@@ -89,6 +89,8 @@ public final class BotRunner {
     private final Flee flee;
     private final GroupWatch groupWatch;
     private final PetCare pet;
+    private final Enricher enricher;
+    private final SkylabCare skylab;
     private final CargoCare cargo;
     private final orbit.bot.nav.CpuJumper jumper;
     private final BoxCheckSolver boxCheck;
@@ -133,6 +135,8 @@ public final class BotRunner {
         this.flee = new Flee(ctx);
         this.groupWatch = new GroupWatch(ctx);
         this.pet = new PetCare(ctx);
+        this.enricher = new Enricher(ctx);
+        this.skylab = new SkylabCare(ctx, enricher::missing);
         pet.setModuleLocator(() -> module == null ? 0 : module.petLocator());
         pet.setModuleGear(() -> module == null ? -1 : module.petGear());
         pet.setModuleOut(() -> module == null ? null : module.petOut());
@@ -238,6 +242,11 @@ public final class BotRunner {
     /** The account's equipment on the site, for a new cloaking CPU (none = not fitted by the bot). */
     public void setHangar(HangarAccess hangar) {
         cloak.setHangar(hangar);
+    }
+
+    /** The account's Skylab on the website, for ore into the hold ({@code null}: none). */
+    public void setSkylab(SkylabAccess access) {
+        skylab.setAccess(access);
     }
 
     /** A new login of the game connection (the game reads a new CPU at a login). */
@@ -507,6 +516,10 @@ public final class BotRunner {
         craft.tick();
         groupWatch.tick();
         pet.tick();
+        if (state != State.STOPPING) {
+            enricher.tick(); // the lab kept up from the hold (modules.enrich)
+            skylab.tick(); // ore from the Skylab into the hold (modules.skylab)
+        }
         if (state == State.STOPPING) {
             if (pending.getAndSet(null) != null) {
                 log.info("Выхожу из игры — приказ с карты не выполняю");

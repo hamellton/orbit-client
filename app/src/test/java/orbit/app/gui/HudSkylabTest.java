@@ -54,11 +54,12 @@ class HudSkylabTest {
             c.itemsUpdatedInfo.add(u);
         }
         feed.onPacket(c, 1);
-        org.junit.jupiter.api.Assertions.assertEquals(new orbit.app.WorldFeed.Enrichment(6, 1000), feed.lab().items().get(0));
-        org.junit.jupiter.api.Assertions.assertEquals(new orbit.app.WorldFeed.Enrichment(7, 250), feed.lab().items().get(3));
+        var lab = feed.snapshot().inventory().lab();
+        org.junit.jupiter.api.Assertions.assertEquals(new orbit.world.WorldSnapshot.Enrichment(6, 1000), lab.items().get(0));
+        org.junit.jupiter.api.Assertions.assertEquals(new orbit.world.WorldSnapshot.Enrichment(7, 250), lab.items().get(3));
         Hud hud = new Hud(new Font(Font.SANS_SERIF, Font.PLAIN, 12));
-        assertNull(hud.lab(orbit.app.WorldFeed.Lab.NONE), "never told: no card");
-        Hud.Card card = hud.lab(feed.lab());
+        assertNull(hud.lab(orbit.world.WorldSnapshot.Lab.NONE, 2), "never told: no card");
+        Hud.Card card = hud.lab(lab, 2);
         assertNotNull(card);
         BufferedImage img = new BufferedImage(360, card.height(360) + 10, BufferedImage.TYPE_INT_ARGB);
         Graphics2D g = img.createGraphics();

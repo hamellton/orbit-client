@@ -200,6 +200,26 @@ public final class Actions {
         sender.accept(r);
     }
 
+    /** The lab's state ({@code LabUpdateRequest}): the answer is each item's enrichment and the hold's ores. */
+    public void labInfo() {
+        sender.accept(new orbit.protocol.gen.LabUpdateRequest());
+    }
+
+    /**
+     * Enriches a lab item ({@code LabUpdateItemRequest}): laser 0, rockets 1, drive 2, shield 3, with {@code count} units of
+     * an ore from the hold ({@code OreTypeModule} number) — the client's own request (recordings 2026-11-11/12).
+     */
+    public void labEnrich(int item, int ore, long count) {
+        orbit.protocol.gen.LabUpdateItemRequest r = new orbit.protocol.gen.LabUpdateItemRequest();
+        r.itemToUpdate = new orbit.protocol.gen.LabItemModule();
+        r.itemToUpdate.itemValue = (short) item;
+        r.updateWith = new orbit.protocol.gen.OreCountModule();
+        r.updateWith.oreType = new orbit.protocol.gen.OreTypeModule();
+        r.updateWith.oreType.typeValue = (short) ore;
+        r.updateWith.count = count;
+        sender.accept(r);
+    }
+
     /** Trinity Trials' window: {@code 0} its state, {@code 1} the pass, {@code 2} drop a level ({@code TrinityTrialsUIRequest}). */
     public void trinityWindow(int type) {
         orbit.protocol.gen.TrinityTrialsUIRequest r = new orbit.protocol.gen.TrinityTrialsUIRequest();

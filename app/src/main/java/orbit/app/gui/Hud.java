@@ -93,7 +93,7 @@ final class Hud {
         put(out, ViewSettings.Block.QUESTS, quests(w.quests()));
         put(out, ViewSettings.Block.GATES, gates(w, feed));
         put(out, ViewSettings.Block.SKYLAB, skylab(feed.skylab()));
-        put(out, ViewSettings.Block.LAB, lab(feed.lab()));
+        put(out, ViewSettings.Block.LAB, lab(w.inventory().lab(), feed.now()));
         if (feed.stats() != null || !w.rewards().equals(WorldSnapshot.Rewards.NONE)) {
             out.put(ViewSettings.Block.STATS, stats(w, feed));
         }
@@ -196,11 +196,12 @@ final class Hud {
      * «Обогащение» (the user, 2026-11-15: «обогащены ли сейчас лазеры, движки, ракеты и щиты, чем и сколько осталось»):
      * the lab's answer — each item's ore and what is left of it; when it was told and how often it is asked.
      */
-    Card lab(orbit.app.WorldFeed.Lab lab) {
-        if (lab == null || lab.millis() == 0) {
+    Card lab(WorldSnapshot.Lab lab, long nowNanos) {
+        if (lab == null || lab.nanos() == 0) {
             return null;
         }
-        String age = java.time.LocalTime.ofInstant(java.time.Instant.ofEpochMilli(lab.millis()),
+        long millis = System.currentTimeMillis() - Math.max(0, nowNanos - lab.nanos()) / 1_000_000;
+        String age = java.time.LocalTime.ofInstant(java.time.Instant.ofEpochMilli(millis),
                 java.time.ZoneId.systemDefault()).withNano(0).toString();
         return new Card() {
             @Override
@@ -220,7 +221,7 @@ final class Hud {
                 g.drawString(right, x + width - pad - g.getFontMetrics().stringWidth(right), y + pad + 10);
                 int ry = y + pad + line;
                 for (int i = 0; i < LAB_ITEMS.size(); i++) {
-                    orbit.app.WorldFeed.Enrichment e = lab.items().get(i);
+                    WorldSnapshot.Enrichment e = lab.items().get(i);
                     boolean has = e != null && e.left() > 0;
                     g.setColor(has ? TEXT : DIM);
                     g.drawString(LAB_ITEMS.get(i), x + pad, ry + 10);

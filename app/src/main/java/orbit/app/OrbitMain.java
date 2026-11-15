@@ -724,6 +724,7 @@ public final class OrbitMain {
                     current.set(run);
                     run.runner().setClickHold(clickHold(accountName));
                     run.runner().setHangar(hangarFor(auth, conn));
+                    run.runner().setSkylab(skylabFor(auth, conn, feed));
                     run.runner().setRefresh(conn::refresh);
                     // every module: which ship is in use, and the list the «Ангар» window shows (the user, 2026-11-14:
                     // «в кораблях пусто» — it was read for palladium only)
@@ -884,6 +885,33 @@ public final class OrbitMain {
                 log.warn("Ангары с сайта не прочитать: {}", e.getMessage());
             }
         });
+    }
+
+    /** The bot's way to the account's Skylab: the page read and the transport sent through the game session's site. */
+    private static orbit.bot.run.SkylabAccess skylabFor(AuthClient auth, GameConnection conn, WorldFeed feed) {
+        return new orbit.bot.run.SkylabAccess() {
+            private orbit.auth.Skylab site() throws java.io.IOException {
+                var session = conn.session();
+                if (session == null || session.host() == null) {
+                    throw new java.io.IOException("нет игровой сессии");
+                }
+                return new orbit.auth.Skylab(auth.http(), session.host());
+            }
+
+            @Override
+            public Stock stock() throws java.io.IOException {
+                orbit.auth.Skylab.Info info = site().read();
+                feed.setSkylab(info);
+                java.util.Map<String, Long> ores = new java.util.LinkedHashMap<>();
+                info.ores().forEach(o -> ores.put(o.name(), o.amount()));
+                return new Stock(info.transporting(), ores);
+            }
+
+            @Override
+            public void transport(java.util.Map<String, Long> amounts, boolean fast) throws java.io.IOException {
+                feed.setSkylab(site().transport(amounts, fast));
+            }
+        };
     }
 
     /** The lab's enrichment is asked this often (the client asks it whenever the cargo window opens). */

@@ -214,16 +214,6 @@ public final class WorldFeed {
         if (learnNpcMaps && p instanceof orbit.protocol.gen.AddOreCommand o && o.oreType != null) {
             orbit.world.maps.OreMaps.shared().learn(world.snapshot(nanos).hero().mapId(), o.oreType.typeValue);
         }
-        if (p instanceof orbit.protocol.gen.LabUpdateItemCommand l) {
-            java.util.Map<Integer, Enrichment> items = new java.util.TreeMap<>(lab.items());
-            for (orbit.protocol.gen.UpdateItemModule u : l.itemsUpdatedInfo) {
-                if (u.itemToUpdate != null && u.oreCountToUpdateWith != null && u.oreCountToUpdateWith.oreType != null) {
-                    items.put((int) u.itemToUpdate.itemValue, new Enrichment(u.oreCountToUpdateWith.oreType.typeValue,
-                            (long) u.oreCountToUpdateWith.count));
-                }
-            }
-            lab = new Lab(java.util.Map.copyOf(items), System.currentTimeMillis());
-        }
         packets.incrementAndGet();
         WorldSnapshot.Hero before = world.snapshot(nanos).hero();
         int heroBefore = before.id();
@@ -384,24 +374,7 @@ public final class WorldFeed {
 
     private volatile orbit.auth.Skylab.Info skylab;
 
-    /** One lab item's enrichment: the ore ({@code OreTypeModule} number) and how much of it is left. */
-    public record Enrichment(int ore, long left) {
-    }
-
-    /**
-     * The ship's enrichment from the lab ({@code LabUpdateItemCommand}): laser 0, rockets 1, drive 2, shield 3 — and when
-     * the server told it (wall clock, ms; 0 never).
-     */
-    public record Lab(java.util.Map<Integer, Enrichment> items, long millis) {
-        public static final Lab NONE = new Lab(java.util.Map.of(), 0);
-    }
-
-    private volatile Lab lab = Lab.NONE;
     private volatile Runnable refreshInfo;
-
-    public Lab lab() {
-        return lab;
-    }
 
     /** What the window's «Обновить» does: the lab asked at once, the Skylab read at once ({@code null} not in game). */
     public Runnable refreshInfo() {

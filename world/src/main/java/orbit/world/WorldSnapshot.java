@@ -351,11 +351,23 @@ public record WorldSnapshot(long nanos, Hero hero, Map<Integer, Ship> ships, Map
      */
     public record Inventory(Map<Integer, Double> ores, Map<String, Double> resources, Map<String, Integer> bootyKeys,
                             Map<Integer, Integer> tradePrices, long tradeNanos, long petTradeNanos,
-                            Map<String, Recipe> recipes) {
+                            Map<String, Recipe> recipes, Lab lab) {
 
         public Inventory(Map<Integer, Double> ores, Map<String, Double> resources, Map<String, Integer> bootyKeys,
                          Map<Integer, Integer> tradePrices, long tradeNanos, long petTradeNanos) {
-            this(ores, resources, bootyKeys, tradePrices, tradeNanos, petTradeNanos, Map.of());
+            this(ores, resources, bootyKeys, tradePrices, tradeNanos, petTradeNanos, Map.of(), Lab.NONE);
+        }
+
+        public Inventory(Map<Integer, Double> ores, Map<String, Double> resources, Map<String, Integer> bootyKeys,
+                         Map<Integer, Integer> tradePrices, long tradeNanos, long petTradeNanos,
+                         Map<String, Recipe> recipes) {
+            this(ores, resources, bootyKeys, tradePrices, tradeNanos, petTradeNanos, recipes, Lab.NONE);
+        }
+
+        /** How much of an ore ({@code OreTypeModule} number) lies in the hold. */
+        public long ore(int type) {
+            Double v = ores.get(type);
+            return v == null ? 0 : Math.round(v);
         }
 
         /** Xenomit does not take room in the hold (cargoSpace = max − the other ores, both recordings agree). */
@@ -365,6 +377,24 @@ public record WorldSnapshot(long nanos, Hero hero, Map<Integer, Ship> ships, Map
         public long cargoUsed() {
             return Math.round(ores.entrySet().stream().filter(e -> e.getKey() != XENOMIT).mapToDouble(Map.Entry::getValue).sum());
         }
+    }
+
+    /** One lab item's enrichment: the ore ({@code OreTypeModule} number) and how much of it is left (10 a unit of ore). */
+    public record Enrichment(int ore, long left) {
+    }
+
+    /**
+     * The ship's enrichment from the lab ({@code LabUpdateItemCommand}): {@link #LASER}, {@link #ROCKETS}, {@link #DRIVE},
+     * {@link #SHIELD} — and when the server told it (0 never).
+     */
+    public record Lab(Map<Integer, Enrichment> items, long nanos) {
+        public static final Lab NONE = new Lab(Map.of(), 0);
+        public static final int LASER = 0;
+        public static final int ROCKETS = 1;
+        public static final int DRIVE = 2;
+        public static final int SHIELD = 3;
+        /** A unit of ore gives this much enrichment (recordings 2026-11-11/12: 1 000 seprom → +10 000, 7 000 promerium → +70 000). */
+        public static final int PER_ORE = 10;
     }
 
     /** Free room in the hold now: the capacity less the ore in it (-1 before the game said). */

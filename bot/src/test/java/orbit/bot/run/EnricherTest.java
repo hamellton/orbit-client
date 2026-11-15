@@ -1,0 +1,133 @@
+package orbit.bot.run;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.util.List;
+import java.util.Map;
+import orbit.config.BotConfig;
+import orbit.config.Json;
+import orbit.protocol.gen.LabUpdateItemRequest;
+import org.junit.jupiter.api.Test;
+
+class EnricherTest {
+
+    static BotConfig config(String enrich, String skylab) throws Exception {
+        BotConfig c = BotConfig.empty().withModuleSettings("enrich", Json.MAPPER.readTree(enrich));
+        return skylab == null ? c : c.withModuleSettings("skylab", Json.MAPPER.readTree(skylab));
+    }
+
+    static final String ON = """
+            {"enabled":true,"items":{"laser":{"on":true,"ore":"PROMERIUM","below":50000,"load":10000},
+             "shield":{"on":true,"ore":"SEPROM","below":50000,"load":1000}}}""";
+
+    /** The lab's answer: items {item, ore, left}. */
+    static void lab(Sim sim, int[]... items) {
+        orbit.protocol.gen.LabUpdateItemCommand c = new orbit.protocol.gen.LabUpdateItemCommand();
+        for (int[] it : items) {
+            orbit.protocol.gen.UpdateItemModule u = new orbit.protocol.gen.UpdateItemModule();
+            u.itemToUpdate = new orbit.protocol.gen.LabItemModule();
+            u.itemToUpdate.itemValue = (short) it[0];
+            u.oreCountToUpdateWith = new orbit.protocol.gen.OreCountModule();
+            u.oreCountToUpdateWith.oreType = new orbit.protocol.gen.OreTypeModule();
+            u.oreCountToUpdateWith.oreType.typeValue = (short) it[1];
+            u.oreCountToUpdateWith.count = it[2];
+            c.itemsUpdatedInfo.add(u);
+        }
+        sim.world.apply(c, sim.now);
+    }
+
+    static void hold(Sim sim, int[]... ores) {
+        orbit.protocol.gen.AttributeOreCountUpdateCommand c = new orbit.protocol.gen.AttributeOreCountUpdateCommand();
+        for (int[] o : ores) {
+            orbit.protocol.gen.OreCountModule m = new orbit.protocol.gen.OreCountModule();
+            m.oreType = new orbit.protocol.gen.OreTypeModule();
+            m.oreType.typeValue = (short) o[0];
+            m.count = o[1];
+            c.oreCountList.add(m);
+        }
+        sim.world.apply(c, sim.now);
+    }
+
+    static List<LabUpdateItemRequest> requests(Sim sim) {
+        return sim.sent.stream().filter(p -> p instanceof LabUpdateItemRequest).map(p -> (LabUpdateItemRequest) p).toList();
+    }
+
+    @Test
+    void anItemBelowItsThresholdGetsOreFromTheHoldOneAtATime() throws Exception {
+        Sim sim = new Sim(config(ON, null), 1, 1_000, 1_000);
+        lab(sim, new int[] {0, 6, 20_000}, new int[] {3, 7, 9_000});
+        hold(sim, new int[] {6, 50_000}, new int[] {7, 600});
+        Enricher e = new Enricher(sim.ctx);
+        e.tick();
+        e.tick(); // no answer yet: no second request
+        List<LabUpdateItemRequest> r = requests(sim);
+        assertEquals(1, r.size());
+        assertEquals(0, r.get(0).itemToUpdate.itemValue, "the laser first");
+        assertEquals(6, r.get(0).updateWith.oreType.typeValue);
+        assertEquals(10_000, r.get(0).updateWith.count, "the config's load");
+        sim.now += 1_000_000;
+        lab(sim, new int[] {0, 6, 120_000}, new int[] {3, 7, 9_000}); // answered
+        e.tick();
+        r = requests(sim);
+        assertEquals(2, r.size());
+        assertEquals(3, r.get(1).itemToUpdate.itemValue);
+        assertEquals(600, r.get(1).updateWith.count, "no more than the hold has");
+    }
+
+    @Test
+    void aRunningEnrichmentIsToppedUpWithItsOwnOreNotTheConfigs() throws Exception {
+        Sim sim = new Sim(config(ON, null), 1, 1_000, 1_000);
+        lab(sim, new int[] {0, 7, 1_000}); // lasers run on seprom, the config says promerium
+        hold(sim, new int[] {6, 50_000}, new int[] {7, 50_000});
+        new Enricher(sim.ctx).tick();
+        assertEquals(7, requests(sim).get(0).updateWith.oreType.typeValue);
+    }
+
+    @Test
+    void lackingOreIsToldForTheSkylabNoRequest() throws Exception {
+        Sim sim = new Sim(config(ON, null), 1, 1_000, 1_000);
+        lab(sim, new int[] {0, 6, 1_000});
+        hold(sim, new int[] {8, 5}); // palladium only
+        Enricher e = new Enricher(sim.ctx);
+        e.tick();
+        assertTrue(requests(sim).isEmpty());
+        assertEquals(Map.of(6, 10_000L, 7, 1_000L), e.missing(), "the laser's promerium, the empty shield's seprom");
+    }
+
+    @Test
+    void offByDefault() throws Exception {
+        Sim sim = new Sim(BotConfig.empty(), 1, 1_000, 1_000);
+        lab(sim, new int[] {0, 6, 1});
+        hold(sim, new int[] {6, 50_000});
+        new Enricher(sim.ctx).tick();
+        assertTrue(requests(sim).isEmpty());
+    }
+
+    @Test
+    void theSkylabSendsWhatIsWantedNoMoreThanTheStorageHolds() throws Exception {
+        Sim sim = new Sim(config(ON, """
+                {"enabled":true,"ores":{"seprom":1000},"everyMinutes":20,"keepOnSkylab":100}"""), 1, 1_000, 1_000);
+        lab(sim, new int[] {0, 6, 1_000});
+        hold(sim, new int[] {8, 5});
+        Enricher e = new Enricher(sim.ctx);
+        e.tick();
+        java.util.concurrent.CompletableFuture<Map<String, Long>> sent = new java.util.concurrent.CompletableFuture<>();
+        SkylabCare care = new SkylabCare(sim.ctx, e::missing);
+        care.setAccess(new SkylabAccess() {
+            @Override
+            public Stock stock() {
+                return new Stock(false, Map.of("seprom", 600L, "promerium", 99_000L));
+            }
+
+            @Override
+            public void transport(Map<String, Long> amounts, boolean fast) {
+                sent.complete(amounts);
+            }
+        });
+        care.tick();
+        Map<String, Long> got = sent.get(5, java.util.concurrent.TimeUnit.SECONDS);
+        assertEquals(500L, got.get("seprom"), "600 there, 100 kept");
+        assertEquals(10_000L, got.get("promerium"), "what the enrichment lacks");
+    }
+}
