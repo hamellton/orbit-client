@@ -198,6 +198,11 @@ public final class Attacker {
         return targetId;
     }
 
+    /** How long the current target has been the target (ms). */
+    public long targetAgeMs() {
+        return targetId == 0 ? 0 : (ctx.now() - watchedSince) / 1_000_000;
+    }
+
     /** The current target has been shot at (the attack ran). */
     public boolean shooting() {
         return shotAt;

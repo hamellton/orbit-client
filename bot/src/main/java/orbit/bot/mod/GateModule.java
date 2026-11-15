@@ -192,6 +192,8 @@ public final class GateModule implements BotModule {
 
     /** SharedPlugin's targetSwitchOffset: the one being shot is kept unless another is this much nearer. */
     static final double SWITCH_OFFSET = 100;
+    /** Our pick-to-lock time (the select waits 0.3–0.9 s, the server's answer after it). */
+    static final long LOCK_MS = 2_000;
 
     /**
      * SharedPlugin's closestNpc: the best by priority, distance, HP; the current one kept while it is the best, or
@@ -214,8 +216,12 @@ public final class GateModule implements BotModule {
         if (skipFar(cur, all, h, centre(w))) {
             return best;
         }
-        if (h.attackTargetId() == cur.id()
-                && cur.distanceTo(h.x(), h.y()) < best.distanceTo(h.x(), h.y()) + SWITCH_OFFSET) {
+        // DarkBot's isAttacking: it locks and fires in the same tick; ours takes a second or more from the pick to the
+        // first shot, so the lock counts (live 2026-11-15 on gb2, GG β: two Sibelonits 20 apart swapped every 3 s, no
+        // shot fired)
+        boolean onIt = h.attackTargetId() == cur.id() || h.selectedId() == cur.id() || attacker.shooting()
+                || attacker.targetAgeMs() < LOCK_MS;
+        if (onIt && cur.distanceTo(h.x(), h.y()) < best.distanceTo(h.x(), h.y()) + SWITCH_OFFSET) {
             return cur;
         }
         return best;
