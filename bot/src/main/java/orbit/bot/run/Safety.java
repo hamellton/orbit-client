@@ -363,6 +363,11 @@ public final class Safety {
     }
 
     private void heal(WorldSnapshot w, BotConfig.Safety s, long now, double hp, boolean attacked) {
+        if (hp <= 0 || !w.hero().alive() || w.death() != null) {
+            // a live ship at 0 % is one whose hull the game has not told yet (live 2026-11-15 on gb2: right after a revive,
+            // the Solace's heal pressed three times «at 0 %»)
+            return;
+        }
         abilities(w, s.heal(), now, hp);
         double below = repairing ? s.repairHpMax() : s.heal().hpBelow();
         if (healHp >= 0 && hp > healHp + 1e-4) {
