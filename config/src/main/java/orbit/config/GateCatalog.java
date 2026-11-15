@@ -155,6 +155,17 @@ public final class GateCatalog {
         return BotConfig.bare(name.substring(0, m.start()));
     }
 
+    /** The wave number at the end of a gate NPC's name ({@code -=[ Protegit ]=- α37} → 37), 0 when none. */
+    public static int gateWave(String name) {
+        if (name == null) {
+            return 0;
+        }
+        java.util.regex.Matcher m = WAVE_NUMBER.matcher(name);
+        return m.find() ? Integer.parseInt(m.group(1)) : 0;
+    }
+
+    private static final java.util.regex.Pattern WAVE_NUMBER = java.util.regex.Pattern.compile("[αβγδεζκλςђ⦓]\\s*(\\d+)\\s*$");
+
     /** The symbol and the wave number at the end of a gate NPC's name. */
     private static final java.util.regex.Pattern WAVE = java.util.regex.Pattern.compile("\\s*[αβγδεζκλςђ⦓]\\s*\\d+\\s*$");
 

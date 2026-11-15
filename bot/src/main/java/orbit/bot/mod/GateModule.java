@@ -203,7 +203,13 @@ public final class GateModule implements BotModule {
         }
         WorldSnapshot.Gate st = w.gates().gate(gate.builderId());
         int last = Math.max(1, s.path("endGateWaves").asInt(4));
-        return st != null && st.wave() > gate.waves() - last;
+        int from = gate.waves() - last + 1;
+        // the server tells the wave once a stage, the last one done (live 2026-11-15 on gb2: «волна 36» while α37–α40
+        // were fought): that one done means the last stage; the NPCs' own numbers tell it at once
+        if (st != null && st.wave() >= from - 1) {
+            return true;
+        }
+        return w.ships().values().stream().anyMatch(sh -> sh.npc() && GateCatalog.gateWave(sh.name()) >= from);
     }
 
     /** The end of a gate's mode: {@code endGateConfig} (2) and {@code endGateFormation} (Veteran; the ship lacks it — the formation stays). */
