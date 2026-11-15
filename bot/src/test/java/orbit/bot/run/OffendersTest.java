@@ -252,4 +252,26 @@ class OffendersTest {
         assertTrue(Math.hypot(h.x() - 20_600, h.y() - 7_000) > 800, "out of the shooter's reach: " + h.x() + "/" + h.y());
         assertTrue(closest > 800, "kept off the other one: " + (int) closest);
     }
+
+    @Test
+    void theWayOutStaysOutOfTheConfigsAvoidedPart() {
+        // live 2026-11-16 on GE1, 5-3: away from Interceptors into the avoided part, out of the palladium field
+        var map = orbit.world.maps.MapCatalog.bundled().info(93);
+        int res = 100;
+        int edge = (int) Math.ceil(20_400.0 / map.width() * res); // from x ≈ 20 400 east: avoided
+        java.util.List<String> rows = new java.util.ArrayList<>();
+        for (int r = 0; r < res; r++) {
+            rows.add(".".repeat(edge) + "#".repeat(res - edge));
+        }
+        BotConfig.Zones zones = new BotConfig.Zones(null, new BotConfig.ZoneGrid(res, rows));
+        BotConfig c = config(false).withZones(java.util.Map.of(93, zones));
+        Sim sim = new Sim(c, 93, 20_000, 7_000);
+        sim.npc(55, "-=[ Shooter ]=-", 19_500, 7_000); // west: straight away from it is east, into the avoided part
+        BotRunner r = new BotRunner(sim.ctx, () -> false, x -> { });
+        shoots(sim, 55);
+        sim.run(r::tick, 20_000);
+        var h = sim.world.snapshot(sim.now).hero();
+        assertTrue(h.x() < 20_600, "not into the avoided part: " + h.x() + "/" + h.y());
+        assertTrue(Math.hypot(h.x() - 19_500, h.y() - 7_000) > 560, "still out of its reach: " + h.x() + "/" + h.y());
+    }
 }

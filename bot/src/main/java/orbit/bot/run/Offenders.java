@@ -371,12 +371,51 @@ public final class Offenders {
     /** NPCs this close to a way-out point weigh on it. */
     static final double CROWD_REACH = 1_200;
 
+    /** A way-out point in the config's avoided part costs this much: any allowed one is taken first. */
+    static final double AVOIDED_COST = 5e5;
+    /** Each unit of distance from the preferred part adds this much: the way out leans toward the work. */
+    static final double PREFERRED_PULL = 0.5;
+
+    /** The centres of a zone grid's marked cells, in map coordinates. */
+    static List<double[]> cells(BotConfig.ZoneGrid g, MapCatalog.MapInfo map) {
+        List<double[]> out = new java.util.ArrayList<>();
+        if (g == null || g.isEmpty()) {
+            return out;
+        }
+        double cw = map.width() / (double) g.resolution();
+        double ch = map.height() / (double) g.resolution();
+        for (int r = 0; r < g.rows().size(); r++) {
+            String row = g.rows().get(r);
+            for (int c = 0; c < row.length(); c++) {
+                if (row.charAt(c) == '#') {
+                    out.add(new double[] {(c + 0.5) * cw, (r + 0.5) * ch});
+                }
+            }
+        }
+        return out;
+    }
+
+    /** The distance from (x, y) to the nearest of {@code points}; 0 for none. */
+    static double nearest(List<double[]> points, double x, double y) {
+        double best = Double.MAX_VALUE;
+        for (double[] p : points) {
+            best = Math.min(best, Math.hypot(p[0] - x, p[1] - y));
+        }
+        return points.isEmpty() ? 0 : best;
+    }
+
     /** The nearest point on the map beyond all circles: 32 directions round each circle the ship is in. */
     private double[] wayOut(WorldSnapshot w) {
         WorldSnapshot.Hero h = w.hero();
         MapCatalog.MapInfo map = ctx.maps().info(h.mapId());
         double margin = 300;
         List<double[]> circles = circles();
+        // the config's zones of the map (the user, 2026-11-16, GE1 on 5-3: fled from Interceptors into the avoided part,
+        // out of the palladium field, and could not come back): never into the avoided part when there is another
+        // way, and rather toward the preferred one
+        BotConfig.Zones zones = ctx.config().get().zones().get(h.mapId());
+        BotConfig.ZoneGrid avoided = zones == null || zones.avoided() == null || zones.avoided().isEmpty() ? null : zones.avoided();
+        List<double[]> preferred = zones == null || zones.preferred() == null ? List.of() : cells(zones.preferred(), map);
         double[] best = null;
         double bestCost = Double.MAX_VALUE;
         for (double[] c : circles) {
@@ -395,7 +434,9 @@ public final class Offenders {
                 double toward = orbit.bot.nav.Navigator.distanceToSegment(c[0], c[1], h.x(), h.y(), x, y);
                 double now = Math.hypot(c[0] - h.x(), c[1] - h.y());
                 double cost = Math.hypot(x - h.x(), y - h.y()) + (clear ? 0 : 1e6) + (toward < now - 1 ? 1e5 : 0)
-                        + crowd(w, x, y);
+                        + crowd(w, x, y)
+                        + (avoided != null && avoided.contains(x, y, map.width(), map.height()) ? AVOIDED_COST : 0)
+                        + PREFERRED_PULL * nearest(preferred, x, y);
                 if (cost < bestCost) {
                     bestCost = cost;
                     best = new double[] {x, y};
