@@ -73,6 +73,10 @@ final class GateSection implements Section {
     private final JCheckBox kamikaze = new JCheckBox("Камикадзе питомца как в DarkBot: собрать NPC с флагом KAMIKAZE в кучу,"
             + " встать и взорвать");
     private final JSpinner kamikazeMin = Form.number(1, 20, 1);
+    private final JSpinner kamikazeHp = Form.percent();
+    private final JSpinner kamikazeShield = Form.percent();
+    private final JSpinner kamikazeHpAbort = Form.percent();
+    private final JSpinner kamikazeShieldAbort = Form.percent();
     private final JComboBox<String> kamikazeMode = new JComboBox<>(new String[] {"Бегства (как в «Общем»)", "Боя"});
     private final JComboBox<String> kamikazeLevel = new JComboBox<>(new String[] {"1 (120 с)", "2 (60 с)", "3 (30 с)"});
     private final JCheckBox fightModeInGate = new JCheckBox("К NPC во вратах лететь в конфигурации боя (без режима бегства)");
@@ -169,6 +173,10 @@ final class GateSection implements Section {
                 .row("Камикадзе: NPC с флагом не меньше", kamikazeMin)
                 .row("Камикадзе: уровень (перезарядка)", kamikazeLevel)
                 .row("Камикадзе: конфигурация на сборе и взрыве", kamikazeMode)
+                .row("Камикадзе: встать и взорвать при HP не меньше, %", kamikazeHp)
+                .row("Камикадзе: …и щите не меньше, %", kamikazeShield)
+                .row("Камикадзе: бросить при HP не больше, %", kamikazeHpAbort)
+                .row("Камикадзе: …или щите не больше, %", kamikazeShieldAbort)
                 .note("SharedPlugin: NPC с флагом KAMIKAZE (в ABG — Kristallin, Saimon, Sibelonit) стреляют по нам у точки"
                         + " сбора — питомец пассивный, корабль кружит на 1 500, они сбиваются; все ближе 300 друг к другу и"
                         + " HP/щит от 95 % — корабль стоит, питомец «Камикадзе».")
@@ -290,6 +298,10 @@ final class GateSection implements Section {
         Form.set(hpLinkBelow, m.path("hpLinkBelow").asInt(0));
         kamikaze.setSelected(m.path("kamikaze").path("enabled").asBoolean(false));
         Form.set(kamikazeMin, m.path("kamikaze").path("minNpcs").asInt(5));
+        Form.setFraction(kamikazeHp, m.path("kamikaze").path("hpMin").asDouble(0.95));
+        Form.setFraction(kamikazeShield, m.path("kamikaze").path("shieldMin").asDouble(0.95));
+        Form.setFraction(kamikazeHpAbort, m.path("kamikaze").path("hpAbort").asDouble(0.6));
+        Form.setFraction(kamikazeShieldAbort, m.path("kamikaze").path("shieldAbort").asDouble(0.4));
         kamikazeMode.setSelectedIndex("fight".equals(m.path("kamikaze").path("mode").asText("run")) ? 1 : 0);
         kamikazeLevel.setSelectedIndex(Math.max(0, Math.min(2, m.path("kamikaze").path("level").asInt(3) - 1)));
         trinityAttribute.setSelectedIndex(m.path("trinityAttribute").asInt(1) == 2 ? 1 : 0);
@@ -365,6 +377,10 @@ final class GateSection implements Section {
         kz.put("minNpcs", Form.intOf(kamikazeMin));
         kz.put("level", kamikazeLevel.getSelectedIndex() + 1);
         kz.put("mode", kamikazeMode.getSelectedIndex() == 1 ? "fight" : "run");
+        kz.put("hpMin", Form.fraction(kamikazeHp));
+        kz.put("shieldMin", Form.fraction(kamikazeShield));
+        kz.put("hpAbort", Form.fraction(kamikazeHpAbort));
+        kz.put("shieldAbort", Form.fraction(kamikazeShieldAbort));
         m.put("trinityAttribute", trinityAttribute.getSelectedIndex() + 1);
         m.put("trinityDifficulty", trinityDifficulty.getSelectedIndex() + 1);
         m.put("fightModeInGate", fightModeInGate.isSelected());
