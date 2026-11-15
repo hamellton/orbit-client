@@ -275,8 +275,12 @@ public final class AuthClient {
         if (lower.contains("banned") || lower.contains("gesperrt") || lower.contains("заблокирован")) {
             return new AuthException(AuthException.Reason.ACCOUNT_BLOCKED, "Аккаунт заблокирован");
         }
+        // live 2026-11-15 on gb2 through a new proxy: the site sent the login to tac.bpsecure.com — kept, to see what
+        // it asks for
+        Path kept = keepForDiagnosis(result);
         return new AuthException(AuthException.Reason.UNEXPECTED_PAGE,
-                "Вход не удался: странный ответ сайта (HTTP " + result.status() + ")");
+                "Вход не удался: странный ответ сайта (HTTP " + result.status() + ", " + where + ")"
+                        + (kept != null ? " — страница в " + kept : ""));
     }
 
     /** The site serves the Flash game page only to the official client's user agent. */
