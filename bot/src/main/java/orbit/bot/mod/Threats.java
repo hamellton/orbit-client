@@ -215,9 +215,14 @@ public final class Threats {
         }
         double angle = Math.atan2(y - cy, x - cx);
         double dist = Math.hypot(x - cx, y - cy);
-        for (int i = 0; i < 400; i++) {
+        // DarkBot's searchValidLocation: +0.3 rad and +2 a step up to 10 000 (a gate: the corner of the field by a
+        // target outside it — live 2026-11-15 on gb2, GG β: a Sibelonit at 210/135, our +25 steps ended 800 off)
+        boolean dark = margin < MARGIN;
+        double grow = dark ? 2 : 25;
+        int steps = dark ? 5_000 : 400;
+        for (int i = 0; i < steps; i++) {
             angle += dir * 0.3;
-            dist += 25;
+            dist += grow;
             double px = cx + Math.cos(angle) * dist;
             double py = cy + Math.sin(angle) * dist;
             if (!blocked(px, py)) {

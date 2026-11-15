@@ -180,9 +180,6 @@ public final class GateModule implements BotModule {
         return new double[] {10_000, 6_000};
     }
 
-    /** A target this far outside the field is out of the laser's reach from it. */
-    static final double OUT_OF_REACH = 450;
-
     private boolean radiationTold;
 
     /** In radiation: the edge learned, straight back into the field; true while doing so. */
@@ -227,10 +224,8 @@ public final class GateModule implements BotModule {
      */
     private WorldSnapshot.Ship pick(BotConfig c, WorldSnapshot w) {
         WorldSnapshot.Hero h = w.hero();
-        // one in the radiation beyond the laser's reach from the field cannot be shot (DarkBot's canMove keeps out)
         List<WorldSnapshot.Ship> all = w.ships().values().stream()
                 .filter(s -> Targets.attackable(c, s, h.mapId()) && !Targets.taken(c, w, s) && !attacker.gaveUp(s.id()))
-                .filter(s -> GateBounds.outside(h.mapId(), s.x(), s.y()) < OUT_OF_REACH)
                 .toList();
         WorldSnapshot.Ship best = all.stream().min(java.util.Comparator
                         .<WorldSnapshot.Ship>comparingInt(s -> Targets.rule(c, s, h.mapId()).priority())
