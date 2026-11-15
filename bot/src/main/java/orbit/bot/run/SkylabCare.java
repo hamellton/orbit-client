@@ -82,7 +82,11 @@ public final class SkylabCare {
         long keep = Math.max(0, s.path("keepOnSkylab").asLong(0));
         boolean fast = s.path("fast").asBoolean(false);
         busy = true;
+        java.util.Map<String, String> mdc = org.slf4j.MDC.getCopyOfContextMap(); // the account's log and journal
         Thread.ofVirtual().name("skylab-send").start(() -> {
+            if (mdc != null) {
+                org.slf4j.MDC.setContextMap(mdc);
+            }
             try {
                 SkylabAccess.Stock st = a.stock();
                 if (st.transporting()) {

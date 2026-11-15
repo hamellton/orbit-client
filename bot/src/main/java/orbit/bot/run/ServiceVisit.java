@@ -260,7 +260,11 @@ public final class ServiceVisit {
                 long room = w.cargoFree();
                 holdAtOrder = Map.copyOf(w.inventory().ores().entrySet().stream().collect(java.util.stream.Collectors
                         .toMap(Map.Entry::getKey, x -> Math.round(x.getValue()))));
+                java.util.Map<String, String> mdc = org.slf4j.MDC.getCopyOfContextMap();
                 Thread.ofVirtual().name("service-skylab").start(() -> {
+                    if (mdc != null) {
+                        org.slf4j.MDC.setContextMap(mdc);
+                    }
                     try {
                         SkylabAccess.Stock st = a.stock();
                         Map<String, Long> send = new LinkedHashMap<>();
