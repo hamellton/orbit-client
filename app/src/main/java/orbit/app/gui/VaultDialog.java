@@ -28,60 +28,109 @@ public final class VaultDialog {
 
     private final Path file;
     private final JDialog dialog = new JDialog((java.awt.Frame) null, "Orbit — хранилище", true);
+    private final JLabel title = new JLabel();
     private final JLabel intro = new JLabel();
-    private final JPasswordField password = new JPasswordField(22);
-    private final JPasswordField repeat = new JPasswordField(22);
-    private final JLabel repeatLabel = new JLabel("Ещё раз");
+    private final JLabel where = new JLabel();
+    private final JPasswordField password = new JPasswordField(24);
+    private final JPasswordField repeat = new JPasswordField(24);
+    private final JLabel passwordLabel = new JLabel("Мастер-пароль");
+    private final JLabel repeatLabel = new JLabel("Повторите мастер-пароль");
     private final JLabel error = new JLabel(" ");
     private final JButton ok = new JButton();
-    private final JButton fresh = new JButton("Новое хранилище…");
+    private final JButton fresh = new JButton("Забыл пароль…");
     private Vault vault;
 
+    /**
+     * The window (the user, 2026-11-15: «это экран для ввода пароля хранилища, но сейчас это не понятно» — on macOS it
+     * came up black, only the field and «Выход» drawn): a title, what the password is for, the label over the field, a
+     * reveal button, the main button on the right; colours set, a repaint once it is up.
+     */
     private VaultDialog(Path file) {
         this.file = file;
+        java.awt.Color bg = Theme.BACKGROUND;
+        title.setFont(title.getFont().deriveFont(java.awt.Font.BOLD, 17f));
+        title.setForeground(Theme.TEXT);
+        intro.setForeground(Theme.TEXT);
+        where.setForeground(Theme.DIM);
+        where.setFont(where.getFont().deriveFont(11f));
+        passwordLabel.setForeground(Theme.TEXT);
+        repeatLabel.setForeground(Theme.TEXT);
         error.setForeground(new java.awt.Color(0xff6b5b));
+        for (JPasswordField f : new JPasswordField[] {password, repeat}) {
+            f.putClientProperty("JPasswordField.showRevealButton", true); // FlatLaf: the eye to see what was typed
+            f.putClientProperty("JTextField.placeholderText", "пароль");
+            f.setPreferredSize(new Dimension(360, 32));
+        }
+
         JPanel form = new JPanel(new java.awt.GridBagLayout());
+        form.setBackground(bg);
         java.awt.GridBagConstraints c = new java.awt.GridBagConstraints();
-        c.insets = new java.awt.Insets(4, 4, 4, 4);
+        c.gridx = 0;
+        c.fill = java.awt.GridBagConstraints.HORIZONTAL;
         c.anchor = java.awt.GridBagConstraints.WEST;
-        c.gridx = 0;
+        c.weightx = 1;
         c.gridy = 0;
-        c.gridwidth = 2;
-        form.add(intro, c);
-        c.gridwidth = 1;
+        c.insets = new java.awt.Insets(0, 0, 6, 0);
+        form.add(title, c);
         c.gridy = 1;
-        form.add(new JLabel("Мастер-пароль"), c);
-        c.gridx = 1;
-        form.add(password, c);
-        c.gridx = 0;
+        c.insets = new java.awt.Insets(0, 0, 2, 0);
+        form.add(intro, c);
         c.gridy = 2;
-        form.add(repeatLabel, c);
-        c.gridx = 1;
-        form.add(repeat, c);
-        c.gridx = 0;
+        c.insets = new java.awt.Insets(0, 0, 14, 0);
+        form.add(where, c);
         c.gridy = 3;
-        c.gridwidth = 2;
+        c.insets = new java.awt.Insets(0, 0, 4, 0);
+        form.add(passwordLabel, c);
+        c.gridy = 4;
+        c.insets = new java.awt.Insets(0, 0, 10, 0);
+        form.add(password, c);
+        c.gridy = 5;
+        c.insets = new java.awt.Insets(0, 0, 4, 0);
+        form.add(repeatLabel, c);
+        c.gridy = 6;
+        c.insets = new java.awt.Insets(0, 0, 10, 0);
+        form.add(repeat, c);
+        c.gridy = 7;
+        c.insets = new java.awt.Insets(0, 0, 0, 0);
         form.add(error, c);
 
         JButton cancel = new JButton("Выход");
         cancel.addActionListener(e -> dialog.dispose());
         ok.addActionListener(e -> submit());
-        fresh.setToolTipText("Если пароль забыт; старое сохранится рядом");
+        ok.putClientProperty("JButton.buttonType", "default");
+        ok.setPreferredSize(new Dimension(120, 32));
+        cancel.setPreferredSize(new Dimension(90, 32));
+        fresh.setToolTipText("Создать новое хранилище; старое не удаляется — сохранится рядом");
+        fresh.putClientProperty("JButton.buttonType", "borderless");
+        fresh.setForeground(Theme.DIM);
         fresh.addActionListener(e -> startOver());
         JPanel buttons = new JPanel(new BorderLayout());
+        buttons.setBackground(bg);
         buttons.add(fresh, BorderLayout.WEST);
-        JPanel right = new JPanel();
+        JPanel right = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.RIGHT, 8, 0));
+        right.setBackground(bg);
         right.add(cancel);
         right.add(ok);
         buttons.add(right, BorderLayout.EAST);
 
-        JPanel content = new JPanel(new BorderLayout(0, 8));
-        content.setBorder(BorderFactory.createEmptyBorder(14, 16, 12, 16));
+        JPanel content = new JPanel(new BorderLayout(0, 16));
+        content.setBackground(bg);
+        content.setOpaque(true);
+        content.setBorder(BorderFactory.createEmptyBorder(20, 22, 16, 22));
         content.add(form, BorderLayout.CENTER);
         content.add(buttons, BorderLayout.SOUTH);
         dialog.setContentPane(content);
         dialog.getRootPane().setDefaultButton(ok);
         dialog.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
+        dialog.addWindowListener(new java.awt.event.WindowAdapter() {
+            @Override
+            public void windowOpened(java.awt.event.WindowEvent e) {
+                // macOS drew the first frame black but for the focused field: everything once more when it is up
+                content.revalidate();
+                content.repaint();
+                password.requestFocusInWindow();
+            }
+        });
         mode();
     }
 
@@ -104,7 +153,7 @@ public final class VaultDialog {
             Theme.setup();
             VaultDialog d = new VaultDialog(file);
             d.dialog.pack();
-            d.dialog.setMinimumSize(new Dimension(460, d.dialog.getHeight()));
+            d.dialog.setMinimumSize(new Dimension(520, d.dialog.getHeight()));
             d.dialog.setLocationRelativeTo(null);
             d.dialog.setVisible(true); // modal: returns when closed
             out.set(d.vault);
@@ -118,9 +167,12 @@ public final class VaultDialog {
 
     private void mode() {
         boolean create = creating();
+        title.setText(create ? "Новое хранилище Orbit" : "Хранилище Orbit");
         intro.setText(create
-                ? "<html>Придумайте мастер-пароль для логинов и прокси.<br>Забытый пароль не восстановить.</html>"
-                : "<html>Введите мастер-пароль<br><span style='color:#7c8799'>" + file + "</span></html>");
+                ? "<html>Придумайте мастер-пароль: им будут зашифрованы логины, пароли и прокси аккаунтов.<br>"
+                        + "Забытый мастер-пароль восстановить нельзя.</html>"
+                : "<html>Введите мастер-пароль, чтобы открыть логины, пароли и прокси аккаунтов.</html>");
+        where.setText("Файл: " + file.toAbsolutePath());
         repeat.setVisible(create);
         repeatLabel.setVisible(create);
         fresh.setVisible(!create);
