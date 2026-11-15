@@ -1,6 +1,7 @@
 package orbit.game;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -316,6 +317,13 @@ class GameConnectionTest {
         assertEquals("Сервер выкинул из игры (KIK)", GameConnection.troubleOf("0|KIK"));
         assertEquals("В аккаунт вошли с другого места (ERR 3)", GameConnection.troubleOf("0|ERR|3"));
         assertEquals("Сервер написал: «Please stop botting»", GameConnection.troubleOf("0|A|STD|Please stop botting"));
+        // a gate's countdown and notices (live 2026-11-15 on gb2: « -=- 15 -=- » stopped the account)
+        assertNull(GameConnection.troubleOf("0|A|STD| -=- 15 -=- "));
+        assertNull(GameConnection.troubleOf("0|A|STD|-=- 0 -=-"));
+        assertNull(GameConnection.troubleOf("0|A|STD|5 lives left"));
+        assertNull(GameConnection.troubleOf("0|A|STD|Wave 12"));
+        assertNull(GameConnection.troubleOf("0|A|STD|Gate completed."));
+        assertEquals("Сервер написал: «Wave 12 please stop»", GameConnection.troubleOf("0|A|STD|Wave 12 please stop"));
         // the usual lines: localized keys, rewards, a failed login (the client retries it), the logout
         assertEquals(null, GameConnection.troubleOf("0|A|STM|msg_pet_activated"));
         assertEquals(null, GameConnection.troubleOf("0|LM|ST|CRE|100|2000"));

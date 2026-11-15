@@ -169,7 +169,7 @@ public final class GameConnection implements AutoCloseable {
             case "KIK" -> "Сервер выкинул из игры (KIK)";
             case "ERR" -> a.length > 2 && ("3".equals(a[2]) || "41".equals(a[2]))
                     ? "В аккаунт вошли с другого места (ERR " + a[2] + ")" : null;
-            case "A" -> a.length > 3 && "STD".equals(a[2]) && !restartOf(message)
+            case "A" -> a.length > 3 && "STD".equals(a[2]) && !restartOf(message) && !gateNotice(message)
                     ? "Сервер написал: «" + String.join("|", java.util.Arrays.copyOfRange(a, 3, a.length)) + "»" : null;
             default -> null;
         };
@@ -186,6 +186,26 @@ public final class GameConnection implements AutoCloseable {
         String m = message.toLowerCase(java.util.Locale.ROOT);
         return m.contains("|a|std|") && (m.contains("restart") || m.contains("shutdown") || m.contains("maintenance"));
     }
+
+    /**
+     * A galaxy gate's own notices in plain text (live 2026-11-15 on gb2, GG α: {@code A|STD| -=- 15 -=- } five seconds in —
+     * the account was stopped as for a person's line; AstraBot's game logs: «-=- 0 -=-», «5 lives left», «Wave 4»,
+     * «Gate completed.»): no person writes them.
+     */
+    static boolean gateNotice(String message) {
+        if (message == null) {
+            return false;
+        }
+        int i = message.toLowerCase(java.util.Locale.ROOT).indexOf("|a|std|");
+        if (i < 0) {
+            return false;
+        }
+        String text = message.substring(i + 7).strip();
+        return GATE_NOTICE.matcher(text).matches();
+    }
+
+    private static final java.util.regex.Pattern GATE_NOTICE = java.util.regex.Pattern.compile(
+            "(?i)-=-\\s*\\d+\\s*-=-|\\d+\\s+lives?\\s+left\\.?|wave\\s+\\d+\\.?|gate\\s+completed\\.?");
 
     /** After a restart notice the game is tried again this much later (and a little more, at random). */
     static final Duration RESTART_WAIT = Duration.ofMinutes(5);
