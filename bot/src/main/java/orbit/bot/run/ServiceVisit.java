@@ -91,13 +91,18 @@ public final class ServiceVisit {
      * @param calm         the module may be left now for a few minutes (no fight, not in a gate…)
      */
     public Step tick(int activeHangar, boolean calm) {
+        return tick(activeHangar, calm, true);
+    }
+
+    /** @param calmVisits visits at calm moments too; {@code false}: only on the module's own ship changes ({@link #divert}) */
+    public Step tick(int activeHangar, boolean calm, boolean calmVisits) {
         JsonNode s = settings();
         int service = ctx.ships().serviceShip();
         long now = ctx.now();
         WorldSnapshot w = ctx.world().get();
         switch (phase) {
             case IDLE -> {
-                if (disabled || service <= 0 || activeHangar == 0 || activeHangar == service
+                if (!calmVisits || disabled || service <= 0 || activeHangar == 0 || activeHangar == service
                         || !s.path("enabled").asBoolean(false) || !s.path("visit").asBoolean(false) || now < nextAt
                         || !calm || w.hero().id() == 0) {
                     return Step.NONE;
@@ -141,6 +146,33 @@ public final class ServiceVisit {
             }
         }
         return Step.NONE;
+    }
+
+    /**
+     * A ship change the module asks for anyway (the two-ship palladium's «sold — back to collecting»): when a visit is
+     * due, the service ship first and the module's ship after it (the user, 2026-11-16: «после продажи палладия — на
+     * ангар для Скайлаба, сделали, что нужно, — на ангар для сбора; только когда нужно, иначе всё как сейчас»).
+     *
+     * @return the hangar to switch to now: the service ship, or {@code wanted} as it was
+     */
+    public int divert(int activeHangar, int wanted) {
+        JsonNode s = settings();
+        int service = ctx.ships().serviceShip();
+        WorldSnapshot w = ctx.world().get();
+        if (phase != Phase.IDLE || disabled || service <= 0 || wanted == service || activeHangar == service
+                || activeHangar == 0 || !s.path("enabled").asBoolean(false) || !s.path("visit").asBoolean(false)
+                || ctx.now() < nextAt || !needed(s, w)) {
+            return wanted;
+        }
+        returnTo = wanted;
+        labBefore = w.inventory().lab();
+        compared = false;
+        ordered = false;
+        orderStarted = false;
+        phase = Phase.GOING;
+        log.info("Обслуживание: перед ангаром {} — на корабль для Скайлаба (ангар {}): обогащению не хватает руды",
+                wanted, service);
+        return service;
     }
 
     /** Some item set on is below {@code visitBelow} and the hold has not enough of its ore to top it up. */

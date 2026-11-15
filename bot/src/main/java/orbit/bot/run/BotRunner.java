@@ -592,7 +592,9 @@ public final class BotRunner {
         // enrichment there — and back; never in a gate (no logging out there) or under fire
         boolean calm = !module.busy() && module.freeFor(SERVICE_FREE_MS)
                 && orbit.config.GateCatalog.byMap(h.mapId()) == null && h.attackers().isEmpty();
-        ServiceVisit.Step visit = service.tick(activeHangar, calm);
+        // the two-ship palladium changes ships itself: the visit rides on its «sold — back to collecting»
+        boolean ownShipChanges = moduleKind == orbit.config.BotConfig.Module.PALLADIUM && ctx.ships().palladiumCollect() > 0;
+        ServiceVisit.Step visit = service.tick(activeHangar, calm, !ownShipChanges);
         if (visit.switchTo() != 0 && activeHangar != 0 && visit.switchTo() != activeHangar && hangarRequest == 0) {
             log.info("Меняю корабль: ангар {} → {} (обслуживание: Скайлаб и обогащение)", activeHangar, visit.switchTo());
             hangarRequest = visit.switchTo();
@@ -611,6 +613,10 @@ public final class BotRunner {
         int wantHangar = hangarRequest == 0 && !module.busy() && service.phase() == ServiceVisit.Phase.IDLE
                 ? module.hangarWanted(activeHangar, w) : 0;
         if (wantHangar != 0 && wantHangar != activeHangar) {
+            // only on the way back to collecting (after the sale), never with palladium in the hold
+            if (!ownShipChanges || wantHangar == ctx.ships().palladiumCollect()) {
+                wantHangar = service.divert(activeHangar, wantHangar);
+            }
             log.info("Меняю корабль: ангар {} → {} (выход из игры, смена на сайте, вход)", activeHangar, wantHangar);
             hangarRequest = wantHangar;
             logoutHere = !module.hangarAtPortal();

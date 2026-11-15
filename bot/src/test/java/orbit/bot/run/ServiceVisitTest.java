@@ -110,4 +110,26 @@ class ServiceVisitTest {
         sim.now += 10L * 3_600_000_000_000L;
         assertFalse(v.tick(WORK, true).switchTo() != 0, "no more visits");
     }
+
+    @Test
+    void afterThePalladiumSaleTheServiceShipComesBeforeTheCollectOne() throws Exception {
+        Sim sim = sim();
+        EnricherTest.lab(sim, new int[] {0, 6, 20_000});
+        ServiceVisit v = new ServiceVisit(sim.ctx);
+        int sell = 33;
+        int collect = 44;
+        assertEquals(CITADEL, v.divert(sell, collect), "a visit is due: the citadel first");
+        assertEquals(ServiceVisit.Phase.GOING, v.phase());
+        sim.now += 60_000_000_000L;
+        v.tick(CITADEL, true, false);
+        EnricherTest.lab(sim, new int[] {0, 6, 200_000}); // filled (the ore was there)
+        assertEquals(collect, v.tick(CITADEL, true, false).switchTo(), "then the collect ship");
+    }
+
+    @Test
+    void noVisitDueTheModulesChangeStaysAsItWas() throws Exception {
+        Sim sim = sim();
+        EnricherTest.lab(sim, new int[] {0, 6, 900_000});
+        assertEquals(44, new ServiceVisit(sim.ctx).divert(33, 44));
+    }
 }
