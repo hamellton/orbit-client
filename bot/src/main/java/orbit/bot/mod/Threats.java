@@ -170,6 +170,7 @@ public final class Threats {
 
     double score(double x, double y) {
         if (x < margin || y < margin || x > map.width() - margin || y > map.height() - margin
+                || margin < MARGIN && !GateBounds.inside(w.hero().mapId(), x, y)
                 || avoided != null && avoided.contains(x, y, map.width(), map.height()) || ctx.nav().inDanger(x, y)
                 || orbit.world.maps.ZoneGeometry.blocked(w, x, y)) {
             return BLOCKED;

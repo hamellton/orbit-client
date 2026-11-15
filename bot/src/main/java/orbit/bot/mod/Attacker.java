@@ -568,7 +568,8 @@ public final class Attacker {
         lastHealth = -1;
         healthDropAt = ctx.now();
         WorldSnapshot.Hero h = ctx.world().get().hero();
-        log.info("Цель: {} в {}", s.name(), (int) s.distanceTo(h.x(), h.y()));
+        log.info("Цель: {} в {} (у {}/{}, мы у {}/{})", s.name(), (int) s.distanceTo(h.x(), h.y()), s.x() / 100, s.y() / 100,
+                (int) h.x() / 100, (int) h.y() / 100);
         if (fight.active()) {
             fight.end("сменил цель", ctx.now());
         }

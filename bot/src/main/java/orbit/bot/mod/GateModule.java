@@ -180,6 +180,32 @@ public final class GateModule implements BotModule {
         return new double[] {10_000, 6_000};
     }
 
+    /** A target this far outside the field is out of the laser's reach from it. */
+    static final double OUT_OF_REACH = 450;
+
+    private boolean radiationTold;
+
+    /** In radiation: the edge learned, straight back into the field; true while doing so. */
+    private boolean outOfRadiation(WorldSnapshot w) {
+        WorldSnapshot.Hero h = w.hero();
+        if (!h.beacon().inRadiationZone()) {
+            radiationTold = false;
+            return false;
+        }
+        orbit.world.maps.MapCatalog.MapInfo m = ctx.maps().info(h.mapId());
+        GateBounds.radiation(h.mapId(), h.x(), h.y(), m.width(), m.height());
+        if (!radiationTold) {
+            radiationTold = true;
+            log.warn("Во вратах радиация у {}/{} — край поля запомнил, выхожу внутрь", (int) h.x() / 100, (int) h.y() / 100);
+        }
+        double[] cc = centre(w);
+        double d = Math.max(1, Math.hypot(cc[0] - h.x(), cc[1] - h.y()));
+        double step = Math.min(d, 800);
+        ctx.nav().moveTo(h.x() + (cc[0] - h.x()) / d * step, h.y() + (cc[1] - h.y()) / d * step, false);
+        ctx.nav().tick();
+        return true;
+    }
+
     /** SharedPlugin's collect.radius from the user's profile: boxes this close are taken in a fight. */
     static final double FIGHT_BOX_RADIUS = 400;
 
@@ -201,8 +227,10 @@ public final class GateModule implements BotModule {
      */
     private WorldSnapshot.Ship pick(BotConfig c, WorldSnapshot w) {
         WorldSnapshot.Hero h = w.hero();
+        // one in the radiation beyond the laser's reach from the field cannot be shot (DarkBot's canMove keeps out)
         List<WorldSnapshot.Ship> all = w.ships().values().stream()
                 .filter(s -> Targets.attackable(c, s, h.mapId()) && !Targets.taken(c, w, s) && !attacker.gaveUp(s.id()))
+                .filter(s -> GateBounds.outside(h.mapId(), s.x(), s.y()) < OUT_OF_REACH)
                 .toList();
         WorldSnapshot.Ship best = all.stream().min(java.util.Comparator
                         .<WorldSnapshot.Ship>comparingInt(s -> Targets.rule(c, s, h.mapId()).priority())
@@ -820,6 +848,10 @@ public final class GateModule implements BotModule {
         }
         buyLives(settings(), g, w.gates(), now); // a life lost in the gate: the stock again (the request goes on aside)
         BotConfig c = config();
+        if (outOfRadiation(w)) {
+            status = "Врата " + g.name() + ": радиация — выхожу к центру";
+            return;
+        }
         // DarkBot's SharedPlugin: the kamikaze first — gathering the flagged ones, the blast; the fight waits meanwhile
         if (kamikaze.tick(settings(), c, w, attacker)) {
             quietSince = 0;
