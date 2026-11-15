@@ -511,10 +511,15 @@ public final class BotRunner {
             if (pending.getAndSet(null) != null) {
                 log.info("Выхожу из игры — приказ с карты не выполняю");
             }
-            if (stopping(w)) {
-                return;
+            if (!stopping(w) && module != null) {
+                // in a gate with no home portal in sight: the stage is played on till it shows (no logging out there);
+                // the state stays STOPPING (live 2026-11-15: the fall-through into the usual loop dropped the stop, the
+                // bot went back into the gate)
+                if (!safety.tick(module.busy(), almostDead(w))) {
+                    module.tick();
+                }
             }
-            // in a gate with no home portal in sight: the stage is played on till it shows (no logging out there)
+            return;
         }
         if (manual(h)) {
             return;
@@ -937,6 +942,11 @@ public final class BotRunner {
                 show("Во вратах: к порталу домой — выйду на x-1");
                 logoutAt = 0;
                 return true;
+            }
+            if (w.jumpingTo() != 0 || now - stopJumpAt < 15_000_000_000L) {
+                show("Во вратах: прыгаю домой — выйду на x-1");
+                logoutAt = 0;
+                return true; // the jump home under way: the old map's portals are gone already
             }
             if (!noHomeTold) {
                 noHomeTold = true;
