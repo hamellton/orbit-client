@@ -25,6 +25,7 @@ public final class Threats {
     static final double BLOCKED = -1e9;
     /** The ship keeps this far from the map's edge. */
     static final double MARGIN = 500;
+    private final double margin;
     /** An enemy player's reach. */
     static final double PLAYER_REACH = 700;
     static final double MINE_KEEP = 300;
@@ -87,6 +88,9 @@ public final class Threats {
         this.targetId = targetId;
         WorldSnapshot.Hero h = w.hero();
         this.map = ctx.maps().info(h.mapId());
+        // a galaxy gate: DarkBot's canMove — only off the map is no place (its NPCs end in the corners: live 2026-11-15 on
+        // gb2, GG β, Sibelonits in a corner, the ship held 800 off behind the 500 margin and never shot)
+        this.margin = orbit.config.GateCatalog.byMap(h.mapId()) != null ? 1 : MARGIN;
         BotConfig.Zones z = c.zones().get(h.mapId());
         this.preferred = z == null || z.preferred() == null || z.preferred().isEmpty() ? null : z.preferred();
         this.avoided = z == null || z.avoided() == null || z.avoided().isEmpty() ? null : z.avoided();
@@ -165,7 +169,7 @@ public final class Threats {
     }
 
     double score(double x, double y) {
-        if (x < MARGIN || y < MARGIN || x > map.width() - MARGIN || y > map.height() - MARGIN
+        if (x < margin || y < margin || x > map.width() - margin || y > map.height() - margin
                 || avoided != null && avoided.contains(x, y, map.width(), map.height()) || ctx.nav().inDanger(x, y)
                 || orbit.world.maps.ZoneGeometry.blocked(w, x, y)) {
             return BLOCKED;
