@@ -239,11 +239,13 @@ public final class World {
                 g.remove((int) p.gearType.typeValue);
                 pet = petWith(pet.gearNanos(), g, pet.repairCost(), pet.comboRepair());
             }
+            // destroyed or repaired: the old hit points no longer hold (live 2026-11-15 on gb2: «5 %» kept after a kamikaze
+            // blast and the repair — the next blast came with a full pet, no kill)
             case orbit.protocol.gen.PetIsDestroyedCommand p -> pet = pet(pet.owned(), false, pet.hasFuel(), false, pet.id(),
-                    pet.name(), pet.level(), pet.health(), pet.fuel(), pet.fuelMax(), pet.heat(), pet.heatMax(), pet.gear());
+                    pet.name(), pet.level(), Health.UNKNOWN, pet.fuel(), pet.fuelMax(), pet.heat(), pet.heatMax(), pet.gear());
             case orbit.protocol.gen.PetRepairCompleteCommand p -> {
                 pet = pet(pet.owned(), true, pet.hasFuel(), pet.active(), pet.id(),
-                        pet.name(), pet.level(), pet.health(), pet.fuel(), pet.fuelMax(), pet.heat(), pet.heatMax(), pet.gear());
+                        pet.name(), pet.level(), Health.UNKNOWN, pet.fuel(), pet.fuelMax(), pet.heat(), pet.heatMax(), pet.gear());
                 pet = petWith(pet.gearNanos(), pet.gears(), -1, pet.comboRepair());
             }
             case orbit.protocol.gen.PetUIRepairButtonCommand p -> pet = petWith(pet.gearNanos(), pet.gears(),
