@@ -884,7 +884,7 @@ public final class BotRunner {
         safety.healOnly();
         // on a Blacklight map no logging out at its portal (NPCs reach it): through it first, out on the other side
         // (the user, 2026-11-13)
-        if (!logoutHere && orbit.bot.nav.Router.blacklight(h.mapId())) {
+        if (!logoutHere && orbit.config.GateCatalog.byMap(h.mapId()) == null && orbit.bot.nav.Router.blacklight(h.mapId())) {
             SafePlaces.Place out = wayHome(h);
             if (out == null) {
                 out = SafePlaces.outOfBlacklight(w, ctx.maps(), ctx.stats().closedPortals);
@@ -909,7 +909,10 @@ public final class BotRunner {
                 return;
             }
         }
-        int[] p = logoutHere ? null : logoutPortal(w);
+        // in a galaxy gate no portal: the stage's or the home one stands among the NPCs, and the way there through them
+        // killed the ship twice (live 2026-11-15 on gb2, GG β) — out where it is, the gate kept
+        boolean inGate = orbit.config.GateCatalog.byMap(h.mapId()) != null;
+        int[] p = logoutHere || inGate ? null : logoutPortal(w);
         if (p != null && Math.hypot(p[0] - h.x(), p[1] - h.y()) > Safety.AT_PORTAL) {
             if (ctx.nav().idle() || ctx.nav().destination().x() != p[0]) {
                 ctx.nav().moveTo(p[0], p[1], true);
