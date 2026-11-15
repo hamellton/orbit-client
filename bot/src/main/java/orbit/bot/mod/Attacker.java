@@ -1216,6 +1216,14 @@ public final class Attacker {
         double gap = Math.hypot(cx + Math.cos(angle) * rr - h.x(), cy + Math.sin(angle) * rr - h.y());
         double npcSpeed = Math.max(200, Math.hypot(vx, vy));
         double step = Math.max(0.05, Math.max(0, 0.625 * Math.max(1, h.speed()) + 0.625 * npcSpeed - gap) / rr);
+        if (gate != null) {
+            // DarkBot's moveToAnSafePosition exactly: the point radius + clamp(radius − distance, ±radius / 2) from the
+            // target — from afar half the radius off it, straight in (no step: the gap eats it); the NPC's speed at most
+            // 200 (live 2026-11-15 on gb2, GG β: Sibelonits in a corner 6 600 off, the ship went round far from them)
+            rr = Math.max(1, r + Math.max(-r / 2, Math.min(r / 2, r - dist)));
+            gap = Math.hypot(cx + Math.cos(angle) * rr - h.x(), cy + Math.sin(angle) * rr - h.y());
+            step = Math.max(0, 0.625 * Math.max(1, h.speed()) + 0.625 * Math.min(200, Math.hypot(vx, vy)) - gap) / rr;
+        }
         if (gate != null && towardCentre(h, t)) {
             th = null; // approachToCenter: the way fixed, no scoring
         }
