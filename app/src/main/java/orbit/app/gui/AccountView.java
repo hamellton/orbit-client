@@ -251,6 +251,15 @@ final class AccountView extends JPanel {
         hangar.setToolTipText("Патроны, ракеты, ресурсы и корабли аккаунта — в отдельном окне");
         hangar.addActionListener(e -> HangarWindow.open(tab.feed()));
         actions.add(hangar);
+        JButton refreshInfo = new JButton("Обновить");
+        refreshInfo.setToolTipText("Обогащение (из игры) и Скайлаб (с сайта) — сейчас, не дожидаясь их 5 и 20 минут");
+        refreshInfo.addActionListener(e -> {
+            Runnable r = tab.feed().refreshInfo();
+            if (r != null) {
+                r.run();
+            }
+        });
+        actions.add(refreshInfo);
         JButton view = new JButton("Блоки ▾");
         view.setToolTipText("Где показывать блоки");
         view.addActionListener(e -> BlockMenu.all().show(view, 0, view.getHeight()));

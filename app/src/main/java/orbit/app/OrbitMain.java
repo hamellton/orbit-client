@@ -729,6 +729,8 @@ public final class OrbitMain {
                     // «в кораблях пусто» — it was read for palladium only)
                     watchHangar(auth, conn, run.runner(), lastHost, accountName, cfg, ships);
                     watchSkylab(auth, conn, feed, game);
+                    watchLab(conn, game);
+                    feed.setRefreshInfo(() -> refreshInfo(auth, conn, feed));
                     planRefresh(conn, run.runner(), game);
                     if (closed.get()) {
                         // stopped while logging in: the stop found no module to finish, so finish this one
@@ -880,6 +882,50 @@ public final class OrbitMain {
                 Thread.currentThread().interrupt();
             } catch (java.io.IOException | RuntimeException e) {
                 log.warn("Ангары с сайта не прочитать: {}", e.getMessage());
+            }
+        });
+    }
+
+    /** The lab's enrichment is asked this often (the client asks it whenever the cargo window opens). */
+    static final long LAB_EVERY_MS = 5 * 60_000L;
+
+    /** Asks the lab's enrichment every 5 min while the game thread lives (the login's own request is the first). */
+    private static void watchLab(GameConnection conn, Thread game) {
+        Thread.ofVirtual().name("lab").start(() -> {
+            java.util.Random random = new java.util.Random();
+            try {
+                while (game.isAlive()) {
+                    Thread.sleep(LAB_EVERY_MS + random.nextInt(30_000));
+                    if (conn.session() != null) {
+                        conn.send(new orbit.protocol.gen.LabUpdateRequest());
+                    }
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            } catch (RuntimeException e) {
+                log.warn("Обогащение не запросить: {}", e.getMessage());
+            }
+        });
+    }
+
+    /** The window's «Обновить»: the lab asked and the Skylab read now (the user, 2026-11-15). */
+    private static void refreshInfo(AuthClient auth, GameConnection conn, WorldFeed feed) {
+        java.util.Map<String, String> ctx = org.slf4j.MDC.getCopyOfContextMap();
+        Thread.ofVirtual().name("refresh-info").start(() -> {
+            if (ctx != null) {
+                org.slf4j.MDC.setContextMap(ctx);
+            }
+            try {
+                if (conn.session() != null) {
+                    conn.send(new orbit.protocol.gen.LabUpdateRequest());
+                }
+                var session = conn.session();
+                if (session != null && session.host() != null) {
+                    feed.setSkylab(new orbit.auth.Skylab(auth.http(), session.host()).read());
+                    log.info("Обновил по кнопке: обогащение запрошено, Skylab прочитан");
+                }
+            } catch (java.io.IOException | RuntimeException e) {
+                log.warn("Обновить не вышло: {}", e.getMessage());
             }
         });
     }

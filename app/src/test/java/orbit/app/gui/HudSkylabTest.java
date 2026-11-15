@@ -38,4 +38,31 @@ class HudSkylabTest {
             javax.imageio.ImageIO.write(img, "png", new java.io.File(out));
         }
     }
+
+    @Test
+    void theLabsAnswerIsKeptAndShown() {
+        orbit.app.WorldFeed feed = new orbit.app.WorldFeed("test");
+        orbit.protocol.gen.LabUpdateItemCommand c = new orbit.protocol.gen.LabUpdateItemCommand();
+        for (int[] it : new int[][] {{0, 6, 1000}, {3, 7, 250}}) {
+            orbit.protocol.gen.UpdateItemModule u = new orbit.protocol.gen.UpdateItemModule();
+            u.itemToUpdate = new orbit.protocol.gen.LabItemModule();
+            u.itemToUpdate.itemValue = (short) it[0];
+            u.oreCountToUpdateWith = new orbit.protocol.gen.OreCountModule();
+            u.oreCountToUpdateWith.oreType = new orbit.protocol.gen.OreTypeModule();
+            u.oreCountToUpdateWith.oreType.typeValue = (short) it[1];
+            u.oreCountToUpdateWith.count = it[2];
+            c.itemsUpdatedInfo.add(u);
+        }
+        feed.onPacket(c, 1);
+        org.junit.jupiter.api.Assertions.assertEquals(new orbit.app.WorldFeed.Enrichment(6, 1000), feed.lab().items().get(0));
+        org.junit.jupiter.api.Assertions.assertEquals(new orbit.app.WorldFeed.Enrichment(7, 250), feed.lab().items().get(3));
+        Hud hud = new Hud(new Font(Font.SANS_SERIF, Font.PLAIN, 12));
+        assertNull(hud.lab(orbit.app.WorldFeed.Lab.NONE), "never told: no card");
+        Hud.Card card = hud.lab(feed.lab());
+        assertNotNull(card);
+        BufferedImage img = new BufferedImage(360, card.height(360) + 10, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g = img.createGraphics();
+        card.paint(g, 0, 0, 360);
+        g.dispose();
+    }
 }

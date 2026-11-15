@@ -93,6 +93,7 @@ final class Hud {
         put(out, ViewSettings.Block.QUESTS, quests(w.quests()));
         put(out, ViewSettings.Block.GATES, gates(w, feed));
         put(out, ViewSettings.Block.SKYLAB, skylab(feed.skylab()));
+        put(out, ViewSettings.Block.LAB, lab(feed.lab()));
         if (feed.stats() != null || !w.rewards().equals(WorldSnapshot.Rewards.NONE)) {
             out.put(ViewSettings.Block.STATS, stats(w, feed));
         }
@@ -170,6 +171,66 @@ final class Hud {
         };
     }
     static final Color SKYLAB_BAR = new Color(0x22c55e);
+    static final Color LAB_BAR = new Color(0xf59e0b);
+
+    /** The lab's items in the window's words (LabItemModule: laser 0, rockets 1, drive 2, shield 3). */
+    static final List<String> LAB_ITEMS = List.of("Лазеры", "Ракеты", "Двигатели", "Щиты");
+
+    /** OreTypeModule numbers of the enriching ores. */
+    static String oreName(int ore) {
+        return switch (ore) {
+            case 0 -> "Prometium";
+            case 1 -> "Endurium";
+            case 2 -> "Terbium";
+            case 3 -> "Xenomit";
+            case 4 -> "Prometid";
+            case 5 -> "Duranium";
+            case 6 -> "Promerium";
+            case 7 -> "Seprom";
+            case 8 -> "Palladium";
+            default -> "руда №" + ore;
+        };
+    }
+
+    /**
+     * «Обогащение» (the user, 2026-11-15: «обогащены ли сейчас лазеры, движки, ракеты и щиты, чем и сколько осталось»):
+     * the lab's answer — each item's ore and what is left of it; when it was told and how often it is asked.
+     */
+    Card lab(orbit.app.WorldFeed.Lab lab) {
+        if (lab == null || lab.millis() == 0) {
+            return null;
+        }
+        String age = java.time.LocalTime.ofInstant(java.time.Instant.ofEpochMilli(lab.millis()),
+                java.time.ZoneId.systemDefault()).withNano(0).toString();
+        return new Card() {
+            @Override
+            public int height(int width) {
+                return pad + line + LAB_ITEMS.size() * line + pad - 4;
+            }
+
+            @Override
+            public void paint(Graphics2D g, int x, int y, int width) {
+                frame(g, x, y, width, height(width), LAB_BAR);
+                g.setFont(font(Font.BOLD, 12f));
+                g.setColor(TEXT);
+                g.drawString("Обогащение", x + pad, y + pad + 10);
+                g.setFont(font(Font.PLAIN, 11f));
+                g.setColor(DIM);
+                String right = age + " · раз в 5 мин";
+                g.drawString(right, x + width - pad - g.getFontMetrics().stringWidth(right), y + pad + 10);
+                int ry = y + pad + line;
+                for (int i = 0; i < LAB_ITEMS.size(); i++) {
+                    orbit.app.WorldFeed.Enrichment e = lab.items().get(i);
+                    boolean has = e != null && e.left() > 0;
+                    g.setColor(has ? TEXT : DIM);
+                    g.drawString(LAB_ITEMS.get(i), x + pad, ry + 10);
+                    String v = has ? oreName(e.ore()) + "  " + money(e.left()) : "нет";
+                    g.drawString(v, x + width - pad - g.getFontMetrics().stringWidth(v), ry + 10);
+                    ry += line;
+                }
+            }
+        };
+    }
 
     /** The page names of the Skylab's modules, in the window's words. */
     static final Map<String, String> SKYLAB_MODULES = Map.ofEntries(Map.entry("baseModule", "база"),
@@ -219,7 +280,7 @@ final class Hud {
                 g.drawString("Скайлаб", x + pad, y + pad + 10);
                 g.setFont(font(Font.PLAIN, 11f));
                 g.setColor(DIM);
-                String right = "сайт " + age;
+                String right = age + " · раз в 20 мин";
                 g.drawString(right, x + width - pad - g.getFontMetrics().stringWidth(right), y + pad + 10);
                 int ry = y + pad + line;
                 g.setColor(s.transporting() ? TEXT : DIM);
