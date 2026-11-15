@@ -63,8 +63,15 @@ final class GateKamikaze {
     private long toldAt = Long.MIN_VALUE / 2;
     /** The wave started with nothing about (between waves): kept till the blast, as SharedPlugin's PRIMED. */
     private boolean primed;
-    /** The flagged ones within this of the ship count for the blast when they do not all aim at it yet. */
-    static final double NEAR_SHIP = 2_000;
+    /** SharedPlugin's defaults: hpRange 0.10–0.25, shieldRange 0.40–0.95 (start at the max, abort at the min). */
+    static final double HP_MIN = 0.25;
+    static final double SHIELD_MIN = 0.95;
+    static final double HP_ABORT = 0.10;
+    static final double SHIELD_ABORT = 0.40;
+    /** The pet blows only below this share of its HP (SharedPlugin's PET_LOW_HP). */
+    static final double PET_LOW = 0.19;
+    private long rocketAt = Long.MIN_VALUE / 2;
+    private long rocketToldAt = Long.MIN_VALUE / 2;
     private long lockAskedAt = Long.MIN_VALUE / 2;
 
     GateKamikaze(BotContext ctx) {
@@ -108,17 +115,11 @@ final class GateKamikaze {
         if (stage == Stage.ACTIVE) {
             return active(k, w, h, pet, now);
         }
-        // the wave is a kamikaze wave when so many flagged ones are on the map — DarkBot knows it by the wave (the user,
-        // 2026-11-15: «на кристаллинах он начал их бить, даркбот не бьёт их»): they are not shot then, but gathered,
-        // even before they aim at the ship; the blast counts the ones bunched about the ship
+        // SharedPlugin's KamikazeHandler.tick: the flagged NPCs aiming at the ship (at K or at a primed wave's start) —
+        // fewer than minNpcs: the usual fight; a part of a wave is no reason to wait for the rest (DarkBot neither)
         List<WorldSnapshot.Ship> flagged = flagged(c, w, h);
         List<WorldSnapshot.Ship> valid = valid(c, w, h, now);
         int min = Math.max(1, k.path("minNpcs").asInt(5));
-        if (flagged.size() >= min && valid.size() < min) {
-            // a bunch of them about the ship; scattered over the map one by one they are fought as usual (live
-            // 2026-11-15 on gb2: 6 left, none aiming, 5 942 apart — circled for minutes, none shot)
-            valid = flagged.stream().filter(sh -> Math.hypot(sh.x() - h.x(), sh.y() - h.y()) <= NEAR_SHIP).toList();
-        }
         if (valid.size() < min) {
             if (stage == Stage.GATHERING) {
                 log.info("Камикадзе: NPC для взрыва меньше {} — обычный бой", min);
@@ -136,6 +137,8 @@ final class GateKamikaze {
             primed = true; // SharedPlugin keeps the wave's start till the blast
         }
         stage = Stage.GATHERING;
+        // enterKamikazeState: the kamikaze's ship mode, no shots at the NPCs
+        ctx.ship().want(mode(k, c));
         if (attacker.targetId() != 0) {
             attacker.clear();
         }
@@ -147,8 +150,17 @@ final class GateKamikaze {
                 && (button == null || button.remainingMs(now) == 0);
         // the pet out and alive: a dead or docked one «blew up» 0.1 s after the gear (live 2026-11-15 on gb2)
         boolean petOut = pet.alive() && pet.active();
-        boolean ready = petOut && gameReady && now >= cooldownUntil && share(h.health().hpPercent()) >= k.path("hpMin").asDouble(0.95)
-                && share(h.health().shieldPercent()) >= k.path("shieldMin").asDouble(0.95);
+        boolean petLow = petLow(pet);
+        boolean petReady = false;
+        if (now >= cooldownUntil && gameReady && petOut) {
+            // petReadyForKamikaze: the pet blows only below 19 % HP; alone the ship brings it down with rockets
+            petReady = petLow || w.group().exists();
+            if (!petReady) {
+                rocketPet(w, h, pet, now);
+            }
+        }
+        boolean ready = petReady && share(h.health().hpPercent()) >= k.path("hpMin").asDouble(HP_MIN)
+                && share(h.health().shieldPercent()) >= k.path("shieldMin").asDouble(SHIELD_MIN);
         boolean tight = spread(valid) <= k.path("tight").asDouble(TIGHT);
         if (tight) {
             if (tightSince == 0) {
@@ -159,36 +171,63 @@ final class GateKamikaze {
         }
         boolean waited = !primed || tightSince != 0 && ms(now - tightSince) >= PRIMED_DELAY_MS;
         WorldSnapshot.Ship near = nearest(valid, h);
-        lock(h, near, now);
-        if (ready && tight && waited) {
-            primed = false;
-            stage = Stage.ACTIVE;
-            activeSince = now;
-            petSeenAlive = pet.alive() && pet.active();
-            log.info("Камикадзе: {} NPC в куче (разброс {}), HP {}% — стою, питомец «Камикадзе»", valid.size(),
-                    (int) spread(valid), Math.round(share(h.health().hpPercent()) * 100));
-            ctx.nav().stop();
-            ctx.ship().want(mode(k, c));
-            gear = PetGearTypeModule.PETGEARTYPE_KAMIKAZE;
-            return true;
-        }
         gear = PetGearTypeModule.PETGEARTYPE_PASSIVE;
+        if (ready) {
+            lock(h, near, now); // tryActivate locks the closest only when all is ready
+            if (tight) {
+                if (waited) {
+                    primed = false;
+                    stage = Stage.ACTIVE;
+                    activeSince = now;
+                    petSeenAlive = pet.alive() && pet.active();
+                    log.info("Камикадзе: {} NPC в куче (разброс {}), HP {}% — стою, питомец «Камикадзе»", valid.size(),
+                            (int) spread(valid), Math.round(share(h.health().hpPercent()) * 100));
+                    ctx.nav().stop();
+                    gear = PetGearTypeModule.PETGEARTYPE_KAMIKAZE;
+                }
+                return true; // tight: no new circling step, as SharedPlugin returns before moveAroundPoint
+            }
+        }
         if (ms(now - toldAt) >= 10_000) {
             // why no blast yet, every 10 s (live 2026-11-15 on gb2: circling Kristallins with nothing said)
             toldAt = now;
             log.info("Камикадзе: жду — с флагом {}, стреляют {}, в счёт {}, разброс {} (нужно ≤ {}), ближний в {}, HP {}%, щит {}%,"
-                            + " перезарядка {}, режим питомца {}", flagged.size(), aiming(w, h, now), valid.size(),
+                            + " питомец HP {}% (нужно < {}%), перезарядка {}", flagged.size(), aiming(w, h, now), valid.size(),
                     (int) spread(valid), (int) k.path("tight").asDouble(TIGHT),
                     near == null ? -1 : (int) Math.hypot(near.x() - h.x(), near.y() - h.y()),
                     Math.round(share(h.health().hpPercent()) * 100), Math.round(share(h.health().shieldPercent()) * 100),
-                    now < cooldownUntil ? "своя" : !gameReady ? "игры" : "нет", gameReady ? "есть" : "нет");
+                    Math.round(pet.health().hpPercent() * 100), Math.round(PET_LOW * 100),
+                    now < cooldownUntil ? "своя" : !gameReady ? "игры" : "нет");
             if (!petOut) {
                 log.info("Камикадзе: питомец не выпущен — жду его");
             }
         }
-        ctx.ship().want(mode(k, c));
-        gather(w, h, near, k.path("orbit").asDouble(ORBIT));
+        gather(w, h, k.path("orbit").asDouble(ORBIT));
         return true;
+    }
+
+    /** The pet's HP under {@link #PET_LOW} of its maximum (SharedPlugin's isPetHpLow; no maximum known: not low). */
+    static boolean petLow(WorldSnapshot.Pet pet) {
+        double p = pet.health().hpPercent();
+        return p >= 0 && p < PET_LOW;
+    }
+
+    /** Selects the own pet and fires the selected rocket at it, once a second (SharedPlugin's launchRocket). */
+    private void rocketPet(WorldSnapshot w, WorldSnapshot.Hero h, WorldSnapshot.Pet pet, long now) {
+        WorldSnapshot.Ship own = w.ships().get(pet.id());
+        if (own == null) {
+            return;
+        }
+        lock(h, own, now);
+        if (h.selectedId() == own.id() && ms(now - rocketAt) >= 1_000) {
+            rocketAt = now;
+            ctx.actions().attackRocket(own);
+            if (ms(now - rocketToldAt) >= 10_000) {
+                rocketToldAt = now;
+                log.info("Камикадзе: питомец HP {}% — бью его ракетами до < {}% (условие взрыва)",
+                        Math.round(pet.health().hpPercent() * 100), Math.round(PET_LOW * 100));
+            }
+        }
     }
 
     private boolean active(JsonNode k, WorldSnapshot w, WorldSnapshot.Hero h, WorldSnapshot.Pet pet, long now) {
@@ -198,7 +237,7 @@ final class GateKamikaze {
         if (pet.alive() && pet.active()) {
             petSeenAlive = true;
         }
-        if (dead || hp <= k.path("hpAbort").asDouble(0.6) || sh <= k.path("shieldAbort").asDouble(0.4)) {
+        if (dead || hp <= k.path("hpAbort").asDouble(HP_ABORT) || sh <= k.path("shieldAbort").asDouble(SHIELD_ABORT)) {
             long cd = cooldownMs(k);
             cooldownUntil = now + cd * 1_000_000;
             stage = Stage.INACTIVE;
@@ -213,11 +252,6 @@ final class GateKamikaze {
         }
         ctx.nav().stop();
         ctx.ship().want(mode(k, ctx.config().get()));
-        WorldSnapshot.Ship locked = w.ships().get(lockedId);
-        if (locked == null) {
-            locked = nearest(valid(ctx.config().get(), w, h, now), h);
-        }
-        lock(h, locked, now);
         gear = PetGearTypeModule.PETGEARTYPE_KAMIKAZE;
         return true;
     }
@@ -311,19 +345,17 @@ final class GateKamikaze {
     }
 
     /**
-     * Round the nearest flagged NPC (else K) at {@link #ORBIT}, DarkBot's circling: the distance pulled toward the radius
-     * by at most 750 a step, the angle stepped by (0.625·speed + 125) / radius.
+     * Round K at {@link #ORBIT} (SharedPlugin's moveAroundPoint(centerX, centerY, 1500)), DarkBot's circling: the distance
+     * pulled toward the radius by at most 750 a step, the angle stepped by (0.625·speed + 125) / radius.
      */
-    private void gather(WorldSnapshot w, WorldSnapshot.Hero h, WorldSnapshot.Ship around, double orbitRadius) {
-        double cx = around != null ? around.x() : K_X;
-        double cy = around != null ? around.y() : K_Y;
+    private void gather(WorldSnapshot w, WorldSnapshot.Hero h, double orbitRadius) {
+        double cx = K_X;
+        double cy = K_Y;
         double d = Math.hypot(h.x() - cx, h.y() - cy);
         double a = Math.atan2(h.y() - cy, h.x() - cx);
         if (Double.isNaN(orbitAngle)) {
             orbitAngle = 1; // one way round, as DarkBot keeps its direction
         }
-        // the radius: SharedPlugin's 1 500, or closer ({@code orbit}) — Kristallins at 1 330 did not aim nor follow
-        // (live 2026-11-15 on gb2), so they never bunched
         double dist = orbitRadius + Math.max(-750, Math.min(750, orbitRadius - d));
         double speed = Math.max(200, h.speed());
         double step = (0.625 * speed + 125) / Math.max(1, dist);
@@ -331,9 +363,6 @@ final class GateKamikaze {
         orbit.world.maps.MapCatalog.MapInfo m = ctx.maps().info(h.mapId());
         double x = Math.max(300, Math.min(m.width() - 300, cx + Math.cos(na) * dist));
         double y = Math.max(300, Math.min(m.height() - 300, cy + Math.sin(na) * dist));
-        if (Math.hypot(x - (cx + Math.cos(na) * dist), y - (cy + Math.sin(na) * dist)) > 50) {
-            orbitAngle = -orbitAngle; // the map's edge that way: the other way round
-        }
         ctx.nav().moveTo(x, y, false);
         ctx.nav().tick();
     }

@@ -237,6 +237,13 @@ class GateModuleTest {
         }
     }
 
+    static void petHp(Sim sim, int hp, int max) {
+        orbit.protocol.gen.PetHitpointsUpdateCommand u = new orbit.protocol.gen.PetHitpointsUpdateCommand();
+        u.hitpointsNow = hp;
+        u.hitpointsMax = max;
+        sim.world.apply(u, sim.now);
+    }
+
     @Test
     void kamikazeAsDarkBotGathersTheFlaggedOnesThenStopsAndBlowsWhenTheyAreTight() throws Exception {
         // the user, 2026-11-15: «камикадзе как у даркбота 1 в 1, и поведение корабля тоже» (SharedPlugin KamikazeHandler)
@@ -244,6 +251,7 @@ class GateModuleTest {
                 .withPet(new BotConfig.Pet(true, "GUARD")), 51, 8_500, 6_200);
         PetCareTest.owned(sim);
         PetCareTest.launched(sim);
+        petHp(sim, 1_000, 10_000); // under 19 %: the pet can blow
         GateModule m = new GateModule(sim.ctx);
         kristallins(sim, 8_500, 5_000, 250); // spread 1 000: not tight yet
         run(sim, m, 300);
@@ -265,8 +273,29 @@ class GateModuleTest {
     }
 
     @Test
-    void aWaveOfFlaggedOnesIsNotShotEvenBeforeTheyAimAndFarFromThePoint() throws Exception {
-        // live 2026-11-15 on gb2, GG β: Kristallins β21–24 by the map's edge — the bot shot them; DarkBot does not
+    void aloneTheShipBringsItsPetUnderNineteenPercentWithRocketsFirst() throws Exception {
+        // SharedPlugin petReadyForKamikaze: no group and the pet at full HP — lock the own pet and launch rockets at it
+        Sim sim = new Sim(config("{\"gates\":[\"alpha\"],\"kamikaze\":{\"enabled\":true,\"minNpcs\":5}}")
+                .withPet(new BotConfig.Pet(true, "GUARD")), 51, 8_500, 6_200);
+        PetCareTest.owned(sim);
+        PetCareTest.launched(sim);
+        petHp(sim, 10_000, 10_000);
+        GateModule m = new GateModule(sim.ctx);
+        kristallins(sim, 8_500, 5_000, 50); // tight already
+        run(sim, m, 2_000);
+        assertEquals(orbit.protocol.gen.PetGearTypeModule.PETGEARTYPE_PASSIVE, m.petGear(), "the pet too healthy to blow");
+        assertTrue(sim.sent.stream().anyMatch(p -> p instanceof orbit.protocol.gen.AttackRocketRequest r && r.targetId == 500),
+                "rockets at the own pet");
+        assertTrue(sim.sent.stream().noneMatch(p -> p instanceof orbit.protocol.gen.ShipSelectRequest r && r.targetId >= 800
+                && r.targetId < 805), "no NPC locked before all is ready");
+        petHp(sim, 1_500, 10_000);
+        run(sim, m, 300);
+        assertEquals(orbit.protocol.gen.PetGearTypeModule.PETGEARTYPE_KAMIKAZE, m.petGear(), "under 19 %: the blast");
+    }
+
+    @Test
+    void flaggedOnesNotAimingAreFoughtAsUsualAsInDarkBot() throws Exception {
+        // SharedPlugin counts only the ones aiming at the ship; no «wave of flagged ones» guess
         Sim sim = new Sim(config("{\"gates\":[\"beta\"],\"kamikaze\":{\"enabled\":true,\"minNpcs\":5}}")
                 .withPet(new BotConfig.Pet(true, "GUARD")), 52, 17_000, 11_000);
         sim.lasers("ammunition_laser_lcb-10");
@@ -277,9 +306,7 @@ class GateModuleTest {
             sim.npc(800 + i, "-=[ Kristallin ]=- β2" + (i % 4 + 1), 18_000 + i * 200, 12_000);
         }
         run(sim, m, 3_000);
-        assertEquals(0, m.fightTarget(), "a kamikaze wave: not shot");
-        assertEquals(orbit.protocol.gen.PetGearTypeModule.PETGEARTYPE_PASSIVE, m.petGear(), "gathered");
-        assertTrue(sim.sent.stream().noneMatch(p -> p instanceof orbit.protocol.gen.AttackLaserRequest));
+        assertTrue(m.fightTarget() >= 800 && m.fightTarget() < 805, "fought: " + m.fightTarget());
     }
 
     @Test
