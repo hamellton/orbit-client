@@ -860,7 +860,10 @@ public final class Attacker {
         }
         WorldSnapshot.Item wanted = ammo == null ? null : w.items().get(ammo);
         // (the item bar comes a few seconds after the login: nothing is missing before it)
-        if (ammo != null && !w.items().isEmpty() && (wanted == null || wanted.counter() < MIN_AMMO)
+        // and the lasers' part of it: the bar comes in parts (live 2026-11-15 on gb2: «нет MCB-50 в инвентаре» a second
+        // after the login, 1 113 049 of them on the account)
+        boolean lasersKnown = w.items().keySet().stream().anyMatch(k -> k.startsWith("ammunition_laser_"));
+        if (ammo != null && lasersKnown && (wanted == null || wanted.counter() < MIN_AMMO)
                 && !ammo.equals(missingAmmo)) {
             missingAmmo = ammo;
             log.warn("Нет патронов {} ({}) — стреляю тем, что выбрано в игре ({})", orbit.config.ItemCatalog.label(ammo),
