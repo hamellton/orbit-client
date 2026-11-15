@@ -31,6 +31,10 @@ class ConfigFoldersTest {
         assertEquals(BotConfig.Module.GALAXY_GATE, store.load("Galaxy Gates ABG").module());
         assertEquals(BotConfig.Module.PALLADIUM, store.load("Palladium").module());
         assertEquals(26, store.load("Cubikon").general().workingMap(), "Venus, 3-6");
+        for (String n : DEFAULTS) {
+            // the cube's own Protegits shoot all the while: stepping away from them never let it fight (2026-11-16)
+            assertFalse(store.load(n).flee().npcs(), n + ": no stepping away from NPCs");
+        }
     }
 
     @Test

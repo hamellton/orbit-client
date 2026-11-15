@@ -812,7 +812,8 @@
     "jump": true,
     "waitSec": 90,
     "avoid": false,
-    "avoidRadius": 3000
+    "avoidRadius": 3000,
+    "npcs": false
   },
   "group": {
     "accept": "OFF",
