@@ -77,8 +77,15 @@ public final class ShipSetup {
             return Integer.parseInt(m.group(1));
         }
         return switch (item) {
+            // the game's order after Bat 13 (DarkBot's HasFormationCondition.Formation, id = ordinal; Ring and Drill seen
+            // in the recordings)
             case "drone_formation_f-3d-rg" -> 14;
             case "drone_formation_f-3d-dr" -> 15;
+            case "drone_formation_f-3d-vt" -> 16;
+            case "drone_formation_f-3d-dm" -> 17;
+            case "drone_formation_f-3d-wl" -> 18;
+            case "drone_formation_f-3d-x" -> 19;
+            case "drone_formation_f-3d-wv" -> 20;
             default -> null;
         };
     }

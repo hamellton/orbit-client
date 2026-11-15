@@ -112,7 +112,10 @@ class ShipSetupTest {
         assertEquals(1, ShipSetup.formationId("drone_formation_f-01-tu"));
         assertEquals(14, ShipSetup.formationId(RING));
         assertEquals(15, ShipSetup.formationId(DRILL));
-        assertEquals(null, ShipSetup.formationId("drone_formation_f-3d-wl"));
+        // DarkBot's order after Ring and Drill (AstraBot's roamFormation 18 / runFormation 16 in its ABG config)
+        assertEquals(16, ShipSetup.formationId("drone_formation_f-3d-vt"));
+        assertEquals(18, ShipSetup.formationId("drone_formation_f-3d-wl"));
+        assertEquals(null, ShipSetup.formationId("drone_formation_unknown"));
     }
 
     @Test
