@@ -115,10 +115,9 @@ final class GateKamikaze {
         List<WorldSnapshot.Ship> valid = valid(c, w, h, now);
         int min = Math.max(1, k.path("minNpcs").asInt(5));
         if (flagged.size() >= min && valid.size() < min) {
+            // a bunch of them about the ship; scattered over the map one by one they are fought as usual (live
+            // 2026-11-15 on gb2: 6 left, none aiming, 5 942 apart — circled for minutes, none shot)
             valid = flagged.stream().filter(sh -> Math.hypot(sh.x() - h.x(), sh.y() - h.y()) <= NEAR_SHIP).toList();
-            if (valid.size() < min) {
-                valid = flagged;
-            }
         }
         if (valid.size() < min) {
             if (stage == Stage.GATHERING) {
@@ -183,7 +182,7 @@ final class GateKamikaze {
                     now < cooldownUntil ? "своя" : !gameReady ? "игры" : "нет", gameReady ? "есть" : "нет");
         }
         ctx.ship().want(mode(k, c));
-        gather(w, h, near);
+        gather(w, h, near, k.path("orbit").asDouble(ORBIT));
         return true;
     }
 
@@ -310,7 +309,7 @@ final class GateKamikaze {
      * Round the nearest flagged NPC (else K) at {@link #ORBIT}, DarkBot's circling: the distance pulled toward the radius
      * by at most 750 a step, the angle stepped by (0.625·speed + 125) / radius.
      */
-    private void gather(WorldSnapshot w, WorldSnapshot.Hero h, WorldSnapshot.Ship around) {
+    private void gather(WorldSnapshot w, WorldSnapshot.Hero h, WorldSnapshot.Ship around, double orbitRadius) {
         double cx = around != null ? around.x() : K_X;
         double cy = around != null ? around.y() : K_Y;
         double d = Math.hypot(h.x() - cx, h.y() - cy);
@@ -318,7 +317,9 @@ final class GateKamikaze {
         if (Double.isNaN(orbitAngle)) {
             orbitAngle = 1; // one way round, as DarkBot keeps its direction
         }
-        double dist = ORBIT + Math.max(-750, Math.min(750, ORBIT - d));
+        // the radius: SharedPlugin's 1 500, or closer ({@code orbit}) — Kristallins at 1 330 did not aim nor follow
+        // (live 2026-11-15 on gb2), so they never bunched
+        double dist = orbitRadius + Math.max(-750, Math.min(750, orbitRadius - d));
         double speed = Math.max(200, h.speed());
         double step = (0.625 * speed + 125) / Math.max(1, dist);
         double na = a + orbitAngle * step;
