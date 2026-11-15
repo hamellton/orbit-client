@@ -60,6 +60,7 @@ final class GateKamikaze {
     private double orbitAngle = Double.NaN;
     private int gear = -1;
     private int lockedId;
+    private long toldAt = Long.MIN_VALUE / 2;
     /** The wave started with nothing about (between waves): kept till the blast, as SharedPlugin's PRIMED. */
     private boolean primed;
     /** The flagged ones within this of the ship count for the blast when they do not all aim at it yet. */
@@ -171,6 +172,16 @@ final class GateKamikaze {
             return true;
         }
         gear = PetGearTypeModule.PETGEARTYPE_PASSIVE;
+        if (ms(now - toldAt) >= 10_000) {
+            // why no blast yet, every 10 s (live 2026-11-15 on gb2: circling Kristallins with nothing said)
+            toldAt = now;
+            log.info("Камикадзе: жду — с флагом {}, стреляют {}, в счёт {}, разброс {} (нужно ≤ {}), ближний в {}, HP {}%, щит {}%,"
+                            + " перезарядка {}, режим питомца {}", flagged.size(), aiming(w, h, now), valid.size(),
+                    (int) spread(valid), (int) k.path("tight").asDouble(TIGHT),
+                    near == null ? -1 : (int) Math.hypot(near.x() - h.x(), near.y() - h.y()),
+                    Math.round(share(h.health().hpPercent()) * 100), Math.round(share(h.health().shieldPercent()) * 100),
+                    now < cooldownUntil ? "своя" : !gameReady ? "игры" : "нет", gameReady ? "есть" : "нет");
+        }
         ctx.ship().want(mode(k, c));
         gather(w, h, near);
         return true;
@@ -272,6 +283,11 @@ final class GateKamikaze {
         }
         aimedAt.keySet().removeIf(id -> !w.ships().containsKey(id));
         return out;
+    }
+
+    /** How many NPCs aimed at the ship within the last second. */
+    private int aiming(WorldSnapshot w, WorldSnapshot.Hero h, long now) {
+        return (int) aimedAt.values().stream().filter(at -> ms(now - at) <= AIMED_MS).count();
     }
 
     /** The largest distance between two of them. */
