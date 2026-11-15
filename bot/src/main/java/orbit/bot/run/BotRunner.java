@@ -511,8 +511,10 @@ public final class BotRunner {
             if (pending.getAndSet(null) != null) {
                 log.info("Выхожу из игры — приказ с карты не выполняю");
             }
-            stopping(w);
-            return;
+            if (stopping(w)) {
+                return;
+            }
+            // in a gate with no home portal in sight: the stage is played on till it shows (no logging out there)
         }
         if (manual(h)) {
             return;
@@ -873,14 +875,15 @@ public final class BotRunner {
     }
 
     /** To the nearest portal (out of the crowd), wait a moment, press logout, keep still until the server ends it. */
-    private void stopping(WorldSnapshot w) {
+    /** @return false when the bot plays on meanwhile (a galaxy gate with no home portal in sight). */
+    private boolean stopping(WorldSnapshot w) {
         WorldSnapshot.Hero h = w.hero();
         long now = ctx.now();
         if (loggedOut.getAsBoolean()) {
             state = State.STOPPED;
             show("Вышел: " + stopReason);
             log.info("Вышел из игры");
-            return;
+            return true;
         }
         // straight to the portal and out: the hull is not repaired first, no escape jump on the way
         safety.healOnly();
@@ -908,7 +911,7 @@ public final class BotRunner {
                     stopJumpAt = now;
                 }
                 logoutAt = 0;
-                return;
+                return true;
             }
         }
         // in a galaxy gate the game lets nobody log out (the user, 2026-11-15: «во вратах выйти нельзя — прыгнуть в портал
@@ -933,8 +936,14 @@ public final class BotRunner {
                 }
                 show("Во вратах: к порталу домой — выйду на x-1");
                 logoutAt = 0;
-                return;
+                return true;
             }
+            if (!noHomeTold) {
+                noHomeTold = true;
+                log.info("Во вратах портала домой не видно (выйти здесь нельзя) — довожу этап, выйду через него");
+            }
+            logoutAt = 0;
+            return false;
         }
         int[] p = logoutHere || inGate ? null : logoutPortal(w);
         if (p != null && Math.hypot(p[0] - h.x(), p[1] - h.y()) > Safety.AT_PORTAL) {
@@ -944,7 +953,7 @@ public final class BotRunner {
             ctx.nav().tick();
             logoutAt = 0;
             show("К порталу или базе для выхода");
-            return;
+            return true;
         }
         ctx.nav().stop();
         if (underNpcFire(w)) {
@@ -961,7 +970,7 @@ public final class BotRunner {
                 stopJumpAt = now;
                 firedAtSince = 0;
                 logoutAt = 0;
-                return;
+                return true;
             }
             // nowhere to jump: standing still to log out under fire is death (live 2026-11-13 on 3-BL: an Impulse
             // II pack, 82 % → 0 in 17 s) — back to the fight, out once nobody shoots, as long as the wait allows
@@ -975,7 +984,7 @@ public final class BotRunner {
                 stopWhenFree = reason;
                 stopWhenFreeSince = stopAskedAt;
                 stopWhenFreeTarget = 0;
-                return;
+                return true;
             }
         } else {
             firedAtSince = 0;
@@ -989,7 +998,10 @@ public final class BotRunner {
             logoutPressedAt = now;
         }
         show("Выход из игры");
+        return true;
     }
+
+    private boolean noHomeTold;
 
     private void fail(String why) {
         log.error("Бот остановлен: {}", why);
