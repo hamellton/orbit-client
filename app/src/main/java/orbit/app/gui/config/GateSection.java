@@ -73,6 +73,7 @@ final class GateSection implements Section {
     private final JCheckBox kamikaze = new JCheckBox("Камикадзе питомца как в DarkBot: собрать NPC с флагом KAMIKAZE в кучу,"
             + " встать и взорвать");
     private final JSpinner kamikazeMin = Form.number(1, 20, 1);
+    private final JComboBox<String> kamikazeMode = new JComboBox<>(new String[] {"Бегства (как в «Общем»)", "Боя"});
     private final JComboBox<String> kamikazeLevel = new JComboBox<>(new String[] {"1 (120 с)", "2 (60 с)", "3 (30 с)"});
     private final JCheckBox fightModeInGate = new JCheckBox("К NPC во вратах лететь в конфигурации боя (без режима бегства)");
     /** ABG's NPCs, whose formation may be chosen (AstraBot «Galaxy - Gate»). */
@@ -167,6 +168,7 @@ final class GateSection implements Section {
                 .row("", kamikaze)
                 .row("Камикадзе: NPC с флагом не меньше", kamikazeMin)
                 .row("Камикадзе: уровень (перезарядка)", kamikazeLevel)
+                .row("Камикадзе: конфигурация на сборе и взрыве", kamikazeMode)
                 .note("SharedPlugin: NPC с флагом KAMIKAZE (в ABG — Kristallin, Saimon, Sibelonit) стреляют по нам у точки"
                         + " сбора — питомец пассивный, корабль кружит на 1 500, они сбиваются; все ближе 300 друг к другу и"
                         + " HP/щит от 95 % — корабль стоит, питомец «Камикадзе».")
@@ -288,6 +290,7 @@ final class GateSection implements Section {
         Form.set(hpLinkBelow, m.path("hpLinkBelow").asInt(0));
         kamikaze.setSelected(m.path("kamikaze").path("enabled").asBoolean(false));
         Form.set(kamikazeMin, m.path("kamikaze").path("minNpcs").asInt(5));
+        kamikazeMode.setSelectedIndex("fight".equals(m.path("kamikaze").path("mode").asText("run")) ? 1 : 0);
         kamikazeLevel.setSelectedIndex(Math.max(0, Math.min(2, m.path("kamikaze").path("level").asInt(3) - 1)));
         trinityAttribute.setSelectedIndex(m.path("trinityAttribute").asInt(1) == 2 ? 1 : 0);
         trinityDifficulty.setSelectedIndex(Math.max(0, Math.min(4, m.path("trinityDifficulty").asInt(1) - 1)));
@@ -361,6 +364,7 @@ final class GateSection implements Section {
         kz.put("enabled", kamikaze.isSelected());
         kz.put("minNpcs", Form.intOf(kamikazeMin));
         kz.put("level", kamikazeLevel.getSelectedIndex() + 1);
+        kz.put("mode", kamikazeMode.getSelectedIndex() == 1 ? "fight" : "run");
         m.put("trinityAttribute", trinityAttribute.getSelectedIndex() + 1);
         m.put("trinityDifficulty", trinityDifficulty.getSelectedIndex() + 1);
         m.put("fightModeInGate", fightModeInGate.isSelected());

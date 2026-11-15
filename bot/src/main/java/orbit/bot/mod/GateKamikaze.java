@@ -158,10 +158,12 @@ final class GateKamikaze {
             log.info("Камикадзе: {} NPC в куче (разброс {}), HP {}% — стою, питомец «Камикадзе»", valid.size(),
                     (int) spread(valid), Math.round(share(h.health().hpPercent()) * 100));
             ctx.nav().stop();
+            ctx.ship().want(mode(k, c));
             gear = PetGearTypeModule.PETGEARTYPE_KAMIKAZE;
             return true;
         }
         gear = PetGearTypeModule.PETGEARTYPE_PASSIVE;
+        ctx.ship().want(mode(k, c));
         gather(w, h, near);
         return true;
     }
@@ -187,6 +189,7 @@ final class GateKamikaze {
             return false;
         }
         ctx.nav().stop();
+        ctx.ship().want(mode(k, ctx.config().get()));
         WorldSnapshot.Ship locked = w.ships().get(lockedId);
         if (locked == null) {
             locked = nearest(valid(ctx.config().get(), w, h, now), h);
@@ -194,6 +197,14 @@ final class GateKamikaze {
         lock(h, locked, now);
         gear = PetGearTypeModule.PETGEARTYPE_KAMIKAZE;
         return true;
+    }
+
+    /**
+     * The ship's mode while gathering and for the blast: the config's run mode (the user, 2026-11-15: «собирать НПС для
+     * камикадзе нужно на беговой конфигурации на Ring»), or the fight's with {@code mode: "fight"}.
+     */
+    static BotConfig.ShipMode mode(JsonNode k, BotConfig c) {
+        return "fight".equals(k.path("mode").asText("run")) ? c.general().offensive() : c.general().run();
     }
 
     /** Selects {@code s} (a click, no shot), once a second at most while another is selected. */
@@ -293,7 +304,6 @@ final class GateKamikaze {
         if (Math.hypot(x - (cx + Math.cos(na) * dist), y - (cy + Math.sin(na) * dist)) > 50) {
             orbitAngle = -orbitAngle; // the map's edge that way: the other way round
         }
-        ctx.ship().want(ctx.config().get().general().offensive());
         ctx.nav().moveTo(x, y, false);
         ctx.nav().tick();
     }
