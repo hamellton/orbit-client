@@ -69,6 +69,15 @@ final class GateSection implements Section {
     private final JSpinner maxLivesToBuy = Form.number(0, 100, 1);
 
     private final JSpinner boxRadius = Form.number(0, 10_000, 100);
+    private final JCheckBox fightModeInGate = new JCheckBox("К NPC во вратах лететь в конфигурации боя (без режима бегства)");
+    /** ABG's NPCs, whose formation may be chosen (AstraBot «Galaxy - Gate»). */
+    static final List<String> FORMATION_NPCS = List.of("streuner", "lordakia", "mordon", "saimon", "devolarium",
+            "kristallin", "sibelon", "sibelonit", "kristallon", "protegit");
+    private final List<ItemBox> npcFormation = new ArrayList<>();
+    private final JCheckBox endGate = new JCheckBox("Последний этап врат — своя конфигурация и формация");
+    private final JComboBox<String> endGateConfig = new JComboBox<>(new String[] {"Конфигурация 1", "Конфигурация 2"});
+    private final ItemBox endGateFormation = new ItemBox(orbit.config.ItemCatalog.FORMATIONS, true);
+    private final JSpinner endGateWaves = Form.number(1, 20, 1);
     private final JComboBox<String> trinityAttribute = new JComboBox<>(TRINITY);
     private final JComboBox<String> trinityDifficulty = new JComboBox<>(DIFFICULTY);
 
@@ -115,8 +124,17 @@ final class GateSection implements Section {
         trinityAttribute.setToolTipText("AstraBot TRINITY «attributeType»: Hellfire (атрибут 1) или Genome (атрибут 2)");
         trinityDifficulty.setToolTipText("AstraBot TRINITY «difficulty»: номер карты I–V; выше открытой — берётся открытая");
 
-        view = new Form()
-                .section("Врата по порядку")
+        for (int i = 0; i < FORMATION_NPCS.size(); i++) {
+            npcFormation.add(new ItemBox(orbit.config.ItemCatalog.FORMATIONS, true));
+        }
+        endGate.addActionListener(e -> sync());
+        fightModeInGate.setToolTipText("Иначе к началу каждого этапа бот подлетает в режиме бегства (конфиг «полёт в"
+                + " режиме бегства») и переключает конфигурации туда-обратно");
+        endGate.setToolTipText("CARNAGE END_GATE_MODE, AstraBot useEndGateConfig: на последних волнах — эта конфигурация"
+                + " и формация (формации нет на панели — остаётся текущая)");
+        endGateWaves.setToolTipText("Сколько последних волн считать концом врат (ABG — последний этап из 4)");
+        Form f = new Form();
+        f.section("Врата по порядку")
                 .note("Бот идёт в первые включённые врата, у которых есть жизни; не поставлены — ставит или строит их."
                         + " Порядок — кнопками ↑ ↓.")
                 .wide(list, false)
@@ -140,12 +158,23 @@ final class GateSection implements Section {
                 .row("Покупок на одни врата (0 — без лимита)", maxLivesToBuy)
                 .section("Во вратах")
                 .row("Ящики между волнами в радиусе", boxRadius)
+                .row("", fightModeInGate)
+                .row("", endGate)
+                .row("Конец врат: конфигурация", endGateConfig)
+                .row("Конец врат: формация", endGateFormation)
+                .row("Конец врат: последние волны", endGateWaves)
                 .note("NPC врат, которых нет в таблице NPC, бот бьёт с радиусом из профилей DarkBot/AstraBot;"
                         + " свои правила (радиус, патроны) — во вкладке NPC.")
                 .section("Trinity Trials")
                 .row("Атрибут", trinityAttribute)
                 .row("Сложность", trinityDifficulty)
-                .build(true);
+                .section("Формации по NPC во вратах (как AstraBot)")
+                .note("Не выбрана — формация боя из конфига. На последнем этапе — формация конца врат.");
+        for (int i = 0; i < FORMATION_NPCS.size(); i++) {
+            String n = FORMATION_NPCS.get(i);
+            f.row(Character.toUpperCase(n.charAt(0)) + n.substring(1), npcFormation.get(i));
+        }
+        view = f.build(true);
     }
 
     private void move(int by) {
@@ -176,6 +205,10 @@ final class GateSection implements Section {
         keepLives.setEnabled(l);
         lifeMinUridium.setEnabled(l);
         maxLivesToBuy.setEnabled(l);
+        boolean e = endGate.isSelected();
+        endGateConfig.setEnabled(e);
+        endGateFormation.setEnabled(e);
+        endGateWaves.setEnabled(e);
     }
 
     @Override
@@ -242,6 +275,16 @@ final class GateSection implements Section {
         Form.set(boxRadius, m.path("boxRadius").asInt(1_500));
         trinityAttribute.setSelectedIndex(m.path("trinityAttribute").asInt(1) == 2 ? 1 : 0);
         trinityDifficulty.setSelectedIndex(Math.max(0, Math.min(4, m.path("trinityDifficulty").asInt(1) - 1)));
+        fightModeInGate.setSelected(m.path("fightModeInGate").asBoolean(true));
+        endGate.setSelected(m.path("useEndGateConfig").asBoolean(false));
+        endGateConfig.setSelectedIndex(m.path("endGateConfig").asInt(2) == 1 ? 0 : 1);
+        String ef = m.path("endGateFormation").asText("drone_formation_f-3d-vt");
+        endGateFormation.set(ef.isBlank() ? null : ef);
+        Form.set(endGateWaves, m.path("endGateWaves").asInt(4));
+        for (int i = 0; i < FORMATION_NPCS.size(); i++) {
+            String v = m.path("npcFormations").path(FORMATION_NPCS.get(i)).asText("");
+            npcFormation.get(i).set(v.isBlank() ? null : v);
+        }
         sync();
         loaded = form(m.deepCopy());
     }
@@ -299,6 +342,18 @@ final class GateSection implements Section {
         m.put("boxRadius", Form.intOf(boxRadius));
         m.put("trinityAttribute", trinityAttribute.getSelectedIndex() + 1);
         m.put("trinityDifficulty", trinityDifficulty.getSelectedIndex() + 1);
+        m.put("fightModeInGate", fightModeInGate.isSelected());
+        m.put("useEndGateConfig", endGate.isSelected());
+        m.put("endGateConfig", endGateConfig.getSelectedIndex() + 1);
+        m.put("endGateFormation", endGateFormation.get() != null ? endGateFormation.get() : "");
+        m.put("endGateWaves", Form.intOf(endGateWaves));
+        ObjectNode nf = m.putObject("npcFormations");
+        for (int i = 0; i < FORMATION_NPCS.size(); i++) {
+            String v = npcFormation.get(i).get();
+            if (v != null) {
+                nf.put(FORMATION_NPCS.get(i), v);
+            }
+        }
         return m;
     }
 

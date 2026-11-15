@@ -186,6 +186,35 @@ class GateModuleTest {
     }
 
     @Test
+    void inTheGateAstraBotsFormationsTheFightsModeAndVeteranOnTheLastStage() throws Exception {
+        // the user, 2026-11-15: «как AstraBot: Wheel на Streuner, Lordakia, Saimon, Drill на Kristallin; конец врат —
+        // конфигурация 2 и Veteran»
+        BotConfig base = config("""
+                {"gates":["alpha"],"useEndGateConfig":true,"endGateConfig":2,"endGateFormation":"drone_formation_f-3d-vt",
+                 "npcFormations":{"streuner":"drone_formation_f-3d-wl","kristallin":"drone_formation_f-3d-dr"}}""");
+        BotConfig.General g = base.general();
+        base = base.withGeneral(new BotConfig.General(g.workingMap(), new BotConfig.ShipMode(1, "drone_formation_f-3d-dr"),
+                new BotConfig.ShipMode(1, "drone_formation_f-3d-dr"), new BotConfig.ShipMode(2, "drone_formation_f-3d-rg"),
+                false, false, 0, false, false, true, true));
+        Sim sim = new Sim(base, 51, 10_000, 6_500);
+        info(sim, 0, new int[] {1, 0, 5});
+        sim.npc(900, "-=[ Streuner ]=- α1", 12_000, 6_500);
+        GateModule m = new GateModule(sim.ctx);
+        BotConfig c = m.config();
+        assertEquals("drone_formation_f-3d-wl", c.npc("-=[ Streuner ]=- α1").formation());
+        assertFalse(c.general().runModeTravel(), "flown to in the fight's mode");
+        assertFalse(c.general().runModeChase());
+        assertEquals(1, c.general().offensive().config());
+        orbit.protocol.gen.GalaxyGateBuilderGateWaveUpdateCommand wave = new orbit.protocol.gen.GalaxyGateBuilderGateWaveUpdateCommand();
+        wave.gateId = 1;
+        wave.currWave = 37;
+        sim.world.apply(wave, sim.now);
+        c = m.config();
+        assertEquals(new BotConfig.ShipMode(2, "drone_formation_f-3d-vt"), c.general().offensive(), "the last stage");
+        assertEquals(null, c.npc("-=[ Streuner ]=- α1").formation(), "the end's formation wins");
+    }
+
+    @Test
     void twoLivesLeftOneMoreIsBoughtWhileTheUridiumLasts() throws Exception {
         // the user, 2026-11-14: «если осталось 2 жизни, то докупаем за уридиум ещё одну, если урика хватает»
         Sim sim = new Sim(config("{\"gates\":[\"alpha\"],\"buyLives\":true}"), home(), 10_000, 6_000);

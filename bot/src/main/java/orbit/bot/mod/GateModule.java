@@ -134,7 +134,7 @@ public final class GateModule implements BotModule {
      * The config as the module fights by: on a gate's map the gate NPCs in sight the config does not list get the
      * catalog's rule (the radius of the VPS profiles, to be killed). The config's own rules come first.
      */
-    BotConfig config() {
+    public BotConfig config() {
         BotConfig base = ctx.config().get();
         WorldSnapshot w = ctx.world().get();
         int map = w.hero().mapId();
@@ -148,22 +148,75 @@ public final class GateModule implements BotModule {
                 names.add(s.name());
             }
         }
-        if (names.isEmpty()) {
-            return base;
-        }
+        boolean end = endGate(gate, w);
         synchronized (this) {
-            if (base == cachedBase && map == cachedMap && names.equals(cachedNames)) {
+            if (base == cachedBase && map == cachedMap && names.equals(cachedNames) && end == cachedEnd) {
                 return cached;
             }
+            JsonNode s = base.modules().getOrDefault(BotConfig.Module.GALAXY_GATE.key(),
+                    com.fasterxml.jackson.databind.node.MissingNode.getInstance());
+            BotConfig.ShipMode endMode = end ? endMode(s, base) : null;
             Map<String, BotConfig.NpcRule> npcs = new java.util.LinkedHashMap<>(base.npcs());
             for (String n : names) {
-                npcs.put(n, GateCatalog.defaultRule(gate, n));
+                BotConfig.NpcRule r = GateCatalog.defaultRule(gate, n);
+                // the NPC's formation (AstraBot «Galaxy - Gate»: Wheel on Streuner, Lordakia, Saimon, Drill on
+                // Kristallin) — not on the last stage, the end mode's formation is the one then
+                String f = s.path("npcFormations").path(GateCatalog.gateNpc(n)).asText("");
+                if (!f.isBlank() && endMode == null) {
+                    r = new BotConfig.NpcRule(r.radius(), r.priority(), r.kill(), r.flags(), r.maps(), r.ammo(), r.sab(),
+                            r.rocket(), r.launcher(), r.move(), f);
+                }
+                npcs.put(n, r);
             }
-            cached = base.withNpcs(npcs);
+            BotConfig c = base.withNpcs(npcs);
+            BotConfig.General g = c.general();
+            // in a gate the NPCs are flown to in the fight's mode, not the run's (live 2026-11-15 on gb2: config 2 and
+            // Ring at each stage's start, 16 switches a gate, by the config's «travel in the run mode»)
+            BotConfig.ShipMode fight = endMode != null ? endMode : g.offensive();
+            boolean inFightMode = s.path("fightModeInGate").asBoolean(true);
+            c = c.withGeneral(new BotConfig.General(g.workingMap(), fight, inFightMode ? fight : g.roam(), g.run(),
+                    g.runFromEnemies(), g.runFromEnemiesInSight(), g.rememberEnemiesSec(), g.roamSequential(),
+                    g.onlyKillPreferred(), !inFightMode && g.runModeTravel(), !inFightMode && g.runModeChase(),
+                    g.avoidMines(), g.baseRadius()));
+            if (end && !cachedEnd) {
+                log.info("Врата {}: последний этап — {}", gate.name(), ItemCatalogLabel.of(fight));
+            }
+            cached = c;
             cachedBase = base;
             cachedMap = map;
             cachedNames = names;
+            cachedEnd = end;
             return cached;
+        }
+    }
+
+    private boolean cachedEnd;
+
+    /**
+     * The last stage of a gate (its last {@code endGateWaves}, 4: ABG's last four of 40) — CARNAGE's END_GATE_MODE,
+     * AstraBot's {@code useEndGateConfig}: the configuration and formation for it, when set.
+     */
+    private boolean endGate(GateCatalog.Gate gate, WorldSnapshot w) {
+        JsonNode s = settings();
+        if (!s.path("useEndGateConfig").asBoolean(false) || gate.builderId() == 0 || gate.waves() <= 0) {
+            return false;
+        }
+        WorldSnapshot.Gate st = w.gates().gate(gate.builderId());
+        int last = Math.max(1, s.path("endGateWaves").asInt(4));
+        return st != null && st.wave() > gate.waves() - last;
+    }
+
+    /** The end of a gate's mode: {@code endGateConfig} (2) and {@code endGateFormation} (Veteran; the ship lacks it — the formation stays). */
+    private static BotConfig.ShipMode endMode(JsonNode s, BotConfig base) {
+        int config = s.path("endGateConfig").asInt(2);
+        String f = s.path("endGateFormation").asText("drone_formation_f-3d-vt");
+        return new BotConfig.ShipMode(config, f.isBlank() ? base.general().offensive().formation() : f);
+    }
+
+    /** A mode said for the log. */
+    private static final class ItemCatalogLabel {
+        static String of(BotConfig.ShipMode m) {
+            return "конфигурация " + m.config() + (m.formation() != null ? ", " + orbit.config.ItemCatalog.label(m.formation()) : "");
         }
     }
 
