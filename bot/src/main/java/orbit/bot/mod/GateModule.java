@@ -61,6 +61,8 @@ public final class GateModule implements BotModule {
     private String told = "";
 
     private long infoAskedAt = Long.MIN_VALUE / 2;
+    /** The builder's state wanted at once (after a refused spin). */
+    private boolean infoNow;
     private long windowUntil;
     private boolean windowOpen;
     private long spinAt;
@@ -464,6 +466,12 @@ public final class GateModule implements BotModule {
     private void outside(JsonNode s, WorldSnapshot w) {
         long now = ctx.now();
         WorldSnapshot.Gates gates = w.gates();
+        if (infoNow && ms(now - infoAskedAt) > 10_000) {
+            infoNow = false;
+            window();
+            ctx.actions().gateInfo();
+            infoAskedAt = now;
+        }
         if (gates.infoNanos() == 0 || ms(now - infoAskedAt) > INFO_MS && ms(now - gates.infoNanos()) > INFO_MS) {
             if (ms(now - infoAskedAt) > 10_000) {
                 window();
@@ -654,6 +662,7 @@ public final class GateModule implements BotModule {
                 // another refusal: mostly the window's state behind the server's (live 2026-11-15 on gb2: α refused at
                 // 34 of 34 — built already); the builder's state at once, not a 5 min pause
                 log.info("Врата {}: спин не прошёл (ошибка {}) — обновляю окно постройки", g.name(), gates.spinError());
+                infoNow = true;
                 infoAskedAt = Long.MIN_VALUE / 2;
                 skipUntil.put(g.key(), now + 15_000L * 1_000_000);
             }
