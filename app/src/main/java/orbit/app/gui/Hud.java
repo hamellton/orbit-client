@@ -80,7 +80,7 @@ final class Hud {
         if (h.id() == 0) {
             return out;
         }
-        out.put(ViewSettings.Block.SHIP, hero(h, w.inventory()));
+        out.put(ViewSettings.Block.SHIP, hero(h, w.inventory(), w.items()));
         put(out, ViewSettings.Block.TARGET, target(w));
         put(out, ViewSettings.Block.ATTACKERS, attackers(w));
         put(out, ViewSettings.Block.BOOSTERS, boosters(w.boosters(), feed.now()));
@@ -96,6 +96,14 @@ final class Hud {
             out.put(ViewSettings.Block.STATS, stats(w, feed));
         }
         return out;
+    }
+
+    /** The drone formation the item bar marks as selected, by its name; «—» when none is marked. */
+    static String formation(Map<String, WorldSnapshot.Item> items) {
+        return items.values().stream()
+                .filter(i -> i.selected() && i.id().startsWith("drone_formation_"))
+                .map(i -> orbit.config.ItemCatalog.label(i.id()))
+                .findFirst().orElse("—");
     }
 
     static final Color QUEST_BAR = new Color(0xa855f7);
@@ -362,7 +370,7 @@ final class Hud {
      * The pilot and the ship, as the game shows them: name, ship, level; hull, shield (and nano hull);
      * credits, uridium, experience, honour, speed, cargo, configuration; the booty keys.
      */
-    private Card hero(WorldSnapshot.Hero h, WorldSnapshot.Inventory inv) {
+    private Card hero(WorldSnapshot.Hero h, WorldSnapshot.Inventory inv, Map<String, WorldSnapshot.Item> items) {
         String name = h.name() + (h.shipType().isBlank() ? "" : "  " + shipName(h.shipType()));
         String right = (h.level() > 0 ? "ур. " + h.level() : "") + (h.premium() ? "  ·  премиум" : "");
         List<String[]> stats = new ArrayList<>();
@@ -375,6 +383,8 @@ final class Hud {
         long used = inv.ores().isEmpty() ? h.cargoMax() - h.cargoFree() : inv.cargoUsed();
         stats.add(new String[] {"Трюм", h.cargoMax() > 0 ? String.format("%,d / %,d", used, h.cargoMax()) : "—"});
         stats.add(new String[] {"Конфигурация", h.config() > 0 ? String.valueOf(h.config()) : "—"});
+        // the formation the item bar marks as chosen (the user, 2026-11-15: «я не понимаю, какая формация сейчас»)
+        stats.add(new String[] {"Формация", formation(items)});
         String keys = keys(inv.bootyKeys());
         boolean nano = h.health().nanoHullMax() > 0;
         Font keyFont = font(Font.PLAIN, 11f);
