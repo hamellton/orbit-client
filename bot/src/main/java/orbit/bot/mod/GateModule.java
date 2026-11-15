@@ -647,8 +647,16 @@ public final class GateModule implements BotModule {
             return false;
         }
         if (gates.spinNanos() > spinAskedAt && gates.spinError() != 0) {
-            skip(g, gates.spinError() == 1 ? "спину не хватает денег" : "спин не прошёл (ошибка " + gates.spinError() + ")");
             spinAskedAt = now;
+            if (gates.spinError() == 1) {
+                skip(g, "спину не хватает денег");
+            } else {
+                // another refusal: mostly the window's state behind the server's (live 2026-11-15 on gb2: α refused at
+                // 34 of 34 — built already); the builder's state at once, not a 5 min pause
+                log.info("Врата {}: спин не прошёл (ошибка {}) — обновляю окно постройки", g.name(), gates.spinError());
+                infoAskedAt = Long.MIN_VALUE / 2;
+                skipUntil.put(g.key(), now + 15_000L * 1_000_000);
+            }
             return false;
         }
         boolean answered = gates.spinNanos() > spinAskedAt || ms(now - spinAskedAt) > 5_000;
