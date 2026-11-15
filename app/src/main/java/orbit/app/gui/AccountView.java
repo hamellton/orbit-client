@@ -33,6 +33,53 @@ import orbit.app.WorldFeed;
  */
 final class AccountView extends JPanel {
 
+    /** The account's config as saved, {@code null} when none. */
+    private static orbit.config.BotConfig quickConfig(java.util.function.Supplier<String> name) {
+        String n = name.get();
+        if (n == null) {
+            return null;
+        }
+        try {
+            return orbit.config.ConfigStore.openDefault().load(n);
+        } catch (java.io.IOException | RuntimeException e) {
+            return null;
+        }
+    }
+
+    /**
+     * Turns the enrichment ({@code enrich}) or the Skylab delivery ({@code skylab}) of the account's config on or off;
+     * the Skylab back on restores the way chosen in the config tab (into this hold, or with the change of ship).
+     */
+    private void quickSwitch(java.util.function.Supplier<String> name, Boolean enrich, Boolean skylab) {
+        String n = name.get();
+        if (n == null) {
+            return;
+        }
+        try {
+            var store = orbit.config.ConfigStore.openDefault();
+            orbit.config.BotConfig c = store.load(n);
+            var e = c.moduleSettings("enrich");
+            var s = c.moduleSettings("skylab");
+            if (enrich != null) {
+                e.put("enabled", enrich);
+            }
+            if (skylab != null) {
+                String way = e.path("source").asText(e.path("visit").asBoolean(false) ? "service" : "skylab");
+                e.put("source", way);
+                e.put("visit", skylab && way.equals("service"));
+                s.put("enabled", skylab && way.equals("skylab"));
+                s.put("forEnrich", true);
+                if (skylab) {
+                    e.put("enabled", true); // the delivery is for the enrichment
+                }
+            }
+            store.save(n, c.withModuleSettings("enrich", e).withModuleSettings("skylab", s));
+        } catch (java.io.IOException | RuntimeException ex) {
+            javax.swing.JOptionPane.showMessageDialog(this, "Конфиг не сохранён: " + ex.getMessage(), n,
+                    javax.swing.JOptionPane.WARNING_MESSAGE);
+        }
+    }
+
     private static final int REFRESH_MS = 100;
     /** From this width the cards stand in a column beside the map. */
     static final int WIDE = 980;
@@ -276,6 +323,43 @@ final class AccountView extends JPanel {
         all.addActionListener(e -> orbit.app.gui.config.ConfigWindow.open(orbit.config.ConfigStore.openDefault(),
                 orbit.config.AccountSettings.DEFAULT_FILE, null));
         actions.add(all);
+        // quick switches of the running config (the user, 2026-11-16: «простые способы включения и выключения»):
+        // they write the config file, the running bot reads it within a second
+        javax.swing.JCheckBox enrichOn = new javax.swing.JCheckBox("Обогащение");
+        enrichOn.setToolTipText("Обогащать из трюма по настройкам конфига (вкладка «Обогащение»)");
+        javax.swing.JCheckBox skylabOn = new javax.swing.JCheckBox("Скайлаб");
+        skylabOn.setToolTipText("Привозить руду со Скайлаба, когда обогащению её не хватает (как выбрано в конфиге:"
+                + " в трюм текущего корабля или с пересадкой)");
+        java.util.function.Supplier<String> cfgName = tab.config() != null ? tab.config() : () -> null;
+        boolean[] quickFilling = {false};
+        Runnable showQuick = () -> {
+            orbit.config.BotConfig cfg = quickConfig(cfgName);
+            quickFilling[0] = true;
+            enrichOn.setEnabled(cfg != null);
+            skylabOn.setEnabled(cfg != null);
+            if (cfg != null) {
+                var e = cfg.moduleSettings("enrich");
+                enrichOn.setSelected(e.path("enabled").asBoolean(false));
+                skylabOn.setSelected(e.path("visit").asBoolean(false) || cfg.moduleSettings("skylab").path("enabled").asBoolean(false));
+            }
+            quickFilling[0] = false;
+        };
+        enrichOn.addActionListener(e -> {
+            if (!quickFilling[0]) {
+                quickSwitch(cfgName, enrichOn.isSelected(), null);
+                showQuick.run();
+            }
+        });
+        skylabOn.addActionListener(e -> {
+            if (!quickFilling[0]) {
+                quickSwitch(cfgName, null, skylabOn.isSelected());
+                showQuick.run();
+            }
+        });
+        showQuick.run();
+        timer(2_000, e -> showQuick.run());
+        actions.add(enrichOn);
+        actions.add(skylabOn);
         JButton pause = new JButton("Пауза");
         Runnable showPause = () -> {
             orbit.bot.run.BotRunner r = tab.feed().runner();
