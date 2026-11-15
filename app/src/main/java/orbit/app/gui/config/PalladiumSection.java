@@ -21,6 +21,9 @@ final class PalladiumSection implements Section {
     private final JCheckBox portal = new JCheckBox("Перед сменой лететь к порталу");
     private final JCheckBox sellOnDie = new JCheckBox("Погиб с палладием — сразу на корабль продажи");
     private final JSpinner extraWait = Form.number(0, 300, 1);
+    /** The config's {@code flee.npcs} (also on «Безопасность»): written only when changed here. */
+    final JCheckBox npcAvoid = new JCheckBox("Отходить от NPC, которые стреляют (выкл. — просто собирать)");
+    private boolean npcAvoidLoaded;
     private final JComponent view;
 
     PalladiumSection() {
@@ -28,6 +31,10 @@ final class PalladiumSection implements Section {
         view = new Form()
                 .section("Сбор")
                 .note("Карта, ящик «ore_8» (палладий) и зоны — во вкладках «Общее», «Сбор», «Зоны».")
+                .row("", npcAvoid)
+                .note("Interceptor, Barracuda и другие на 5-3 стреляют, а бот их не бьёт: с галочкой он отходит из их"
+                        + " досягаемости, без неё — собирает, не обращая внимания (как раньше). Та же галочка — на"
+                        + " вкладке «Безопасность».")
                 .section("Продажа")
                 .row("Как продавать", way)
                 .note("Два корабля: трюм полон — выход из игры, на сайте активным становится корабль продажи (он стоит"
@@ -66,11 +73,18 @@ final class PalladiumSection implements Section {
         portal.setSelected(m.path("goPortalChange").asBoolean(false));
         sellOnDie.setSelected(m.path("sellOnDie").asBoolean(true));
         Form.set(extraWait, m.path("aditionalWaitingTime").asInt(5));
+        npcAvoidLoaded = c.flee().npcs();
+        npcAvoid.setSelected(npcAvoidLoaded);
         enableTwoShips();
     }
 
     @Override
     public BotConfig apply(BotConfig c) {
+        if (npcAvoid.isSelected() != npcAvoidLoaded) {
+            BotConfig.Flee f = c.flee();
+            c = c.withFlee(new BotConfig.Flee(f.mode(), f.players(), f.never(), f.sight(), f.rememberSec(), f.jump(),
+                    f.waitSec(), f.avoid(), f.avoidRadius(), f.stationRadius(), npcAvoid.isSelected()));
+        }
         ObjectNode m = c.moduleSettings(KEY);
         boolean untouched = c.module() != BotConfig.Module.PALLADIUM && m.isEmpty();
         boolean two = way.getSelectedIndex() == 0;
