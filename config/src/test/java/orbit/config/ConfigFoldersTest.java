@@ -30,6 +30,7 @@ class ConfigFoldersTest {
         }
         assertEquals(BotConfig.Module.GALAXY_GATE, store.load("Galaxy Gates ABG").module());
         assertEquals(BotConfig.Module.PALLADIUM, store.load("Palladium").module());
+        assertEquals(26, store.load("Cubikon").general().workingMap(), "Venus, 3-6");
     }
 
     @Test

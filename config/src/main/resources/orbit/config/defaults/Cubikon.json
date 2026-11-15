@@ -1,9 +1,9 @@
 {
   "schema": 3,
-  "description": "[Default] CUBIKON — кубы на 2-6 (ru1, Земля/EIC, Solace)\n\nКопия CUBIKON_TEST. Кубы: UCB-100 + SAB, ракеты PLT-2026.\nБой — конфигурация 1, формация «Сверло»; перелёты и ожидание на спотах — конфигурация 2, «Кольцо»;\nбегство — конфигурация 2 (щитовая).\nЗакупка выключена (другой сервер — включить, когда проверим).",
+  "description": "[Default] CUBIKON — кубы на 3-6 (Венера, VRU)\n\nКопия CUBIKON_TEST. Кубы: UCB-100 + SAB, ракеты PLT-2026.\nБой — конфигурация 1, формация «Сверло»; перелёты и ожидание на спотах — конфигурация 2, «Кольцо»;\nбегство — конфигурация 2 (щитовая).\nЗакупка выключена (другой сервер — включить, когда проверим).",
   "module": "CUBIKON",
   "general": {
-    "workingMap": 22,
+    "workingMap": 26,
     "offensive": {
       "config": 1,
       "formation": "drone_formation_f-3d-dr"
@@ -726,7 +726,7 @@
       "chaseFromSpot": false,
       "boxesDuringFight": true,
       "maps": [
-        22
+        26
       ],
       "mapMode": "SOONEST",
       "mapSchedule": [],
