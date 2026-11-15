@@ -91,6 +91,7 @@ public final class BotRunner {
     private final PetCare pet;
     private final Enricher enricher;
     private final SkylabCare skylab;
+    private final ServiceVisit service;
     private final CargoCare cargo;
     private final orbit.bot.nav.CpuJumper jumper;
     private final BoxCheckSolver boxCheck;
@@ -137,6 +138,7 @@ public final class BotRunner {
         this.pet = new PetCare(ctx);
         this.enricher = new Enricher(ctx);
         this.skylab = new SkylabCare(ctx, enricher::missing);
+        this.service = new ServiceVisit(ctx);
         pet.setModuleLocator(() -> module == null ? 0 : module.petLocator());
         pet.setModuleGear(() -> module == null ? -1 : module.petGear());
         pet.setModuleOut(() -> module == null ? null : module.petOut());
@@ -187,6 +189,7 @@ public final class BotRunner {
     public void carryOver(BotRunner previous) {
         revive.takeFrom(previous.revive);
         offenders.takeFrom(previous.offenders);
+        service.takeFrom(previous.service);
     }
 
     /** Circles round the players who attacked the ship, kept clear now (the window's map); any thread. */
@@ -247,6 +250,7 @@ public final class BotRunner {
     /** The account's Skylab on the website, for ore into the hold ({@code null}: none). */
     public void setSkylab(SkylabAccess access) {
         skylab.setAccess(access);
+        service.setSkylab(access);
     }
 
     /** A new login of the game connection (the game reads a new CPU at a login). */
@@ -279,6 +283,9 @@ public final class BotRunner {
     public orbit.config.BotConfig.Module moduleKind() {
         return moduleKind;
     }
+
+    /** The module must be free this long for a service visit (two logins and the Skylab's transport). */
+    static final long SERVICE_FREE_MS = 10 * 60_000;
 
     /** The hangar the module asked for: the app switches to it after this session ({@code 0} none). */
     public int hangarRequest() {
@@ -516,7 +523,7 @@ public final class BotRunner {
         craft.tick();
         groupWatch.tick();
         pet.tick();
-        if (state != State.STOPPING) {
+        if (state != State.STOPPING && service.phase() == ServiceVisit.Phase.IDLE) {
             enricher.tick(); // the lab kept up from the hold (modules.enrich)
             skylab.tick(); // ore from the Skylab into the hold (modules.skylab)
         }
@@ -581,7 +588,28 @@ public final class BotRunner {
             fail("модуль " + moduleKind + " не поддерживается");
             return;
         }
-        int wantHangar = hangarRequest == 0 && !module.busy() ? module.hangarWanted(activeHangar, w) : 0;
+        // the service visit (modules.enrich.visit): at a calm moment onto the service ship — the Skylab's ore and the
+        // enrichment there — and back; never in a gate (no logging out there) or under fire
+        boolean calm = !module.busy() && module.freeFor(SERVICE_FREE_MS)
+                && orbit.config.GateCatalog.byMap(h.mapId()) == null && h.attackers().isEmpty();
+        ServiceVisit.Step visit = service.tick(activeHangar, calm);
+        if (visit.switchTo() != 0 && activeHangar != 0 && visit.switchTo() != activeHangar && hangarRequest == 0) {
+            log.info("Меняю корабль: ангар {} → {} (обслуживание: Скайлаб и обогащение)", activeHangar, visit.switchTo());
+            hangarRequest = visit.switchTo();
+            logoutHere = false;
+            module.pause();
+            stop("смена корабля (обслуживание)");
+            return;
+        }
+        if (visit.busy()) {
+            module.pause();
+            ctx.nav().stop();
+            state = State.WORKING;
+            show(visit.status());
+            return;
+        }
+        int wantHangar = hangarRequest == 0 && !module.busy() && service.phase() == ServiceVisit.Phase.IDLE
+                ? module.hangarWanted(activeHangar, w) : 0;
         if (wantHangar != 0 && wantHangar != activeHangar) {
             log.info("Меняю корабль: ангар {} → {} (выход из игры, смена на сайте, вход)", activeHangar, wantHangar);
             hangarRequest = wantHangar;

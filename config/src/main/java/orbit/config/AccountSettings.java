@@ -32,7 +32,7 @@ public record AccountSettings(Map<String, Entry> accounts) {
      */
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public record Entry(String config, Schedule schedule, java.util.List<Ship> hangars, PalladiumShips palladium,
-                        Integer clickHoldMs) {
+                        Integer clickHoldMs, Integer serviceShipId) {
 
         /** The user, 2026-11-14: «по дефолту поставь 1 секунду». */
         public static final int DEFAULT_CLICK_HOLD_MS = 1_000;
@@ -41,34 +41,53 @@ public record AccountSettings(Map<String, Entry> accounts) {
             schedule = schedule == null ? Schedule.OFF : schedule;
             hangars = hangars == null || hangars.isEmpty() ? null : java.util.List.copyOf(hangars);
             clickHoldMs = clickHoldMs == null || clickHoldMs == DEFAULT_CLICK_HOLD_MS ? null : Math.max(0, clickHoldMs);
+            serviceShipId = serviceShipId == null || serviceShipId <= 0 ? null : serviceShipId;
+        }
+
+        public Entry(String config, Schedule schedule, java.util.List<Ship> hangars, PalladiumShips palladium,
+                     Integer clickHoldMs) {
+            this(config, schedule, hangars, palladium, clickHoldMs, null);
         }
 
         public Entry(String config, Schedule schedule, java.util.List<Ship> hangars, PalladiumShips palladium) {
-            this(config, schedule, hangars, palladium, null);
+            this(config, schedule, hangars, palladium, null, null);
         }
 
         public Entry(String config, Schedule schedule) {
-            this(config, schedule, null, null, null);
+            this(config, schedule, null, null, null, null);
         }
 
         public Entry withConfig(String c) {
-            return new Entry(c, schedule, hangars, palladium, clickHoldMs);
+            return new Entry(c, schedule, hangars, palladium, clickHoldMs, serviceShipId);
         }
 
         public Entry withSchedule(Schedule s) {
-            return new Entry(config, s, hangars, palladium, clickHoldMs);
+            return new Entry(config, s, hangars, palladium, clickHoldMs, serviceShipId);
         }
 
         public Entry withHangars(java.util.List<Ship> list) {
-            return new Entry(config, schedule, list, palladium, clickHoldMs);
+            return new Entry(config, schedule, list, palladium, clickHoldMs, serviceShipId);
         }
 
         public Entry withPalladium(PalladiumShips p) {
-            return new Entry(config, schedule, hangars, p, clickHoldMs);
+            return new Entry(config, schedule, hangars, p, clickHoldMs, serviceShipId);
         }
 
         public Entry withClickHold(int ms) {
-            return new Entry(config, schedule, hangars, palladium, ms);
+            return new Entry(config, schedule, hangars, palladium, ms, serviceShipId);
+        }
+
+        /**
+         * The ship for the Skylab and the enrichment (the user, 2026-11-15: «присылать со Скайлаба лучше на Цитадель»);
+         * {@code 0} = none.
+         */
+        public Entry withServiceShip(int hangar) {
+            return new Entry(config, schedule, hangars, palladium, clickHoldMs, hangar);
+        }
+
+        /** The service ship's hangar, {@code 0} none. */
+        public int serviceShip() {
+            return serviceShipId == null ? 0 : serviceShipId;
         }
 
         /** The wait after a click on the map, ms. */

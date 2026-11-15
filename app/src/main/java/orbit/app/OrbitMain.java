@@ -1058,10 +1058,12 @@ public final class OrbitMain {
     private static orbit.bot.run.AccountShips accountShips(String accountName) {
         orbit.bot.run.AccountShips ships = new orbit.bot.run.AccountShips();
         try {
-            var p = orbit.config.AccountSettings.load(orbit.config.AccountSettings.DEFAULT_FILE).account(accountName).palladium();
+            var entry = orbit.config.AccountSettings.load(orbit.config.AccountSettings.DEFAULT_FILE).account(accountName);
+            var p = entry.palladium();
             if (p != null && p.usable()) {
                 ships.setPalladium(p.collect(), p.sell());
             }
+            ships.setServiceShip(entry.serviceShip());
         } catch (java.io.IOException e) {
             log.warn("Настройки аккаунта не прочитать: {}", e.getMessage());
         }

@@ -51,6 +51,8 @@ final class AccountDialog {
     private final JLabel error = new JLabel(" ");
     private final JComboBox<ShipItem> collectShip = new JComboBox<>();
     private final JComboBox<ShipItem> sellShip = new JComboBox<>();
+    private final JComboBox<ShipItem> serviceShip = new JComboBox<>();
+    private int serviceInitial;
     private final JLabel shipsResult = new JLabel(" ");
     private final char echo;
     private boolean saved;
@@ -83,6 +85,7 @@ final class AccountDialog {
                 AccountSettings.Entry entry = AccountSettings.load(AccountSettings.DEFAULT_FILE).account(editing);
                 String c = entry.config();
                 config.setSelectedItem(c == null ? NO_CONFIG : c);
+                serviceInitial = entry.serviceShip();
                 fillShips(entry.ships(), entry.palladium());
                 clickHold.setValue(entry.clickHold() / 1000.0);
             } catch (java.io.IOException ignored) {
@@ -121,6 +124,11 @@ final class AccountDialog {
         row = row(form, row, "", palladium, null);
         row = row(form, row, "Корабль сбора", collectShip, "Собирает палладий на 5-3");
         row = row(form, row, "Корабль продажи", sellShip, "Стоит на 5-2 у торговца и продаёт палладий");
+        JLabel service = new JLabel("Скайлаб и обогащение");
+        service.setFont(service.getFont().deriveFont(java.awt.Font.BOLD));
+        row = row(form, row, "", service, null);
+        row = row(form, row, "Корабль", serviceShip, "С большим трюмом (Цитадель): бот в спокойный момент пересаживается"
+                + " на него, привозит руду со Скайлаба, обогащает и пересаживается обратно (вкладка конфига «Обогащение»)");
         JButton refresh = new JButton("Обновить с сайта");
         refresh.setEnabled(editing != null && !running); // a running account refreshes the list at each login
         refresh.addActionListener(e -> refreshShips(refresh));
@@ -313,7 +321,7 @@ final class AccountDialog {
             var file = AccountSettings.DEFAULT_FILE;
             var all = AccountSettings.load(file);
             var entry = all.account(n);
-            var next = entry.withConfig(cfg).withPalladium(pair)
+            var next = entry.withConfig(cfg).withPalladium(pair).withServiceShip(idOf(serviceShip))
                     .withClickHold((int) Math.round(((Number) clickHold.getValue()).doubleValue() * 1000));
             if (!next.equals(entry) || !all.accounts().containsKey(n)) {
                 all.with(n, next).save(file);
@@ -337,22 +345,24 @@ final class AccountDialog {
     private void fillShips(java.util.List<AccountSettings.Ship> ships, AccountSettings.PalladiumShips chosen) {
         int collect = chosen != null ? chosen.collect() : idOf(collectShip);
         int sell = chosen != null ? chosen.sell() : idOf(sellShip);
+        int service = idOf(serviceShip) != 0 ? idOf(serviceShip) : serviceInitial;
         java.util.List<ShipItem> items = new java.util.ArrayList<>();
         items.add(NO_SHIP);
         for (int i = 0; i < ships.size(); i++) {
             items.add(new ShipItem(ships.get(i).id(), "Ангар " + (i + 1) + ": " + ships.get(i).label()));
         }
-        for (int want : new int[] {collect, sell}) {
+        for (int want : new int[] {collect, sell, service}) {
             if (want > 0 && items.stream().noneMatch(s -> s.id() == want)) {
                 items.add(new ShipItem(want, "ангар " + want + " (нет в списке с сайта)"));
             }
         }
-        for (JComboBox<ShipItem> box : java.util.List.of(collectShip, sellShip)) {
+        for (JComboBox<ShipItem> box : java.util.List.of(collectShip, sellShip, serviceShip)) {
             box.removeAllItems();
             items.forEach(box::addItem);
         }
         select(collectShip, collect);
         select(sellShip, sell);
+        select(serviceShip, service);
         if (ships.isEmpty()) {
             shipsResult.setForeground(Hud.DIM);
             shipsResult.setText(editing == null ? "Сохраните аккаунт, потом откройте снова" : "Нажмите «Обновить с сайта»");

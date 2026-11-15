@@ -31,6 +31,13 @@ final class EnrichSection implements Section {
     private final JSpinner keepInCargo = Form.number(0, 1_000_000, 100);
     private final JSpinner perHour = Form.number(1, 600, 1);
 
+    private final JCheckBox visit = new JCheckBox("Пересаживаться на корабль для Скайлаба и обогащения");
+    private final JSpinner visitBelow = Form.number(0, 100_000_000, 1_000);
+    private final JSpinner fillTo = Form.number(1, 1_000_000_000, 10_000);
+    private final JCheckBox visitFast = new JCheckBox("Быстрый транспорт при пересадке (за уридий)");
+    private final JSpinner visitWait = Form.number(1, 240, 1);
+    private final JSpinner visitEvery = Form.number(1, 72, 1);
+
     private final JCheckBox skylab = new JCheckBox("Привозить руду со Скайлаба в трюм");
     private final JSpinner[] send = new JSpinner[4];
     private final JSpinner every = Form.number(5, 1440, 5);
@@ -68,6 +75,17 @@ final class EnrichSection implements Section {
         }
         f.row("Оставлять в трюме руды", keepInCargo)
                 .row("Не чаще, раз в час", perHour)
+                .section("Пересадка на корабль для Скайлаба")
+                .row("", visit)
+                .note("Корабль выбирается в настройках аккаунта («Аккаунты» → «Изменить» → «Скайлаб и обогащение»),"
+                        + " например Цитадель с большим трюмом. Когда у отмеченного предмета остаётся меньше порога, а"
+                        + " руды в трюме нет, бот в спокойный момент модуля (не во вратах, не в бою) пересаживается на"
+                        + " него, привозит руду со Скайлаба, обогащает всё до уровня ниже и пересаживается обратно.")
+                .row("Пересаживаться, если меньше", visitBelow)
+                .row("Обогащать до", fillTo)
+                .row("", visitFast)
+                .row("Ждать транспорт, мин", visitWait)
+                .row("Не чаще, раз в часов", visitEvery)
                 .section("Скайлаб → трюм")
                 .row("", skylab)
                 .note("Транспортный модуль Скайлаба везёт руду в трюм, корабль никуда не летит. Пока транспорт в пути,"
@@ -108,6 +126,12 @@ final class EnrichSection implements Section {
         }
         Form.set(keepInCargo, e.path("keepInCargo").asInt(0));
         Form.set(perHour, e.path("maxPerHour").asInt(30));
+        visit.setSelected(e.path("visit").asBoolean(false));
+        Form.set(visitBelow, e.path("visitBelow").asInt(50_000));
+        Form.set(fillTo, e.path("fillTo").asInt(200_000));
+        visitFast.setSelected(e.path("visitFast").asBoolean(false));
+        Form.set(visitWait, e.path("visitWaitMinutes").asInt(15));
+        Form.set(visitEvery, e.path("visitEveryHours").asInt(3));
         ObjectNode s = c.moduleSettings("skylab");
         skylab.setSelected(s.path("enabled").asBoolean(false));
         for (int i = 0; i < 4; i++) {
@@ -135,6 +159,12 @@ final class EnrichSection implements Section {
             }
             e.put("keepInCargo", Form.intOf(keepInCargo));
             e.put("maxPerHour", Form.intOf(perHour));
+            e.put("visit", visit.isSelected());
+            e.put("visitBelow", Form.intOf(visitBelow));
+            e.put("fillTo", Form.intOf(fillTo));
+            e.put("visitFast", visitFast.isSelected());
+            e.put("visitWaitMinutes", Form.intOf(visitWait));
+            e.put("visitEveryHours", Form.intOf(visitEvery));
             c = c.withModuleSettings("enrich", e);
         }
         ObjectNode s = c.moduleSettings("skylab");
