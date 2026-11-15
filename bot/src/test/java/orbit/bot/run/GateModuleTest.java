@@ -258,6 +258,10 @@ class GateModuleTest {
         kristallins(sim, 8_500, 5_000, 50); // spread 200: tight
         run(sim, m, 300);
         assertEquals(orbit.protocol.gen.PetGearTypeModule.PETGEARTYPE_KAMIKAZE, m.petGear(), "tight and full hull: the blast");
+        // the nearest one locked (selected) as DarkBot does before the gear, never shot at
+        assertTrue(sim.sent.stream().anyMatch(p -> p instanceof orbit.protocol.gen.ShipSelectRequest r && r.targetId >= 800
+                && r.targetId < 805), "one of them locked");
+        assertTrue(sim.sent.stream().noneMatch(p -> p instanceof orbit.protocol.gen.AttackLaserRequest), "no shooting");
     }
 
     @Test

@@ -26,6 +26,9 @@ import org.slf4j.LoggerFactory;
  *   <li>active: the hull at 60 % or less or the shield at 40 % or less — given up with the cooldown; the pet blown up —
  *       the cooldown (30 / 60 / 120 s by the gear's level) and the fight as usual; no blast in 10 s — gathering again.</li>
  * </ol>
+ * The nearest of them is kept locked (selected, not shot at) while gathering and for the blast — SharedPlugin locks
+ * the closest valid one before it turns the gear on; the pet flies at the locked one (the user, 2026-11-15: «берёт
+ * одного в лок и включает камика»).
  * SharedPlugin also shoots a rocket at its own pet to bring its HP under 20 % when solo; that is not done here (not
  * known to be allowed by the server): the pet goes in at its HP and is shot down by the bunch, as KekkaReloaded does.
  */
@@ -54,6 +57,8 @@ final class GateKamikaze {
     private boolean petSeenAlive;
     private double orbitAngle = Double.NaN;
     private int gear = -1;
+    private int lockedId;
+    private long lockAskedAt = Long.MIN_VALUE / 2;
 
     GateKamikaze(BotContext ctx) {
         this.ctx = ctx;
@@ -126,6 +131,8 @@ final class GateKamikaze {
             tightSince = 0;
         }
         boolean waited = !primed || tightSince != 0 && ms(now - tightSince) >= PRIMED_DELAY_MS;
+        WorldSnapshot.Ship near = nearest(valid, h);
+        lock(h, near, now);
         if (ready && tight && waited) {
             stage = Stage.ACTIVE;
             activeSince = now;
@@ -137,7 +144,7 @@ final class GateKamikaze {
             return true;
         }
         gear = PetGearTypeModule.PETGEARTYPE_PASSIVE;
-        gather(w, h, nearest(valid, h));
+        gather(w, h, near);
         return true;
     }
 
@@ -162,8 +169,25 @@ final class GateKamikaze {
             return false;
         }
         ctx.nav().stop();
+        WorldSnapshot.Ship locked = w.ships().get(lockedId);
+        if (locked == null) {
+            locked = nearest(valid(ctx.config().get(), w, h, now), h);
+        }
+        lock(h, locked, now);
         gear = PetGearTypeModule.PETGEARTYPE_KAMIKAZE;
         return true;
+    }
+
+    /** Selects {@code s} (a click, no shot), once a second at most while another is selected. */
+    private void lock(WorldSnapshot.Hero h, WorldSnapshot.Ship s, long now) {
+        if (s == null) {
+            return;
+        }
+        lockedId = s.id();
+        if (h.selectedId() != s.id() && ms(now - lockAskedAt) >= 1_000) {
+            ctx.actions().select(s);
+            lockAskedAt = now;
+        }
     }
 
     /** The cooldown by the gear's level (SharedPlugin LEVEL_1/2/3 = 120/60/30 s), the setting {@code level}. */
