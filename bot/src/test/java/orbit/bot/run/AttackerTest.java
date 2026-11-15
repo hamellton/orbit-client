@@ -77,6 +77,25 @@ class AttackerTest {
     }
 
     @Test
+    void inACornerTheShipStandsTowardTheMapsCentreNotOnTheEdge() {
+        // live 2026-11-15 on gb2, GG α: a Protegit in the corner, the ship ended at 204/131 — on the very edge
+        Sim sim = new Sim(config(true, null, Set.of()), 1, 17_000, 12_900);
+        sim.lasers("ammunition_laser_lcb-10");
+        sim.npc(7, "-=[ Target ]=-", 20_800, 12_950);
+        Attacker a = new Attacker(sim.ctx);
+        a.target(sim.world.snapshot(sim.now).ships().get(7));
+        for (int i = 0; i < 300; i++) {
+            a.tick(true);
+            sim.now += 100 * Sim.MS;
+        }
+        var h = sim.hero();
+        double d = Math.hypot(h.x() - 20_800, h.y() - 12_950);
+        // on the line to the centre: farther from both edges than the target
+        assertTrue(h.y() < 12_950 - 150 && h.x() < 20_800 - 250, "toward the centre: " + h.x() + "/" + h.y());
+        assertTrue(d > 300 && d < 600, "on its radius: " + d);
+    }
+
+    @Test
     void noCirclingWhenOffOrFlagged() {
         for (BotConfig c : List.of(config(false, null, Set.of()), config(true, null, Set.of("NO_CIRCLE")))) {
             Sim sim = new Sim(c, 1, 10_500, 6_000);

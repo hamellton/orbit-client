@@ -525,6 +525,7 @@ public final class Attacker {
         standAt = null;
         modeTold = null;
         edgeTold = false;
+        edgeHold = false;
         watchedSince = ctx.now();
         judgeTarget0 = -1;
         judgeHull0 = -1;
@@ -714,7 +715,7 @@ public final class Attacker {
             boolean fleeing = t.moving();
             double[] at = follow && fleeing ? new double[] {t.targetX(), t.targetY()} : ahead(t, h, radius);
             double keep = fleeing ? radius * CHASE_INSIDE : radius;
-            double[] to = fleeing ? null : safeSide(threats, at, keep, h);
+            double[] to = edgeHold ? inward(t, h, radius) : fleeing ? null : safeSide(threats, at, keep, h);
             if (to == null) {
                 double d = Math.max(1, Math.hypot(at[0] - h.x(), at[1] - h.y()));
                 double k = Math.max(0, (d - keep) / d);
@@ -725,8 +726,17 @@ public final class Attacker {
         } else if (move && now >= nextApproach) {
             switch (mode) {
                 case KITE -> {
-                    // hold the radius, away from it as it comes (Blacklight NPCs chase; the user, 2026-11-12)
-                    kite(threats, h, t, radius);
+                    // hold the radius, away from it as it comes (Blacklight NPCs chase; the user, 2026-11-12); by the
+                    // map's edge on the line from it to the map's centre (live 2026-11-15 on gb2: the circle's point of
+                    // the kite lay on the edge, the ship ended in the corner at 204/131)
+                    if (edgeHold) {
+                        double[] p = inward(t, h, radius);
+                        if (Math.hypot(p[0] - h.x(), p[1] - h.y()) > 120) {
+                            ctx.nav().moveTo(p[0], p[1], false);
+                        }
+                    } else {
+                        kite(threats, h, t, radius);
+                    }
                     nextApproach = now + ctx.pause(300, 500);
                 }
                 case STAND -> {
@@ -945,7 +955,8 @@ public final class Attacker {
         if (m == BotConfig.FightMove.CIRCLE && rule != null && rule.has(BotConfig.NpcFlag.NO_CIRCLE)) {
             m = BotConfig.FightMove.STAND;
         }
-        if (m == BotConfig.FightMove.CIRCLE && byEdge(t, h, Targets.radius(c, t, h.mapId()))) {
+        edgeHold = m != BotConfig.FightMove.STAND && byEdge(t, h, Targets.radius(c, t, h.mapId()));
+        if (m == BotConfig.FightMove.CIRCLE && edgeHold) {
             // by the map's edge the circle runs into it and the ship ends next to the target, the others shooting too
             // (live 2026-11-15 on gb2, GG α: Protegits in a corner, «там нельзя», 60 from one) — the distance held from
             // the open side, backing off as it comes (the user: «добивать НПС в углу, но чтобы НПС не доставали»)
@@ -967,6 +978,22 @@ public final class Attacker {
     }
 
     private boolean edgeTold;
+    /** The target is by the map's edge: the ship holds the radius on its side toward the map's centre. */
+    private boolean edgeHold;
+
+    /** On the line from the target to the map's centre, a little inside the radius, kept off the map's edges. */
+    private double[] inward(WorldSnapshot.Ship t, WorldSnapshot.Hero h, double radius) {
+        orbit.world.maps.MapCatalog.MapInfo m = ctx.maps().info(h.mapId());
+        double cx = m.width() / 2.0 - t.x();
+        double cy = m.height() / 2.0 - t.y();
+        double len = Math.max(1, Math.hypot(cx, cy));
+        double keep = radius * KITE_KEEP;
+        double x = t.x() + cx / len * keep;
+        double y = t.y() + cy / len * keep;
+        double margin = 300;
+        return new double[] {Math.max(margin, Math.min(m.width() - margin, x)),
+                Math.max(margin, Math.min(m.height() - margin, y))};
+    }
 
     /** The target this close to an edge of the map that the ship's circle round it would cross the edge. */
     private boolean byEdge(WorldSnapshot.Ship t, WorldSnapshot.Hero h, double radius) {
