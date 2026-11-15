@@ -25,7 +25,7 @@ class EnrichSectionTest {
                         {"enabled":true,"items":{"laser":{"on":true,"ore":"SEPROM","below":40000,"load":5000}},
                          "keepInCargo":200,"maxPerHour":12}"""))
                 .withModuleSettings("skylab", Json.MAPPER.readTree("""
-                        {"enabled":true,"ores":{"promerium":1000},"everyMinutes":30,"forEnrich":false,"fast":false}"""));
+                        {"enabled":true,"ores":{"promerium":1000},"everyMinutes":30,"forEnrich":true,"fast":false}"""));
         EnrichSection s = new EnrichSection();
         s.load(c);
         BotConfig out = s.apply(c);
@@ -38,6 +38,7 @@ class EnrichSectionTest {
         var k = out.moduleSettings("skylab");
         assertEquals(1000, k.path("ores").path("promerium").asInt());
         assertEquals(30, k.path("everyMinutes").asInt());
-        assertEquals(false, k.path("forEnrich").asBoolean(true));
+        assertEquals(true, k.path("enabled").asBoolean(), "«привозить в трюм текущего корабля»");
+        assertEquals(false, out.moduleSettings("enrich").path("visit").asBoolean(true));
     }
 }

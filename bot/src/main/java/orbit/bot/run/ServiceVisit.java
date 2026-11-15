@@ -389,10 +389,14 @@ public final class ServiceVisit {
         return false;
     }
 
-    /** The item's level to fill up to on the service ship: its own {@code fillTo}, else the old common one, else 4× below. */
+    /**
+     * The item's level to fill up to on the service ship: its threshold and one load more (the user, 2026-11-16:
+     * «двигатель меньше 100 часов — доставка 1 000 промериума»); an explicit {@code fillTo} of an older config wins.
+     */
     static long fillTo(JsonNode s, JsonNode it) {
         long below = it.path("below").asLong(50_000);
-        return Math.max(1, it.path("fillTo").asLong(s.path("fillTo").asLong(below * 4)));
+        long load = Math.max(1, it.path("load").asLong(10_000));
+        return Math.max(1, it.path("fillTo").asLong(s.path("fillTo").asLong(below + load * WorldSnapshot.Lab.PER_ORE)));
     }
 
     private static int ore(JsonNode it, WorldSnapshot.Enrichment e) {
