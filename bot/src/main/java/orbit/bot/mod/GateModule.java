@@ -192,6 +192,8 @@ public final class GateModule implements BotModule {
 
     /** SharedPlugin's targetSwitchOffset: the one being shot is kept unless another is this much nearer. */
     static final double SWITCH_OFFSET = 100;
+    /** The lasers reach this far: a target within it is not swapped for a nearer one. */
+    static final double LASER_REACH = 650;
     /** Our pick-to-lock time (the select waits 0.3–0.9 s, the server's answer after it). */
     static final long LOCK_MS = 2_000;
 
@@ -221,7 +223,10 @@ public final class GateModule implements BotModule {
         // shot fired)
         boolean onIt = h.attackTargetId() == cur.id() || h.selectedId() == cur.id() || attacker.shooting()
                 || attacker.targetAgeMs() < LOCK_MS;
-        if (onIt && cur.distanceTo(h.x(), h.y()) < best.distanceTo(h.x(), h.y()) + SWITCH_OFFSET) {
+        // and one within the laser's reach is kept: Kristallons round the ship at 250–700 made the nearest change by
+        // over 100 every second (live 2026-11-15 on gb2, GG β: seven switches in 6 s, each hit for 10–20 %)
+        double curD = cur.distanceTo(h.x(), h.y());
+        if (onIt && (curD < best.distanceTo(h.x(), h.y()) + SWITCH_OFFSET || curD <= LASER_REACH)) {
             return cur;
         }
         return best;
