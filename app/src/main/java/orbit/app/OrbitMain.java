@@ -1219,6 +1219,15 @@ public final class OrbitMain {
                     } else if (System.currentTimeMillis() > until) {
                         runner.stopWhenFree("время вышло");
                     }
+                    // not in a galaxy gate: there the stop plays the stage on, and a ship left amid NPCs needs the reconnect
+                    if (runner.state() == orbit.bot.run.BotRunner.State.STOPPING && feed.linkLost()
+                            && orbit.config.GateCatalog.byMap(feed.snapshot().hero().mapId()) == null) {
+                        // the link lost while logging out: nothing to log out from — not a reconnect for an hour (live
+                        // 2026-11-15 on gb2: stopped at 16:01, the network gone at 16:11, retries till 17:01)
+                        log.info("Связь оборвалась во время выхода — сессию закрываю без переподключения");
+                        conn.close();
+                        break;
+                    }
                     if (connectionOver.getAsBoolean() && !feed.loggedOut()) {
                         if (!stopRequested.get()) {
                             connectionEnded.set(true);
