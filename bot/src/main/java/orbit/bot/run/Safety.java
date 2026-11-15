@@ -1,6 +1,7 @@
 package orbit.bot.run;
 
 import java.util.Comparator;
+import java.util.List;
 import orbit.config.BotConfig;
 import orbit.world.WorldSnapshot;
 import orbit.world.maps.MapCatalog;
@@ -222,25 +223,60 @@ public final class Safety {
      * map's edges; when that side is an edge, along it (not into a corner).
      */
     private void awayInGate(WorldSnapshot w, WorldSnapshot.Hero h) {
-        double sx = 0;
-        double sy = 0;
-        int n = 0;
+        List<double[]> around = new java.util.ArrayList<>();
         for (WorldSnapshot.Ship sh : w.ships().values()) {
             if (sh.npc() && sh.distanceTo(h.x(), h.y()) <= GATE_NPC_SIGHT) {
-                sx += sh.x();
-                sy += sh.y();
-                n++;
+                around.add(new double[] {sh.x(), sh.y()});
             }
         }
-        if (n == 0) {
+        if (around.isEmpty()) {
             ctx.nav().stop(); // none about: the repair where the ship is
             return;
         }
-        double[] to = gateAway(sx / n, sy / n, h.x(), h.y(), ctx.maps().info(h.mapId()));
-        if (ctx.nav().idle() || Math.hypot(ctx.nav().destination().x() - to[0], ctx.nav().destination().y() - to[1]) > 400) {
-            ctx.nav().moveTo(to[0], to[1], false);
+        // out through the widest gap between them (live 2026-11-15 on gb2: inside a ring of Kristallins after the
+        // kamikaze the «away from their middle» point jumped about and the ship tossed inside the ring)
+        double[] to = gapAway(around, h.x(), h.y(), ctx.maps().info(h.mapId()));
+        if (gateAwayTo == null || Math.hypot(gateAwayTo[0] - h.x(), gateAwayTo[1] - h.y()) < 300
+                || Math.hypot(gateAwayTo[0] - to[0], gateAwayTo[1] - to[1]) > 1_500) {
+            gateAwayTo = to; // kept while it holds, so the way does not flip each tick
+        }
+        if (ctx.nav().idle() || Math.hypot(ctx.nav().destination().x() - gateAwayTo[0],
+                ctx.nav().destination().y() - gateAwayTo[1]) > 200) {
+            ctx.nav().moveTo(gateAwayTo[0], gateAwayTo[1], false);
         }
         ctx.nav().tick();
+    }
+
+    private double[] gateAwayTo;
+
+    /**
+     * {@link #GATE_AWAY} from the ship through the middle of the widest angular gap between the NPCs about it (the
+     * map's edges count as walls: a direction whose point would fall off the map is not taken).
+     */
+    static double[] gapAway(List<double[]> npcs, double x, double y, MapCatalog.MapInfo m) {
+        List<Double> angles = new java.util.ArrayList<>();
+        for (double[] p : npcs) {
+            angles.add(Math.atan2(p[1] - y, p[0] - x));
+        }
+        java.util.Collections.sort(angles);
+        double best = -1;
+        double dir = 0;
+        for (int i = 0; i < angles.size(); i++) {
+            double a = angles.get(i);
+            double b = i + 1 < angles.size() ? angles.get(i + 1) : angles.get(0) + 2 * Math.PI;
+            double gap = b - a;
+            double mid = a + gap / 2;
+            double tx = x + Math.cos(mid) * GATE_AWAY;
+            double ty = y + Math.sin(mid) * GATE_AWAY;
+            boolean inside = tx >= GATE_EDGE && tx <= m.width() - GATE_EDGE && ty >= GATE_EDGE && ty <= m.height() - GATE_EDGE;
+            double score = gap * (inside ? 1 : 0.3);
+            if (score > best) {
+                best = score;
+                dir = mid;
+            }
+        }
+        return new double[] {clamp(x + Math.cos(dir) * GATE_AWAY, GATE_EDGE, m.width() - GATE_EDGE),
+                clamp(y + Math.sin(dir) * GATE_AWAY, GATE_EDGE, m.height() - GATE_EDGE)};
     }
 
     /** The point off the NPCs' middle ({@code cx}, {@code cy}) through the ship, inside the map. */

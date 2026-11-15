@@ -359,4 +359,16 @@ class HealingTest {
         assertTrue(h.x() > 11_000, "away from the NPCs on the west: " + h.x() + "/" + h.y());
         assertTrue(sim.sent.stream().noneMatch(p -> p instanceof orbit.protocol.gen.JumpRequest), "no jump out of the gate");
     }
+
+    @Test
+    void insideARingOfNpcsTheRepairGoesOutThroughItsGap() {
+        // live 2026-11-15 on gb2, GG β: after the kamikaze, inside a ring of Kristallins, the ship tossed about
+        java.util.List<double[]> ring = new java.util.ArrayList<>();
+        for (int deg = 60; deg <= 300; deg += 30) { // a ring with its gap to the east (−60°…60°)
+            double a = Math.toRadians(deg);
+            ring.add(new double[] {10_000 + Math.cos(a) * 500, 6_500 + Math.sin(a) * 500});
+        }
+        double[] to = Safety.gapAway(ring, 10_000, 6_500, orbit.world.maps.MapCatalog.bundled().info(52));
+        assertTrue(to[0] > 12_000 && Math.abs(to[1] - 6_500) < 600, "out to the east: " + to[0] + "/" + to[1]);
+    }
 }
