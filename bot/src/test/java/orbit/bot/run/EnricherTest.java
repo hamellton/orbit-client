@@ -130,4 +130,12 @@ class EnricherTest {
         assertEquals(500L, got.get("seprom"), "600 there, 100 kept");
         assertEquals(10_000L, got.get("promerium"), "what the enrichment lacks");
     }
+
+    @Test
+    void theOresOfTheEnrichmentAreNotSold() throws Exception {
+        BotConfig c = config(ON, null); // laser promerium, shield seprom
+        CargoPlan plan = new CargoPlan("BASE", 0, List.of(0, 1, 2, 4, 5, 6));
+        assertEquals(List.of(0, 1, 2, 4, 5), CargoCare.keepEnrichOres(c, plan).ores(), "promerium kept");
+        assertEquals(plan, CargoCare.keepEnrichOres(BotConfig.empty(), plan), "no enrichment: as it was");
+    }
 }

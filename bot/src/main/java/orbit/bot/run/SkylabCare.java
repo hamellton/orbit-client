@@ -30,6 +30,17 @@ public final class SkylabCare {
     private volatile SkylabAccess access;
     private volatile boolean busy;
     private long checkedAt = Long.MIN_VALUE;
+    private volatile long failedUntil = Long.MIN_VALUE;
+    private long lackingSince;
+    private volatile String told = "";
+    static final long LACK_HOLD_NS = 60_000_000_000L;
+
+    private void tellOnce(String s) {
+        if (!s.equals(told)) {
+            told = s;
+            log.warn(s);
+        }
+    }
     static final long LACK_EVERY_NS = 2 * 60_000_000_000L;
 
     public SkylabCare(BotContext ctx, Supplier<Map<Integer, Long>> enrichMissing) {
@@ -54,11 +65,22 @@ public final class SkylabCare {
             return;
         }
         long now = ctx.now();
+        if (now < failedUntil) {
+            return; // the site refused a moment ago (no uridium for the quick one, a limit…): not again at once
+        }
         Map<Integer, Long> lacking = s.path("forEnrich").asBoolean(true) ? enrichMissing.get() : Map.of();
+        // the want must hold a minute: the ore of a transport may be landing in the hold this very second (live
+        // 2026-11-15 on GE1: «нет seprom» 2 s before the 100 came, a second transport asked and refused)
+        if (lacking.isEmpty()) {
+            lackingSince = 0;
+        } else if (lackingSince == 0) {
+            lackingSince = now;
+        }
         long every = Math.max(1, s.path("everyMinutes").asLong(20)) * 60_000_000_000L;
         boolean due = checkedAt == Long.MIN_VALUE || now - checkedAt >= every;
-        // the enrichment lacks an ore: at once, but not more often than every 2 min
-        boolean wanted = !lacking.isEmpty() && (checkedAt == Long.MIN_VALUE || now - checkedAt >= LACK_EVERY_NS);
+        // the enrichment lacks an ore: soon, but not more often than every 2 min
+        boolean wanted = !lacking.isEmpty() && now - lackingSince >= LACK_HOLD_NS
+                && (checkedAt == Long.MIN_VALUE || now - checkedAt >= LACK_EVERY_NS);
         if (!due && !wanted) {
             return;
         }
@@ -104,13 +126,19 @@ public final class SkylabCare {
                     }
                 }
                 if (send.isEmpty()) {
-                    log.info("Скайлаб: везти нечего (на складе {}, в трюме свободно {})", st.ores(), room);
+                    tellOnce(room == 0 ? "Скайлаб: в трюме нет места — жду"
+                            : "Скайлаб: везти нечего — на складе " + st.ores() + ", нужно " + want);
                     return;
                 }
                 a.transport(send, fast);
+                told = "";
                 log.info("Скайлаб: отправил в трюм {}{}", send, fast ? " (быстро)" : "");
             } catch (java.io.IOException | RuntimeException e) {
-                log.warn("Скайлаб: не отправить — {}", e.getMessage());
+                // refused or failed: the next try after the check's interval, told once (no uridium for the quick one
+                // would else be asked every 2 min)
+                failedUntil = ctx.now() + Math.max(1, s.path("everyMinutes").asLong(20)) * 60_000_000_000L;
+                tellOnce("Скайлаб: не отправить — " + e.getMessage() + (fast ? " (быстрый: хватает ли уридия?)" : "")
+                        + "; снова через " + s.path("everyMinutes").asLong(20) + " мин");
             } finally {
                 busy = false;
             }

@@ -103,6 +103,30 @@ final class CargoCare {
     }
 
     /**
+     * The ores the enrichment uses are not sold (the user, 2026-11-15: promerium brought from the Skylab for the lasers,
+     * and CUBIKON's list sold promerium): every ore of an item set on, while the enrichment is on.
+     */
+    static CargoPlan keepEnrichOres(BotConfig c, CargoPlan plan) {
+        com.fasterxml.jackson.databind.JsonNode e = c.modules().get("enrich");
+        if (e == null || !e.path("enabled").asBoolean(false) || plan.ores() == null || plan.ores().isEmpty()) {
+            return plan;
+        }
+        java.util.Set<Integer> keep = new java.util.HashSet<>();
+        for (String item : Enricher.ITEMS) {
+            com.fasterxml.jackson.databind.JsonNode it = e.path("items").path(item);
+            Integer ore = Enricher.ORES.get(it.path("ore").asText("").toUpperCase(java.util.Locale.ROOT));
+            if (it.path("on").asBoolean(false) && ore != null) {
+                keep.add(ore);
+            }
+        }
+        if (keep.isEmpty() || plan.ores().stream().noneMatch(keep::contains)) {
+            return plan;
+        }
+        return new CargoPlan(plan.mode(), plan.map(), plan.ores().stream().filter(o -> !keep.contains(o)).toList(),
+                plan.always());
+    }
+
+    /**
      * One step; true while it flies the ship (to the base and the refinery). The pet sale runs beside the work.
      *
      * @param busy the module is in the middle of something (a fight): the trip waits for it
@@ -112,6 +136,7 @@ final class CargoCare {
         WorldSnapshot w = ctx.world().get();
         long now = ctx.now();
         plan = modulePlan != null ? modulePlan : new CargoPlan(c.collect().cargo(), 0, c.collect().sellOres());
+        plan = keepEnrichOres(c, plan);
         String mode = plan.mode();
         ctx.stats().cargoMode = mode;
         boolean wantSale = BotConfig.Collect.CARGO_BASE.equals(mode) || BotConfig.Collect.CARGO_PET.equals(mode);
