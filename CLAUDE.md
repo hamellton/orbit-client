@@ -40,7 +40,8 @@ Status: Stage 2 done; stage 3 in progress (login, game connection, vault, client
   immutable `WorldSnapshot` with interpolated positions. Hero is dead-reckoned, beacons only fix jumps.
   `orbit.world.maps`: `MapCatalog` (sizes from client maps-config, portal graph from DarkBot facts,
   `reference/maps/*.json` bundled as resources), `ZoneGeometry` (POI zone point tests).
-- `config` — named bot configs `local/configs/<name>.json` (`BotConfig`, schema version + `Migrations`),
+- `config` — named bot configs `local/configs/[<folder>/]<name>.json` (names unique over folders; read-only program
+  defaults in folder «Default» from `orbit/config/defaults/`, copied to be changed) (`BotConfig`, schema version + `Migrations`),
   `ConfigStore`, `ConfigCheck` (pre-start checks), `AccountSettings` (`local/accounts.json`: config and
   `Schedule` per account), `DarkBotImport` (user's own DarkBot profiles → `BotConfig`), `configs` CLI.
 - `game` — game connection (`GameConnection`), client-like `StartupSequence` (cold start vs map change,
