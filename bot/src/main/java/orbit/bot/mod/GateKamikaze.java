@@ -145,7 +145,9 @@ final class GateKamikaze {
         WorldSnapshot.Item button = w.items().get(KAMIKAZE_ITEM);
         boolean gameReady = (pet.gears().isEmpty() || pet.gears().contains(PetGearTypeModule.PETGEARTYPE_KAMIKAZE))
                 && (button == null || button.remainingMs(now) == 0);
-        boolean ready = gameReady && now >= cooldownUntil && share(h.health().hpPercent()) >= k.path("hpMin").asDouble(0.95)
+        // the pet out and alive: a dead or docked one «blew up» 0.1 s after the gear (live 2026-11-15 on gb2)
+        boolean petOut = pet.alive() && pet.active();
+        boolean ready = petOut && gameReady && now >= cooldownUntil && share(h.health().hpPercent()) >= k.path("hpMin").asDouble(0.95)
                 && share(h.health().shieldPercent()) >= k.path("shieldMin").asDouble(0.95);
         boolean tight = spread(valid) <= k.path("tight").asDouble(TIGHT);
         if (tight) {
@@ -180,6 +182,9 @@ final class GateKamikaze {
                     near == null ? -1 : (int) Math.hypot(near.x() - h.x(), near.y() - h.y()),
                     Math.round(share(h.health().hpPercent()) * 100), Math.round(share(h.health().shieldPercent()) * 100),
                     now < cooldownUntil ? "своя" : !gameReady ? "игры" : "нет", gameReady ? "есть" : "нет");
+            if (!petOut) {
+                log.info("Камикадзе: питомец не выпущен — жду его");
+            }
         }
         ctx.ship().want(mode(k, c));
         gather(w, h, near, k.path("orbit").asDouble(ORBIT));
