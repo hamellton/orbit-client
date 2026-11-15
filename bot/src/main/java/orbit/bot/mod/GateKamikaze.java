@@ -47,6 +47,8 @@ final class GateKamikaze {
     static final long AIMED_MS = 1_000;
     static final long PRIMED_DELAY_MS = 5_000;
     static final long ACTIVE_TIMEOUT_MS = 10_000;
+    /** The kamikaze gear's button on the item bar (its timer is the game's cooldown). */
+    static final String KAMIKAZE_ITEM = "equipment_petgear_g-kk1";
 
     private final BotContext ctx;
     private Stage stage = Stage.INACTIVE;
@@ -92,8 +94,11 @@ final class GateKamikaze {
         gear = -1;
         JsonNode k = s.path("kamikaze");
         WorldSnapshot.Pet pet = w.pet();
-        if (!k.path("enabled").asBoolean(false) || !c.pet().enabled() || !pet.owned()
-                || !pet.gears().isEmpty() && !pet.gears().contains(PetGearTypeModule.PETGEARTYPE_KAMIKAZE)) {
+        // the gear: listed among the pet's modes, or its button on the item bar — the game drops the mode from the list
+        // while it cools down (live 2026-11-15 on gb2: «нет режима №10» 14 s after a blast)
+        boolean hasGear = pet.gears().isEmpty() || pet.gears().contains(PetGearTypeModule.PETGEARTYPE_KAMIKAZE)
+                || w.items().containsKey(KAMIKAZE_ITEM);
+        if (!k.path("enabled").asBoolean(false) || !c.pet().enabled() || !pet.owned() || !hasGear) {
             stage = Stage.INACTIVE;
             return false;
         }
@@ -137,7 +142,10 @@ final class GateKamikaze {
         if (h.attackTargetId() != 0) {
             ctx.actions().stopAttack();
         }
-        boolean ready = now >= cooldownUntil && share(h.health().hpPercent()) >= k.path("hpMin").asDouble(0.95)
+        WorldSnapshot.Item button = w.items().get(KAMIKAZE_ITEM);
+        boolean gameReady = (pet.gears().isEmpty() || pet.gears().contains(PetGearTypeModule.PETGEARTYPE_KAMIKAZE))
+                && (button == null || button.remainingMs(now) == 0);
+        boolean ready = gameReady && now >= cooldownUntil && share(h.health().hpPercent()) >= k.path("hpMin").asDouble(0.95)
                 && share(h.health().shieldPercent()) >= k.path("shieldMin").asDouble(0.95);
         boolean tight = spread(valid) <= k.path("tight").asDouble(TIGHT);
         if (tight) {
