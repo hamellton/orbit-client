@@ -1449,11 +1449,9 @@ public final class BehemothModule implements BotModule {
             // few seconds of the last time it was listed, not when noticed
             long lastAlive = wallBase + (wasListedSeenNs - nanoBase) / 1_000_000;
             long killed = Math.min(wallMs(), lastAlive + LIST_DEATH_SLACK_MS);
-            // it comes back about 15 min 17 s after it last came, however long it lived (live 2026-11-14: 1-BL 00:18:50 →
-            // 00:34:08, 2-BL 00:28:52 → 00:44:09; 30–60 s after its death were the timer's lateness): timed from its coming
-            if (listedComeMap == h.mapId() && listedComeWall > 0 && listedComeWall < killed) {
-                killed = listedComeWall;
-            }
+            // the respawn counts from the death (CARNAGE's BLCycle: death + 900 000 ms, its death the locator losing it
+            // for 10 s; AstraBot's kill rewards 15:03–15:18 apart; the user, 2026-11-15) — not dated back to its coming,
+            // which put the timers minutes early after a long-lived one (the VPS night of 2026-11-14/15)
             memory.killed(h.mapId(), sp[0], sp[1], killed);
             log.info("Пеленгатор: бегемот пропал из списка на {} — убит{}, следующий через {}",
                     ctx.maps().info(h.mapId()).name(), killed < wallMs() - 1_000 ? " (" + clock(wallMs() - killed) + " назад)" : "",
@@ -1951,6 +1949,16 @@ public final class BehemothModule implements BotModule {
         if (waitOver(h.mapId())) {
             // the wait is over, the point reached or not
             long wall = wallMs();
+            long due = dueAt(h.mapId(), wall);
+            long came = wallBase + (waitStarted - nanoBase) / 1_000_000;
+            boolean seenHere = behemothSeenMap == h.mapId() && behemothSeenAt >= came;
+            if (due > 0 && due <= wall && !seenHere) {
+                // here when it was due and it did not come: the timer is wrong — unknown now, not rolled on (BLCycle
+                // «post_zero_unknown»; the VPS night of 2026-11-14/15: rolled on and on, early each time)
+                memory.forgetTimes(h.mapId());
+                log.info("{}: по таймеру бегемот должен был быть {} назад, его нет — таймер неверный, забываю",
+                        ctx.maps().info(h.mapId()).name(), clock(wall - due));
+            }
             emptyAt.put(h.mapId(), wall);
             int next = choose(h.mapId(), h.mapId());
             log.info("Бегемота на {} нет {} с — {}", ctx.maps().info(h.mapId()).name(), (now - waitStarted) / 1_000_000_000L,
@@ -2044,6 +2052,9 @@ public final class BehemothModule implements BotModule {
         return best;
     }
 
+    /** Unseen respawns a timer is rolled over at most (CARNAGE's BLCycle: 3), then it is unknown. */
+    static final int MAX_UNWATCHED = 3;
+
     /** When the map's behemoth is due by its last death in sight, or 0 when not known (or long past). */
     public long dueAt(int map, long wall) {
         long respawn = respawn(map);
@@ -2054,7 +2065,11 @@ public final class BehemothModule implements BotModule {
             long at = k.expectedAt(respawn);
             if (roll && at > 0 && at + grace < wall && k.lastSeen() < at) {
                 // nobody watched it come (BLCycle's «unwatched rollover»): taken by others then, the next one a respawn on
-                at += respawn * ((wall - grace - at) / respawn + 1);
+                long cycles = (wall - grace - at) / respawn + 1;
+                if (cycles > MAX_UNWATCHED) {
+                    continue; // BLCycle «stale_dropped … limit=3»: so many unseen, the timer says nothing any more
+                }
+                at += respawn * cycles;
             }
             if (at > 0 && at + respawn > wall && (best == 0 || at < best)) {
                 best = at;
@@ -2064,13 +2079,14 @@ public final class BehemothModule implements BotModule {
     }
 
     private long respawn(int map) {
-        long learned = memory.mapRespawn(map);
         long seconds = (long) number(settings(), "respawnSeconds", 0);
         if (seconds > 0) {
             return seconds * 1_000;
         }
         long minutes = (long) number(settings(), "respawnMinutes", 0);
-        return minutes > 0 ? minutes * 60_000 : learned > 0 ? learned : DEFAULT_RESPAWN_MS;
+        // 15:00 from the death (BLCycle's constant): the shortest «death → next» learned came out minutes short when a
+        // death was dated back to the coming (9:36 on 2-BL, the VPS night of 2026-11-14/15)
+        return minutes > 0 ? minutes * 60_000 : DEFAULT_RESPAWN_MS;
     }
 
     /** Enemies gone within this of a portal went through it. */

@@ -264,7 +264,7 @@ class BehemothModuleTest {
                 + "\"respawnSeconds\": 915}"), 307, 6_000, 4_000);
         SpawnMemory mem = SpawnMemory.inMemory();
         long now = System.currentTimeMillis();
-        mem.killed(306, 19_400, 5_800, now - 14 * 60_000 + 17 * 60_000 - 915_000); // 1-BL due in 17 min
+        mem.killed(306, 19_400, 5_800, now + 17 * 60_000 - 915_000); // 1-BL due in 17 min
         mem.killed(308, 4_700, 3_900, now + 16 * 60_000 - 915_000); // 3-BL due in 16 min
         BehemothModule m = new BehemothModule(sim.ctx, mem);
         m.workingMap();
@@ -1258,6 +1258,31 @@ class BehemothModuleTest {
         int here = m.workingMap();
         sim.run(m::tick, 8 * 60_000);
         assertEquals(here, m.workingMap(), "waited on the map, not off after ~2 min");
+    }
+
+    @Test
+    void aTimerThatDidNotComeTrueWhileTheShipWaitedIsForgottenNotRolledOn() throws Exception {
+        // CARNAGE's BLCycle «post_zero_unknown»; the VPS night of 2026-11-14/15: rolled on, early each time, 7 h of none
+        Sim sim = new Sim(with(config(30), "{\"arriveOnTime\": true}"), 308, 5_700, 2_600);
+        SpawnMemory mem = SpawnMemory.inMemory();
+        BehemothModule m = new BehemothModule(sim.ctx, mem);
+        mem.killed(308, 4_700, 3_900, m.wallMs() + 30_000 - 900_000); // due in 30 s
+        m.workingMap();
+        sim.run(m::tick, 3 * 60_000);
+        assertEquals(0, m.dueAt(308, m.wallMs()), "it did not come: unknown");
+    }
+
+    @Test
+    void moreThanThreeUnwatchedRespawnsLeaveTheTimerUnknown() throws Exception {
+        // CARNAGE's BLCycle «stale_dropped … limit=3»
+        Sim sim = new Sim(with(config(30), "{\"arriveOnTime\": true}"), 306, 5_700, 2_600);
+        SpawnMemory mem = SpawnMemory.inMemory();
+        BehemothModule m = new BehemothModule(sim.ctx, mem);
+        long wall = m.wallMs();
+        mem.killed(307, 6_900, 5_000, wall - 2 * 900_000 - 100_000); // two unseen: still a guess
+        mem.killed(308, 4_700, 3_900, wall - 5 * 900_000 - 100_000); // five unseen: nothing
+        assertTrue(m.dueAt(307, wall) > wall);
+        assertEquals(0, m.dueAt(308, wall));
     }
 
     @Test
