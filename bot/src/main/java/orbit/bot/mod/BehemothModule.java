@@ -149,8 +149,11 @@ public final class BehemothModule implements BotModule {
     private long mapEnteredNanos;
     private String locatorTold = "";
     private long noneHandled;
-    /** Leave this long before the flight says (a turn, a slow start). */
-    static final long LEAD_MS = 5_000;
+    /**
+     * Leave this long before the flight says (a turn, a slow start, a detour): live 2026-11-16 on the VPS a 2-BL → 3-BL
+     * flight took 1:12 or 1:54 by where it started, 5 s were too few and a train had the behemoth before the ship came.
+     */
+    static final long LEAD_MS = 20_000;
 
     /**
      * How early to be on the behemoth's map: the near point's time ({@code closeBeforeSeconds}) and the flight across the
@@ -1972,7 +1975,14 @@ public final class BehemothModule implements BotModule {
             long due = dueAt(h.mapId(), wall);
             long came = wallBase + (waitStarted - nanoBase) / 1_000_000;
             boolean seenHere = behemothSeenMap == h.mapId() && behemothSeenAt >= came;
-            if (due > 0 && due <= wall && !seenHere) {
+            if (due > 0 && due <= wall && !seenHere && came > due) {
+                // came after it was due: it may have come and gone before the ship (live 2026-11-16 on the VPS, 3-BL:
+                // 40 s late, a train had killed it) — taken as killed by others when due, the next a respawn on
+                int[] sp = spawnPoint(h.mapId());
+                memory.killed(h.mapId(), sp[0], sp[1], due);
+                log.info("{}: прилетел на {} позже времени бегемота — не видел, считаю, что его убили другие: следующий через {}",
+                        ctx.maps().info(h.mapId()).name(), clock(came - due), clock(due + respawn(h.mapId()) - wall));
+            } else if (due > 0 && due <= wall && !seenHere) {
                 // here when it was due and it did not come: the timer is wrong — unknown now, not rolled on (BLCycle
                 // «post_zero_unknown»; the VPS night of 2026-11-14/15: rolled on and on, early each time)
                 memory.forgetTimes(h.mapId());
@@ -2007,7 +2017,8 @@ public final class BehemothModule implements BotModule {
             if (took > 10_000 && took < TRAVEL_LEARN_MAX_MS && ctx.stats().deaths.get() == departDeaths && !foughtOnTheWay) {
                 String key = departFrom + ">" + h.mapId();
                 Long before = travel.get(key);
-                travel.put(key, before == null ? took : (before + took) / 2);
+                // a long flight is not averaged away: arriving late loses the behemoth to a train, early only waits
+                travel.put(key, before == null ? took : Math.max(took, (before + took) / 2));
                 log.info("Перелёт {} → {}: {}", ctx.maps().info(departFrom).name(), ctx.maps().info(h.mapId()).name(),
                         clock(took));
             }

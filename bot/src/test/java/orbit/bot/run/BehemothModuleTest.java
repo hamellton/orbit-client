@@ -1290,6 +1290,20 @@ class BehemothModuleTest {
     }
 
     @Test
+    void comingAfterItWasDueKeepsTheTimerAsKilledByOthers() throws Exception {
+        // live 2026-11-16 on the VPS, 3-BL: 40 s late, a train had killed it — the right timer was forgotten
+        Sim sim = new Sim(config(30), 308, 5_700, 2_600);
+        SpawnMemory mem = SpawnMemory.inMemory();
+        BehemothModule m = new BehemothModule(sim.ctx, mem);
+        long due = m.wallMs() - 40_000;
+        mem.killed(308, 4_700, 3_900, due - 900_000); // due 40 s before the ship came
+        m.workingMap();
+        sim.run(m::tick, 3 * 60_000);
+        long next = m.dueAt(308, m.wallMs());
+        assertTrue(Math.abs(next - (due + 900_000)) < 2_000, "a respawn on from when it was due: " + (next - due));
+    }
+
+    @Test
     void moreThanThreeUnwatchedRespawnsLeaveTheTimerUnknown() throws Exception {
         // CARNAGE's BLCycle «stale_dropped … limit=3»
         Sim sim = new Sim(with(config(30), "{\"arriveOnTime\": true}"), 306, 5_700, 2_600);
