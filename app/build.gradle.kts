@@ -15,7 +15,10 @@ application {
     mainClass.set("orbit.app.OrbitMain")
     applicationName = "orbit"
     // the sniffer jar has its own logback.xml; the app's configuration (with secret masking) wins
-    applicationDefaultJvmArgs = listOf("-Dlogback.configurationFile=orbit/app/logback-app.xml")
+    // Java2D's Metal pipeline (JDK 21, macOS) leaks graphics memory drawing the map: about 300 MB a minute,
+    // never freed, until the Mac runs out of memory; OpenGL holds steady
+    applicationDefaultJvmArgs = listOf("-Dlogback.configurationFile=orbit/app/logback-app.xml",
+            "-Dsun.java2d.metal=false")
 }
 
 tasks.named<JavaExec>("run") {
