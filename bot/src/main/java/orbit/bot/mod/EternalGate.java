@@ -175,7 +175,8 @@ public final class EternalGate {
                 return 0;
             }
             return over(e, "CPU для Вечных врат нет" + (on(e, "craft", false) ? " и скрафтить не из чего"
-                    + (craftGivenUp ? " (не хватает ресурсов)" : "") : ""), show);
+                    + (craftLacking != null ? " (не хватает " + craftLacking + ")"
+                    : craftGivenUp ? " (не хватает ресурсов)" : "") : ""), show);
         }
         show.accept("Вечные врата: лечу на " + ctx.maps().info(bl).name() + " (CPU: " + ebg.cpus() + ")");
         return bl;
@@ -185,6 +186,7 @@ public final class EternalGate {
     private long recipesSince;
     private long craftSince;
     private boolean craftGivenUp;
+    private String craftLacking;
     /** A CPU's craft not begun so long after the starts: no resources for it. */
     static final long CRAFT_GIVE_UP_MS = 7 * 60_000;
 
@@ -214,6 +216,14 @@ public final class EternalGate {
         if (r.state() != WorldSnapshot.RecipeState.AVAILABLE) {
             craftSince = 0; // building or ready: it goes
             return true;
+        }
+        String lacking = orbit.bot.run.CraftWatch.lacking(w, GateCatalog.EBG_CPU_RECIPE, 1);
+        if (lacking != null) {
+            if (!lacking.equals(craftLacking)) {
+                craftLacking = lacking;
+                log.warn("Вечные врата: на CPU не хватает {}", lacking);
+            }
+            return false; // nothing to craft with
         }
         // still only «available» long after the starts: the game takes no start without the resources (live
         // 2026-11-16 on gb2: three starts in 4 min, no answer) — nothing to craft with

@@ -43,7 +43,15 @@ class CraftWatchTest {
     static Sim sim(int below) {
         BotConfig.Buy buy = BotConfig.Buy.OFF.withCrafts(List.of(
                 new BotConfig.CraftRule(RSB, "ammunition_laser_rsb-75", below, 2)));
-        return new Sim(BotConfig.empty().withBuy(buy), 26, 7_500, 3_900);
+        Sim sim = new Sim(BotConfig.empty().withBuy(buy), 26, 7_500, 3_900);
+        // the price of the batches (the client's: uridium, rinusk, BL trace) in stock
+        orbit.protocol.gen.AttributeCreditsUpdateCommand money = new orbit.protocol.gen.AttributeCreditsUpdateCommand();
+        money.credits = 100_000_000;
+        money.uridium = 1_000_000;
+        sim.world.apply(money, sim.now);
+        RecipeCostsTest.resource(sim, "resource_collectable_rinusk", 100_000);
+        RecipeCostsTest.resource(sim, "resource_collectable_blacklight-trace", 100_000);
+        return sim;
     }
 
     static void runFor(Sim sim, CraftWatch w, long ms) {

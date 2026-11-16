@@ -17,7 +17,7 @@ import org.slf4j.LoggerFactory;
  * {@code AssemblyBuildRequest}, the window closed; later {@code AssemblyCollectRequest} the same way. One action every
  * {@link #CHECK_MS}, nothing before the game has listed the recipes.
  */
-final class CraftWatch {
+public final class CraftWatch {
 
     private static final Logger log = LoggerFactory.getLogger(CraftWatch.class);
 
@@ -126,6 +126,13 @@ final class CraftWatch {
             if (last != null && now - last < RETRY_MS * 1_000_000) {
                 continue;
             }
+            String lacking = lacking(w, r.recipe(), r.amount());
+            if (lacking != null) {
+                if (told.add("$" + r.recipe() + lacking)) {
+                    log.info("Крафт: {} — не хватает {}", name(r), lacking);
+                }
+                continue; // the game would ignore the start in silence
+            }
             startedAt.put(r.recipe(), now);
             log.info("Крафт: запускаю {} ×{} (есть {}, нужно от {})", name(r), r.amount(),
                     have < 0 ? "?" : String.valueOf((long) have), r.below());
@@ -134,6 +141,49 @@ final class CraftWatch {
             ctx.actions().assemblyWindow();
             return; // one action a check
         }
+    }
+
+    /**
+     * What the account lacks for {@code amount} batches of the recipe (the client's prices, {@link RecipeCosts}), as
+     * «Eternal Fragment 120 из 500, …»; {@code null} when enough or when not known.
+     */
+    public static String lacking(WorldSnapshot w, String recipe, int amount) {
+        java.util.List<String> out = new java.util.ArrayList<>();
+        for (orbit.config.RecipeCosts.Part p : orbit.config.RecipeCosts.of(recipe)) {
+            double have = switch (p.item()) {
+                case "currency_credits" -> w.hero().credits();
+                case "currency_uridium" -> w.hero().uridium();
+                default -> count(w, p.item());
+            };
+            long need = p.amount() * Math.max(1, amount);
+            if (have >= 0 && have < need) {
+                out.add(partName(p.item()) + " " + num(have) + " из " + num(need));
+            }
+        }
+        return out.isEmpty() ? null : String.join(", ", out);
+    }
+
+    private static String num(double v) {
+        return String.format(java.util.Locale.ROOT, "%,.0f", v).replace(',', ' ');
+    }
+
+    /** «кредиты», «уридий», «Eternal Fragment» for a price's part. */
+    static String partName(String id) {
+        return switch (id) {
+            case "currency_credits" -> "кредиты";
+            case "currency_uridium" -> "уридий";
+            default -> {
+                String bare = id.replaceFirst("^resource_collectable_", "").replaceFirst("^resource_", "");
+                String ru = orbit.config.LootNames.known(bare);
+                if (ru != null) {
+                    yield ru;
+                }
+                String l = ItemCatalog.label(id);
+                yield l.equals(id) ? java.util.Arrays.stream(bare.split("[-_]")).filter(x -> !x.isEmpty())
+                        .map(x -> Character.toUpperCase(x.charAt(0)) + x.substring(1)).reduce((a1, b1) -> a1 + " " + b1)
+                        .orElse(bare) : l;
+            }
+        };
     }
 
     /** The item's count: the item bar's, else the inventory's; -1 when the game has told neither. */
