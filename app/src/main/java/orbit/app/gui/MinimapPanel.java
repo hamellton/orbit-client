@@ -507,9 +507,16 @@ final class MinimapPanel extends JPanel {
     /** The map's name big and faint in the middle, the session's time under it (as AstraBot and DarkBot). */
     private void watermark(Graphics2D g, double ox, double oy, double mw, double mh, MapCatalog.MapInfo map) {
         float size = (float) Math.max(28, Math.min(110, mh * 0.2));
-        g.setFont(hud.font(Font.BOLD, size));
-        java.awt.FontMetrics fm = g.getFontMetrics();
         String name = map.name();
+        g.setFont(hud.font(Font.BOLD, size));
+        // a long name («Eternal Blacklight») no wider than about half the map (the user, 2026-11-16: «слишком большая»)
+        double fit = mw * 0.55;
+        int nw = g.getFontMetrics().stringWidth(name);
+        if (nw > fit) {
+            size = (float) Math.max(20, size * fit / nw);
+            g.setFont(hud.font(Font.BOLD, size));
+        }
+        java.awt.FontMetrics fm = g.getFontMetrics();
         g.setColor(new Color(255, 255, 255, 34));
         double cy = oy + mh / 2;
         g.drawString(name, (float) (ox + (mw - fm.stringWidth(name)) / 2), (float) (cy + fm.getAscent() * 0.35));
