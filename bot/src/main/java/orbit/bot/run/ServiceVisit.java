@@ -55,6 +55,11 @@ public final class ServiceVisit {
     private volatile boolean ordering;
     private boolean orderStarted;
     private volatile String orderError;
+    /** The ore of the order came into the hold: once it is in the lab, the next trip (the hold limits one). */
+    private boolean landed;
+    /** Trips this visit (the user, 2026-11-16: «один раз отправил — обогатил, второй раз отправил — обогатил»). */
+    private int trips;
+    static final int MAX_TRIPS = 10;
 
     public ServiceVisit(BotContext ctx) {
         this.ctx = ctx;
@@ -76,6 +81,8 @@ public final class ServiceVisit {
         ordered = p.ordered;
         orderedAt = p.orderedAt;
         holdAtOrder = p.holdAtOrder;
+        landed = p.landed;
+        trips = p.trips;
         skylab = skylab != null ? skylab : p.skylab;
     }
 
@@ -123,6 +130,8 @@ public final class ServiceVisit {
                 compared = false;
                 ordered = false;
                 orderStarted = false;
+                landed = false;
+                trips = 0;
                 phase = Phase.GOING;
                 log.info("Обслуживание: обогащению не хватает руды — пересаживаюсь на корабль для Скайлаба (ангар {}),"
                         + " потом обратно на {}", service, returnTo);
@@ -177,6 +186,8 @@ public final class ServiceVisit {
         compared = false;
         ordered = false;
         orderStarted = false;
+        landed = false;
+        trips = 0;
         phase = Phase.GOING;
         log.info("Обслуживание: перед ангаром {} — на корабль для Скайлаба (ангар {}): обогащению не хватает руды",
                 wanted, service);
@@ -265,6 +276,9 @@ public final class ServiceVisit {
                 long fillTo = fill.get(item);
                 long need = (fillTo - left + WorldSnapshot.Lab.PER_ORE - 1) / WorldSnapshot.Lab.PER_ORE;
                 long n = Math.min(need, have);
+                if (ordered && have > holdAtOrder.getOrDefault(ore, 0L)) {
+                    landed = true; // the order's ore: once it is in the lab, the next trip
+                }
                 ctx.actions().labEnrich(item, ore, n);
                 sentAt = now;
                 sentLabNanos = lab.nanos();
@@ -284,6 +298,17 @@ public final class ServiceVisit {
         }
         if (lacking.isEmpty()) {
             return busy(now, s, "обогащаю");
+        }
+        if (ordered && landed) {
+            // what came is in the lab and more is wanted: another trip, as long as the storage and the hold give some
+            if (trips >= MAX_TRIPS) {
+                log.warn("Обслуживание: уже {} рейсов Скайлаба — хватит; обратно", trips);
+                return back(null);
+            }
+            ordered = false;
+            orderStarted = false;
+            landed = false;
+            log.info("Обслуживание: привезённое в лаборатории, нужно ещё {} — снова со Скайлаба", lacking);
         }
         long waitMs = Math.max(1, s.path("visitWaitMinutes").asLong(15)) * 60_000;
         if (!ordered) {
@@ -335,7 +360,9 @@ public final class ServiceVisit {
                             orderError = "транспорт Скайлаба уже в пути";
                         } else {
                             a.transport(send, fast);
-                            log.info("Обслуживание: со Скайлаба в трюм {}{}", send, fast ? " (быстро)" : "");
+                            trips++;
+                            log.info("Обслуживание: со Скайлаба в трюм {}{}{}", send, fast ? " (быстро)" : "",
+                                    trips > 1 ? ", рейс " + trips : "");
                         }
                     } catch (java.io.IOException | RuntimeException e) {
                         orderError = e.getMessage();
@@ -357,6 +384,9 @@ public final class ServiceVisit {
             return busy(now, s, "жду руду со Скайлаба");
         }
         boolean arrived = want.keySet().stream().anyMatch(o -> w.inventory().ore(o) > holdAtOrder.getOrDefault(o, 0L));
+        if (arrived) {
+            landed = true;
+        }
         if (!arrived && ms(now - orderedAt) > waitMs) {
             log.warn("Обслуживание: руда со Скайлаба не пришла за {} мин — обратно", waitMs / 60_000);
             return back(null);
@@ -371,7 +401,7 @@ public final class ServiceVisit {
 
     private Step busy(long now, JsonNode s, String what) {
         long max = (Math.max(1, s.path("visitWaitMinutes").asLong(15)) + 10) * 60_000;
-        if (ms(now - serviceSince) > max) {
+        if (ms(now - Math.max(serviceSince, ordered ? orderedAt : 0)) > max) {
             log.warn("Обслуживание: идёт дольше {} мин — обратно", max / 60_000);
             return back(null);
         }

@@ -132,4 +132,57 @@ class ServiceVisitTest {
         EnricherTest.lab(sim, new int[] {0, 6, 900_000});
         assertEquals(44, new ServiceVisit(sim.ctx).divert(33, 44));
     }
+    @Test
+    void aSmallHoldGetsTheOreInSeveralTripsOfOneVisit() throws Exception {
+        // live 2026-11-16 on gb2: 14 000 promerium wanted, an 8 000 hold with 5 000 in it — one trip of 2 997, back
+        Sim sim = sim();
+        orbit.protocol.gen.ShipInitializationCommand si = new orbit.protocol.gen.ShipInitializationCommand();
+        si.userId = 1;
+        si.mapId = 1;
+        si.x = 1_000;
+        si.y = 1_000;
+        si.hitPoints = 100;
+        si.hitMax = 100;
+        si.cargoSpace = 3_000;
+        si.cargoSpaceMax = 3_000;
+        sim.world.apply(si, sim.now);
+        EnricherTest.lab(sim, new int[] {0, 6, 20_000});
+        ServiceVisit v = new ServiceVisit(sim.ctx);
+        java.util.List<Map<String, Long>> sent = new java.util.concurrent.CopyOnWriteArrayList<>();
+        v.setSkylab(new SkylabAccess() {
+            @Override
+            public Stock stock() {
+                return new Stock(false, Map.of("promerium", 1_000_000L));
+            }
+
+            @Override
+            public void transport(Map<String, Long> amounts, boolean fast) {
+                sent.add(amounts);
+            }
+        });
+        v.tick(WORK, true);
+        sim.now += 60_000_000_000L;
+        v.tick(CITADEL, true);
+        int left = 19_990;
+        EnricherTest.lab(sim, new int[] {0, 6, left});
+        for (int trip = 1; trip <= 3; trip++) {
+            for (int i = 0; i < 100 && sent.size() < trip; i++) {
+                v.tick(CITADEL, true);
+                sim.now += 100_000_000L;
+                Thread.sleep(5);
+            }
+            assertEquals(trip, sent.size(), "trip " + trip);
+            assertEquals(3_000L, sent.get(trip - 1).get("promerium"), "as much as the hold takes");
+            v.tick(CITADEL, true);
+            sim.now += 5_000_000_000L;
+            EnricherTest.hold(sim, new int[] {6, 3_000}); // landed
+            v.tick(CITADEL, true); // into the lab
+            sim.now += 1_000_000_000L;
+            left += 30_000;
+            EnricherTest.lab(sim, new int[] {0, 6, left});
+            EnricherTest.hold(sim, new int[] {6, 0});
+            sim.now += 11_000_000_000L;
+        }
+        assertEquals(ServiceVisit.Phase.SERVICE, v.phase(), "still at it");
+    }
 }
