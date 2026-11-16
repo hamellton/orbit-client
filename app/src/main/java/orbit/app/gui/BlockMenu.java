@@ -108,6 +108,10 @@ final class BlockMenu {
             c.addActionListener(e -> v.show(s, c.isSelected()));
             out.add(c);
         }
+        javax.swing.JCheckBoxMenuItem picture = new javax.swing.JCheckBoxMenuItem("Картинка карты", v.mapPicture());
+        picture.setToolTipText("Мини-карта игры под отметками; без неё — ровный фон с сеткой");
+        picture.addActionListener(e -> v.setMapPicture(picture.isSelected()));
+        out.add(picture);
         return out.toArray(JMenuItem[]::new);
     }
 

@@ -416,6 +416,11 @@ public final class Friendly {
         return a + " · " + b;
     }
 
+    /** {@link #number}, for the window's corners too. */
+    public static String short_(double v) {
+        return number(v);
+    }
+
     /** 1 024; 40 380; 614 тыс.; 1,6 млн. */
     static String number(double v) {
         double a = Math.abs(v);

@@ -52,6 +52,16 @@ public final class WorldFeed {
     private volatile orbit.bot.run.Stats statsBase;
     private volatile orbit.bot.run.Stats statsOf;
 
+    /** The game's own last lines (rewards, the server's text) for the map's feed. */
+    public java.util.List<orbit.world.World.GameNote> gameNotes() {
+        return world.gameNotes();
+    }
+
+    /** The feed's clock (the world's nanoseconds). */
+    public long nowNanos() {
+        return now();
+    }
+
     /** The rewards for the window and the session's results: since the session began or the last reset. */
     public WorldSnapshot.Rewards sessionRewards() {
         return snapshot().rewards().minus(rewardsBase);

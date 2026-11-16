@@ -196,6 +196,7 @@ final class MinimapPanel extends JPanel {
     }
 
     private void paintWorld(Graphics2D g, WorldSnapshot w) {
+        labels.clear();
         WorldSnapshot.Hero hero = w.hero();
         MapCatalog.MapInfo map = catalog.info(hero.mapId());
         Projection p = projection(map);
@@ -210,16 +211,20 @@ final class MinimapPanel extends JPanel {
         java.awt.geom.RoundRectangle2D.Double frame = new java.awt.geom.RoundRectangle2D.Double(ox, oy, mw, mh, 10, 10);
         Shape oldClip = g.getClip();
         g.clip(frame);
-        g.setColor(new Color(0x0b0e14));
+        boolean picture = ViewSettings.shared().mapPicture();
+        g.setColor(picture ? new Color(0x0b0e14) : SLATE);
         g.fill(frame);
-        java.awt.image.BufferedImage bg = hero.id() == 0 ? null : MinimapBackgrounds.get(hero.mapId());
+        java.awt.image.BufferedImage bg = hero.id() == 0 || !picture ? null : MinimapBackgrounds.get(hero.mapId());
         if (bg != null) {
             g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
             g.drawImage(bg, (int) Math.round(ox), (int) Math.round(oy), (int) Math.round(mw), (int) Math.round(mh), null);
             g.setColor(new Color(6, 8, 12, 110)); // dim the picture so the marks stand out
             g.fill(frame);
         }
-        grid(g, p, map);
+        grid(g, p, map, picture);
+        if (hero.id() != 0 && !compact) {
+            watermark(g, ox, oy, mw, mh, map);
+        }
         g.setClip(oldClip);
         g.setColor(BORDER);
         g.setStroke(new BasicStroke(1f));
@@ -273,7 +278,7 @@ final class MinimapPanel extends JPanel {
             }
             if (label != null && !compact) {
                 int tw = g.getFontMetrics().stringWidth(label);
-                drawLabel(g, label, px - tw / 2.0, py - 9 * u, PORTAL_LABEL);
+                placeLabel(g, label, px - tw / 2.0, py - 9 * u, PORTAL_LABEL, false);
             }
         }
         for (WorldSnapshot.Collectable c : w.collectables().values()) {
@@ -311,6 +316,9 @@ final class MinimapPanel extends JPanel {
                 g.drawString(label, (float) (cx - lw / 2.0), (float) (cy - cr - 4));
             }
         }
+        // names only where they help and never on top of each other (the user, 2026-11-16: «подписи без каши»): the
+        // target, the fight, the nearest players; the rest under the mouse
+        java.util.Set<Integer> named = nearestPlayers(w, hero, NAMED_PLAYERS);
         for (Ship s : w.ships().values()) {
             Color c = shipColor(s, hero, w.group());
             g.setColor(c);
@@ -334,9 +342,9 @@ final class MinimapPanel extends JPanel {
             boolean fighting = s.id() == hero.selectedId() || s.id() == hero.attackTargetId()
                     || (hero.attackers().size() <= MAX_ATTACKER_LABELS && hero.attackers().contains(s.id()));
             boolean target = s.id() == hero.attackTargetId() || s.id() == hero.selectedId();
-            if (compact ? target : (s.kind() == ShipKind.PLAYER || (s.kind() == ShipKind.NPC && fighting))) {
+            if (compact ? target : (fighting || s.kind() == ShipKind.PLAYER && named.contains(s.id()))) {
                 g.setFont(labelFont);
-                drawLabel(g, label(s), sx + 6 * u, sy - 4 * u, c);
+                placeLabel(g, label(s), sx + 6 * u, sy - 4 * u, c, target);
             }
         }
 
@@ -416,7 +424,10 @@ final class MinimapPanel extends JPanel {
             hud.targetChip(g, (int) Math.round(vx) + 8, (int) Math.round(vy) + 8, (int) Math.round(vw * 0.3), w);
             hud.strip(g, (int) Math.round(vx), (int) Math.round(vy + vh), (int) Math.round(vw), feed, config.get());
         } else {
-            mapChip(g, vx, vy, vw, hero, map);
+            int chipBottom = mapChip(g, vx, vy, vw, hero, map);
+            int ratesBottom = chipBottom;
+            int plaqueBottom = gatePlaque(g, vx, vy, vw, w, hero);
+            gameFeed(g, vx, plaqueBottom + 6, vw);
             // the blocks the user put on the map: full cards on a big map, compact ones on a small one
             boolean big = vw >= BIG_MAP;
             java.util.Map<java.awt.Rectangle, ViewSettings.Block> placed = new java.util.LinkedHashMap<>();
@@ -426,17 +437,218 @@ final class MinimapPanel extends JPanel {
             int right = (int) Math.round(vx + vw) - 10;
             // the account strip along the bottom, as in the overview: the columns end above it
             int stripTop = (int) Math.round(vy + vh) - Hud.STRIP_HEIGHT - 20;
-            cards.mapBlocks(g, left, right, (int) Math.round(vy) + 46, Math.max((int) Math.round(vy) + 40, pillsBottom + 8),
+            cards.mapBlocks(g, left, right, Math.max((int) Math.round(vy) + 46, ratesBottom + 8),
+                    Math.max((int) Math.round(vy) + 40, pillsBottom + 8),
                     stripTop, panel, w, feed, config.get(), ViewSettings.shared(), placed, big);
             cardsAt = placed;
             Shape clip = g.getClip();
             g.clip(frame);
             hud.strip(g, (int) Math.round(vx), (int) Math.round(vy + vh), (int) Math.round(vw), feed, config.get());
+            int above = (int) Math.round(vy + vh) - Hud.STRIP_HEIGHT - 22;
+            hud.targetStrip(g, (int) Math.round(vx + vw) - 8, above, (int) Math.max(220, Math.min(380, vw * 0.38)), w);
+            rates(g, vx + 8, above, w); // «в час» on the left, the target on the right, the ship's strip under both
             g.setClip(clip);
         }
         if (w.boxCheck() != null) {
             boxCheck(g, w, p, vx, vy, vw);
         }
+    }
+
+    /** The map without the game's picture: DarkBot's slate (the user, 2026-11-16: «у DarkBot больше нравится»). */
+    static final Color SLATE = new Color(0x26303b);
+    /** Players named on the map: the nearest this many (the rest under the mouse). */
+    static final int NAMED_PLAYERS = 3;
+    /** The game's lines over the map: the last few, each fully seen this long, then fading out. */
+    static final int FEED_LINES = 4;
+    static final long FEED_SHOW_NS = 4_000_000_000L;
+    static final long FEED_FADE_NS = 1_500_000_000L;
+
+    /** The names drawn this frame: a new one finds a free place or is left out. */
+    private final java.util.List<Rectangle2D> labels = new java.util.ArrayList<>();
+
+    /** A name beside a mark where no other name is: as asked, a little lower, a little higher, or not at all. */
+    private void placeLabel(Graphics2D g, String text, double x, double y, Color color, boolean always) {
+        java.awt.FontMetrics fm = g.getFontMetrics();
+        double w = fm.stringWidth(text);
+        double h = fm.getAscent();
+        for (double dy : new double[] {0, h + 2, -(h + 2), 2 * (h + 2)}) {
+            Rectangle2D r = new Rectangle2D.Double(x - 1, y + dy - h, w + 2, h + 3);
+            if (labels.stream().noneMatch(r::intersects)) {
+                labels.add(r);
+                drawLabel(g, text, x, y + dy, color);
+                return;
+            }
+        }
+        if (always) {
+            drawLabel(g, text, x, y, color); // the target is named whatever is near
+        }
+    }
+
+    private static java.util.Set<Integer> nearestPlayers(WorldSnapshot w, WorldSnapshot.Hero hero, int n) {
+        java.util.Set<Integer> out = new java.util.HashSet<>();
+        w.ships().values().stream().filter(s -> s.kind() == ShipKind.PLAYER)
+                .sorted(java.util.Comparator.comparingDouble(s -> s.distanceTo(hero.x(), hero.y())))
+                .limit(n).forEach(s -> out.add(s.id()));
+        return out;
+    }
+
+    /** The map's name big and faint in the middle, the session's time under it (as AstraBot and DarkBot). */
+    private void watermark(Graphics2D g, double ox, double oy, double mw, double mh, MapCatalog.MapInfo map) {
+        float size = (float) Math.max(28, Math.min(110, mh * 0.2));
+        g.setFont(hud.font(Font.BOLD, size));
+        java.awt.FontMetrics fm = g.getFontMetrics();
+        String name = map.name();
+        g.setColor(new Color(255, 255, 255, 34));
+        double cy = oy + mh / 2;
+        g.drawString(name, (float) (ox + (mw - fm.stringWidth(name)) / 2), (float) (cy + fm.getAscent() * 0.35));
+        long ns = feed.sessionNanos();
+        if (ns > 0) {
+            String t = "сессия " + Hud.clock(java.time.Duration.ofNanos(ns));
+            g.setFont(hud.font(Font.PLAIN, Math.max(11f, size * 0.2f)));
+            java.awt.FontMetrics tm = g.getFontMetrics();
+            g.setColor(new Color(255, 255, 255, 70));
+            g.drawString(t, (float) (ox + (mw - tm.stringWidth(t)) / 2), (float) (cy + fm.getAscent() * 0.35 + tm.getHeight() + 4));
+        }
+    }
+
+    /** «В час»: uridium and credits per hour, deaths, the hold — a few lines above the bottom strip, on the left. */
+    private void rates(Graphics2D g, double x, int bottom, WorldSnapshot w) {
+        double hours = feed.sessionHours();
+        WorldSnapshot.Hero hero = w.hero();
+        if (hero.id() == 0) {
+            return;
+        }
+        java.util.List<String[]> rows = new java.util.ArrayList<>();
+        if (hours >= 1.0 / 60) {
+            WorldSnapshot.Rewards r = feed.sessionRewards();
+            rows.add(new String[] {"уридий / ч", orbit.app.log.Friendly.short_(r.uridium() / hours)});
+            rows.add(new String[] {"кредиты / ч", orbit.app.log.Friendly.short_(r.credits() / hours)});
+        }
+        orbit.bot.run.Stats st = feed.sessionStats();
+        if (st != null) {
+            rows.add(new String[] {"смерти", String.valueOf(st.deaths.get())});
+        }
+        if (hero.cargoMax() > 0) {
+            long used = Math.max(0, hero.cargoMax() - w.cargoFree());
+            rows.add(new String[] {"трюм", String.format("%,d / %,d", used, hero.cargoMax()).replace(',', ' ')});
+        }
+        if (rows.isEmpty()) {
+            return;
+        }
+        Font key = hud.font(Font.PLAIN, 11f);
+        Font val = new Font(Font.MONOSPACED, Font.PLAIN, 12);
+        int width = 196;
+        int line = 16;
+        int h = rows.size() * line + 10;
+        int y = bottom - h;
+        g.setColor(new Color(10, 12, 18, 150)); // the portals under it show through
+        g.fillRect((int) x, y, width, h);
+        int ty = y + 16;
+        for (String[] r : rows) {
+            g.setFont(key);
+            g.setColor(Hud.DIM);
+            g.drawString(r[0], (int) x + 10, ty);
+            g.setFont(val);
+            g.setColor(Hud.TEXT);
+            g.drawString(r[1], (int) x + width - 10 - g.getFontMetrics().stringWidth(r[1]), ty);
+            ty += line;
+        }
+    }
+
+    private static final java.util.regex.Pattern COUNT = java.util.regex.Pattern.compile("-=-\\s*(\\d+)\\s*-=-");
+
+    /** In a galaxy gate: the gate, its wave, the lives and the countdown to the wave, top centre. @return its bottom */
+    private int gatePlaque(Graphics2D g, double vx, double vy, double vw, WorldSnapshot w, WorldSnapshot.Hero hero) {
+        orbit.config.GateCatalog.Gate gate = hero.id() == 0 ? null : orbit.config.GateCatalog.byMap(hero.mapId());
+        if (gate == null) {
+            return (int) Math.round(vy + 8);
+        }
+        WorldSnapshot.Gate st = gate.builderId() != 0 ? w.gates().gate(gate.builderId()) : null;
+        StringBuilder t = new StringBuilder("Врата " + gate.name().split(" ")[0]);
+        if (st != null && st.wave() > 0) {
+            t.append("  ·  волна ").append(st.wave()).append(gate.waves() > 0 ? " / " + gate.waves() : "");
+        }
+        if (st != null && st.lives() > 0) {
+            t.append("  ·  жизней ").append(st.lives());
+        }
+        long now = feed.nowNanos();
+        java.util.List<orbit.world.World.GameNote> notes = feed.gameNotes();
+        for (int i = notes.size() - 1; i >= 0; i--) {
+            orbit.world.World.GameNote n = notes.get(i);
+            java.util.regex.Matcher m = n.text() == null ? null : COUNT.matcher(n.text());
+            if (m != null && m.find()) {
+                int left = Integer.parseInt(m.group(1));
+                if (now - n.nanos() < 1_500_000_000L) {
+                    t.append("  ·  ").append(left == 0 ? "волна пошла" : "⏱ волна через " + left + " с");
+                }
+                break;
+            }
+        }
+        g.setFont(hud.font(Font.BOLD, 13f));
+        java.awt.FontMetrics fm = g.getFontMetrics();
+        String text = Hud.clip(g, t.toString(), (int) vw - 60);
+        int width = fm.stringWidth(text) + 24;
+        int x = (int) Math.round(vx + (vw - width) / 2);
+        int y = (int) Math.round(vy + 10);
+        g.setColor(new Color(10, 12, 18, 200));
+        g.fillRect(x, y, width, 28);
+        g.setColor(new Color(MinimapPanel.HERO.getRed(), MinimapPanel.HERO.getGreen(), MinimapPanel.HERO.getBlue(), 170));
+        g.fillRect(x, y, width, 2);
+        g.setColor(Hud.TEXT);
+        g.drawString(text, x + 12, y + 19);
+        return y + 28;
+    }
+
+    /**
+     * The game's own lines (the user, 2026-11-16: «лента на карте — журнал с самой игры»): «Вы получили 26 880 опыта»,
+     * the items, the server's text — the last {@link #FEED_LINES}, a new one at once, the old fading out.
+     */
+    private void gameFeed(Graphics2D g, double vx, int top, double vw) {
+        long now = feed.nowNanos();
+        java.util.List<orbit.world.World.GameNote> all = feed.gameNotes();
+        java.util.List<orbit.world.World.GameNote> shown = new java.util.ArrayList<>();
+        for (int i = all.size() - 1; i >= 0 && shown.size() < FEED_LINES; i--) {
+            orbit.world.World.GameNote n = all.get(i);
+            long age = now - n.nanos();
+            if (age > FEED_SHOW_NS + FEED_FADE_NS) {
+                break;
+            }
+            if (n.text() != null && COUNT.matcher(n.text()).find()) {
+                continue; // the countdown is on the gate's plaque
+            }
+            shown.add(0, n);
+        }
+        g.setFont(hud.font(Font.PLAIN, 12f));
+        java.awt.FontMetrics fm = g.getFontMetrics();
+        int y = top + fm.getAscent();
+        for (orbit.world.World.GameNote n : shown) {
+            long age = now - n.nanos();
+            float a = age <= FEED_SHOW_NS ? 1f : Math.max(0f, 1f - (float) (age - FEED_SHOW_NS) / FEED_FADE_NS);
+            String text = noteText(n);
+            int tx = (int) Math.round(vx + (vw - fm.stringWidth(text)) / 2);
+            g.setColor(new Color(0, 0, 0, (int) (170 * a)));
+            g.drawString(text, tx + 1, y + 1);
+            Color c = n.amount() < 0 ? MinimapPanel.ENEMY : Hud.TEXT;
+            g.setColor(new Color(c.getRed(), c.getGreen(), c.getBlue(), (int) (235 * a)));
+            g.drawString(text, tx, y);
+            y += fm.getHeight() + 2;
+        }
+    }
+
+    /** A game's line in the client's words: «Вы получили 100 уридия», «Потрачено 500 уридия», the server's text. */
+    static String noteText(orbit.world.World.GameNote n) {
+        if (n.text() != null) {
+            return n.text();
+        }
+        String what = switch (n.item()) {
+            case "uridium" -> "уридия";
+            case "credits" -> "кредитов";
+            case "experience" -> "опыта";
+            case "honor" -> "чести";
+            default -> orbit.app.SessionSummary.displayName(n.item());
+        };
+        String amount = String.format("%,.0f", Math.abs(n.amount())).replace(',', ' ').replace('\u00a0', ' ');
+        return (n.amount() < 0 ? "Потрачено " : "Вы получили ") + amount + " " + what;
     }
 
     static final Color BOX_CHECK = new Color(0xff3b30);
@@ -509,7 +721,9 @@ final class MinimapPanel extends JPanel {
     }
 
     /** The map's name and the hero's place in the top-left corner of the map. */
-    private void mapChip(Graphics2D g, double ox, double oy, double width, WorldSnapshot.Hero hero, MapCatalog.MapInfo map) {
+    /** @return the chip's bottom */
+    private int mapChip(Graphics2D g, double ox, double oy, double width, WorldSnapshot.Hero hero, MapCatalog.MapInfo map) {
+        // the map's name is the watermark in the middle now: here where the ship is
         String text = hero.id() == 0 || feed.loggedOut() ? feed.state()
                 : map.name() + "   " + hero.x() / 100 + "/" + hero.y() / 100;
         g.setFont(hud.font(Font.BOLD, 13f));
@@ -528,21 +742,22 @@ final class MinimapPanel extends JPanel {
             int hw = hm.stringWidth(hint) + 16;
             double hx = ox + 10 + w + 6;
             if (hx + hw > ox + width - 10) {
-                return; // no room left beside the text
+                return (int) Math.round(oy + 36); // no room left beside the text
             }
             g.setColor(new Color(10, 12, 18, 200));
             g.fill(new java.awt.geom.RoundRectangle2D.Double(hx, oy + 10, hw, 26, 13, 13));
             g.setColor(Hud.DIM);
             g.drawString(hint, (float) (hx + 8), (float) (oy + 27));
         }
+        return (int) Math.round(oy + 36);
     }
 
     /** Faint lines every 1000 game units, like the game's own minimap ruler. */
-    private void grid(Graphics2D g, Projection p, MapCatalog.MapInfo map) {
+    private void grid(Graphics2D g, Projection p, MapCatalog.MapInfo map, boolean picture) {
         if (p.scale() * 1000 < 18) {
             return;
         }
-        g.setColor(new Color(255, 255, 255, 14));
+        g.setColor(new Color(255, 255, 255, picture ? 14 : 20));
         for (int x = 1000; x < map.width(); x += 1000) {
             g.draw(new Line2D.Double(p.x(x), p.y(0), p.x(x), p.y(map.height())));
         }

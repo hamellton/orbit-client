@@ -1095,7 +1095,49 @@ public final class World {
      * One reward log line: {@code CRE|URI|HON|EP|<gained>|<total>…}; items {@code LOT|BAT|ROK|AMI|<item>|<amount>};
      * {@code XEN|<amount>} (extra energy); {@code LOG|<gained>|<total>} (log disks).
      */
+    /**
+     * One line of the game's own log, as the client shows it over its map (the user, 2026-11-16: «лента на карте — журнал
+     * с самой игры»): an amount of a currency or an item gained or lost ({@code item} the client's key: «uridium»,
+     * «credits», «experience», «honor» or the item's id), or a plain line of the server ({@code text}).
+     */
+    public record GameNote(long nanos, String item, double amount, String text) {
+    }
+
+    private final java.util.concurrent.ConcurrentLinkedDeque<GameNote> notes = new java.util.concurrent.ConcurrentLinkedDeque<>();
+    static final int NOTES_KEPT = 30;
+
+    private void note(GameNote n) {
+        notes.addLast(n);
+        while (notes.size() > NOTES_KEPT) {
+            notes.pollFirst();
+        }
+    }
+
+    /** The game's last lines, oldest first (the last {@link #NOTES_KEPT}). */
+    public java.util.List<GameNote> gameNotes() {
+        return java.util.List.copyOf(notes);
+    }
+
+    private long noteNanos;
+
     private void reward(String[] a) {
+        String item = switch (a[3]) {
+            case "CRE" -> "credits";
+            case "URI" -> "uridium";
+            case "HON" -> "honor";
+            case "EP" -> "experience";
+            case "XEN" -> "extra_energy";
+            case "LOG" -> "log_disk";
+            case "LOT", "BAT", "ROK", "AMI" -> a[4];
+            default -> null;
+        };
+        double amount = switch (a[3]) {
+            case "LOT", "BAT", "ROK", "AMI" -> a.length >= 6 ? parseDouble(a[5], 0) : 0;
+            default -> parseDouble(a[4], 0);
+        };
+        if (item != null && amount != 0) {
+            note(new GameNote(noteNanos, item, amount, null));
+        }
         switch (a[3]) {
             case "CRE" -> gainedCredits += Math.max(0, parseDouble(a[4], 0));
             case "URI" -> gainedUridium += Math.max(0, parseDouble(a[4], 0));
@@ -1118,6 +1160,7 @@ public final class World {
     // ---- legacy text commands ("0|A|c|1600"), see docs/recon/STAGE3.md ----
 
     private void legacy(String message, long nanos) {
+        noteNanos = nanos;
         String[] a = message.split("\\|", -1);
         if (a.length < 2) {
             return;
@@ -1167,8 +1210,11 @@ public final class World {
                     case "JCPU" -> jumpCpu(a, nanos);
                     // the server's plain lines: a gate's countdown «-=- 15 -=-», «Wave 4», «5 lives left», «Gate completed.»
                     // (for the journal; the connection judges the rest)
-                    case "STD" -> log.info("Сервер: «{}»", String.join("|", java.util.Arrays.copyOfRange(a, 3, a.length))
-                            .strip());
+                    case "STD" -> {
+                        String text = String.join("|", java.util.Arrays.copyOfRange(a, 3, a.length)).strip();
+                        log.info("Сервер: «{}»", text);
+                        note(new GameNote(nanos, null, 0, text));
+                    }
                     default -> {
                         if (key.startsWith("BK")) {
                             bootyKeys.put(key, parseInt(a[3], 0));

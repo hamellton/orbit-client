@@ -394,6 +394,9 @@ final class Hud {
             if (!v.onMap(e.getKey()) || (where == ViewSettings.Place.BOTH && !bigMap && sideShown)) {
                 continue;
             }
+            if (e.getKey() == ViewSettings.Block.TARGET) {
+                continue; // the map's bottom shows the target (targetStrip)
+            }
             Card c = e.getValue();
             int h = c.height(width);
             boolean isRight = !oneColumn && e.getKey().right();
@@ -1186,6 +1189,45 @@ final class Hud {
             int bw = (width - 26) / 2;
             bar(g, x + 10, top + 36, bw, 6, hero.health().hp(), hero.health().hpMax(), HP_BAR, false);
             bar(g, x + 16 + bw, top + 36, bw, 6, hero.health().shield(), hero.health().shieldMax(), SHIELD_BAR, false);
+        }
+    }
+
+    static final int TARGET_STRIP_HEIGHT = 40;
+
+    /**
+     * The target over the map's bottom, on the right, in the bottom strip's style (the user, 2026-11-16: as AstraBot and
+     * DarkBot — the ship left, the target right): its name in red, what and how far, hull and shield. Nothing without one.
+     *
+     * @param right the strip's right edge; @param bottom its bottom
+     */
+    void targetStrip(Graphics2D g, int right, int bottom, int width, WorldSnapshot w) {
+        WorldSnapshot.Hero h = w.hero();
+        int id = h.attackTargetId() != 0 ? h.attackTargetId() : h.selectedId();
+        Ship t = w.ships().get(id);
+        if (t == null) {
+            return;
+        }
+        int x = right - width;
+        int top = bottom - TARGET_STRIP_HEIGHT;
+        g.setColor(new Color(10, 12, 18, 150)); // the portals under it show through
+        g.fillRect(x, top, width, TARGET_STRIP_HEIGHT);
+        g.setColor(new Color(MinimapPanel.NPC.getRed(), MinimapPanel.NPC.getGreen(), MinimapPanel.NPC.getBlue(), 200));
+        g.fillRect(x, top, width, 2);
+        g.setFont(font(Font.BOLD, 12f));
+        FontMetrics fm = g.getFontMetrics();
+        String what = (h.attackTargetId() == id ? "атакую" : "выбрана") + String.format(" · %,.0f", t.distanceTo(h.x(), h.y()))
+                .replace(',', ' ');
+        Font small = font(Font.PLAIN, 11f);
+        int ww = measure(small).stringWidth(what);
+        g.setColor(MinimapPanel.shipColor(t, h, w.group()));
+        g.drawString(clip(g, MinimapPanel.label(t), width - ww - 28), x + 10, top + 16);
+        g.setFont(small);
+        g.setColor(DIM);
+        g.drawString(what, x + width - 10 - ww, top + 16);
+        if (t.health().known()) {
+            int bw = (width - 26) / 2;
+            bar(g, x + 10, top + 24, bw, 6, t.health().hp(), t.health().hpMax(), HP_BAR, false);
+            bar(g, x + 16 + bw, top + 24, bw, 6, t.health().shield(), t.health().shieldMax(), SHIELD_BAR, false);
         }
     }
 
