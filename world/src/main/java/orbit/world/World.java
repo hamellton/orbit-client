@@ -1153,6 +1153,10 @@ public final class World {
                     case "v" -> setHeroSpeed(parseInt(a[3], hero.speed), nanos, "сообщение v");
                     case "JV" -> jumpVouchers = parseInt(a[3], jumpVouchers);
                     case "JCPU" -> jumpCpu(a, nanos);
+                    // the server's plain lines: a gate's countdown «-=- 15 -=-», «Wave 4», «5 lives left», «Gate completed.»
+                    // (for the journal; the connection judges the rest)
+                    case "STD" -> log.info("Сервер: «{}»", String.join("|", java.util.Arrays.copyOfRange(a, 3, a.length))
+                            .strip());
                     default -> {
                         if (key.startsWith("BK")) {
                             bootyKeys.put(key, parseInt(a[3], 0));

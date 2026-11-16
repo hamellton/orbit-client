@@ -23,10 +23,20 @@ public final class Friendly {
      * A journal line: its text, a problem or not, whether it may fold with the same line (×N); with {@code sum} set,
      * lines of that kind within a while add up in one row ({@code body} the amounts, {@code head} the row's words).
      */
-    public record Line(String text, boolean problem, boolean folds, String sum, String head, String body) {
+    public record Line(String text, boolean problem, boolean folds, String sum, String head, String body,
+                       String replace, boolean live) {
         Line(String text, boolean problem, boolean folds) {
-            this(text, problem, folds, null, null, null);
+            this(text, problem, folds, null, null, null, null, false);
         }
+
+        Line(String text, boolean problem, boolean folds, String sum, String head, String body) {
+            this(text, problem, folds, sum, head, body, null, false);
+        }
+    }
+
+    /** A row that keeps one place and changes its words (a countdown, the wave, the parts): {@code key} names it. */
+    static Out replace(String key, String text, boolean live) {
+        return new Out(new Line(text, false, false, null, null, null, key, live), null);
     }
 
     /** What to do with a line: add {@code add} (may be null), or put {@code amend} at the end of the last death row. */
@@ -50,6 +60,10 @@ public final class Friendly {
         boolean planned;
         long cubeKilledAt = Long.MIN_VALUE / 2;
         String target;
+        String gate;
+        int visit;
+        int stage;
+        long logoutAt;
         String killed;
         long killedAt = Long.MIN_VALUE / 2;
     }
@@ -149,6 +163,19 @@ public final class Friendly {
         if (logger.endsWith("CubikonModule") && m.matches("^Cubikon у .* уничтожен.*")) {
             st.cubeKilledAt = time;
             return Out.NONE;
+        }
+        Out g = gate(st, m, time);
+        if (g != null) {
+            return g;
+        }
+        if (logger.endsWith("BotRunner") && m.equals("Выход из игры")) {
+            st.logoutAt = time;
+            return replace("logout", "⏱ Выход из игры", true);
+        }
+        if (m.equals("Сервер завершил сессию (выход)") && st.logoutAt != 0) {
+            long took = time - st.logoutAt;
+            st.logoutAt = 0;
+            return replace("logout", "Вышел из игры за " + Math.max(1, Math.round(took / 1000.0)) + " с", false);
         }
         if (HIDDEN.matcher(m).find()) {
             return Out.NONE;
@@ -258,6 +285,83 @@ public final class Friendly {
         }
         return Out.add(warn ? "⚠ " + m : m, warn);
     }
+
+    private static final Pattern G_IN = p("^Во вратах (\\S+)[^(]*\\(.+?\\)(?:, жизней (\\d+))?$");
+    private static final Pattern G_PARTS = p("^Врата (\\S+)[^:]*: спины по \\d+, частей (\\d+) из (\\d+)$");
+    private static final Pattern G_SET = p("^Врата (\\S+)[^:]*: все части есть");
+    private static final Pattern G_LAST = p("^Врата (\\S+)[^:]*: последний этап");
+    private static final Pattern G_LIFE = p("^Врата (\\S+)[^:]*: жизней \\d+ \\(держу \\d+\\) — покупаю жизнь за (\\d+) уридия");
+    private static final Pattern G_DONE = p("^Врата (\\S+)[^ ]* ?\\S* пройдены за (\\d+) мин$");
+    private static final Pattern G_OUT = p("^Из врат (\\S+)[^,—]* вышел(?:, жизней (\\d+) — вернусь| — пройдены)?$");
+    private static final Pattern S_COUNT = p("^Сервер: «-=-\\s*(\\d+)\\s*-=-»$");
+    private static final Pattern S_WAVE = p("(?i)^Сервер: «wave\\s+(\\d+)\\.?»$");
+    private static final Pattern S_LIVES = p("(?i)^Сервер: «(\\d+)\\s+lives?\\s+left\\.?»$");
+
+    /** A galaxy gate's lines: parts, set up, in, the countdown, the wave, lives, done, out; {@code null} for others. */
+    private Out gate(State st, String m, long time) {
+        Matcher x;
+        if ((x = G_PARTS.matcher(m)).matches()) {
+            return replace("parts|" + x.group(1), "Врата " + x.group(1) + ": части " + x.group(2) + " из " + x.group(3),
+                    false);
+        }
+        if (m.matches("^Врата \\S+[^:]*: ставлю$")) {
+            return Out.NONE;
+        }
+        if ((x = G_SET.matcher(m)).find()) {
+            return Out.add("Врата " + x.group(1) + ": собраны и поставлены", false);
+        }
+        if ((x = G_IN.matcher(m)).matches()) {
+            st.gate = x.group(1);
+            if (x.group(2) == null) {
+                return Out.NONE; // in again after a new login: nothing new
+            }
+            st.visit++;
+            return Out.add("Вошёл во Врата " + x.group(1) + " (жизней " + x.group(2) + ")", false);
+        }
+        if ((x = G_LAST.matcher(m)).find()) {
+            return Out.add("Врата " + x.group(1) + ": последний этап", false);
+        }
+        if ((x = G_LIFE.matcher(m)).find()) {
+            return Out.add("Врата " + x.group(1) + ": покупаю жизнь за " + number(Long.parseLong(x.group(2))) + " уридия",
+                    false);
+        }
+        if ((x = G_DONE.matcher(m)).matches()) {
+            return Out.add("✔ Врата " + x.group(1) + " пройдены за " + x.group(2) + " мин", false);
+        }
+        if ((x = G_OUT.matcher(m)).matches()) {
+            st.gate = null;
+            if (m.endsWith("— пройдены")) {
+                return Out.NONE;
+            }
+            return Out.add("Вышел из Врат " + x.group(1) + (x.group(2) == null ? "" : " (жизней " + x.group(2)
+                    + ") — вернусь"), false);
+        }
+        String gate = st.gate == null ? "" : " " + st.gate;
+        if ((x = S_COUNT.matcher(m)).matches()) {
+            int n = Integer.parseInt(x.group(1));
+            String key = "count|" + st.stage;
+            if (n == 0) {
+                st.stage++;
+                return replace(key, "⏱ Врата" + gate + ": волна пошла", false);
+            }
+            return replace(key, "⏱ Врата" + gate + ": волна через " + n + " с", false);
+        }
+        if ((x = S_WAVE.matcher(m)).matches()) {
+            String of = GATE_WAVES.getOrDefault(st.gate == null ? "" : st.gate, "");
+            return replace("wave|" + st.visit, "Врата" + gate + ": волна " + x.group(1) + of, false);
+        }
+        if ((x = S_LIVES.matcher(m)).matches()) {
+            return Out.add("Врата" + gate + ": осталось жизней " + x.group(1), false);
+        }
+        if (m.matches("(?i)^Сервер: «gate\\s+completed\\.?»$")) {
+            return Out.NONE; // «пройдены за N мин» tells it
+        }
+        return null;
+    }
+
+    /** Waves of a gate by its sign (the client's numbers, docs/GALAXY-GATES.md). */
+    private static final Map<String, String> GATE_WAVES = Map.of("α", " из 40", "β", " из 40", "γ", " из 40",
+            "δ", " из 29", "ε", " из 30", "ζ", " из 46", "κ", " из 29", "λ", " из 21");
 
     // ---------------------------------------------------------------------------------------------- the wording
 

@@ -112,4 +112,30 @@ class FriendlyTest {
                 "Ящики: +440 MCB-25, +4 ACM-01, +12 Ore xenomit", "Потрачено: 200 уридия"), journal());
         assertEquals("Boss Kristallin", Friendly.bare("..::{ Boss Kristallin }::.."));
     }
+    @Test
+    void aGateInAFewRowsWithItsCountdownAndTheLogoutCounting() {
+        line(I, "orbit.bot.mod.GateModule", "Врата α Alpha: спины по 1, частей 28 из 34");
+        line(I, "orbit.bot.mod.GateModule", "Врата α Alpha: спины по 1, частей 29 из 34");
+        line(I, "orbit.bot.mod.GateModule", "Врата α Alpha: все части есть (34) — ставлю");
+        line(I, "orbit.bot.mod.GateModule", "Врата α Alpha: ставлю");
+        line(I, "orbit.bot.mod.GateModule", "Во вратах α Alpha (GG Alpha), жизней 5");
+        for (int n = 15; n >= 0; n--) {
+            line(I, "orbit.world.World", "Сервер: «-=- " + n + " -=-»");
+        }
+        line(I, "orbit.world.World", "Сервер: «Wave 4»");
+        line(I, "orbit.world.World", "Сервер: «Wave 8»");
+        line(I, "orbit.world.World", "Сервер: «-=- 15 -=-»");
+        line(I, "orbit.world.World", "Сервер: «4 lives left»");
+        line(I, "orbit.bot.mod.GateModule", "Врата α Alpha пройдены за 16 мин");
+        line(I, "orbit.bot.mod.GateModule", "Из врат α Alpha вышел — пройдены");
+        line(I, "orbit.bot.run.BotRunner", "Выход из игры");
+        LogEntry out = store.rows().getLast();
+        assertEquals(true, out.liveSince() > 0, "counting");
+        t += 18_000;
+        line(I, "orbit.app.WorldFeed", "Сервер завершил сессию (выход)");
+        assertEquals(List.of("Врата α: части 29 из 34", "Врата α: собраны и поставлены", "Вошёл во Врата α (жизней 5)",
+                "⏱ Врата α: волна пошла", "Врата α: волна 8 из 40", "⏱ Врата α: волна через 15 с",
+                "Врата α: осталось жизней 4", "✔ Врата α пройдены за 16 мин", "Вышел из игры за 19 с"), journal());
+        assertEquals(0, out.liveSince(), "done counting");
+    }
 }

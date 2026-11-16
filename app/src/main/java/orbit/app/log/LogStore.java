@@ -135,9 +135,18 @@ public final class LogStore {
                 Friendly.Line l = out.add();
                 LogEntry.Level lv = l.problem() ? (level == LogEntry.Level.ERROR ? level : LogEntry.Level.WARN)
                         : LogEntry.Level.INFO;
-                String key = l.sum() != null ? "S|" + l.sum() : "J|" + l.text();
+                String key = l.replace() != null ? "R|" + l.replace() : l.sum() != null ? "S|" + l.sum() : "J|" + l.text();
                 ArrayDeque<LogEntry> mine = recent.computeIfAbsent("J|" + who, k -> new ArrayDeque<>());
-                if (l.sum() != null) {
+                if (l.replace() != null) {
+                    for (Iterator<LogEntry> it = mine.descendingIterator(); it.hasNext(); ) {
+                        LogEntry e = it.next();
+                        if (e.key().equals(key) && time - e.last() <= MERGE_MS) {
+                            e.replace(l.text(), time, l.live());
+                            changed = e;
+                            break;
+                        }
+                    }
+                } else if (l.sum() != null) {
                     for (Iterator<LogEntry> it = mine.descendingIterator(); it.hasNext(); ) {
                         LogEntry e = it.next();
                         if (e.key().equals(key) && time - e.last() <= MERGE_MS && time - e.first() <= SPAN_MS) {
@@ -171,6 +180,9 @@ public final class LogStore {
                     }
                     if (l.sum() != null) {
                         sums.put(changed.seq(), l.body());
+                    }
+                    if (l.live()) {
+                        changed.live(time);
                     }
                 }
                 if (l.text().startsWith("✖")) {

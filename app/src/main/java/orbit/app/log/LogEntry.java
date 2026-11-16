@@ -72,6 +72,25 @@ public final class LogEntry {
         }
     }
 
+    /** Since when the row's words count seconds up (a logout under way), {@code 0} when it does not. */
+    private volatile long liveSince;
+
+    /** New words in the same place (a countdown, the wave), without counting a repeat. */
+    void replace(String text, long time, boolean live) {
+        this.text = text;
+        this.last = time;
+        this.liveSince = live ? (liveSince == 0 ? time : liveSince) : 0;
+    }
+
+    void live(long since) {
+        this.liveSince = since;
+    }
+
+    /** {@link #liveSince} — the window adds the seconds gone to the row's words while it is not 0. */
+    public long liveSince() {
+        return liveSince;
+    }
+
     /** Adds words at the end of the row (a death's repair), without counting a repeat. */
     void amend(String more, long time) {
         this.text = this.text + more;

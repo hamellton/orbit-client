@@ -114,6 +114,7 @@ public final class LogPanel extends JPanel {
     private final Runnable unsubscribe;
     private final Timer drain;
     private final Timer ageing;
+    private final Timer seconds;
     private JButton sections;
     private final Map<Mode, JToggleButton> modeButtons = new EnumMap<>(Mode.class);
     private long seenSeq;
@@ -216,6 +217,13 @@ public final class LogPanel extends JPanel {
 
         unsubscribe = store.listen(incoming::add);
         rebuild();
+        // a row counting seconds (a logout under way): the list drawn again each second
+        seconds = new Timer(1_000, e -> {
+            if (shown().stream().anyMatch(r -> r.liveSince() > 0)) {
+                list.repaint();
+            }
+        });
+        seconds.start();
         drain = new Timer(250, e -> drain());
         drain.start();
         // «the last hour» moves on: rows that left it go
@@ -232,6 +240,7 @@ public final class LogPanel extends JPanel {
         unsubscribe.run();
         drain.stop();
         ageing.stop();
+        seconds.stop();
     }
 
     // ---- toolbar ----
@@ -981,7 +990,9 @@ public final class LogPanel extends JPanel {
             g.setColor(e.level() == LogEntry.Level.ERROR ? ERROR_FG
                     : e.level() == LogEntry.Level.WARN ? new Color(0xfde68a)
                     : e.important() || e.category() == LogCategory.SUMMARY ? Theme.TEXT : ROUTINE);
-            g.drawString(clip(g.getFontMetrics(), e.text(), w - x - rightW - 6), x, base);
+            String words = e.liveSince() > 0 ? e.text() + " … " + Math.max(0, (System.currentTimeMillis() - e.liveSince())
+                    / 1000) + " с" : e.text();
+            g.drawString(clip(g.getFontMetrics(), words, w - x - rightW - 6), x, base);
         }
 
         private int pill(Graphics2D g, String s, int x, Color c, int h, boolean dim) {
