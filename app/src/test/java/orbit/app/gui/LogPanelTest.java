@@ -36,7 +36,7 @@ class LogPanelTest {
         assertEquals(4, all.shown().size(), "the pickups are one row");
         assertEquals(2, all.shown().getFirst().count());
         all.setMode(LogPanel.Mode.JOURNAL);
-        assertEquals(List.of("Трюм полон (свободно 0) — лечу продавать на 5-2", "Бустер X: не хватает уридия"), texts(all));
+        assertEquals(List.of("Трюм полон (свободно 0) — лечу продавать на 5-2", "⚠ Бустер X: не хватает уридия"), texts(all));
         all.setMode(LogPanel.Mode.PROBLEMS);
         assertEquals(List.of("Бустер X: не хватает уридия"), texts(all));
         all.setMode(LogPanel.Mode.ALL);

@@ -30,6 +30,44 @@ public final class LogStore {
     private final java.util.LinkedHashSet<String> accounts = new java.util.LinkedHashSet<>();
     private final List<Consumer<LogEntry>> listeners = new CopyOnWriteArrayList<>();
     private long seq;
+    private final Friendly friendly;
+    /** Each account's last death row of the journal: its repair is added to it. */
+    private final Map<String, LogEntry> lastDeath = new HashMap<>();
+    /** The amounts of the rows that add up (box loot, spending), by row. */
+    private final Map<Long, String> sums = new HashMap<>();
+
+    public LogStore() {
+        this(new Friendly(LogStore::accountShip));
+    }
+
+    LogStore(Friendly friendly) {
+        this.friendly = friendly;
+    }
+
+    private static volatile long shipsReadAt;
+    private static volatile orbit.config.AccountSettings ships;
+
+    /** A hangar's ship name from the accounts' settings (read again at most once a minute). */
+    static String accountShip(String account, Integer hangar) {
+        long now = System.currentTimeMillis();
+        if (ships == null || now - shipsReadAt > 60_000) {
+            shipsReadAt = now;
+            try {
+                ships = orbit.config.AccountSettings.load(orbit.config.AccountSettings.DEFAULT_FILE);
+            } catch (java.io.IOException | RuntimeException e) {
+                return null;
+            }
+        }
+        if (account == null || ships == null) {
+            return null;
+        }
+        for (orbit.config.AccountSettings.Ship sh : ships.account(account).hangars()) {
+            if (sh.id() == hangar) {
+                return sh.label();
+            }
+        }
+        return null;
+    }
 
     public static LogStore shared() {
         return SHARED;
@@ -76,7 +114,75 @@ public final class LogStore {
         for (Consumer<LogEntry> l : listeners) {
             l.accept(row);
         }
+        journal(account, level, simple, kind.category(), message, time);
         return row;
+    }
+
+    /** The plain-words journal's row(s) for the line ({@link Friendly}). */
+    private void journal(String account, LogEntry.Level level, String simple, LogCategory category, String message,
+                         long time) {
+        Friendly.Out out = friendly.of(account, level != LogEntry.Level.INFO, simple, message, time);
+        LogEntry changed = null;
+        String who = account == null ? "" : account;
+        synchronized (rows) {
+            if (out.amend() != null) {
+                LogEntry death = lastDeath.remove(who);
+                if (death != null && time - death.last() < 10 * 60_000L) {
+                    death.amend(out.amend(), time);
+                    changed = death;
+                }
+            } else if (out.add() != null) {
+                Friendly.Line l = out.add();
+                LogEntry.Level lv = l.problem() ? (level == LogEntry.Level.ERROR ? level : LogEntry.Level.WARN)
+                        : LogEntry.Level.INFO;
+                String key = l.sum() != null ? "S|" + l.sum() : "J|" + l.text();
+                ArrayDeque<LogEntry> mine = recent.computeIfAbsent("J|" + who, k -> new ArrayDeque<>());
+                if (l.sum() != null) {
+                    for (Iterator<LogEntry> it = mine.descendingIterator(); it.hasNext(); ) {
+                        LogEntry e = it.next();
+                        if (e.key().equals(key) && time - e.last() <= MERGE_MS && time - e.first() <= SPAN_MS) {
+                            String body = Friendly.add(sums.getOrDefault(e.seq(), ""), l.body());
+                            sums.put(e.seq(), body);
+                            String shown = l.head() + Friendly.loot(body);
+                            e.repeat(l.sum().equals("spent") ? shown.replace("+", "") : shown, l.text(), time);
+                            changed = e;
+                            break;
+                        }
+                    }
+                } else if (l.folds()) {
+                    for (Iterator<LogEntry> it = mine.descendingIterator(); it.hasNext(); ) {
+                        LogEntry e = it.next();
+                        if (e.key().equals(key) && time - e.last() <= MERGE_MS && time - e.first() <= SPAN_MS) {
+                            e.repeat(l.text(), time);
+                            changed = e;
+                            break;
+                        }
+                    }
+                }
+                if (changed == null) {
+                    changed = new LogEntry(++seq, account, lv, simple, category, true, true, key, l.text(), "", time);
+                    rows.addLast(changed);
+                    while (rows.size() > MAX_ROWS) {
+                        rows.removeFirst();
+                    }
+                    mine.addLast(changed);
+                    while (mine.size() > LOOK_BACK) {
+                        mine.removeFirst();
+                    }
+                    if (l.sum() != null) {
+                        sums.put(changed.seq(), l.body());
+                    }
+                }
+                if (l.text().startsWith("✖")) {
+                    lastDeath.put(who, changed);
+                }
+            }
+        }
+        if (changed != null) {
+            for (Consumer<LogEntry> l : listeners) {
+                l.accept(changed);
+            }
+        }
     }
 
     static final String LOOT = "Добыча:";

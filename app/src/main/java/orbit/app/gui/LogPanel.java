@@ -575,7 +575,8 @@ public final class LogPanel extends JPanel {
         if (!inScope(e)) {
             return false;
         }
-        if (mode == Mode.JOURNAL && !e.important() || mode == Mode.PROBLEMS && !e.problem()) {
+        // «Журнал» is the plain-words rows, «Всё» and «Проблемы» the full log's
+        if (mode == Mode.JOURNAL ? !e.journal() : e.journal() || mode == Mode.PROBLEMS && !e.problem()) {
             return false;
         }
         if (periodMs > 0 && now - e.last() > periodMs) {

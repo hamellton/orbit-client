@@ -15,6 +15,8 @@ public final class LogEntry {
     private final String logger;
     private final LogCategory category;
     private final boolean important;
+    /** A row of the plain-words journal ({@link Friendly}), not a line of the full log. */
+    private final boolean journal;
     private final String key;
     private final String firstText;
     private final String details;
@@ -32,6 +34,12 @@ public final class LogEntry {
 
     LogEntry(long seq, String account, Level level, String logger, LogCategory category, boolean important,
              String key, String text, String details, long time) {
+        this(seq, account, level, logger, category, important, false, key, text, details, time);
+    }
+
+    LogEntry(long seq, String account, Level level, String logger, LogCategory category, boolean important,
+             boolean journal, String key, String text, String details, long time) {
+        this.journal = journal;
         this.seq = seq;
         this.account = account;
         this.level = level;
@@ -62,6 +70,17 @@ public final class LogEntry {
                 occurrences.removeFirst();
             }
         }
+    }
+
+    /** Adds words at the end of the row (a death's repair), without counting a repeat. */
+    void amend(String more, long time) {
+        this.text = this.text + more;
+        this.last = time;
+    }
+
+    /** A row of the plain-words journal (shown on «Журнал»); the full log's rows are on «Всё» and «Проблемы». */
+    public boolean journal() {
+        return journal;
     }
 
     /** The lines folded into the row, oldest first (the last {@link #KEPT}). */
