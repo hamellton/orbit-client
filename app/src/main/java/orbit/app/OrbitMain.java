@@ -777,6 +777,11 @@ public final class OrbitMain {
                             || run.runner().state() == orbit.bot.run.BotRunner.State.FAILED) {
                         break;
                     }
+                    if (run.runner().finished()) {
+                        // the module's work is over (EBG: the runs done, no CPU left): out, not in again
+                        log.info("Работа модуля окончена — аккаунт остановлен");
+                        break;
+                    }
                     int honorBreak = run.runner().honorBreak();
                     if (honorBreak > 0) {
                         // honor lost for a kill: out for a while, then the same plan again (a new session)

@@ -338,6 +338,13 @@ public final class BotRunner {
         return paused;
     }
 
+    private volatile boolean finished;
+
+    /** The module's work is over ({@link BotModule#stopRequest}): the account is not logged in again. */
+    public boolean finished() {
+        return finished;
+    }
+
     /** True when orders are taken now (in game, not logging out). */
     public boolean takesOrders() {
         return state != State.STOPPING && state != State.STOPPED && state != State.FAILED;
@@ -520,6 +527,7 @@ public final class BotRunner {
             module.observe();
             String done = state != State.STOPPING ? module.stopRequest() : null;
             if (done != null) {
+                finished = true;
                 stopWhenFree(done); // to a portal and out, as the stop button does once the fight is over
             }
         }
