@@ -39,6 +39,17 @@ final class SidePanel extends JPanel implements Scrollable {
         this.hud = new Hud(f != null ? f : getFont());
         setOpaque(true);
         setBackground(MainWindow.SURFACE);
+        // a block moved («Сбоку», «На карте», «Скрыть»): laid out anew at once, no place kept for it (the steady places
+        // are for data that changes, not for the user's choice)
+        ViewSettings.shared().onChange(() -> {
+            synchronized (this) {
+                slots.clear();
+            }
+            javax.swing.SwingUtilities.invokeLater(() -> {
+                revalidate();
+                repaint();
+            });
+        });
     }
 
     /**

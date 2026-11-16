@@ -89,8 +89,10 @@ final class Hud {
     /** Every block there is something to show for, in the blocks' order. */
     Map<ViewSettings.Block, Card> blocks(WorldSnapshot w, WorldFeed feed, String config) {
         Map<ViewSettings.Block, Card> out = new java.util.EnumMap<>(ViewSettings.Block.class);
-        if (!onMap) {
-            out.put(ViewSettings.Block.STATUS, status(w, feed, config)); // on the map: the bottom strip tells it
+        // on the map the bottom strip tells the state: the card only when put there on purpose («На карте», «И там, и
+        // там»), not just because the side panel is hidden
+        if (!onMap || ViewSettings.shared().place(ViewSettings.Block.STATUS).map()) {
+            out.put(ViewSettings.Block.STATUS, status(w, feed, config));
         }
         WorldSnapshot.Hero h = w.hero();
         if (h.id() == 0) {
@@ -102,8 +104,9 @@ final class Hud {
         }
         put(out, ViewSettings.Block.ATTACKERS, onMap ? attackersShort(w) : attackers(w));
         put(out, ViewSettings.Block.BOOSTERS, boosters(w.boosters(), feed.now()));
-        if (w.pet().owned() && (!onMap || w.pet().active())) {
-            out.put(ViewSettings.Block.PET, pet(w.pet(), w.nanos())); // «не выпущен» says nothing over the map
+        // «не выпущен» says nothing over the map, unless the pet was put there on purpose
+        if (w.pet().owned() && (!onMap || w.pet().active() || ViewSettings.shared().place(ViewSettings.Block.PET).map())) {
+            out.put(ViewSettings.Block.PET, pet(w.pet(), w.nanos()));
         }
         if (w.group().exists()) {
             out.put(ViewSettings.Block.GROUP, group(w));

@@ -454,7 +454,10 @@ final class MinimapPanel extends JPanel {
             g.clip(frame);
             hud.strip(g, (int) Math.round(vx), (int) Math.round(vy + vh), (int) Math.round(vw), feed, config.get());
             int above = (int) Math.round(vy + vh) - Hud.STRIP_HEIGHT - 22;
-            hud.targetStrip(g, (int) Math.round(vx + vw) - 8, above, (int) Math.max(220, Math.min(380, vw * 0.38)), w);
+            if (ViewSettings.shared().onMap(ViewSettings.Block.TARGET)) {
+                // «Цель» on the map is this strip (as the card was): «Сбоку» or «Скрыть» take it off the map
+                hud.targetStrip(g, (int) Math.round(vx + vw) - 8, above, (int) Math.max(220, Math.min(380, vw * 0.38)), w);
+            }
             rates(g, vx + 8, above, w); // «в час» on the left, the target on the right, the ship's strip under both
             g.setClip(clip);
         }
