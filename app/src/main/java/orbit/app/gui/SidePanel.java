@@ -41,23 +41,97 @@ final class SidePanel extends JPanel implements Scrollable {
         setBackground(MainWindow.SURFACE);
     }
 
+    /**
+     * Steady places (the user, 2026-11-16: «прыжки в блоке с карточками очень часто»): a card grows at once but gives
+     * its room back only after it stayed smaller for {@link #HOLD_MS}; a card gone keeps its place empty as long; each
+     * card keeps its column while the columns stay the same.
+     */
+    static final long HOLD_MS = 10_000;
+
+    static final class Slot {
+        int height;
+        long smallerSince;
+        long goneSince;
+        int column = -1;
+    }
+
+    /** A card's new height into its slot: taller at once, shorter only after {@link #HOLD_MS} of it. */
+    static void steady(Slot sl, int h, long now) {
+        if (h >= sl.height) {
+            sl.height = h;
+            sl.smallerSince = 0;
+        } else if (sl.smallerSince == 0) {
+            sl.smallerSince = now;
+        } else if (now - sl.smallerSince > HOLD_MS) {
+            sl.height = h;
+            sl.smallerSince = 0;
+        }
+    }
+
+    private final java.util.EnumMap<ViewSettings.Block, Slot> slots = new java.util.EnumMap<>(ViewSettings.Block.class);
+    private int slotColumns;
+
+    /** One laid-out card: where it goes and its slot's height ({@code card} null for a place kept empty). */
+    private record Placed(ViewSettings.Block block, Hud.Card card, int column, int y, int height) {
+    }
+
+    /** The cards in their steady places at this width (updates the slots). */
+    private synchronized List<Placed> layout(int width, long now) {
+        int n = columns(width);
+        int cw = (width - (n - 1) * GAP) / n;
+        if (n != slotColumns) {
+            slotColumns = n;
+            slots.values().forEach(sl -> sl.column = -1);
+        }
+        java.util.Map<ViewSettings.Block, Hud.Card> here = new java.util.EnumMap<>(ViewSettings.Block.class);
+        for (var e : hud.blocks(feed.snapshot(), feed, config.get()).entrySet()) {
+            if (ViewSettings.shared().place(e.getKey()).side()) {
+                here.put(e.getKey(), e.getValue());
+            }
+        }
+        int[] col = new int[n];
+        List<Placed> out = new java.util.ArrayList<>();
+        for (ViewSettings.Block b : ViewSettings.Block.values()) {
+            Hud.Card c = here.get(b);
+            Slot sl = slots.get(b);
+            if (c == null) {
+                if (sl == null) {
+                    continue;
+                }
+                if (sl.goneSince == 0) {
+                    sl.goneSince = now;
+                }
+                if (now - sl.goneSince > HOLD_MS) {
+                    slots.remove(b);
+                    continue;
+                }
+            } else {
+                if (sl == null) {
+                    sl = new Slot();
+                    slots.put(b, sl);
+                }
+                sl.goneSince = 0;
+                steady(sl, c.height(cw), now);
+            }
+            if (sl.column < 0 || sl.column >= n) {
+                sl.column = shortest(col);
+            }
+            int i = sl.column;
+            out.add(new Placed(b, c, i, col[i], sl.height));
+            col[i] += sl.height + GAP;
+        }
+        return out;
+    }
+
     int columns(int width) {
         return Math.max(1, Math.min(3, (width + GAP) / (MIN_COLUMN + GAP)));
     }
 
     /** The height the cards take at a width (to size the panel under the map). */
     int contentHeight(int width) {
-        List<Hud.Card> cards = hud.cards(feed.snapshot(), feed, config.get(), ViewSettings.shared(), ViewSettings.Place.SIDE);
-        int n = columns(width);
-        int cw = (width - (n - 1) * GAP) / n;
-        int[] col = new int[n];
-        for (Hud.Card c : cards) {
-            int i = shortest(col);
-            col[i] += c.height(cw) + GAP;
-        }
         int max = 0;
-        for (int h : col) {
-            max = Math.max(max, h);
+        for (Placed p : layout(width, System.currentTimeMillis())) {
+            max = Math.max(max, p.y() + p.height() + GAP);
         }
         return Math.max(0, max - GAP);
     }
@@ -72,24 +146,17 @@ final class SidePanel extends JPanel implements Scrollable {
             int width = getWidth();
             int n = columns(width);
             int cw = (width - (n - 1) * GAP) / n;
-            int[] col = new int[n];
             java.util.Map<java.awt.Rectangle, ViewSettings.Block> placed = new java.util.LinkedHashMap<>();
-            for (var e : hud.blocks(feed.snapshot(), feed, config.get()).entrySet()) {
-                if (!ViewSettings.shared().place(e.getKey()).side()) {
-                    continue;
+            int max = 0;
+            for (Placed p : layout(width, System.currentTimeMillis())) {
+                int x = p.column() * (cw + GAP);
+                if (p.card() != null) {
+                    p.card().paint(g, x, p.y(), cw);
+                    placed.put(new java.awt.Rectangle(x, p.y(), cw, p.card().height(cw)), p.block());
                 }
-                Hud.Card c = e.getValue();
-                int i = shortest(col);
-                int h = c.height(cw);
-                c.paint(g, i * (cw + GAP), col[i], cw);
-                placed.put(new java.awt.Rectangle(i * (cw + GAP), col[i], cw, h), e.getKey());
-                col[i] += h + GAP;
+                max = Math.max(max, p.y() + p.height() + GAP);
             }
             cardsAt = placed;
-            int max = 0;
-            for (int h : col) {
-                max = Math.max(max, h);
-            }
             if (Math.abs(max - GAP - contentHeight) > 2) {
                 contentHeight = Math.max(0, max - GAP);
                 revalidate(); // the scroll pane learns the new height
