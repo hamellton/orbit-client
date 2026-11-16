@@ -175,8 +175,16 @@ public final class Attacker {
      * {@code null} the usual way.
      */
     public void gateStyle(double[] centre) {
-        this.gate = centre;
+        gateStyle(centre, CENTER_ON);
     }
+
+    /** With the gate's tolerance (SharedPlugin's toleranceDistance: 4 000; EBG's Uber Kristallon wave 1 500). */
+    public void gateStyle(double[] centre, double tolerance) {
+        this.gate = centre;
+        this.centerOn = tolerance;
+    }
+
+    private double centerOn = CENTER_ON;
 
     /** For the next {@link #tick}: the repair's circle (SharedPlugin: round the target at 2 000 in this mode). */
     public void repairCircle(BotConfig.ShipMode mode) {
@@ -1312,9 +1320,10 @@ public final class Attacker {
     private boolean towardCentre(WorldSnapshot.Hero h, WorldSnapshot.Ship t) {
         double heroC = Math.hypot(h.x() - gate[0], h.y() - gate[1]);
         double tC = Math.hypot(t.x() - gate[0], t.y() - gate[1]);
-        if (heroC > CENTER_ON && tC > CENTER_ON) {
+        double off = centerOn - (CENTER_ON - CENTER_OFF);
+        if (heroC > centerOn && tC > centerOn) {
             towardCentre = true;
-        } else if (heroC < CENTER_OFF && tC < CENTER_OFF) {
+        } else if (heroC < off && tC < off) {
             towardCentre = false;
         }
         if (!towardCentre || t.health().known() && t.health().hpPercent() <= 0.3) {

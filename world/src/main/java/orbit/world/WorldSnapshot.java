@@ -75,13 +75,36 @@ public record WorldSnapshot(long nanos, Hero hero, Map<Integer, Ship> ships, Map
      */
     public record Gates(Map<Integer, Gate> gates, double money, double samples, int energyCost, List<Integer> spinAmounts,
                         int spinSelected, long infoNanos, int setupGate, int setupError, long setupNanos, int spinError,
-                        long spinNanos, Trinity trinity) {
+                        long spinNanos, Trinity trinity, Eternal eternal) {
 
-        public static final Gates NONE = new Gates(Map.of(), -1, -1, 0, List.of(), 0, 0, 0, 0, 0, 0, 0, Trinity.NONE);
+        public static final Gates NONE = new Gates(Map.of(), -1, -1, 0, List.of(), 0, 0, 0, 0, 0, 0, 0, Trinity.NONE,
+                Eternal.NONE);
+
+        public Gates(Map<Integer, Gate> gates, double money, double samples, int energyCost, List<Integer> spinAmounts,
+                     int spinSelected, long infoNanos, int setupGate, int setupError, long setupNanos, int spinError,
+                     long spinNanos, Trinity trinity) {
+            this(gates, money, samples, energyCost, spinAmounts, spinSelected, infoNanos, setupGate, setupError, setupNanos,
+                    spinError, spinNanos, trinity, Eternal.NONE);
+        }
 
         /** The gate by its builder number, {@code null} when not told. */
         public Gate gate(int id) {
             return gates.get(id);
+        }
+    }
+
+    /**
+     * The Eternal Blacklight gate (EBG) as the server tells it ({@code EternalBlacklight*Command}, sent at the login and as it
+     * changes, docs/EBG.md): the CPUs that open its portal, the wave on and the furthest, the booster points and the three
+     * offered ({@code type} 0 cooldown, 1 damage, 2 laser damage, 3 rocket damage, 4 laser hit chance, 5 hull, 6 shield,
+     * 7 speed; {@code value} %), the boosters taken; when anything of it came ({@code 0} never).
+     */
+    public record Eternal(int cpus, int wave, int furthest, int points, List<int[]> options, List<int[]> taken, long nanos) {
+
+        public static final Eternal NONE = new Eternal(-1, 0, 0, 0, List.of(), List.of(), 0);
+
+        public boolean known() {
+            return nanos != 0;
         }
     }
 

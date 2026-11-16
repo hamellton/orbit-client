@@ -518,6 +518,10 @@ public final class BotRunner {
         }
         if (module != null) {
             module.observe();
+            String done = state != State.STOPPING ? module.stopRequest() : null;
+            if (done != null) {
+                stopWhenFree(done); // to a portal and out, as the stop button does once the fight is over
+            }
         }
         buy.tick();
         craft.tick();

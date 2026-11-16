@@ -158,6 +158,28 @@ public final class Actions {
         sender.accept(r);
     }
 
+    /**
+     * Opens or closes the Eternal Blacklight window ({@code UIWindowUpdateRequest{itemId="eternal_blacklight"}}, the client's
+     * GuiConstants.ETERNAL_BLACKLIGHT): the booster choice is made in it.
+     */
+    public void ebgWindow(boolean open) {
+        orbit.protocol.gen.UIWindowUpdateRequest r = new orbit.protocol.gen.UIWindowUpdateRequest();
+        r.itemId = "eternal_blacklight";
+        r.maximized = open;
+        r.posX = 3;
+        r.posY = 45;
+        r.width = 600;
+        r.height = 400;
+        sender.accept(r);
+    }
+
+    /** Takes EBG's offered booster {@code option} 1…3 ({@code EternalBlacklightChooseOptionRequest}, the window's click). */
+    public void ebgChooseBooster(int option) {
+        orbit.protocol.gen.EternalBlacklightChooseOptionRequest r = new orbit.protocol.gen.EternalBlacklightChooseOptionRequest();
+        r.choosenOption = option;
+        sender.accept(r);
+    }
+
     /** The builder's gates, money and energy ({@code GalaxyGateBuilderInfoRequest}). */
     public void gateInfo() {
         sender.accept(new orbit.protocol.gen.GalaxyGateBuilderInfoRequest());

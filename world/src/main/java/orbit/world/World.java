@@ -294,6 +294,25 @@ public final class World {
             case AddOreCommand p -> collectables.put(p.hash, new Collectable(p.hash, CollectableKind.ORE, "",
                     p.oreType != null ? p.oreType.typeValue : -1, p.x, p.y));
             case RemoveCollectableCommand p -> collectables.remove(p.hash);
+            case orbit.protocol.gen.EternalBlacklightInfoCommand p -> {
+                if (p.waveInfo != null) {
+                    ebgWave(p.waveInfo, nanos);
+                }
+                if (p.cpuInfoCommand != null) {
+                    ebgCpus(p.cpuInfoCommand.cpuCount, nanos);
+                }
+                if (p.boosterInfoCommand != null) {
+                    ebgBoosters(p.boosterInfoCommand, nanos);
+                }
+            }
+            case orbit.protocol.gen.EternalBlacklightWaveInfoCommand p -> ebgWave(p, nanos);
+            case orbit.protocol.gen.EternalBlacklightCpuInfoCommand p -> ebgCpus(p.cpuCount, nanos);
+            case orbit.protocol.gen.EternalBlacklightBoosterInfoCommand p -> ebgBoosters(p, nanos);
+            case orbit.protocol.gen.EternalBlacklightSkillPointInfoCommand p -> {
+                WorldSnapshot.Eternal e = eternal;
+                eternal = new WorldSnapshot.Eternal(e.cpus(), e.wave(), e.furthest(), p.skillPoint, e.options(), e.taken(),
+                        nanos);
+            }
             case JumpgateCreateCommand p -> portals.put(p.gateId,
                     new Portal(p.gateId, p.x, p.y, p.factionId, p.designId, p.isVisibleOnMinimap));
             // a galaxy gate's portal goes when it is used up or the gate ends (the client's JumpGateRemoveCommand)
@@ -670,7 +689,40 @@ public final class World {
                 new WorldSnapshot.Damage(Map.copyOf(dealt), Map.copyOf(received), Map.copyOf(taken)),
                 new WorldSnapshot.Gates(Map.copyOf(gates), gateMoney, gateSamples, gateEnergyCost, gateSpinAmounts,
                         gateSpinSelected, gateInfoNanos, gateSetup, gateSetupError, gateSetupNanos, gateSpinError,
-                        gateSpinNanos, trinity));
+                        gateSpinNanos, trinity, eternal));
+    }
+
+    private WorldSnapshot.Eternal eternal = WorldSnapshot.Eternal.NONE;
+
+    private static List<int[]> boosters(List<orbit.protocol.gen.EternalBlacklightBoosterCommand> list) {
+        List<int[]> out = new ArrayList<>();
+        for (orbit.protocol.gen.EternalBlacklightBoosterCommand b : list) {
+            if (b != null) {
+                out.add(new int[] {b.boosterType, b.value});
+            }
+        }
+        return List.copyOf(out);
+    }
+
+    private void ebgWave(orbit.protocol.gen.EternalBlacklightWaveInfoCommand p, long nanos) {
+        WorldSnapshot.Eternal e = eternal;
+        eternal = new WorldSnapshot.Eternal(e.cpus(), p.currentWave, p.furthestWave, e.points(), e.options(), e.taken(), nanos);
+    }
+
+    private void ebgCpus(int cpus, long nanos) {
+        WorldSnapshot.Eternal e = eternal;
+        eternal = new WorldSnapshot.Eternal(cpus, e.wave(), e.furthest(), e.points(), e.options(), e.taken(), nanos);
+    }
+
+    private void ebgBoosters(orbit.protocol.gen.EternalBlacklightBoosterInfoCommand p, long nanos) {
+        WorldSnapshot.Eternal e = eternal;
+        List<orbit.protocol.gen.EternalBlacklightBoosterCommand> offered = new ArrayList<>();
+        offered.add(p.option1);
+        offered.add(p.option2);
+        offered.add(p.option3);
+        int points = p.skillPointInfo != null ? p.skillPointInfo.skillPoint : e.points();
+        eternal = new WorldSnapshot.Eternal(e.cpus(), e.wave(), e.furthest(), points, boosters(offered),
+                boosters(p.currentBooster), nanos);
     }
 
     /** The assembly's recipes by their loot id (kept over map changes: the assembly is the account's). */

@@ -56,6 +56,10 @@ public final class GateModule implements BotModule {
     private final Attacker attacker;
     private final BoxPicker boxes;
     private final GateKamikaze kamikaze;
+    /** The Eternal Blacklight gate's part (docs/EBG.md). */
+    private final EternalGate eternal;
+    /** Out of EBG: the map the module wants (0 = where the ship is). */
+    private int ebgWanted;
     private volatile Runnable refresh;
     private String status = "";
     private String told = "";
@@ -88,6 +92,20 @@ public final class GateModule implements BotModule {
     private int cachedMap;
     private BotConfig cached;
 
+    @Override
+    public String stopRequest() {
+        return eternal.stopRequest();
+    }
+
+    /** The gates of the list are EBG (it is played alone: its own way in, its runs). */
+    boolean eternalMode() {
+        return entries(settings()).stream().anyMatch(en -> "eternal".equals(en.gate().key()));
+    }
+
+    private JsonNode ebg() {
+        return eternal.settings(settings());
+    }
+
     public GateModule(BotContext ctx) {
         this.ctx = ctx;
         this.gctx = new BotContext(ctx.world(), this::config, ctx.actions(), ctx.nav(), ctx.traveler(), ctx.maps(),
@@ -95,6 +113,7 @@ public final class GateModule implements BotModule {
         this.attacker = new Attacker(gctx);
         this.boxes = new BoxPicker(gctx);
         this.kamikaze = new GateKamikaze(gctx);
+        this.eternal = new EternalGate(gctx);
     }
 
     @Override
@@ -113,6 +132,9 @@ public final class GateModule implements BotModule {
         WorldSnapshot.Hero h = ctx.world().get().hero();
         if (GateCatalog.byMap(h.mapId()) != null) {
             return h.mapId();
+        }
+        if (eternalMode()) {
+            return ebgWanted != 0 ? ebgWanted : h.mapId(); // EBG: the BL map, or stay (lasers, crafting, over)
         }
         orbit.world.maps.MapCatalog.MapInfo home = h.factionId() > 0 ? ctx.maps().byName(h.factionId() + "-1") : null;
         return home != null ? home.id() : 0;
@@ -156,6 +178,10 @@ public final class GateModule implements BotModule {
         GateCatalog.Gate g = GateCatalog.byMap(w.hero().mapId());
         if (g == null || inGate == null) {
             return false;
+        }
+        if (eternal.suiciding()) {
+            status = "Вечные врата: жду гибели (тормоз)";
+            return true; // no repair: the ship is to be destroyed
         }
         repairedHere = true;
         BotConfig c = config();
@@ -217,7 +243,8 @@ public final class GateModule implements BotModule {
         if (cur == null || !all.contains(cur) || best == null || cur.id() == best.id()) {
             return cur != null && all.contains(cur) ? cur : best;
         }
-        if (skipFar(cur, all, h, centre(w))) {
+        boolean ebgGate = GateCatalog.byMap(h.mapId()) != null && "eternal".equals(GateCatalog.byMap(h.mapId()).key());
+        if (ebgGate ? skipFar(cur, all, h, eternal.centre(), eternal.tolerance()) : skipFar(cur, all, h, centre(w))) {
             return best;
         }
         // DarkBot's isAttacking: it locks and fires in the same tick; ours takes a second or more from the pick to the
@@ -239,8 +266,14 @@ public final class GateModule implements BotModule {
      * a healthier one (over 30 %) stands 800 nearer the centre in the same quarter.
      */
     public static boolean skipFar(WorldSnapshot.Ship cur, List<WorldSnapshot.Ship> all, WorldSnapshot.Hero h, double[] c) {
+        return skipFar(cur, all, h, c, 4_000);
+    }
+
+    /** With the gate's tolerance (EBG's Uber Kristallon wave: 1 500). */
+    public static boolean skipFar(WorldSnapshot.Ship cur, List<WorldSnapshot.Ship> all, WorldSnapshot.Hero h, double[] c,
+                                  double tolerance) {
         double curC = Math.hypot(cur.x() - c[0], cur.y() - c[1]);
-        if (curC <= 4_000 || curC <= Math.hypot(h.x() - c[0], h.y() - c[1])
+        if (curC <= tolerance || curC <= Math.hypot(h.x() - c[0], h.y() - c[1])
                 || !cur.health().known() || cur.health().hpPercent() > 0.25) {
             return false;
         }
@@ -262,6 +295,9 @@ public final class GateModule implements BotModule {
     @Override
     public int petGear() {
         int link = orbit.protocol.gen.PetGearTypeModule.PETGEARTYPE_HP_LINK;
+        if (eternal.suiciding()) {
+            return orbit.protocol.gen.PetGearTypeModule.PETGEARTYPE_PASSIVE; // SharedPlugin: the pet passive
+        }
         if (kamikaze.gear() >= 0) {
             return kamikaze.gear(); // gathering: passive; the blast: kamikaze
         }
@@ -293,8 +329,11 @@ public final class GateModule implements BotModule {
             }
         }
         boolean end = endGate(gate, w);
+        // EBG's leech from a wave on: the rules again once that wave is reached
+        int band = "eternal".equals(gate.key()) ? eternal.wave(w) / 10 : 0;
         synchronized (this) {
-            if (base == cachedBase && map == cachedMap && names.equals(cachedNames) && end == cachedEnd) {
+            if (base == cachedBase && map == cachedMap && names.equals(cachedNames) && end == cachedEnd
+                    && band == cachedBand) {
                 return cached;
             }
             JsonNode s = base.modules().getOrDefault(BotConfig.Module.GALAXY_GATE.key(),
@@ -303,6 +342,12 @@ public final class GateModule implements BotModule {
             Map<String, BotConfig.NpcRule> npcs = new java.util.LinkedHashMap<>(base.npcs());
             for (String n : names) {
                 BotConfig.NpcRule r = GateCatalog.defaultRule(gate, n);
+                if ("eternal".equals(gate.key())) {
+                    java.util.Set<String> f = new java.util.HashSet<>(r.flags());
+                    f.addAll(eternal.abilityFlags(eternal.settings(s), GateCatalog.gateNpc(n), eternal.wave(w)));
+                    r = new BotConfig.NpcRule(r.radius(), r.priority(), r.kill(), f, r.maps(), r.ammo(), r.sab(),
+                            r.rocket(), r.launcher(), r.move(), r.formation());
+                }
                 // the NPC's formation (AstraBot «Galaxy - Gate»: Wheel on Streuner, Lordakia, Saimon, Drill on
                 // Kristallin) — not on the last stage, the end mode's formation is the one then
                 String f = s.path("npcFormations").path(GateCatalog.gateNpc(n)).asText("");
@@ -338,11 +383,13 @@ public final class GateModule implements BotModule {
             cachedMap = map;
             cachedNames = names;
             cachedEnd = end;
+            cachedBand = band;
             return cached;
         }
     }
 
     private boolean cachedEnd;
+    private int cachedBand;
 
     /**
      * The last stage of a gate (its last {@code endGateWaves}, 4: ABG's last four of 40) — CARNAGE's END_GATE_MODE,
@@ -429,6 +476,10 @@ public final class GateModule implements BotModule {
         }
         if (inGate != null) {
             gateLeft(w);
+        }
+        if (eternalMode()) {
+            ebgOutside(w);
+            return;
         }
         outside(settings(), w);
         closeWindow(false);
@@ -553,6 +604,20 @@ public final class GateModule implements BotModule {
         show("Врата: проходить нечего (не поставлены, частей не хватает" + (on(settings(), "build", false) ? ", спинов нет"
                 : ", постройка выключена") + ")");
         idleAtBase(w);
+    }
+
+    /** Out of EBG: the runs, the lasers, the CPU, to the BL map and into the portal the CPU opens (SharedPlugin). */
+    private void ebgOutside(WorldSnapshot w) {
+        closeWindow(true);
+        ebgWanted = eternal.outside(ebg(), w, this::show);
+        WorldSnapshot.Portal p = eternal.portal();
+        if (p != null) {
+            jumpInto(w, p, ctx.now());
+            return;
+        }
+        if (ebgWanted == 0 || ebgWanted == w.hero().mapId()) {
+            ctx.nav().tick();
+        }
     }
 
     private boolean skipped(GateCatalog.Gate g, long now) {
@@ -859,6 +924,10 @@ public final class GateModule implements BotModule {
     private void inGate(GateCatalog.Gate g, WorldSnapshot w) {
         long now = ctx.now();
         WorldSnapshot.Hero h = w.hero();
+        boolean ebgGate = "eternal".equals(g.key());
+        if (ebgGate) {
+            eternal.entered(w);
+        }
         if (!g.key().equals(inGate)) {
             inGate = g.key();
             enteredAt = now;
@@ -883,15 +952,24 @@ public final class GateModule implements BotModule {
         if (kamikaze.tick(settings(), c, w, attacker)) {
             quietSince = 0;
             status = "Врата " + g.name() + ": камикадзе — " + (kamikaze.stage() == GateKamikaze.Stage.ACTIVE
-                    ? "взрыв" : "собираю NPC") + wave(st);
+                    ? "взрыв" : "собираю NPC") + (ebgGate ? ebgWave(w) : wave(st));
             return;
         }
-        // the fight: SharedPlugin's closestNpc each tick, the gate's way of circling
-        attacker.gateStyle(centre(w));
+        // the fight: SharedPlugin's closestNpc each tick, the gate's way of circling (EBG: the Uber Kristallon's centre)
+        if (ebgGate) {
+            eternal.fightCentre(ebg(), w);
+            attacker.gateStyle(eternal.centre(), eternal.tolerance());
+        } else {
+            attacker.gateStyle(centre(w));
+        }
         WorldSnapshot.Ship t = pick(c, w);
+        if (ebgGate && eternal.suicide(ebg(), w, t, attacker)) {
+            status = "Вечные врата: волна " + eternal.wave(w) + " — тормоз «самоубийство», жду гибели";
+            return;
+        }
         if (t == null && attacker.targetId() != 0 && attacker.tick(true)) {
             quietSince = 0; // the target out of sight a moment: after it
-            status = "Врата " + g.name() + ": бой" + wave(st);
+            status = "Врата " + g.name() + ": бой" + (ebgGate ? ebgWave(w) : wave(st));
             return;
         }
         if (t != null) {
@@ -904,12 +982,12 @@ public final class GateModule implements BotModule {
             if (boxes.busy() || !boxNearTarget(w, t, tr)) {
                 if (boxes.tickNearInFight(h.x(), h.y(), FIGHT_BOX_RADIUS)) {
                     attacker.tick(false);
-                    status = "Врата " + g.name() + ": бой, подбираю " + boxes.currentName() + wave(st);
+                    status = "Врата " + g.name() + ": бой, подбираю " + boxes.currentName() + (ebgGate ? ebgWave(w) : wave(st));
                     return;
                 }
             }
             attacker.tick(true);
-            status = "Врата " + g.name() + ": бой" + wave(st);
+            status = "Врата " + g.name() + ": бой" + (ebgGate ? ebgWave(w) : wave(st));
             return;
         }
         // between the waves: the boxes about
@@ -924,6 +1002,16 @@ public final class GateModule implements BotModule {
         }
         kamikaze.waiting(); // between waves: the next one's start is primed (SharedPlugin)
         boolean quiet = ms(now - quietSince) > QUIET_MS;
+        if (ebgGate) {
+            // EBG between the waves: the boosters (SharedPlugin selectBestBooster); the brake «выход» — home portal
+            eternal.boosters(ebg(), w);
+            WorldSnapshot.Portal out = quiet ? eternal.exit(ebg(), w) : null;
+            if (out != null) {
+                jumpInto(w, out, now);
+                status = "Вечные врата: тормоз «выход» — домой";
+                return;
+            }
+        }
         // a portal of the gate: the next stage (ABG), the next map (ζ); home only once the gate is done (or Trinity)
         WorldSnapshot.Portal next = w.portals().values().stream().filter(p -> p.designId() != GateCatalog.HOME_PORTAL)
                 .min(java.util.Comparator.comparingDouble(p -> Math.hypot(p.x() - h.x(), p.y() - h.y()))).orElse(null);
@@ -964,12 +1052,12 @@ public final class GateModule implements BotModule {
         }
         // nothing yet: the next wave comes — SharedPlugin's moveToCenter: to (centre − 500, centre − 500), within 250
         // it stops, in the run configuration (useRunConfig)
-        double[] cc = centre(w);
+        double[] cc = ebgGate ? eternal.centre() : centre(w);
         double wx = cc[0] - WAIT_OFFSET;
         double wy = cc[1] - WAIT_OFFSET;
         ctx.ship().want(c.general().run());
         if (stuck(w, cc, now)) {
-            status = "Врата " + g.name() + ": долго жду волну" + wave(st);
+            status = "Врата " + g.name() + ": долго жду волну" + (ebgGate ? ebgWave(w) : wave(st));
             return;
         }
         if (Math.hypot(wx - h.x(), wy - h.y()) > WAIT_NEAR) {
@@ -980,7 +1068,7 @@ public final class GateModule implements BotModule {
             ctx.nav().stop();
         }
         ctx.nav().tick();
-        status = "Врата " + g.name() + ": жду волну" + wave(st);
+        status = "Врата " + g.name() + ": жду волну" + (ebgGate ? ebgWave(w) : wave(st));
     }
 
     static final double WAIT_OFFSET = 500;
@@ -1027,6 +1115,11 @@ public final class GateModule implements BotModule {
         stuckStep = 2;
         log.info("Во вратах волны всё нет — лечу к верхнему краю (как SharedPlugin)");
         return true;
+    }
+
+    private static String ebgWave(WorldSnapshot w) {
+        int wv = w.gates().eternal().wave();
+        return wv > 0 ? ", волна " + wv : "";
     }
 
     private static String wave(WorldSnapshot.Gate st) {

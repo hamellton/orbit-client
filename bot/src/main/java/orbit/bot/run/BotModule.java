@@ -19,6 +19,14 @@ public interface BotModule {
      * Called every tick while the hero is alive, also when safety steers or the bot travels: watch the
      * world (e.g. remember a Cubikon dying while the ship repairs at a portal).
      */
+    /**
+     * The module's work is over and the account should log out (the galaxy gate's EBG: the runs done or no CPU left,
+     * «улететь на базу и выйти из игры»): the reason, {@code null} while it works on.
+     */
+    default String stopRequest() {
+        return null;
+    }
+
     default void observe() {
     }
 

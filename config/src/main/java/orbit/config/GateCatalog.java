@@ -84,6 +84,45 @@ public final class GateCatalog {
         return m;
     }
 
+    /**
+     * The Eternal Blacklight gate's NPCs: SharedPlugin's {@code EternalBlacklightGate} npcMap (radius; the rest 560),
+     * docs/EBG.md.
+     */
+    static Map<String, Integer> eternal() {
+        Map<String, Integer> m = new LinkedHashMap<>();
+        m.put("barrage seeker rocket", 600);
+        m.put("strokelight barrage", 600);
+        m.put("steadfast iii", 400);
+        m.put("abide i", 400);
+        m.put("uberkristallon", 645);
+        m.put("uberkristallin", 580);
+        m.put("ubersibelon", 600);
+        m.put("ubersibelonit", 575);
+        m.put("uberlordakium", 600);
+        m.put("uber annihilator", 580);
+        m.put("uber saboteur", 590);
+        m.put("boss kristallon", 615);
+        m.put("boss kristallin", 575);
+        m.put("boss sibelon", 570);
+        m.put("ice meteoroid", 615);
+        m.put("icy", 600);
+        m.put("kucurbium", 600);
+        m.put("attend ix", 600);
+        m.put("impulse ii", 600);
+        return m;
+    }
+
+    /** EBG's NPCs never shot (SharedPlugin: PASSIVE) — the boss wave's guards; the boss dies without them. */
+    public static final Set<String> EBG_PASSIVE = Set.of("abide i", "steadfast iii");
+    /** EBG's first target of the boss wave (SharedPlugin priority −90). */
+    public static final String EBG_FIRST = "barrage seeker rocket";
+    /** The Eternal CPU that opens EBG's portal on a BL map. */
+    public static final String EBG_CPU = "ammunition_ggportal_eternal-blacklight-cpu";
+    /** Its recipe in the assembly. */
+    public static final String EBG_CPU_RECIPE = "recipe_blueprint-eternal-cpu";
+    /** The cycle of EBG's waves (SharedPlugin GATE_CYCLE_WAVES); Uber Kristallons on the 23rd and 47th of each. */
+    public static final int EBG_CYCLE = 51;
+
     static Map<String, Integer> trinity() {
         Map<String, Integer> m = new LinkedHashMap<>();
         for (String n : List.of("streuner", "lordakia", "mordon", "saimon", "devolarium", "kristallin", "sibelon",
@@ -114,6 +153,10 @@ public final class GateCatalog {
             new Gate("hades", "Hades", 13, 45, 12, List.of(203), 74, false, "", Map.of(), Set.of()),
             new Gate("kuiper", "Kuiper ς", 19, 100, 54, List.of(300, 301, 302, 303, 304), 82, false, "ς", Map.of(),
                     Set.of()),
+            // EBG (docs/EBG.md): no builder — DarkBot's virtual map −4, its portal 54 on 1/2/3-BL opened by an Eternal CPU;
+            // its maps are instances 460–465, its waves a cycle of 51 with no end (one life)
+            new Gate("eternal", "∞ Eternal Blacklight", -4, 0, EBG_CYCLE, List.of(460, 461, 462, 463, 464, 465), 54,
+                    false, "EBG", eternal(), Set.of()),
             new Gate("trinity", "Trinity Trials", 0, 0, 20,
                     List.of(494, 495, 496, 497, 498, 499, 500, 501, 502, 503, 504, 505, 506, 507, 508), 304, false, "⦓",
                     trinity(), Set.of()));
@@ -164,10 +207,10 @@ public final class GateCatalog {
         return m.find() ? Integer.parseInt(m.group(1)) : 0;
     }
 
-    private static final java.util.regex.Pattern WAVE_NUMBER = java.util.regex.Pattern.compile("[αβγδεζκλςђ⦓]\\s*(\\d+)\\s*$");
+    private static final java.util.regex.Pattern WAVE_NUMBER = java.util.regex.Pattern.compile("(?:[αβγδεζκλςђ⦓]|EBG)\\s*(\\d+)\\s*$");
 
     /** The symbol and the wave number at the end of a gate NPC's name. */
-    private static final java.util.regex.Pattern WAVE = java.util.regex.Pattern.compile("\\s*[αβγδεζκλςђ⦓]\\s*\\d+\\s*$");
+    private static final java.util.regex.Pattern WAVE = java.util.regex.Pattern.compile("\\s*(?:[αβγδεζκλςђ⦓]|EBG)\\s*\\d+\\s*$");
 
     /**
      * The rule for a gate NPC the config does not list: the catalog's radius, to be killed, on that gate's maps;
@@ -179,6 +222,12 @@ public final class GateCatalog {
             return null;
         }
         Integer radius = gate.npcs().get(bare);
+        if ("eternal".equals(gate.key())) {
+            // SharedPlugin's EBG: every NPC killed but the boss wave's two guards, the seeker rockets first
+            boolean passive = EBG_PASSIVE.contains(bare);
+            return new BotConfig.NpcRule(radius != null ? radius : 560, EBG_FIRST.equals(bare) ? -90 : 0, !passive,
+                    passive ? Set.of() : Set.of(BotConfig.NpcFlag.HOLD_TARGET.name()), Set.copyOf(gate.maps()), null);
+        }
         // held till dead: a wave ends only with its NPCs dead (CARNAGE «holdTargetUntilKill»)
         Set<String> flags = gate.kamikaze().contains(bare)
                 ? Set.of(BotConfig.NpcFlag.KAMIKAZE.name(), BotConfig.NpcFlag.HOLD_TARGET.name())

@@ -47,7 +47,17 @@ final class CraftWatch {
         }
         nextCheck = now + CHECK_MS * 1_000_000;
         BotConfig.Buy b = ctx.config().get().buy();
-        if (b.crafts().isEmpty()) {
+        java.util.List<BotConfig.CraftRule> rules = new java.util.ArrayList<>(b.crafts());
+        // the galaxy gates' EBG: a CPU crafted when none is left (modules.gate.eternal.craft)
+        BotConfig cfg = ctx.config().get();
+        if (cfg.module() == BotConfig.Module.GALAXY_GATE) {
+            com.fasterxml.jackson.databind.JsonNode gate = cfg.modules().get(BotConfig.Module.GALAXY_GATE.key());
+            BotConfig.CraftRule cpu = gate == null ? null : orbit.bot.mod.EternalGate.craftRule(gate);
+            if (cpu != null) {
+                rules.add(cpu);
+            }
+        }
+        if (rules.isEmpty()) {
             return;
         }
         WorldSnapshot w = ctx.world().get();
@@ -61,7 +71,7 @@ final class CraftWatch {
             }
             return;
         }
-        for (BotConfig.CraftRule r : b.crafts()) {
+        for (BotConfig.CraftRule r : rules) {
             WorldSnapshot.Recipe rec = recipes.get(r.recipe());
             if (rec == null) {
                 if (told.add("?" + r.recipe())) {
@@ -130,6 +140,9 @@ final class CraftWatch {
     static double count(WorldSnapshot w, String item) {
         if (item == null || item.isBlank()) {
             return -1;
+        }
+        if (orbit.config.GateCatalog.EBG_CPU.equals(item) && w.gates().eternal().known()) {
+            return w.gates().eternal().cpus(); // the server tells EBG's CPUs itself
         }
         WorldSnapshot.Item i = w.items().get(ItemCatalog.barItem(item));
         if (i != null) {
