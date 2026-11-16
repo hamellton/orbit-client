@@ -336,6 +336,17 @@ public final class GameConnection implements AutoCloseable {
         }
     }
 
+    /** The server said nothing for the silence time: the link died, the site's session is still good. */
+    static final class Silence extends IOException {
+        Silence(String message) {
+            super(message);
+        }
+    }
+
+    /** When this connection got into the game ({@code 0} = not yet); a drop after a stable stay starts the waits anew. */
+    private volatile long onlineAt;
+    static final long STABLE_NS = 60_000_000_000L;
+
     /** Main loop: log in, stay online, follow server changes, reconnect on failures. */
     /**
      * The website is tried again no sooner than this: a Wi-Fi restart or the site's own trouble takes a minute
@@ -429,6 +440,12 @@ public final class GameConnection implements AutoCloseable {
                         sleep(wait);
                         continue;
                     }
+                    // the last try reached the game: the drops before it are over (live 2026-11-16, a power cut: in
+                    // game again, closed by the server a second later, then a 60 s wait as the 4th failure in a row)
+                    boolean briefly = onlineAt != 0 && System.nanoTime() - onlineAt < STABLE_NS;
+                    if (onlineAt != 0) {
+                        failures = briefly ? 1 : 0;
+                    }
                     Duration wait = settings.backoff(failures);
                     failures++;
                     if (restartNotice != 0 && System.nanoTime() - restartNotice < RESTART_NOTICE_NS) {
@@ -442,7 +459,9 @@ public final class GameConnection implements AutoCloseable {
                         sleep(wait);
                         continue;
                     }
-                    boolean refresh = e instanceof LoginRejected || failures >= settings.refreshAfter();
+                    // closed right after coming in: the site's session is the likelier fault — a fresh login at once
+                    boolean refresh = e instanceof LoginRejected || failures >= settings.refreshAfter()
+                            || briefly && !(e instanceof Silence);
                     String why = e instanceof LoginRejected ? e.getMessage() : "Обрыв связи: " + e.getMessage();
                     log.warn("{}. Повтор через {} с{}", why, wait.toSeconds(), refresh ? " с новым входом на сайт" : "");
                     listener.onState(GameListener.State.RECONNECTING, why);
@@ -478,6 +497,7 @@ public final class GameConnection implements AutoCloseable {
      * One TCP session. Returns the requested server change, or {@code null} when closed by the user.
      */
     private Relogin serve(GameSession session, MapServers.Address server) throws IOException, InterruptedException {
+        onlineAt = 0;
         listener.onState(GameListener.State.CONNECTING, "Подключение к " + server);
         currentSession = session;
         if (settings.policyRequest()) {
@@ -518,7 +538,7 @@ public final class GameConnection implements AutoCloseable {
                     payload = Frames.read(in);
                 } catch (java.net.SocketTimeoutException e) {
                     if (shipReady) {
-                        throw new java.io.IOException("сервер молчит " + settings.silence().toSeconds() + " с");
+                        throw new Silence("сервер молчит " + settings.silence().toSeconds() + " с");
                     }
                     throw new LoginRejected("Сервер не принял вход за " + settings.loginTimeout().toSeconds() + " с");
                 }
@@ -577,6 +597,7 @@ public final class GameConnection implements AutoCloseable {
                         startupThread = Thread.ofVirtual().name("startup").start(withLogContext(() -> runStartup(ctx)));
                     } else if (p instanceof ShipInitializationCommand) {
                         shipReady = true;
+                        onlineAt = System.nanoTime();
                         s.setSoTimeout((int) settings.silence().toMillis());
                         listener.onState(GameListener.State.ONLINE, "В игре");
                     } else if (p instanceof UserSettingsCommand us) {

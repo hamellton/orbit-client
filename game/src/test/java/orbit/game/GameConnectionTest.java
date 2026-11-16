@@ -133,6 +133,26 @@ class GameConnectionTest {
     }
 
     @Test
+    void closedRightAfterComingInTheWaitsStartAnewWithAFreshLogin() throws Exception {
+        // live 2026-11-16, a power cut: in game again, closed by the server a second later, then 60 s as a 4th failure
+        try (FakeGameServer gs = new FakeGameServer()) {
+            gs.closeAfterLogin.set(3);
+            ConnectionSettings f = fast();
+            ConnectionSettings slowLater = new ConnectionSettings(f.proxy(), Duration.ofSeconds(10), Duration.ZERO, true,
+                    f.connectTimeout(), f.loginTimeout(),
+                    List.of(Duration.ofMillis(50), Duration.ofMillis(50), Duration.ofSeconds(5)), 3, f.silence());
+            Source src = new Source(gs.port(), 0);
+            Listener l = new Listener();
+            GameConnection c = new GameConnection(src, l, slowLater, StartupSequence.minimal(READY));
+            Thread t = Thread.ofVirtual().start(c::run);
+            await(() -> gs.receivedOf(LoginRequest.class).size() >= 4, 3);
+            assertTrue(src.logins.get() >= 4, "a fresh site login after each quick close: " + src.logins.get());
+            c.close();
+            t.join(3000);
+        }
+    }
+
+    @Test
     void aWorldStandingStillAfterAFlightMeansAHungServer() throws Exception {
         try (FakeGameServer gs = new FakeGameServer()) {
             // like ru1 on 2026-11-11: messages keep coming, nothing in the world moves, our flight goes nowhere

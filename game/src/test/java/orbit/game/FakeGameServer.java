@@ -41,6 +41,8 @@ final class FakeGameServer implements AutoCloseable {
     final AtomicInteger rejectsLeft = new AtomicInteger();
     /** Called after a successful login with a sender for extra server packets. */
     volatile Consumer<Consumer<Packet>> afterLogin = send -> { };
+    /** Closes the connection right after this many accepted logins (the ship already in the game). */
+    final java.util.concurrent.atomic.AtomicInteger closeAfterLogin = new java.util.concurrent.atomic.AtomicInteger();
 
     FakeGameServer() throws IOException {
         ss = new ServerSocket(0, 50, InetAddress.getLoopbackAddress());
@@ -125,6 +127,9 @@ final class FakeGameServer implements AutoCloseable {
                     send.accept(si);
                     send.accept(new LoginResponse());
                     afterLogin.accept(send);
+                    if (closeAfterLogin.getAndUpdate(n -> Math.max(0, n - 1)) > 0) {
+                        return;
+                    }
                 } else if (p instanceof KillScreenRepairRequest) {
                     ShipInitializationCommand si = new ShipInitializationCommand();
                     si.userName = "Tester";
