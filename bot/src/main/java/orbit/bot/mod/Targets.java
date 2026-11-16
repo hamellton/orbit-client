@@ -106,12 +106,26 @@ public final class Targets {
         return w.ships().values().stream()
                 .filter(s -> attackable(c, s, h.mapId()))
                 .filter(s -> !taken(c, w, s))
+                .filter(s -> !passiveIdle(c, w, s))
                 .filter(s -> !skip.test(s))
                 .filter(s -> s.distanceTo(h.x(), h.y()) <= maxDistance)
                 .min(Comparator.<WorldSnapshot.Ship>comparingInt(s -> rule(c, s, h.mapId()).priority())
                         .thenComparingInt(s -> crowd(w, s))
                         .thenComparingDouble(s -> s.distanceTo(h.x(), h.y())))
                 .orElse(null);
+    }
+
+    /**
+     * DarkBot's {@code PASSIVE} ({@code LootModule.shouldKill}): such an NPC is not taken while it leaves the ship
+     * alone — only once it shoots it. A fight already begun goes on (the attacker keeps its target).
+     */
+    public static boolean passiveIdle(BotConfig c, WorldSnapshot w, WorldSnapshot.Ship s) {
+        BotConfig.NpcRule r = rule(c, s, w.hero().mapId());
+        if (r == null || !r.has(BotConfig.NpcFlag.PASSIVE)) {
+            return false;
+        }
+        WorldSnapshot.Hero h = w.hero();
+        return s.attackTargetId() != h.id() && !h.attackers().contains(s.id());
     }
 
     /** A player this close to a target, and nearer to it than the ship, gets it first. */

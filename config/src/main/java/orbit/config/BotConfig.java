@@ -615,7 +615,7 @@ public record BotConfig(
         IGNORE_ATTACKED,
         /** do not pick up its boxes */
         IGNORE_BOXES,
-        /** never shoots first: do not run from it */
+        /** not taken until it shoots the ship (DarkBot «Passive»); a fight begun goes on */
         PASSIVE,
         /** follow it when it runs: aim where it flies, catch up in the run mode */
         AGGRESSIVE_FOLLOW,

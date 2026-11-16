@@ -35,7 +35,7 @@ final class FlagsEditor extends AbstractCellEditor implements TableCellEditor {
             case AGGRESSIVE_FOLLOW -> "догонять, когда убегает";
             case NO_CIRCLE -> "не кружить вокруг";
             case KAMIKAZE -> "камикадзе питомца рядом с ним";
-            case PASSIVE -> "не стреляет первым — пока не работает";
+            case PASSIVE -> "бить, только если он стреляет в нас (как Passive в DarkBot)";
             case IGNORE_BOXES -> "не собирать его ящики (30 с у места, где он погиб)";
             case ATTACK_SECOND -> "второй целью в группе — пока не работает";
             case PET_LOCATOR -> "искать пеленгатором питомца, когда его не видно";
