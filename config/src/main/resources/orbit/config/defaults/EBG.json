@@ -1,6 +1,6 @@
 {
   "schema": 3,
-  "description": "[Default] EBG — Вечные врата Блэклайт как DarkBot SharedPlugin (профиль друга EBG.json): вход с 1-BL по CPU, бить всех, кроме Abide I и Steadfast III, разводить Uber Kristallon, бустеры между волнами, тормоз на 256-й волне (самоубийство). Конфигурация 1 + Moth, ремонт 40→65 %, UCB-100, на тяжёлых MCB-50. Копию — под свой корабль и аккаунт (обогащение лазеров, крафт CPU, число забегов).",
+  "description": "[Default] EBG — Вечные врата Блэклайт как DarkBot SharedPlugin (профиль друга EBG.json): вход с 1-BL по CPU, бить всех, кроме Abide I и Steadfast III, разводить Uber Kristallon, бустеры между волнами, тормоз на 256-й волне (самоубийство). Конфигурация 1 + Moth, ремонт 40→65 %, MCB-50, на тяжёлых UCB-100. Копию — под свой корабль и аккаунт (обогащение лазеров, крафт CPU, число забегов).",
   "module": "GALAXY_GATE",
   "general": {
     "workingMap": 306,
@@ -28,7 +28,7 @@
   },
   "npcs": {},
   "loot": {
-    "ammo": "ammunition_laser_ucb-100",
+    "ammo": "ammunition_laser_mcb-50",
     "sabBelow": 0.87,
     "sabNpcShieldMin": 120000,
     "groupNpcs": true,
@@ -37,7 +37,7 @@
     "fireRockets": false,
     "circle": false,
     "fallback": [
-      "ammunition_laser_mcb-50",
+      "ammunition_laser_ucb-100",
       "ammunition_laser_mcb-25",
       "ammunition_laser_lcb-10"
     ],
@@ -1593,18 +1593,18 @@
       "useEndGateConfig": false,
       "hpLinkBelow": 0,
       "npcAmmo": {
-        "ubersibelon": "ammunition_laser_mcb-50",
-        "ubersibelonit": "ammunition_laser_mcb-50",
-        "annihilator": "ammunition_laser_mcb-50",
-        "uber saboteur": "ammunition_laser_mcb-50",
-        "boss kristallon": "ammunition_laser_mcb-50",
-        "uberkristallon": "ammunition_laser_mcb-50",
-        "uberlordakium": "ammunition_laser_mcb-50",
-        "uberprotegit": "ammunition_laser_mcb-50",
-        "ice meteoroid": "ammunition_laser_mcb-50",
-        "uber annihilator": "ammunition_laser_mcb-50",
-        "barrage seeker rocket": "ammunition_laser_mcb-50",
-        "strokelight barrage": "ammunition_laser_mcb-50"
+        "ubersibelon": "ammunition_laser_ucb-100",
+        "ubersibelonit": "ammunition_laser_ucb-100",
+        "annihilator": "ammunition_laser_ucb-100",
+        "uber saboteur": "ammunition_laser_ucb-100",
+        "boss kristallon": "ammunition_laser_ucb-100",
+        "uberkristallon": "ammunition_laser_ucb-100",
+        "uberlordakium": "ammunition_laser_ucb-100",
+        "uberprotegit": "ammunition_laser_ucb-100",
+        "ice meteoroid": "ammunition_laser_ucb-100",
+        "uber annihilator": "ammunition_laser_ucb-100",
+        "barrage seeker rocket": "ammunition_laser_ucb-100",
+        "strokelight barrage": "ammunition_laser_ucb-100"
       },
       "npcAmmoMin": 1000,
       "kamikaze": {
