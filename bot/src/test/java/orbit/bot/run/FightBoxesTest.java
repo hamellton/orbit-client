@@ -25,9 +25,13 @@ class FightBoxesTest {
     }
 
     static void box(Sim sim, String hash, int x, int y) {
+        box(sim, hash, "SOLAR_CLASH", x, y);
+    }
+
+    static void box(Sim sim, String hash, String type, int x, int y) {
         AddBoxCommand b = new AddBoxCommand();
         b.hash = hash;
-        b.boxType = "SOLAR_CLASH";
+        b.boxType = type;
         b.x = x;
         b.y = y;
         sim.world.apply(b, sim.now);
@@ -86,5 +90,16 @@ class FightBoxesTest {
         sim.world.apply(mv, sim.now);
         sim.run(m::tick, 600);
         assertFalse(picked(sim, "theirs"), "200 away and flying to it: theirs (DarkBot IGNORE_CONTESTED_BOXES)");
+    }
+
+    @Test
+    void theInvokesBoxTheServerNamesOtherwiseIsTheProfilesSolarClash() {
+        // DarkBot's profile collects SOLAR_CLASH; the server sends INVOKE_XVI_BOX_2 (live 2026-11-16 on the VPS: none
+        // picked up after an invoke)
+        Sim sim = new Sim(config(), 1, 10_500, 6_000);
+        KillModule m = new KillModule(sim.ctx, false, true);
+        box(sim, "invoke", "INVOKE_XVI_BOX_2", 10_500, 6_300);
+        sim.run(m::tick, 4_000);
+        assertTrue(picked(sim, "invoke"));
     }
 }

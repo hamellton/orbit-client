@@ -91,6 +91,18 @@ public final class BoxCatalog {
         return b == null || b.collectable();
     }
 
+    /**
+     * DarkBot's name of a type the server sends, when it differs: DarkBot profiles collect the invoke's and the
+     * behemoth's boxes as {@code SOLAR_CLASH}, the server sends {@code INVOKE_XVI_BOX_2} and
+     * {@code MINDFIRE_BEHEMOTH_BOX_2} (AstraBot's names; the behemoth's seen live 2026-11-14). {@code null} when none.
+     */
+    public static String darkBotName(String serverType) {
+        if (serverType != null && (serverType.startsWith("INVOKE_XVI_BOX") || serverType.startsWith("MINDFIRE_BEHEMOTH_BOX"))) {
+            return "SOLAR_CLASH";
+        }
+        return null;
+    }
+
     /** The wait DarkBot users set for the type, 0 when none is needed or the type is unknown. */
     public static int waitMs(String type) {
         Box b = of(type);

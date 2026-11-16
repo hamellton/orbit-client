@@ -232,7 +232,7 @@ public final class BoxPicker {
             if (collectAt == 0) {
                 collectAt = now + ctx.pause(100, 300);
             }
-            BotConfig.BoxRule r = c.collect().boxes().get(key(box));
+            BotConfig.BoxRule r = rule(c, key(box));
             long stay = Math.max(MIN_STAY_MS, (r == null ? 0 : r.waitMs()) + Math.min(1_000, tries * 100L)) * 1_000_000L;
             if (now >= collectAt && (collectedAt == 0 || now - collectedAt > stay)) {
                 if (tries >= MAX_TRIES) {
@@ -259,11 +259,11 @@ public final class BoxPicker {
                     if (anyType) {
                         // the behemoth's own boxes and the config's — not a pirate booty a key opens (live 2026-11-14
                         // on the VPS, 1-BL: PIRATE_BOOTY by the spawn, five keys spent)
-                        BotConfig.BoxRule rule = c.collect().boxes().get(key(b));
+                        BotConfig.BoxRule rule = rule(c, key(b));
                         return orbit.config.BoxCatalog.collectable(key(b))
                                 && (key(b).startsWith(BEHEMOTH_BOX) || rule != null && rule.collect());
                     }
-                    BotConfig.BoxRule r = c.collect().boxes().get(key(b));
+                    BotConfig.BoxRule r = rule(c, key(b));
                     // mines and fireworks show among the resources but are no boxes (the user's list, 2026-11-12)
                     return r != null && r.collect() && orbit.config.BoxCatalog.collectable(key(b));
                 })
@@ -285,7 +285,7 @@ public final class BoxPicker {
                 .filter(b -> !ctx.nav().inDanger(b.x(), b.y()))
                 // DarkBot's collector: the box priority first (lower first), then the nearest
                 .min(Comparator.<WorldSnapshot.Collectable>comparingInt(b -> {
-                    BotConfig.BoxRule r = c.collect().boxes().get(key(b));
+                    BotConfig.BoxRule r = rule(c, key(b));
                     return r == null ? 0 : r.priority();
                 }).thenComparingDouble(b -> Math.hypot(b.x() - h.x(), b.y() - h.y())))
                 .orElse(null);
@@ -313,6 +313,16 @@ public final class BoxPicker {
             }
         }
         return true;
+    }
+
+    /** The config's rule of a type: its own, else the one of DarkBot's name for it ({@code SOLAR_CLASH}). */
+    static BotConfig.BoxRule rule(BotConfig c, String type) {
+        BotConfig.BoxRule r = c.collect().boxes().get(type);
+        if (r == null) {
+            String alias = orbit.config.BoxCatalog.darkBotName(type);
+            r = alias == null ? null : c.collect().boxes().get(alias);
+        }
+        return r;
     }
 
     /**
