@@ -59,6 +59,9 @@ public final class ServiceVisit {
     private boolean landed;
     /** Trips this visit (the user, 2026-11-16: «один раз отправил — обогатил, второй раз отправил — обогатил»). */
     private int trips;
+    /** What the visit brought, by ore name, and each item's level when it began — for the visit's one summary line. */
+    private final Map<String, Long> brought = new java.util.concurrent.ConcurrentHashMap<>();
+    private final Map<Integer, Long> levelAtStart = new java.util.concurrent.ConcurrentHashMap<>();
     static final int MAX_TRIPS = 10;
 
     public ServiceVisit(BotContext ctx) {
@@ -132,6 +135,8 @@ public final class ServiceVisit {
                 orderStarted = false;
                 landed = false;
                 trips = 0;
+                brought.clear();
+                levelAtStart.clear();
                 phase = Phase.GOING;
                 log.info("Обслуживание: обогащению не хватает руды — пересаживаюсь на корабль для Скайлаба (ангар {}),"
                         + " потом обратно на {}", service, returnTo);
@@ -188,6 +193,8 @@ public final class ServiceVisit {
         orderStarted = false;
         landed = false;
         trips = 0;
+        brought.clear();
+        levelAtStart.clear();
         phase = Phase.GOING;
         log.info("Обслуживание: перед ангаром {} — на корабль для Скайлаба (ангар {}): обогащению не хватает руды",
                 wanted, service);
@@ -248,6 +255,7 @@ public final class ServiceVisit {
             }
             WorldSnapshot.Enrichment e = lab.items().get(item);
             long left = e == null ? 0 : e.left();
+            levelAtStart.putIfAbsent(item, left);
             long fillTo = fillTo(s, it);
             if (left >= fillTo) {
                 continue;
@@ -361,8 +369,9 @@ public final class ServiceVisit {
                         } else {
                             a.transport(send, fast);
                             trips++;
-                            log.info("Обслуживание: со Скайлаба в трюм {}{}{}", send, fast ? " (быстро)" : "",
-                                    trips > 1 ? ", рейс " + trips : "");
+                            send.forEach((k, v) -> brought.merge(k, v, Long::sum));
+                            log.info("Обслуживание: рейс {} — со Скайлаба в трюм {}{}", trips, send,
+                                    fast ? " (быстро)" : "");
                         }
                     } catch (java.io.IOException | RuntimeException e) {
                         orderError = e.getMessage();
@@ -399,6 +408,21 @@ public final class ServiceVisit {
         return serviceSince;
     }
 
+    /** «; за визит: 2 рейса, promerium 14 056; лазеры 49 440 → 190 000» — empty without trips. */
+    private String summary(WorldSnapshot.Lab lab) {
+        if (trips == 0) {
+            return "";
+        }
+        StringBuilder b = new StringBuilder("; за визит: рейсов ").append(trips);
+        brought.forEach((k, v) -> b.append(", ").append(k).append(' ').append(String.format("%,d", v)));
+        levelAtStart.forEach((item, was) -> {
+            WorldSnapshot.Enrichment e = lab.items().get(item);
+            b.append("; ").append(Enricher.ITEM_NAMES[item]).append(' ').append(String.format("%,d", was)).append(" → ")
+                    .append(String.format("%,d", e == null ? 0 : e.left()));
+        });
+        return b.toString();
+    }
+
     private Step busy(long now, JsonNode s, String what) {
         long max = (Math.max(1, s.path("visitWaitMinutes").asLong(15)) + 10) * 60_000;
         if (ms(now - Math.max(serviceSince, ordered ? orderedAt : 0)) > max) {
@@ -411,6 +435,10 @@ public final class ServiceVisit {
     private Step back(String why) {
         if (why != null) {
             log.info("Обслуживание: {} — обратно на свой корабль", why);
+        }
+        if (trips > 0) {
+            // one line for the whole visit (the user, 2026-11-16: «в логах не понятно, он 2 транспорта сделал?»)
+            log.info("Обслуживание: итог{}", summary(ctx.world().get().inventory().lab()).replaceFirst("^; ", " — "));
         }
         phase = Phase.RETURNING;
         ordered = false;
