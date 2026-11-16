@@ -80,8 +80,27 @@ final class Hud {
         this.fontScale = compact ? 0.86f : 1f;
     }
 
+    /**
+     * Fonts made once and kept: on Windows FlatLaf's base font is a composite with fallbacks, and each
+     * {@code deriveFont} to another style makes a new composite font with its own glyph caches (soft references, so
+     * only memory pressure frees them) — derived on every frame they took the VPS program to 3.6 GB in an hour
+     * (live 2026-11-16: 517 000 CompositeFont objects, all from {@link #boostPills}).
+     */
+    private final java.util.Map<Long, Font> fonts = new java.util.concurrent.ConcurrentHashMap<>();
+
     Font font(int style, float size) {
-        return base.deriveFont(style, size * fontScale);
+        float s = size * fontScale;
+        return fonts.computeIfAbsent(((long) style << 32) | Float.floatToIntBits(s), k -> base.deriveFont(style, s));
+    }
+
+    /** The card headings' font: bold, a little spaced. */
+    private Font headingFont() {
+        Font f = fonts.get(-1L);
+        if (f == null) {
+            f = font(Font.BOLD, 10.5f).deriveFont(Map.of(java.awt.font.TextAttribute.TRACKING, 0.08f));
+            fonts.put(-1L, f);
+        }
+        return f;
     }
 
     // ---- the side panel's cards ----
@@ -630,7 +649,7 @@ final class Hud {
                 int stub = pad + line + 2;
                 if (y + stub <= bottom) {
                     frame(g, x, y, width, stub, DIM);
-                    g.setFont(font(Font.BOLD, 10.5f).deriveFont(Map.of(java.awt.font.TextAttribute.TRACKING, 0.08f)));
+                    g.setFont(headingFont());
                     g.setColor(HEADING);
                     g.drawString(e.getKey().label.toUpperCase(java.util.Locale.ROOT) + "  ▸", x + pad, y + pad + 10);
                     placed.put(new java.awt.Rectangle(x, y, width, stub), e.getKey());
@@ -1507,7 +1526,7 @@ final class Hud {
             g.setColor(DIM);
             g.drawString(right, x + width - pad - rw, y + pad + 10);
         }
-        g.setFont(font(Font.BOLD, 10.5f).deriveFont(Map.of(java.awt.font.TextAttribute.TRACKING, 0.08f)));
+        g.setFont(headingFont());
         g.setColor(HEADING);
         g.drawString(clip(g, title.toUpperCase(java.util.Locale.ROOT), width - 2 * pad - rw - 8), x + pad, y + pad + 10);
         g.setColor(RULE);
@@ -1529,7 +1548,7 @@ final class Hud {
     }
 
     private Font valueFont() {
-        return new Font(Font.MONOSPACED, Font.PLAIN, 1).deriveFont(11.5f * fontScale);
+        return fonts.computeIfAbsent(-2L, k -> new Font(Font.MONOSPACED, Font.PLAIN, 1).deriveFont(11.5f * fontScale));
     }
 
     /** @return the rows taken: 1, or 2 when the note went under the title */
