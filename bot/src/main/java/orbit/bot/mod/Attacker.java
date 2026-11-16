@@ -357,7 +357,7 @@ public final class Attacker {
             log.info("EMP-01 по {} (за сутки {})", w.ships().get(targetId) != null ? w.ships().get(targetId).name() : "цели",
                     AbilityUse.today(h.id(), EMP, System.currentTimeMillis()) + 1);
             ctx.actions().useItem(EMP);
-            AbilityUse.used(h.id(), EMP, System.currentTimeMillis());
+            pressed(w, EMP, now);
             empUses++;
             empAt = now;
         }
@@ -366,7 +366,7 @@ public final class Attacker {
             log.info("ISH-01: HP {}% (за сутки {})", Math.round(hp * 100),
                     AbilityUse.today(h.id(), ISH, System.currentTimeMillis()) + 1);
             ctx.actions().useItem(ISH);
-            AbilityUse.used(h.id(), ISH, System.currentTimeMillis());
+            pressed(w, ISH, now);
             ishUses++;
             ishAt = now;
         }
@@ -414,7 +414,7 @@ public final class Attacker {
                 log.info("EMP-01: стреляют {} игроков, HP {}% — следом стенка (за сутки {})", players,
                         Math.round(hp * 100), AbilityUse.today(h.id(), EMP, System.currentTimeMillis()) + 1);
                 ctx.actions().useItem(EMP);
-                AbilityUse.used(h.id(), EMP, System.currentTimeMillis());
+                pressed(w, EMP, now);
                 empUses++;
                 empAt = now;
                 return;
@@ -423,7 +423,7 @@ public final class Attacker {
                 log.info("ISH-01 сразу после EMP: стреляют {} игроков, HP {}% (за сутки {})", players,
                         Math.round(hp * 100), AbilityUse.today(h.id(), ISH, System.currentTimeMillis()) + 1);
                 ctx.actions().useItem(ISH);
-                AbilityUse.used(h.id(), ISH, System.currentTimeMillis());
+                pressed(w, ISH, now);
                 ishUses++;
                 ishAt = now;
                 return;
@@ -452,7 +452,7 @@ public final class Attacker {
             log.info("ISH-01: HP {}%, стреляют {} игроков (за сутки {})", Math.round(hp * 100), players,
                     AbilityUse.today(h.id(), ISH, System.currentTimeMillis()) + 1);
             ctx.actions().useItem(ISH);
-            AbilityUse.used(h.id(), ISH, System.currentTimeMillis());
+            pressed(w, ISH, now);
             ishUses++;
             ishAt = now;
             return;
@@ -466,7 +466,7 @@ public final class Attacker {
             log.info("EMP-01: HP {}%, стреляют {} игроков (за сутки {})", Math.round(hp * 100), players,
                     AbilityUse.today(h.id(), EMP, System.currentTimeMillis()) + 1);
             ctx.actions().useItem(EMP);
-            AbilityUse.used(h.id(), EMP, System.currentTimeMillis());
+            pressed(w, EMP, now);
             empUses++;
             empAt = now;
         }
@@ -496,7 +496,7 @@ public final class Attacker {
         log.info("EMP-01 в пути: стреляют {} игроков, HP {}% — лечу дальше (за сутки {})", players,
                 Math.round(h.health().hpPercent() * 100), AbilityUse.today(h.id(), EMP, System.currentTimeMillis()) + 1);
         ctx.actions().useItem(EMP);
-        AbilityUse.used(h.id(), EMP, System.currentTimeMillis());
+        pressed(w, EMP, now);
         empAt = now;
         return true;
     }
@@ -520,8 +520,45 @@ public final class Attacker {
      * The item may be used now: ready in the game, the fight's count, the pause, the hour's and the day's limits and
      * the stock kept (the config's «Расход»); a limit reached is told once.
      */
+    /** EMP and ISH pressed and not yet answered by the game: id → {when, how many there were}. */
+    private final java.util.Map<String, double[]> pendingUse = new java.util.HashMap<>();
+    /** No new press of these before this (the game did not answer the last one). */
+    private final java.util.Map<String, Long> unansweredUntil = new java.util.HashMap<>();
+    /** The game answers a use within this: the cooldown starts or a charge goes. */
+    static final long USE_ANSWER_NS = 4_000_000_000L;
+    /** After an unanswered use the next one waits this (live 2026-11-16 on gb2: ISH every 5 s for a minute while the
+     *  connection lagged, each counted as used). */
+    static final long UNANSWERED_PAUSE_NS = 20_000_000_000L;
+
+    private void pressed(WorldSnapshot w, String id, long now) {
+        WorldSnapshot.Item i = w.items().get(id);
+        pendingUse.put(id, new double[] {now, i == null ? -1 : i.counter()});
+    }
+
+    /** A use counts for the day once the game answers it; none in {@link #USE_ANSWER_NS} — a pause before the next. */
+    private void settle(WorldSnapshot w, long now) {
+        for (var it = pendingUse.entrySet().iterator(); it.hasNext(); ) {
+            var e = it.next();
+            WorldSnapshot.Item i = w.items().get(e.getKey());
+            double[] p = e.getValue();
+            if (i != null && (i.remainingMs(now) > 0 || p[1] >= 0 && i.counter() < p[1])) {
+                AbilityUse.used(w.hero().id(), e.getKey(), System.currentTimeMillis());
+                it.remove();
+            } else if (now - (long) p[0] > USE_ANSWER_NS) {
+                it.remove();
+                unansweredUntil.put(e.getKey(), now + UNANSWERED_PAUSE_NS);
+                log.warn("{}: игра не ответила на применение (связь тормозит?) — не считаю, снова через {} с",
+                        orbit.config.ItemCatalog.friendly(e.getKey()), UNANSWERED_PAUSE_NS / 1_000_000_000L);
+            }
+        }
+    }
+
     private boolean may(WorldSnapshot w, WorldSnapshot.Hero h, String id, BotConfig.Spend s, int usesThisFight,
                         long lastAt, long now) {
+        settle(w, now);
+        if (pendingUse.containsKey(id) || now < unansweredUntil.getOrDefault(id, Long.MIN_VALUE)) {
+            return false;
+        }
         if (s.perFight() > 0 && usesThisFight >= s.perFight() || now - lastAt < s.gapSeconds() * 1_000_000_000L
                 || !ready(w, id, now)) {
             return false;
@@ -670,6 +707,7 @@ public final class Attacker {
             return false;
         }
         WorldSnapshot w = ctx.world().get();
+        settle(w, ctx.now());
         WorldSnapshot.Hero h = w.hero();
         WorldSnapshot.Ship t = w.ships().get(targetId);
         if (t == null && !shotAt && w.destroyed().containsKey(targetId) && seenAt != 0

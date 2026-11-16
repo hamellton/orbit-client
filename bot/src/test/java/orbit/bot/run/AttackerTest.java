@@ -828,4 +828,23 @@ class AttackerTest {
         // every RSB press fired: the bot keeps firing it, no minute-long pause after a second «failed» press
         assertTrue(used(sim, "ammunition_laser_rsb-75") >= 8, "RSB kept firing: " + used(sim, "ammunition_laser_rsb-75"));
     }
+
+    @Test
+    void anIshTheGameNeverAnswersIsNotPressedEveryFewSeconds() {
+        // live 2026-11-16 on gb2: the connection lagged at a Behemoth, ISH pressed every 5 s for a minute, none answered
+        Sim sim = new Sim(invoke(Set.of("USE_ISH"), null), 1, 10_500, 6_000);
+        sim.lasers("ammunition_laser_lcb-10", "equipment_extra_cpu_ish-01");
+        sim.npc(7, "-=[ Target ]=-", 10_000, 6_000);
+        Attacker a = new Attacker(sim.ctx);
+        a.target(sim.world.snapshot(sim.now).ships().get(7));
+        sim.run(() -> a.tick(true), 2_000);
+        orbit.protocol.gen.AttackHitCommand hit = new orbit.protocol.gen.AttackHitCommand();
+        hit.attackerId = 7;
+        hit.victimId = 1;
+        hit.victimHitpoints = sim.world.snapshot(sim.now).hero().health().hpMax() * 0.25;
+        sim.world.apply(hit, sim.now);
+        sim.run(() -> a.tick(true), 30_000);
+        long presses = used(sim, "equipment_extra_cpu_ish-01");
+        assertTrue(presses >= 1 && presses <= 2, "ISH pressed " + presses + " times in 30 s without an answer");
+    }
 }
