@@ -26,13 +26,13 @@ import orbit.world.maps.MapCatalog;
  */
 final class Hud {
 
-    static final Color CARD = new Color(0x151c27);
-    static final Color CARD_EDGE = Theme.BORDER;
+    static final Color CARD = new Color(0x171e29);
+    static final Color CARD_EDGE = new Color(0x313c4e);
     static final Color TEXT = Theme.TEXT;
     static final Color DIM = Theme.DIM;
-    static final Color HP_BAR = new Color(0x22c55e);
-    static final Color SHIELD_BAR = new Color(0x3b82f6);
-    static final Color BAR_TRACK = new Color(0x2a3140);
+    static final Color HP_BAR = new Color(0x3fa864);
+    static final Color SHIELD_BAR = new Color(0x4f82d1);
+    static final Color BAR_TRACK = new Color(0x232a36);
     static final int PAD = 12;
     static final int LINE = 17;
     static final int BAR = 14;
@@ -108,8 +108,8 @@ final class Hud {
                 .findFirst().orElse("—");
     }
 
-    static final Color QUEST_BAR = new Color(0xa855f7);
-    static final Color GATE_BAR = new Color(0x06b6d4);
+    static final Color QUEST_BAR = new Color(0x9071cf);
+    static final Color GATE_BAR = new Color(0x3aa3b8);
 
     /** The gates the card lists: ABG, ζ, κ first (the user's first test), then any other the builder tells of. */
     static final List<String> GATE_ORDER = List.of("alpha", "beta", "gamma", "zeta", "kappa", "delta", "epsilon", "lambda",
@@ -147,11 +147,8 @@ final class Hud {
             @Override
             public void paint(Graphics2D g, int x, int y, int width) {
                 frame(g, x, y, width, height(width), GATE_BAR);
-                g.setFont(font(Font.PLAIN, 11f));
-                g.setColor(DIM);
-                String head = "Врата · энергия " + money((long) Math.max(0, gs.samples())) + " · уридий "
-                        + money((long) Math.max(0, gs.money()));
-                g.drawString(clip(g, head, width - 2 * pad), x + pad, y + pad + 10);
+                heading(g, x, y, width, "Врата", "энергия " + money((long) Math.max(0, gs.samples())) + " · уридий "
+                        + money((long) Math.max(0, gs.money())));
                 int ry = y + pad + line;
                 for (orbit.config.GateCatalog.Gate gate : list) {
                     WorldSnapshot.Gate st = gs.gate(gate.builderId());
@@ -170,8 +167,8 @@ final class Hud {
             }
         };
     }
-    static final Color SKYLAB_BAR = new Color(0x22c55e);
-    static final Color LAB_BAR = new Color(0xf59e0b);
+    static final Color SKYLAB_BAR = new Color(0x3fa864);
+    static final Color LAB_BAR = new Color(0xd29a3a);
 
     /** The lab's items in the window's words (LabItemModule: laser 0, rockets 1, drive 2, shield 3). */
     static final List<String> LAB_ITEMS = List.of("Лазеры", "Ракеты", "Двигатели", "Щиты");
@@ -214,21 +211,17 @@ final class Hud {
             @Override
             public void paint(Graphics2D g, int x, int y, int width) {
                 frame(g, x, y, width, height(width), LAB_BAR);
-                g.setFont(font(Font.BOLD, 12f));
-                g.setColor(TEXT);
-                g.drawString("Обогащение", x + pad, y + pad + 10);
+                heading(g, x, y, width, "Обогащение", age + " · раз в 5 мин");
                 g.setFont(font(Font.PLAIN, 11f));
-                g.setColor(DIM);
-                String right = age + " · раз в 5 мин";
-                g.drawString(right, x + width - pad - g.getFontMetrics().stringWidth(right), y + pad + 10);
                 int ry = y + pad + line;
                 for (int i = 0; i < LAB_ITEMS.size(); i++) {
                     WorldSnapshot.Enrichment e = lab.items().get(i);
                     boolean has = e != null && e.left() > 0;
-                    g.setColor(has ? TEXT : DIM);
+                    g.setFont(font(Font.PLAIN, 11f));
+                    g.setColor(DIM);
                     g.drawString(LAB_ITEMS.get(i), x + pad, ry + 10);
                     String v = has ? oreName(e.ore()) + "  " + money(e.left()) + " " + LAB_UNITS.get(i) : "нет";
-                    g.drawString(v, x + width - pad - g.getFontMetrics().stringWidth(v), ry + 10);
+                    value(g, v, x + width - pad, ry + 10, has ? TEXT : DIM);
                     ry += line;
                 }
             }
@@ -278,13 +271,8 @@ final class Hud {
             @Override
             public void paint(Graphics2D g, int x, int y, int width) {
                 frame(g, x, y, width, height(width), SKYLAB_BAR);
-                g.setFont(font(Font.BOLD, 12f));
-                g.setColor(TEXT);
-                g.drawString("Скайлаб", x + pad, y + pad + 10);
+                heading(g, x, y, width, "Скайлаб", age + " · раз в 20 мин");
                 g.setFont(font(Font.PLAIN, 11f));
-                g.setColor(DIM);
-                String right = age + " · раз в 20 мин";
-                g.drawString(right, x + width - pad - g.getFontMetrics().stringWidth(right), y + pad + 10);
                 int ry = y + pad + line;
                 g.setColor(s.transporting() ? TEXT : DIM);
                 g.drawString(clip(g, "Транспорт: " + (s.transporting() ? "в пути" : "свободен")
@@ -334,9 +322,7 @@ final class Hud {
             @Override
             public void paint(Graphics2D g, int x, int y, int width) {
                 frame(g, x, y, width, height(width), QUEST_BAR);
-                g.setFont(font(Font.PLAIN, 11f));
-                g.setColor(DIM);
-                g.drawString("Квесты: " + q.active().size(), x + pad, y + pad + 10);
+                heading(g, x, y, width, "Квесты", String.valueOf(q.active().size()));
                 int ry = y + pad + line;
                 for (orbit.world.Quests.Quest quest : list) {
                     g.setFont(font(Font.BOLD, 12f));
@@ -569,9 +555,9 @@ final class Hud {
                     int cy = sy + (i / n) * line;
                     String value = stats.get(i)[1];
                     g.setColor(DIM);
-                    g.drawString(clip(g, stats.get(i)[0], cw - fm.stringWidth(value) - 6), cx, cy);
-                    g.setColor(TEXT);
-                    g.drawString(value, cx + cw - fm.stringWidth(value), cy);
+                    g.drawString(clip(g, stats.get(i)[0], cw - valueWidth(value) - 6), cx, cy);
+                    value(g, value, cx + cw, cy, TEXT);
+                    g.setFont(font(Font.PLAIN, 12f));
                 }
                 int ky = sy + statRows(width) * line + 4;
                 g.setFont(keyFont);
@@ -584,8 +570,8 @@ final class Hud {
         };
     }
 
-    static final Color NANO_BAR = new Color(0xf59e0b);
-    static final Color BOOST = new Color(0xfbbf24);
+    static final Color NANO_BAR = new Color(0xd29a3a);
+    static final Color BOOST = new Color(0xd9b04a);
 
     /** Short names of the boosted attributes ({@code BoosterUpdateModule.attributeType}). */
     static String boostName(String attribute) {
@@ -640,17 +626,15 @@ final class Hud {
             @Override
             public void paint(Graphics2D g, int x, int y, int width) {
                 frame(g, x, y, width, height(width), BOOST);
-                g.setFont(font(Font.PLAIN, 11f));
-                g.setColor(DIM);
-                g.drawString("Бустеры", x + pad, y + pad + 10);
+                heading(g, x, y, width, "Бустеры", "");
                 int ty = y + pad + line + 11;
                 g.setFont(font(Font.PLAIN, 12f));
                 FontMetrics fm = g.getFontMetrics();
                 for (String[] r : rows) {
                     g.setColor(TEXT);
-                    g.drawString(clip(g, r[0], width - 2 * pad - fm.stringWidth(r[1]) - 8), x + pad, ty);
-                    g.setColor(r[1].startsWith("0:") ? ENEMY_SOON : DIM);
-                    g.drawString(r[1], x + width - pad - fm.stringWidth(r[1]), ty);
+                    g.drawString(clip(g, r[0], width - 2 * pad - valueWidth(r[1]) - 8), x + pad, ty);
+                    value(g, r[1], x + width - pad, ty, r[1].startsWith("0:") ? ENEMY_SOON : DIM);
+                    g.setFont(font(Font.PLAIN, 12f));
                     ty += line - 1;
                 }
                 if (!pills.isEmpty()) {
@@ -662,7 +646,7 @@ final class Hud {
         };
     }
 
-    private static final Color ENEMY_SOON = new Color(0xf97316);
+    private static final Color ENEMY_SOON = new Color(0xdc7a3c);
 
     /** 3725 s → {@code 1:02}, under an hour {@code 0:47}. */
     static String hm(long seconds) {
@@ -916,9 +900,8 @@ final class Hud {
             @Override
             public void paint(Graphics2D g, int x, int y, int width) {
                 frame(g, x, y, width, height(width), MinimapPanel.ENEMY);
+                heading(g, x, y, width, "Атакуют меня", String.valueOf(w.hero().attackers().size()));
                 g.setFont(font(Font.PLAIN, 11f));
-                g.setColor(DIM);
-                g.drawString("Атакуют меня: " + w.hero().attackers().size(), x + pad, y + pad + 10);
                 int ry = y + pad + line;
                 int row = 0;
                 for (Map.Entry<String, List<Ship>> e : byName.entrySet()) {
@@ -978,10 +961,8 @@ final class Hud {
             @Override
             public void paint(Graphics2D g, int x, int y, int width) {
                 frame(g, x, y, width, height(width), MinimapPanel.ALLY);
+                heading(g, x, y, width, "Группа", group.members().size() + (group.leaderId() == h.id() ? " · вы лидер" : ""));
                 g.setFont(font(Font.PLAIN, 11f));
-                g.setColor(DIM);
-                g.drawString(clip(g, "Группа (" + group.members().size() + ")" + (group.leaderId() == h.id() ? "  ·  вы лидер" : ""),
-                        width - 2 * pad), x + pad, y + pad + 10);
                 int ry = y + pad + line;
                 for (WorldSnapshot.Member m : others) {
                     String where = m.loggedOut() ? "не в игре"
@@ -1044,9 +1025,7 @@ final class Hud {
             @Override
             public void paint(Graphics2D g, int x, int y, int width) {
                 frame(g, x, y, width, height(width), new Color(0xa78bfa));
-                g.setFont(font(Font.PLAIN, 11f));
-                g.setColor(DIM);
-                g.drawString("Итоги сессии", x + pad, y + pad + 10);
+                heading(g, x, y, width, "Итоги сессии", "");
                 g.setFont(textFont);
                 int ty = y + pad + line + 11;
                 for (int i = 0; i < lines.size(); i++) {
@@ -1209,15 +1188,60 @@ final class Hud {
 
     // ---- drawing helpers ----
 
+    /** Corners of the cards and bars: small, a classic panel (the user, 2026-11-16: «более классическое, строгое»). */
+    static final int CARD_ARC = 0;
+    static final int BAR_ARC = 3;
+
     private void frame(Graphics2D g, int x, int y, int w, int h, Color accent) {
-        RoundRectangle2D.Double r = new RoundRectangle2D.Double(x, y, w, h, 12, 12);
+        RoundRectangle2D.Double r = new RoundRectangle2D.Double(x, y, w, h, CARD_ARC, CARD_ARC);
         g.setColor(CARD);
         g.fill(r);
         g.setColor(CARD_EDGE);
         g.setStroke(new BasicStroke(1f));
-        g.draw(new RoundRectangle2D.Double(x + 0.5, y + 0.5, w - 1, h - 1, 12, 12));
-        g.setColor(accent);
-        g.fill(new RoundRectangle2D.Double(x, y + 8, 3, h - 16, 3, 3));
+        g.draw(new RoundRectangle2D.Double(x + 0.5, y + 0.5, w - 1, h - 1, CARD_ARC, CARD_ARC));
+        // the card's colour as a thin line along its top, inside the corners
+        java.awt.Shape clip = g.getClip();
+        g.clip(r);
+        g.setColor(new Color(accent.getRed(), accent.getGreen(), accent.getBlue(), 200));
+        g.fillRect(x, y, w, 2);
+        g.setClip(clip);
+    }
+
+    /**
+     * A section's title as in a classic panel: small grey capitals spaced a little, its note on the right, a thin line
+     * under them (the user, 2026-11-16). On the card's first row; the rows below start where they did.
+     */
+    private void heading(Graphics2D g, int x, int y, int width, String title, String right) {
+        Font small = font(Font.PLAIN, 11f);
+        g.setFont(small);
+        int rw = right.isEmpty() ? 0 : g.getFontMetrics().stringWidth(right);
+        if (rw > 0) {
+            g.setColor(DIM);
+            g.drawString(right, x + width - pad - rw, y + pad + 10);
+        }
+        g.setFont(font(Font.BOLD, 10.5f).deriveFont(Map.of(java.awt.font.TextAttribute.TRACKING, 0.08f)));
+        g.setColor(HEADING);
+        g.drawString(clip(g, title.toUpperCase(java.util.Locale.ROOT), width - 2 * pad - rw - 8), x + pad, y + pad + 10);
+        g.setColor(RULE);
+        g.fillRect(x + pad, y + pad + line - 2, width - 2 * pad, 1);
+    }
+
+    static final Color HEADING = new Color(0x97a3b6);
+    static final Color RULE = new Color(0x3a4659);
+
+    /** Numbers in columns: figures of one width (a monospaced face), right-aligned at {@code right}. */
+    private void value(Graphics2D g, String text, int right, int baseline, Color color) {
+        g.setFont(valueFont());
+        g.setColor(color);
+        g.drawString(text, right - g.getFontMetrics().stringWidth(text), baseline);
+    }
+
+    private int valueWidth(String text) {
+        return measure(valueFont()).stringWidth(text);
+    }
+
+    private Font valueFont() {
+        return new Font(Font.MONOSPACED, Font.PLAIN, 1).deriveFont(11.5f * fontScale);
     }
 
     /** @return the rows taken: 1, or 2 when the note went under the title */
@@ -1245,7 +1269,7 @@ final class Hud {
 
     private void bar(Graphics2D g, int x, int y, int w, int barHeight, double now, double max, Color color, boolean percent) {
         g.setColor(BAR_TRACK);
-        g.fill(new RoundRectangle2D.Double(x, y, w, barHeight, barHeight, barHeight));
+        g.fill(new RoundRectangle2D.Double(x, y, w, barHeight, BAR_ARC, BAR_ARC));
         if (max == 0 && color == SHIELD_BAR && barHeight >= 9) {
             noShield(g, x, y, w, barHeight); // a configuration with no shield generators
             return;
@@ -1255,7 +1279,7 @@ final class Hud {
         }
         double share = Math.min(1, now / max);
         g.setColor(color);
-        g.fill(new RoundRectangle2D.Double(x, y, Math.max(barHeight, w * share), barHeight, barHeight, barHeight));
+        g.fill(new RoundRectangle2D.Double(x, y, Math.max(BAR_ARC, w * share), barHeight, BAR_ARC, BAR_ARC));
         if (barHeight < 9) {
             return;
         }
@@ -1275,7 +1299,7 @@ final class Hud {
      */
     private void valueBar(Graphics2D g, int x, int y, int w, int barHeight, double now, double max, Color color) {
         g.setColor(BAR_TRACK);
-        g.fill(new RoundRectangle2D.Double(x, y, w, barHeight, barHeight, barHeight));
+        g.fill(new RoundRectangle2D.Double(x, y, w, barHeight, BAR_ARC, BAR_ARC));
         if (max == 0 && color == SHIELD_BAR && barHeight >= 9) {
             noShield(g, x, y, w, barHeight);
             return;
@@ -1285,7 +1309,7 @@ final class Hud {
         }
         double share = Math.min(1, now / max);
         g.setColor(color);
-        g.fill(new RoundRectangle2D.Double(x, y, Math.max(barHeight, w * share), barHeight, barHeight, barHeight));
+        g.fill(new RoundRectangle2D.Double(x, y, Math.max(BAR_ARC, w * share), barHeight, BAR_ARC, BAR_ARC));
         if (barHeight < 9) {
             return;
         }

@@ -24,7 +24,7 @@ public final class Theme {
     public static final Color BORDER = new Color(0x263041);
     public static final Color TEXT = new Color(0xdfe6ee);
     public static final Color DIM = new Color(0x8b96a8);
-    public static final Color ACCENT = new Color(0x38bdf8);
+    public static final Color ACCENT = new Color(0x5a9fd6);
     public static final Color SELECTION = new Color(0x1e3a54);
 
     private static boolean done;
@@ -58,16 +58,16 @@ public final class Theme {
                 Map.entry("@selectionForeground", hex(TEXT)),
                 Map.entry("@disabledForeground", hex(DIM))));
         FlatDarkLaf.setup();
-        UIManager.put("Component.arc", 10);
-        UIManager.put("Button.arc", 10);
-        UIManager.put("TextComponent.arc", 8);
+        UIManager.put("Component.arc", 6);
+        UIManager.put("Button.arc", 6);
+        UIManager.put("TextComponent.arc", 5);
         UIManager.put("Component.focusWidth", 1);
         UIManager.put("Component.borderColor", BORDER);
         UIManager.put("Component.disabledBorderColor", BORDER);
         UIManager.put("Button.borderColor", BORDER);
         UIManager.put("Button.hoverBackground", new Color(0x243042));
         UIManager.put("Button.pressedBackground", new Color(0x2b384c));
-        UIManager.put("Button.default.background", new Color(0x0e4a66));
+        UIManager.put("Button.default.background", new Color(0x24496b));
         UIManager.put("Button.default.foreground", TEXT);
         UIManager.put("Separator.foreground", BORDER);
         UIManager.put("ScrollBar.thumbArc", 999);
