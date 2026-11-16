@@ -357,6 +357,23 @@ class BehemothModuleTest {
     }
 
     @Test
+    void diedBeforeTheBehemothDatesItsDeathByOurs() throws Exception {
+        // live 2026-11-16 on the VPS, 1-BL 21:06: killed at it, left the map, its death unseen — the timer was lost
+        Sim sim = new Sim(config(300), 308, 8_000, 5_700);
+        sim.lasers("ammunition_laser_a-bl");
+        SpawnMemory mem = SpawnMemory.inMemory();
+        BehemothModule m = new BehemothModule(sim.ctx, mem);
+        m.workingMap();
+        sim.npc(77, BEHEMOTH, 4_700, 3_900);
+        sim.run(m::tick, 3_000);
+        assertEquals(0, m.dueAt(308, m.wallMs()), "alive: no timer yet");
+        sim.ctx.stats().deaths.incrementAndGet();
+        m.observe();
+        long due = m.dueAt(308, m.wallMs());
+        assertTrue(due > m.wallMs() + 14 * 60_000 && due <= m.wallMs() + 16 * 60_000, "a respawn from our death: " + due);
+    }
+
+    @Test
     void playersAreLeftAloneUnlessTheConfigSaysAndThenAShooterIsAnswered() throws Exception {
         Sim off = new Sim(config(300), 308, 5_700, 2_600);
         BehemothModule quiet = new BehemothModule(off.ctx, SpawnMemory.inMemory());

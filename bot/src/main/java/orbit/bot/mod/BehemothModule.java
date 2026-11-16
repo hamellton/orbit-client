@@ -745,6 +745,7 @@ public final class BehemothModule implements BotModule {
         }
         if (lastDeaths >= 0 && d > lastDeaths && fightMap != 0 && ctx.now() - fightMapAt < 90_000_000_000L) {
             JsonNode s = settings();
+            diedBefore(fightMap);
             int n = deathsAt.merge(fightMap, d - lastDeaths, Integer::sum);
             int limit = (int) number(s, "deathsPerSpawn", 0);
             if (on(s, "trainMode", false) && limit > 0) {
@@ -760,6 +761,25 @@ public final class BehemothModule implements BotModule {
             fightMap = 0;
         }
         lastDeaths = d;
+    }
+
+    /**
+     * The ship died fighting the behemoth before it died (the user, 2026-11-16: «считать время от момента моей
+     * смерти»): its death is dated by ours, give or take the seconds it lived on — the ship left the map and saw no
+     * end (live 2026-11-16 on the VPS, 1-BL 21:06: died at it, its box picked up later, the timer unknown, 7 minutes
+     * held for it). Seen alive again later, the sighting makes the timer unknown till its real death.
+     */
+    private void diedBefore(int map) {
+        int[] sp = spawnPoint(map);
+        SpawnMemory.Spawn k = memory.spawns(map).stream()
+                .min(java.util.Comparator.comparingDouble(x -> Math.hypot(x.x() - sp[0], x.y() - sp[1]))).orElse(null);
+        if (k != null && k.lastKill() >= k.lastSeen()) {
+            return; // its death is known already (it died first)
+        }
+        long wall = wallMs();
+        memory.killed(map, sp[0], sp[1], wall);
+        log.info("Погиб раньше бегемота на {} — считаю его гибель по своей: следующий примерно через {}",
+                ctx.maps().info(map).name(), clock(respawn(map)));
     }
 
     /**
