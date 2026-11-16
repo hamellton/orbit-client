@@ -1055,6 +1055,15 @@ public final class OrbitMain {
      * The account's ships for the bot: the palladium pair chosen in the account's settings ({@code 0} = none, the
      * module then takes the config's, imported from DarkBot).
      */
+    /** When the accounts' settings file was last written ({@code 0} = none). */
+    private static long accountsStamp() {
+        try {
+            return Files.getLastModifiedTime(orbit.config.AccountSettings.DEFAULT_FILE).toMillis();
+        } catch (java.io.IOException e) {
+            return 0;
+        }
+    }
+
     private static orbit.bot.run.AccountShips accountShips(String accountName) {
         orbit.bot.run.AccountShips ships = new orbit.bot.run.AccountShips();
         try {
@@ -1317,10 +1326,27 @@ public final class OrbitMain {
                                     java.time.ZoneId.systemDefault()).withNano(0), untilReason);
                 }
                 long nextWatch = 0;
+                long accountsStamp = accountsStamp();
+                String account = stopFile.getFileName().toString().substring("stop-".length());
                 while (true) {
                     if (System.currentTimeMillis() > nextWatch) {
                         if (watch.poll()) {
                             runner.configChanged();
+                        }
+                        // the account's ships changed in the account window while it runs (the user, 2026-11-16: the
+                        // Skylab's ship set on a running account, the bot never switched): taken at once
+                        long stamp = accountsStamp();
+                        if (stamp != accountsStamp) {
+                            accountsStamp = stamp;
+                            var fresh = accountShips(account);
+                            if (fresh.serviceShip() != ships.serviceShip()) {
+                                log.info("Корабль для Скайлаба: ангар {}", fresh.serviceShip() == 0 ? "не выбран"
+                                        : String.valueOf(fresh.serviceShip()));
+                                ships.setServiceShip(fresh.serviceShip());
+                            }
+                            if (fresh.palladiumCollect() > 0 && fresh.palladiumSell() > 0) {
+                                ships.setPalladium(fresh.palladiumCollect(), fresh.palladiumSell());
+                            }
                         }
                         nextWatch = System.currentTimeMillis() + 1_000;
                     }
