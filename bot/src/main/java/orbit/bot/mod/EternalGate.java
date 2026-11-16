@@ -174,7 +174,8 @@ public final class EternalGate {
                 show.accept("Вечные врата: CPU нет — крафчу");
                 return 0;
             }
-            return over(e, "CPU для Вечных врат нет" + (on(e, "craft", false) ? " и скрафтить не из чего" : ""), show);
+            return over(e, "CPU для Вечных врат нет" + (on(e, "craft", false) ? " и скрафтить не из чего"
+                    + (craftGivenUp ? " (не хватает ресурсов)" : "") : ""), show);
         }
         show.accept("Вечные врата: лечу на " + ctx.maps().info(bl).name() + " (CPU: " + ebg.cpus() + ")");
         return bl;
@@ -182,6 +183,10 @@ public final class EternalGate {
 
     private WorldSnapshot.Portal portal;
     private long recipesSince;
+    private long craftSince;
+    private boolean craftGivenUp;
+    /** A CPU's craft not begun so long after the starts: no resources for it. */
+    static final long CRAFT_GIVE_UP_MS = 7 * 60_000;
 
     /** EBG's portal on the BL map, when the CPU opened it. */
     WorldSnapshot.Portal portal() {
@@ -202,8 +207,27 @@ public final class EternalGate {
         }
         recipesSince = 0;
         WorldSnapshot.Recipe r = w.inventory().recipes().get(GateCatalog.EBG_CPU_RECIPE);
-        return r != null && (r.state() == WorldSnapshot.RecipeState.AVAILABLE || r.state() == WorldSnapshot.RecipeState.BUILDING
-                || r.state() == WorldSnapshot.RecipeState.READY);
+        if (r == null || r.state() != WorldSnapshot.RecipeState.AVAILABLE && r.state() != WorldSnapshot.RecipeState.BUILDING
+                && r.state() != WorldSnapshot.RecipeState.READY) {
+            return false;
+        }
+        if (r.state() != WorldSnapshot.RecipeState.AVAILABLE) {
+            craftSince = 0; // building or ready: it goes
+            return true;
+        }
+        // still only «available» long after the starts: the game takes no start without the resources (live
+        // 2026-11-16 on gb2: three starts in 4 min, no answer) — nothing to craft with
+        if (craftSince == 0) {
+            craftSince = ctx.now();
+        }
+        if ((ctx.now() - craftSince) / 1_000_000 > CRAFT_GIVE_UP_MS) {
+            if (!craftGivenUp) {
+                craftGivenUp = true;
+                log.warn("Вечные врата: крафт CPU не начался за {} мин — не хватает ресурсов", CRAFT_GIVE_UP_MS / 60_000);
+            }
+            return false;
+        }
+        return true;
     }
 
     private int over(JsonNode e, String why, java.util.function.Consumer<String> show) {
