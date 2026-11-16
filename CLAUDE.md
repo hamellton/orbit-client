@@ -68,7 +68,8 @@ Status: Stage 2 done; stage 3 in progress (login, game connection, vault, client
 Gradle needs JDK 21 (`export JAVA_HOME=$(/usr/libexec/java_home -v 21)`; the default `java` here is 17).
 - `./gradlew test` — all tests.
 - `./gradlew :sniffer:installDist` — builds `sniffer/build/install/sniffer/bin/{sniffer,session-report}`.
-- `./gradlew :app:installDist` — `app/build/install/orbit/bin/orbit`.
+- `./gradlew :app:installDist` — `app/build/install/orbit/bin/orbit`. The launcher passes `-Dsun.java2d.metal=false`:
+  Java2D's Metal pipeline leaks graphics memory drawing the map (~300 MB/min) — load notes in `docs/PLAN.md` «Нагрузка».
 - `scripts/sniff-session.sh [--observe]` — sniffer (or the bot window in observer mode) + official client (direct mode via `--host-resolver-rules`).
   Terminals inside VSCode set `ELECTRON_RUN_AS_NODE=1`; the script unsets it.
 - `scripts/update-maps.sh` — refresh `reference/maps/maps.json` from the client's maps-config.
