@@ -1476,23 +1476,23 @@ final class Hud {
     static final int BAR_ARC = 3;
 
     private void frame(Graphics2D g, int x, int y, int w, int h, Color accent) {
-        RoundRectangle2D.Double r = new RoundRectangle2D.Double(x, y, w, h, CARD_ARC, CARD_ARC);
+        // square corners (CARD_ARC 0): plain rectangles, which skip the slow anti-aliased shape path
         if (onMap) {
             g.setColor(new Color(10, 12, 18, 165)); // the map shows through, as under the strips
-            g.fill(r);
+            g.fillRect(x, y, w, h);
         } else {
             g.setColor(CARD);
-            g.fill(r);
+            g.fillRect(x, y, w, h);
+            Object aa = g.getRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING);
+            g.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING, java.awt.RenderingHints.VALUE_ANTIALIAS_OFF);
             g.setColor(CARD_EDGE);
             g.setStroke(new BasicStroke(1f));
-            g.draw(new RoundRectangle2D.Double(x + 0.5, y + 0.5, w - 1, h - 1, CARD_ARC, CARD_ARC));
+            g.drawRect(x, y, w - 1, h - 1);
+            g.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING, aa);
         }
-        // the card's colour as a thin line along its top, inside the corners
-        java.awt.Shape clip = g.getClip();
-        g.clip(r);
+        // the card's colour as a thin line along its top
         g.setColor(new Color(accent.getRed(), accent.getGreen(), accent.getBlue(), 200));
         g.fillRect(x, y, w, 2);
-        g.setClip(clip);
     }
 
     /**

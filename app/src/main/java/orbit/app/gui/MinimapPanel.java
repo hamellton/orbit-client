@@ -213,29 +213,26 @@ final class MinimapPanel extends JPanel {
         // marks grow a little with the map: readable on a big screen, not blobs in the overview
         double u = Math.max(0.8, Math.min(1.5, mw / 900));
 
+        ViewSettings.MapBackground ground = ViewSettings.shared().mapBackground();
+        java.awt.image.BufferedImage bg = hero.id() == 0 || ground != ViewSettings.MapBackground.PICTURE
+                ? null : MinimapBackgrounds.get(hero.mapId());
+        double dpi = Math.max(1, g.getTransform().getScaleX());
+        BackKey key = new BackKey(getWidth(), getHeight(), dpi, ox, oy, mw, mh, map.id(), map.name(), ground, bg,
+                hero.id() != 0 && !compact);
+        if (!key.equals(backKey) || back == null) {
+            back = background(key, p, map);
+            backKey = key;
+        }
+        // the map's ground drawn once into a picture (anti-aliased shapes and the big name cost most of a frame,
+        // 10 frames a second); redrawn when the size, the map or the background choice change
+        g.drawImage(back, 0, 0, getWidth(), getHeight(), null);
+        if (key.named()) {
+            sessionClock(g, ox, oy, mw, mh, map.name());
+        }
         java.awt.geom.RoundRectangle2D.Double frame = new java.awt.geom.RoundRectangle2D.Double(ox, oy, mw, mh, 10, 10);
         Shape oldClip = g.getClip();
-        g.clip(frame);
-        ViewSettings.MapBackground ground = ViewSettings.shared().mapBackground();
-        boolean picture = ground == ViewSettings.MapBackground.PICTURE;
-        g.setColor(ground == ViewSettings.MapBackground.SLATE ? SLATE : new Color(0x0b0e14));
-        g.fill(frame);
-        java.awt.image.BufferedImage bg = hero.id() == 0 || !picture ? null : MinimapBackgrounds.get(hero.mapId());
-        if (bg != null) {
-            g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-            g.drawImage(bg, (int) Math.round(ox), (int) Math.round(oy), (int) Math.round(mw), (int) Math.round(mh), null);
-            g.setColor(new Color(6, 8, 12, 110)); // dim the picture so the marks stand out
-            g.fill(frame);
-        }
-        grid(g, p, map, ground != ViewSettings.MapBackground.SLATE);
-        if (hero.id() != 0 && !compact) {
-            watermark(g, ox, oy, mw, mh, map);
-        }
-        g.setClip(oldClip);
-        g.setColor(BORDER);
-        g.setStroke(new BasicStroke(1f));
-        g.draw(frame);
-        g.clip(frame); // marks and their names stay inside the map, also at its edges
+        // marks and their names stay inside the map, also at its edges (a rectangle: a rounded clip is slow)
+        g.clipRect((int) Math.floor(ox), (int) Math.floor(oy), (int) Math.ceil(mw), (int) Math.ceil(mh));
 
         for (WorldSnapshot.Zone z : w.zones().values()) {
             if (!z.active()) {
@@ -504,22 +501,91 @@ final class MinimapPanel extends JPanel {
         return out;
     }
 
-    /** The map's name big and faint in the middle, the session's time under it (as AstraBot and DarkBot). */
-    private void watermark(Graphics2D g, double ox, double oy, double mw, double mh, MapCatalog.MapInfo map) {
-        float size = (float) Math.max(28, Math.min(110, mh * 0.2));
-        String name = map.name();
-        g.setFont(hud.font(Font.BOLD, size));
-        // a long name («Eternal Blacklight») no wider than about half the map (the user, 2026-11-16: «слишком большая»)
-        double fit = mw * 0.55;
-        int nw = g.getFontMetrics().stringWidth(name);
-        if (nw > fit) {
-            size = (float) Math.max(20, size * fit / nw);
-            g.setFont(hud.font(Font.BOLD, size));
+    /** What the map's ground picture depends on: a change draws it anew. */
+    private record BackKey(int width, int height, double scale, double ox, double oy, double mw, double mh, int mapId,
+            String mapName, ViewSettings.MapBackground ground, java.awt.image.BufferedImage picture, boolean named) {
+
+        @Override
+        public boolean equals(Object o) {
+            return o instanceof BackKey k && width == k.width && height == k.height && scale == k.scale && ox == k.ox
+                    && oy == k.oy && mw == k.mw && mh == k.mh && mapId == k.mapId
+                    && java.util.Objects.equals(mapName, k.mapName) && ground == k.ground && picture == k.picture
+                    && named == k.named;
         }
+
+        @Override
+        public int hashCode() {
+            return java.util.Objects.hash(width, height, mapId, ground);
+        }
+    }
+
+    private BackKey backKey;
+    private java.awt.image.BufferedImage back;
+
+    /** The map's ground: its colour, the game's picture dimmed, the grid, the border, the map's name. */
+    private java.awt.image.BufferedImage background(BackKey k, Projection p, MapCatalog.MapInfo map) {
+        int pw = Math.max(1, (int) Math.ceil(k.width() * k.scale()));
+        int ph = Math.max(1, (int) Math.ceil(k.height() * k.scale()));
+        java.awt.image.BufferedImage img = new java.awt.image.BufferedImage(pw, ph,
+                java.awt.image.BufferedImage.TYPE_INT_ARGB_PRE);
+        Graphics2D g = img.createGraphics();
+        try {
+            g.scale(k.scale(), k.scale());
+            g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+            double ox = k.ox();
+            double oy = k.oy();
+            double mw = k.mw();
+            double mh = k.mh();
+            java.awt.geom.RoundRectangle2D.Double frame = new java.awt.geom.RoundRectangle2D.Double(ox, oy, mw, mh, 10, 10);
+            g.clip(frame);
+            g.setColor(k.ground() == ViewSettings.MapBackground.SLATE ? SLATE : new Color(0x0b0e14));
+            g.fill(frame);
+            if (k.picture() != null) {
+                g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+                g.drawImage(k.picture(), (int) Math.round(ox), (int) Math.round(oy), (int) Math.round(mw),
+                        (int) Math.round(mh), null);
+                g.setColor(new Color(6, 8, 12, 110)); // dim the picture so the marks stand out
+                g.fill(frame);
+            }
+            grid(g, p, map, k.ground() != ViewSettings.MapBackground.SLATE);
+            if (k.named()) {
+                watermark(g, ox, oy, mw, mh, map);
+            }
+            g.setClip(null);
+            g.setColor(BORDER);
+            g.setStroke(new BasicStroke(1f));
+            g.draw(frame);
+        } finally {
+            g.dispose();
+        }
+        return img;
+    }
+
+    /** The map name's size: big and faint, a long name («Eternal Blacklight») no wider than about half the map. */
+    private float watermarkSize(Graphics2D g, double mw, double mh, String name) {
+        float size = (float) Math.max(28, Math.min(110, mh * 0.2));
+        // the user, 2026-11-16: «слишком большая»
+        double fit = mw * 0.55;
+        int nw = g.getFontMetrics(hud.font(Font.BOLD, size)).stringWidth(name);
+        return nw > fit ? (float) Math.max(20, size * fit / nw) : size;
+    }
+
+    /** The map's name big and faint in the middle (as AstraBot and DarkBot); the session's time is drawn live. */
+    private void watermark(Graphics2D g, double ox, double oy, double mw, double mh, MapCatalog.MapInfo map) {
+        String name = map.name();
+        g.setFont(hud.font(Font.BOLD, watermarkSize(g, mw, mh, name)));
         java.awt.FontMetrics fm = g.getFontMetrics();
         g.setColor(new Color(255, 255, 255, 34));
         double cy = oy + mh / 2;
         g.drawString(name, (float) (ox + (mw - fm.stringWidth(name)) / 2), (float) (cy + fm.getAscent() * 0.35));
+    }
+
+    /** The session's time under the map's name. */
+    private void sessionClock(Graphics2D g, double ox, double oy, double mw, double mh, String name) {
+        float size = watermarkSize(g, mw, mh, name);
+        java.awt.FontMetrics fm = g.getFontMetrics(hud.font(Font.BOLD, size));
+        double cy = oy + mh / 2;
         long ns = feed.sessionNanos();
         if (ns > 0) {
             String t = "сессия " + Hud.clock(java.time.Duration.ofNanos(ns));
