@@ -1335,7 +1335,10 @@ public final class OrbitMain {
                         runner.stopWhenFree("по команде");
                     }
                     if (stopRequested.get()) {
-                        runner.stopWhenFree("по кнопке");
+                        // the user's order: everything dropped, straight to the portal (the user, 2026-11-16: the cube
+                        // camp «finished the fight» for three more cubes, its Protegits never stop shooting); in a gate
+                        // the stop still plays the stage on till the home portal
+                        runner.stop("по кнопке");
                     } else if (System.currentTimeMillis() > until) {
                         runner.stopWhenFree("время вышло");
                     }
