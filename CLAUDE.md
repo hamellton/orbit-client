@@ -53,6 +53,7 @@ Status: Stage 2 done; stage 3 in progress (login, game connection, vault, client
   what is not done and what comes next (farming among trains like CARNAGE, groups): `docs/BLACKLIGHT.md`, stage D.
   `GateModule` galaxy gates as DarkBot's SharedPlugin (`docs/GALAXY-GATES.md`); `Enricher`, `SkylabCare`, `ServiceVisit`
   lab enrichment and Skylab ore, also by a visit to the account's service ship (`docs/SKYLAB.md`).
+  `EternalGate` the Eternal Blacklight gate (EBG) as SharedPlugin: CPU on a BL map, runs, brake, boosters (`docs/EBG.md`).
 - `app` — the bot application `orbit`; without arguments the account manager (`ManagerWindow`: master
   password in `VaultDialog`, accounts add/edit/remove with proxy check, start/stop each or all through
   `AccountRunner`, a tab per started account). Otherwise modes (FlatLaf window that fits any size: per account a header with a
