@@ -108,7 +108,16 @@ public final class LogPanel extends JPanel {
     private final JTextArea detail = new JTextArea();
     private final JScrollPane detailScroll;
     private final JPanel detailBox;
-    private final JToggleButton follow = new JToggleButton("⇣ Следить", true);
+    private final JToggleButton follow = new JToggleButton("↓ Следить", true);
+    /**
+     * Over the list's bottom while it is scrolled up and new lines came (the user, 2026-11-16: «стрелки… юзерфрендли»):
+     * «↓ Новых: 12» — a click goes to them and follows again.
+     */
+    private final JButton fresh = new JButton();
+    private int unseen;
+    private final JLabel problemCount = new JLabel();
+    private JButton prevProblem;
+    private JButton nextProblem;
     private final ConcurrentLinkedQueue<LogEntry> incoming = new ConcurrentLinkedQueue<>();
     private final List<String> knownAccounts = new ArrayList<>();
     private final Runnable unsubscribe;
@@ -209,7 +218,39 @@ public final class LogPanel extends JPanel {
         south.add(status, BorderLayout.SOUTH);
 
         add(toolbar(), BorderLayout.NORTH);
-        add(scroll, BorderLayout.CENTER);
+        fresh.setVisible(false);
+        fresh.setFocusable(false);
+        fresh.setCursor(java.awt.Cursor.getPredefinedCursor(java.awt.Cursor.HAND_CURSOR));
+        fresh.putClientProperty("JButton.buttonType", "roundRect");
+        fresh.setBackground(new java.awt.Color(0x24496b));
+        fresh.setForeground(Theme.TEXT);
+        fresh.setToolTipText("К последним строкам — и следить дальше");
+        fresh.addActionListener(e -> {
+            follow.setSelected(true);
+            toEnd();
+        });
+        JPanel over = new JPanel(null) {
+            @Override
+            public boolean isOptimizedDrawingEnabled() {
+                return false; // the button lies over the list
+            }
+
+            @Override
+            public void doLayout() {
+                scroll.setBounds(0, 0, getWidth(), getHeight());
+                java.awt.Dimension d = fresh.getPreferredSize();
+                fresh.setBounds(getWidth() - d.width - 28, getHeight() - d.height - 10, d.width, d.height);
+            }
+        };
+        over.add(fresh);
+        over.add(scroll);
+        add(over, BorderLayout.CENTER);
+        getInputMap(WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_DOWN, menuKey()),
+                "orbit.toEnd");
+        getActionMap().put("orbit.toEnd", action(() -> {
+            follow.setSelected(true);
+            toEnd();
+        }));
         add(south, BorderLayout.SOUTH);
         setBorder(BorderFactory.createMatteBorder(1, 0, 0, 0, Theme.BORDER));
         setPreferredSize(new Dimension(1000, 260));
@@ -336,22 +377,36 @@ public final class LogPanel extends JPanel {
         getActionMap().put("orbit.find", action(search::requestFocusInWindow));
         bar.add(search);
 
-        JButton prev = small("▲", "Предыдущая проблема");
+        JButton prev = small("↑ Пред.", "Предыдущая проблема (⌥↑)");
         prev.addActionListener(e -> jumpToProblem(-1));
-        JButton next = small("▼", "Следующая проблема");
+        JButton next = small("След. ↓", "Следующая проблема (⌥↓)");
         next.addActionListener(e -> jumpToProblem(1));
-        JLabel problems = new JLabel("проблемы");
-        problems.setForeground(Theme.DIM);
-        problems.setFont(font(11f));
+        problemCount.setForeground(Theme.DIM);
+        problemCount.setFont(font(11f));
+        problemCount.setToolTipText("Предупреждения и ошибки в показанных строках");
+        getInputMap(WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_UP,
+                java.awt.event.InputEvent.ALT_DOWN_MASK), "orbit.prevProblem");
+        getActionMap().put("orbit.prevProblem", action(() -> jumpToProblem(-1)));
+        getInputMap(WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_DOWN,
+                java.awt.event.InputEvent.ALT_DOWN_MASK), "orbit.nextProblem");
+        getActionMap().put("orbit.nextProblem", action(() -> jumpToProblem(1)));
+        prevProblem = prev;
+        nextProblem = next;
         bar.add(prev);
-        bar.add(problems);
+        bar.add(problemCount);
         bar.add(next);
 
         follow.setFocusable(false);
-        follow.setToolTipText("Показывать новые строки сразу (выключается, если прокрутить вверх)");
+        follow.setToolTipText("Показывать новые строки сразу (выключается, если прокрутить вверх; ⌘↓ — к последним)");
         follow.addActionListener(e -> {
             if (follow.isSelected()) {
                 toEnd();
+            }
+        });
+        follow.addItemListener(e -> {
+            if (follow.isSelected()) {
+                unseen = 0;
+                fresh.setVisible(false);
             }
         });
         bar.add(follow);
@@ -640,6 +695,7 @@ public final class LogPanel extends JPanel {
         }
         long now = System.currentTimeMillis();
         boolean added = false;
+        int newRows = 0;
         boolean countsChanged = false;
         java.util.Set<LogEntry> batch = Collections.newSetFromMap(new java.util.IdentityHashMap<>());
         for (LogEntry e; (e = incoming.poll()) != null; ) {
@@ -661,6 +717,7 @@ public final class LogPanel extends JPanel {
                 if (!hidden.contains(e.category())) {
                     model.add(e);
                     added = true;
+                    newRows++;
                 }
             } else {
                 int i = model.indexOf(e);
@@ -685,6 +742,13 @@ public final class LogPanel extends JPanel {
         }
         if (added && follow.isSelected()) {
             toEnd();
+        } else if (added) {
+            unseen += newRows;
+            if (unseen > 0) {
+                fresh.setText("↓ Новых: " + unseen);
+                fresh.setVisible(true);
+                fresh.getParent().doLayout();
+            }
         }
         LogEntry picked = list.getSelectedValue();
         if (picked != null && batch.contains(picked)) {
@@ -744,6 +808,11 @@ public final class LogPanel extends JPanel {
         s.append(String.format("%,d", model.rows.size()).replace(',', ' ')).append(" строк");
         if (lines > model.rows.size()) {
             s.append(" (").append(String.format("%,d", lines).replace(',', ' ')).append(" с повторами)");
+        }
+        problemCount.setText(warn + err == 0 ? "проблем нет" : "проблем: " + (warn + err));
+        if (prevProblem != null) {
+            prevProblem.setEnabled(warn + err > 0);
+            nextProblem.setEnabled(warn + err > 0);
         }
         if (warn > 0) {
             s.append("   ·   предупреждений ").append(warn);

@@ -380,4 +380,20 @@ final class Form {
         }
         return p;
     }
+    /** A section that opens and folds: «▸ title» folded, «▾ title» open; flat, a hand over it. */
+    static javax.swing.JToggleButton disclosure(String title) {
+        javax.swing.JToggleButton b = new javax.swing.JToggleButton("▸  " + title);
+        b.putClientProperty("orbit.title", title);
+        b.putClientProperty("JButton.buttonType", "borderless");
+        b.setHorizontalAlignment(javax.swing.SwingConstants.LEFT);
+        b.setCursor(java.awt.Cursor.getPredefinedCursor(java.awt.Cursor.HAND_CURSOR));
+        b.setFocusPainted(false);
+        b.setToolTipText("Щёлкните, чтобы раскрыть или свернуть");
+        return b;
+    }
+
+    /** The disclosure's arrow after a click (or a load that opened it). */
+    static void disclosed(javax.swing.JToggleButton b) {
+        b.setText((b.isSelected() ? "▾  " : "▸  ") + b.getClientProperty("orbit.title"));
+    }
 }

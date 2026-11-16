@@ -72,10 +72,14 @@ public final class Theme {
         UIManager.put("Separator.foreground", BORDER);
         UIManager.put("ScrollBar.thumbArc", 999);
         UIManager.put("ScrollBar.thumbInsets", new Insets(2, 2, 2, 2));
-        UIManager.put("ScrollBar.width", 10);
+        // scroll bars easy to see and to catch (the user, 2026-11-16): wider, a clearer thumb, brighter under the mouse
+        UIManager.put("ScrollBar.width", 12);
         UIManager.put("ScrollBar.track", BACKGROUND);
-        UIManager.put("ScrollBar.thumb", new Color(0x2a3546));
-        UIManager.put("ScrollBar.hoverThumbColor", new Color(0x35435a));
+        UIManager.put("ScrollBar.thumb", new Color(0x354153));
+        UIManager.put("ScrollBar.hoverThumbColor", new Color(0x4a5a72));
+        UIManager.put("ScrollBar.pressedThumbColor", new Color(0x5a6c88));
+        UIManager.put("ScrollBar.hoverTrackColor", new Color(0x151b25));
+        UIManager.put("ScrollBar.minimumThumbSize", new java.awt.Dimension(12, 36));
         UIManager.put("ScrollPane.background", BACKGROUND);
         UIManager.put("TabbedPane.tabHeight", 34);
         UIManager.put("TabbedPane.background", SURFACE);
@@ -87,8 +91,15 @@ public final class Theme {
         UIManager.put("TabbedPane.tabSeparatorsFullHeight", true);
         UIManager.put("Panel.background", BACKGROUND);
         UIManager.put("SplitPane.background", BACKGROUND);
-        UIManager.put("SplitPaneDivider.gripColor", BORDER);
-        UIManager.put("SplitPane.dividerSize", 7);
+        // the divider: a visible grip and arrows big enough to hit
+        UIManager.put("SplitPaneDivider.gripColor", new Color(0x5a6c88));
+        UIManager.put("SplitPaneDivider.gripDotCount", 5);
+        UIManager.put("SplitPane.dividerSize", 10);
+        UIManager.put("SplitPaneDivider.oneTouchArrowColor", new Color(0x8b96a8));
+        UIManager.put("SplitPaneDivider.oneTouchHoverArrowColor", TEXT);
+        UIManager.put("SplitPaneDivider.oneTouchPressedArrowColor", ACCENT);
+        UIManager.put("SplitPaneDivider.oneTouchButtonSize", 8);
+        UIManager.put("SplitPaneDivider.oneTouchButtonOffset", 6);
         UIManager.put("List.background", FIELD);
         UIManager.put("Table.background", FIELD);
         UIManager.put("Table.gridColor", BORDER);

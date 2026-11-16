@@ -280,7 +280,7 @@ public final class MainWindow {
         page.putClientProperty(OVERVIEW_LOG, log);
         javax.swing.JSplitPane split = new javax.swing.JSplitPane(javax.swing.JSplitPane.VERTICAL_SPLIT, grid, log);
         split.setResizeWeight(0.62);
-        split.setOneTouchExpandable(true);
+        Splits.setup(split, "overview-log", "журнал");
         split.setBorder(BorderFactory.createEmptyBorder());
         split.setContinuousLayout(true);
         page.add(split, BorderLayout.CENTER);

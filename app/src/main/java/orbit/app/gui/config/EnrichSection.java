@@ -43,7 +43,8 @@ final class EnrichSection implements Section {
     private final JRadioButton normal = new JRadioButton("Обычный (бесплатно, ~10–15 мин)");
     private final JRadioButton fast = new JRadioButton("Быстрый (за уридий)");
 
-    private final JCheckBox more = new JCheckBox("Показать дополнительные настройки");
+    /** A disclosure, not a tick (the user, 2026-11-16: «стрелки… удобными»): ▸ folded, ▾ open. */
+    private final javax.swing.JToggleButton more = Form.disclosure("Дополнительные настройки");
     private final JSpinner keepInCargo = Form.number(0, 1_000_000, 100);
     private final JSpinner perHour = Form.number(1, 600, 1);
     private final JSpinner visitWait = Form.number(1, 240, 1);
@@ -119,6 +120,7 @@ final class EnrichSection implements Section {
         JComponent advanced = adv.build(false);
         advanced.setVisible(false);
         more.addActionListener(e -> {
+            Form.disclosed(more);
             advanced.setVisible(more.isSelected());
             advanced.revalidate();
             if (advanced.getParent() != null) {
