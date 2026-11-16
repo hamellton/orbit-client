@@ -42,6 +42,8 @@ public final class ServiceVisit {
     private int returnTo;
     private long nextAt;
     private boolean disabled;
+    /** «No service ship chosen» told once (the user, 2026-11-16: the visit set in the config, silently never made). */
+    private boolean toldNoShip;
     private WorldSnapshot.Lab labBefore = WorldSnapshot.Lab.NONE;
     private long serviceSince;
     private boolean compared;
@@ -102,6 +104,12 @@ public final class ServiceVisit {
         WorldSnapshot w = ctx.world().get();
         switch (phase) {
             case IDLE -> {
+                if (service <= 0 && !toldNoShip && s.path("enabled").asBoolean(false) && s.path("visit").asBoolean(false)
+                        && w.hero().id() != 0 && needed(s, w)) {
+                    toldNoShip = true;
+                    log.warn("Обслуживание: в конфиге «пересаживаться на корабль для Скайлаба», но у аккаунта корабль не"
+                            + " выбран («Аккаунты» → «Изменить» → «Скайлаб и обогащение») — не пересаживаюсь");
+                }
                 if (!calmVisits || disabled || service <= 0 || activeHangar == 0 || activeHangar == service
                         || !s.path("enabled").asBoolean(false) || !s.path("visit").asBoolean(false) || now < nextAt
                         || !calm || w.hero().id() == 0) {
