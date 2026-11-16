@@ -201,4 +201,28 @@ class NavigatorTest {
         assertTrue(sent.getLast().targetY > 6000, "towards the new one: " + sent.getLast().targetY);
         assertTrue(world.snapshot(now).hero().moving());
     }
+    @Test
+    void aSpeedChangeInFlightClicksAgain() {
+        // live 2026-11-16 on gb2: «Конфигурация 2» in flight, the server stopped the ship, the bot reckoned it arrived
+        Navigator nav = navigator(9, 18800, 12500);
+        nav.moveTo(2111, 2222, false);
+        for (int i = 0; i < 20; i++) {
+            nav.tick();
+            now += 100 * MS;
+        }
+        assertEquals(1, sent.size());
+        orbit.protocol.gen.AttributeShipSpeedUpdateCommand up = new orbit.protocol.gen.AttributeShipSpeedUpdateCommand();
+        up.newSpeed = 450;
+        world.apply(up, now);
+        for (int i = 0; i < 5; i++) {
+            nav.tick();
+            now += 100 * MS;
+        }
+        assertEquals(2, sent.size(), "clicked again at the new speed");
+        for (int i = 0; i < 50; i++) {
+            nav.tick();
+            now += 100 * MS;
+        }
+        assertEquals(2, sent.size(), "once, not on every tick");
+    }
 }

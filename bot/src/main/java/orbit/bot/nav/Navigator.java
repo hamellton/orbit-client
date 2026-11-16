@@ -196,6 +196,8 @@ public final class Navigator {
 
     private Destination destination;
     private int clickX;
+    /** The ship's speed at the last click: a config switch in flight changes it, and the server may stop the ship. */
+    private int clickSpeed;
     private int clickY;
     private long lastSendNanos = Long.MIN_VALUE / 2;
     private long noWayLoggedNanos = Long.MIN_VALUE / 2;
@@ -321,10 +323,13 @@ public final class Navigator {
         boolean turn = flyingToClick && viaWaypoint && Math.hypot(clickX - h.x(), clickY - h.y()) < TURN_AHEAD;
         boolean mineAhead = flyingToClick && (mineOnCourse(w, h, clickX, clickY) || baseOnCourse(w, h, clickX, clickY, d)
                 || playerOnCourse(h, clickX, clickY, d) || newZoneOnCourse(w, h));
-        if (flyingToClick && !refine && !turn && !mineAhead) {
+        // the speed changed since the click (a config switch in flight): click again — live 2026-11-16 on gb2 the
+        // ship stood after «Конфигурация 2» while the bot reckoned it on its way, «arrived» 4 000 short of the spawn
+        boolean newSpeed = flyingToClick && clickSpeed != 0 && h.speed() != clickSpeed;
+        if (flyingToClick && !refine && !turn && !mineAhead && !newSpeed) {
             return; // on course
         }
-        if (now - lastSendNanos < MIN_INTERVAL_MS * 1_000_000 || (now < retryAtNanos && !turn && !mineAhead)) {
+        if (now - lastSendNanos < MIN_INTERVAL_MS * 1_000_000 || (now < retryAtNanos && !turn && !mineAhead && !newSpeed)) {
             return;
         }
         PathFinder paths = PathFinder.of(w, catalog, false, avoidMines.getAsBoolean(), baseRadius.getAsInt(),
@@ -413,6 +418,7 @@ public final class Navigator {
         m.targetX = clickX;
         m.targetY = clickY;
         sender.accept(m);
+        clickSpeed = h.speed();
         clicks++;
     }
 
