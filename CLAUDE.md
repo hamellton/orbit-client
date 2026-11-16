@@ -10,6 +10,7 @@ Status: Stage 2 done; stage 3 in progress (login, game connection, vault, client
 - AstraBot and other bots copied from the friend's VPS lie in `vps-copy/` (not in git, with `vps.txt`); they may be studied.
   What is where and where to look per topic (DarkBot's full sources in `vps-copy/DarkOrbit BOTS/DB/src`, BL/behemoth/invoke
   profiles, BLCycle logs, AstraBot configs): `docs/REFERENCE-BOTS.md`. Never copy credentials from those files.
+- The second Mac runs the production bots: touch it only when asked; how to deploy there: `docs/SECOND-MAC.md`.
 - DarkBot (GPL): take facts and logic, do not copy code wholesale.
 - Do not touch binaries in `../DO-files/lib` and `../DO-files/plugins`.
 - UI, logs, README in Russian; code and comments in English.
@@ -51,6 +52,8 @@ Status: Stage 2 done; stage 3 in progress (login, game connection, vault, client
   (`orbit.bot.mod`: `KillModule` kill & collect, `CubikonModule`, `BehemothModule` Mindfire Behemoth on the BL maps as
   AstraBot's module — timers in `SpawnMemory`, `PalladiumModule`, `QuestModule`; fights by `Attacker`). Behemoth stage,
   what is not done and what comes next (farming among trains like CARNAGE, groups): `docs/BLACKLIGHT.md`, stage D.
+  `GateModule` galaxy gates as DarkBot's SharedPlugin (`docs/GALAXY-GATES.md`); `Enricher`, `SkylabCare`, `ServiceVisit`
+  lab enrichment and Skylab ore, also by a visit to the account's service ship (`docs/SKYLAB.md`).
 - `app` — the bot application `orbit`; without arguments the account manager (`ManagerWindow`: master
   password in `VaultDialog`, accounts add/edit/remove with proxy check, start/stop each or all through
   `AccountRunner`, a tab per started account). Otherwise modes (FlatLaf window that fits any size: per account a header with a
