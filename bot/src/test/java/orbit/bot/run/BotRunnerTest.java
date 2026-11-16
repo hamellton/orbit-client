@@ -442,4 +442,24 @@ class BotRunnerTest {
         assertTrue(sim.sent.stream().noneMatch(p -> p instanceof orbit.protocol.gen.JumpRequest), "no escape jump");
         assertTrue(!r.status().contains("Ремонт"), r.status());
     }
+
+    @Test
+    void aPortalRevivePressedAgainForOneDeathIsOnePaidRevive() throws Exception {
+        // live 2026-11-16 on gb2: the connection lagged, the portal revive went unanswered 15 s and was pressed again;
+        // the two presses made the «2 paid in a row» limit and the third press went to the base
+        BotConfig c = CubikonModuleTest.config(90, false)
+                .withSafety(new BotConfig.Safety(0.5, 0.9, 0.5, 0, null, null, 10, "PORTAL", 5, 0, 2, 60));
+        Sim sim = new Sim(c, 26, 10_000, 6_000);
+        KillScreenPostCommand k = new KillScreenPostCommand();
+        k.killerName = "someone";
+        k.options = List.of(option(KillScreenOptionTypeModule.OPTIONTYPE_BASIC_REPAIR, 0),
+                option(KillScreenOptionTypeModule.OPTIONTYPE_AT_JUMPGATE_REPAIR, 200));
+        sim.world.apply(k, sim.now);
+        BotRunner r = new BotRunner(sim.ctx, () -> false, s -> { });
+        sim.run(r::tick, 50_000); // the server never answers: a press every 15 s
+        assertTrue(sim.repairs.size() >= 3, "pressed again: " + sim.repairs.size());
+        for (int[] rep : sim.repairs) {
+            assertEquals(KillScreenOptionTypeModule.OPTIONTYPE_AT_JUMPGATE_REPAIR, rep[0], "the portal each time");
+        }
+    }
 }

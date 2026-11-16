@@ -31,6 +31,8 @@ public final class Revive {
     private boolean dead;
     /** The kill screen of this death was looked at for the killer. */
     private boolean killerCounted = true;
+    /** This death's paid revive is counted in {@link #streak} (a press again for it is not another). */
+    private boolean paidThisDeath;
     private long repairAt;
     private long repairedAt = Long.MIN_VALUE / 2;
     private long resumeAt;
@@ -117,6 +119,7 @@ public final class Revive {
             repairAt = now + Math.max(0, s.waitBeforeReviveSec()) * 1_000_000_000L + ctx.pause(2_000, 6_000);
             log.warn("Корабль уничтожен ({}) — смертей {}", death == null ? "?" : death.killer(), deaths);
             killerCounted = false;
+            paidThisDeath = false;
             if (streak > 0 && wallMs() - paidAtMs > Math.max(1, s.paidReviveMinutes()) * 60_000L) {
                 streak = 0; // lived long enough after the last paid revive: not «in a row»
                 saveStreak();
@@ -167,7 +170,12 @@ public final class Revive {
         if (base(pick)) {
             streak = 0;
         } else {
-            streak++;
+            if (!paidThisDeath) {
+                // one death, one paid revive however often the button is pressed (live 2026-11-16 on gb2: the
+                // connection lagged, the portal revive was pressed again 15 s later and the two made the limit)
+                paidThisDeath = true;
+                streak++;
+            }
             paidAtMs = wallMs();
         }
         saveStreak();
