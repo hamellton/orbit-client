@@ -55,6 +55,9 @@ final class MinimapPanel extends JPanel {
     private final MapCatalog catalog = MapCatalog.bundled();
     private final Hud hud;
     private final Hud compactHud;
+    /** The cards over the map: see-through and short (the side panel keeps the full ones). */
+    private final Hud mapHud;
+    private final Hud mapCompactHud;
     /** Where the blocks on the map were drawn last, for the right-click menu. */
     private volatile java.util.Map<java.awt.Rectangle, ViewSettings.Block> cardsAt = java.util.Map.of();
     /** A small map in the overview: a strip with the account instead of the map's own labels. */
@@ -74,6 +77,8 @@ final class MinimapPanel extends JPanel {
         Font f = javax.swing.UIManager.getFont("Label.font");
         hud = new Hud(f != null ? f : getFont());
         compactHud = new Hud(f != null ? f : getFont(), true);
+        mapHud = new Hud(f != null ? f : getFont(), false, true);
+        mapCompactHud = new Hud(f != null ? f : getFont(), true, true);
         setPreferredSize(compact ? new Dimension(420, 262) : new Dimension(840, 524));
         setMinimumSize(new Dimension(240, 150));
         if (!compact) {
@@ -432,12 +437,13 @@ final class MinimapPanel extends JPanel {
             // the blocks the user put on the map: full cards on a big map, compact ones on a small one
             boolean big = vw >= BIG_MAP;
             java.util.Map<java.awt.Rectangle, ViewSettings.Block> placed = new java.util.LinkedHashMap<>();
-            Hud cards = big ? hud : compactHud;
+            Hud cards = big ? mapHud : mapCompactHud;
             int panel = big ? (int) Math.max(230, Math.min(320, vw * 0.26)) : (int) Math.max(170, Math.min(250, vw * 0.34));
             int left = (int) Math.round(vx) + 10;
             int right = (int) Math.round(vx + vw) - 10;
             // the account strip along the bottom, as in the overview: the columns end above it
-            int stripTop = (int) Math.round(vy + vh) - Hud.STRIP_HEIGHT - 20;
+            // the columns end above the «в час» block and the target's strip (they sit on the bottom strip)
+            int stripTop = (int) Math.round(vy + vh) - Hud.STRIP_HEIGHT - 22 - 4 * 16 - 10 - 8;
             cards.mapBlocks(g, left, right, Math.max((int) Math.round(vy) + 46, ratesBottom + 8),
                     Math.max((int) Math.round(vy) + 40, pillsBottom + 8),
                     stripTop, panel, w, feed, config.get(), ViewSettings.shared(), placed, big);

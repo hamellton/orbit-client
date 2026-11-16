@@ -59,6 +59,17 @@ final class Hud {
         this(base, false);
     }
 
+    /**
+     * Cards drawn over the map (the user, 2026-11-16: «карточки на карте — компактно»): see-through, no frame, the
+     * strip's duplicates left out (state, target), the ship and the results short, every attacker on one line.
+     */
+    private boolean onMap;
+
+    Hud(Font base, boolean compact, boolean onMap) {
+        this(base, compact);
+        this.onMap = onMap;
+    }
+
     /** @param compact smaller type, padding and bars, to fit cards on a small map */
     Hud(Font base, boolean compact) {
         this.base = base;
@@ -78,14 +89,18 @@ final class Hud {
     /** Every block there is something to show for, in the blocks' order. */
     Map<ViewSettings.Block, Card> blocks(WorldSnapshot w, WorldFeed feed, String config) {
         Map<ViewSettings.Block, Card> out = new java.util.EnumMap<>(ViewSettings.Block.class);
-        out.put(ViewSettings.Block.STATUS, status(w, feed, config));
+        if (!onMap) {
+            out.put(ViewSettings.Block.STATUS, status(w, feed, config)); // on the map: the bottom strip tells it
+        }
         WorldSnapshot.Hero h = w.hero();
         if (h.id() == 0) {
             return out;
         }
-        out.put(ViewSettings.Block.SHIP, hero(h, w.inventory(), w.items()));
-        put(out, ViewSettings.Block.TARGET, target(w));
-        put(out, ViewSettings.Block.ATTACKERS, attackers(w));
+        out.put(ViewSettings.Block.SHIP, onMap ? heroShort(h, w.inventory(), w.items()) : hero(h, w.inventory(), w.items()));
+        if (!onMap) {
+            put(out, ViewSettings.Block.TARGET, target(w)); // on the map: the target's strip at the bottom
+        }
+        put(out, ViewSettings.Block.ATTACKERS, onMap ? attackersShort(w) : attackers(w));
         put(out, ViewSettings.Block.BOOSTERS, boosters(w.boosters(), feed.now()));
         if (w.pet().owned()) {
             out.put(ViewSettings.Block.PET, pet(w.pet(), w.nanos()));
@@ -98,9 +113,122 @@ final class Hud {
         put(out, ViewSettings.Block.SKYLAB, skylab(feed.skylab()));
         put(out, ViewSettings.Block.LAB, lab(w.inventory().lab(), feed.now()));
         if (feed.stats() != null || !w.rewards().equals(WorldSnapshot.Rewards.NONE)) {
-            out.put(ViewSettings.Block.STATS, stats(w, feed));
+            out.put(ViewSettings.Block.STATS, onMap ? statsShort(feed) : stats(w, feed));
         }
         return out;
+    }
+
+    /** Label — value rows in one column, the values in columns: the short cards of the map. */
+    private Card rows(String title, String right, boolean name, Color accent, List<String[]> rows) {
+        return new Card() {
+            @Override
+            public int height(int width) {
+                return pad + (name ? titleLines(title, right, width) * line : head) + rows.size() * line + pad - 4;
+            }
+
+            @Override
+            public void paint(Graphics2D g, int x, int y, int width) {
+                frame(g, x, y, width, height(width), accent);
+                int ry;
+                if (name) {
+                    ry = y + pad + titleRow(g, x, y, width, title, right, TEXT) * line;
+                } else {
+                    heading(g, x, y, width, title, right);
+                    ry = y + pad + head;
+                }
+                for (String[] r : rows) {
+                    g.setFont(font(Font.PLAIN, 11f));
+                    g.setColor(DIM);
+                    g.drawString(clip(g, r[0], width - 2 * pad - valueWidth(r[1]) - 6), x + pad, ry + 11);
+                    value(g, r[1], x + width - pad, ry + 11, r.length > 2 ? ENEMY_SOON : TEXT);
+                    ry += line;
+                }
+            }
+        };
+    }
+
+    /** The ship on the map: its name and the numbers, one column (the hull and shield are in the bottom strip). */
+    private Card heroShort(WorldSnapshot.Hero h, WorldSnapshot.Inventory inv, Map<String, WorldSnapshot.Item> items) {
+        String name = h.name() + (h.shipType().isBlank() ? "" : "  " + shipName(h.shipType()));
+        long used = inv.ores().isEmpty() ? h.cargoMax() - h.cargoFree() : inv.cargoUsed();
+        List<String[]> rows = new ArrayList<>();
+        rows.add(new String[] {"Кредиты", money(h.credits())});
+        rows.add(new String[] {"Уридий", money(h.uridium())});
+        rows.add(new String[] {"Опыт", money(h.experience())});
+        rows.add(new String[] {"Честь", money(h.honor())});
+        rows.add(new String[] {"Трюм", h.cargoMax() > 0 ? String.format("%,d / %,d", used, h.cargoMax()) : "—"});
+        rows.add(new String[] {"Скорость", h.speed() > 0 ? String.valueOf(h.speed()) : "—"});
+        rows.add(new String[] {"Конфигурация", h.config() > 0 ? String.valueOf(h.config()) : "—"});
+        rows.add(new String[] {"Формация", formation(items)});
+        return rows(name, h.level() > 0 ? "ур. " + h.level() : "", true, MinimapPanel.HERO, rows);
+    }
+
+    /** Every attacker on the map, one line each: the name and its hull and shield in per cent. */
+    private Card attackersShort(WorldSnapshot w) {
+        Map<String, List<Ship>> byName = new LinkedHashMap<>();
+        for (int id : w.hero().attackers()) {
+            Ship a = w.ships().get(id);
+            if (a != null) {
+                byName.computeIfAbsent(MinimapPanel.label(a), k -> new ArrayList<>()).add(a);
+            }
+        }
+        if (byName.isEmpty()) {
+            return null;
+        }
+        return new Card() {
+            @Override
+            public int height(int width) {
+                return pad + head + byName.size() * line + pad - 4;
+            }
+
+            @Override
+            public void paint(Graphics2D g, int x, int y, int width) {
+                frame(g, x, y, width, height(width), MinimapPanel.ENEMY);
+                heading(g, x, y, width, "Атакуют меня", String.valueOf(w.hero().attackers().size()));
+                int ry = y + pad + head;
+                for (Map.Entry<String, List<Ship>> e : byName.entrySet()) {
+                    List<Ship> ships = e.getValue();
+                    Ship weakest = ships.stream().filter(a -> a.health().known())
+                            .min(Comparator.comparingDouble(a -> a.health().hpPercent())).orElse(null);
+                    String hp = weakest == null ? "" : Math.round(100 * weakest.health().hpPercent()) + "%  · щит "
+                            + Math.round(weakest.health().shieldMax() > 0
+                            ? 100.0 * weakest.health().shield() / weakest.health().shieldMax() : 0) + "%";
+                    int hw = valueWidth(hp);
+                    g.setFont(font(Font.BOLD, 11f));
+                    g.setColor(MinimapPanel.shipColor(ships.getFirst(), w.hero(), w.group()));
+                    g.drawString(clip(g, e.getKey() + (ships.size() > 1 ? "  ×" + ships.size() : ""), width - 2 * pad - hw - 6),
+                            x + pad, ry + 11);
+                    value(g, hp, x + width - pad, ry + 11, DIM);
+                    ry += line;
+                }
+            }
+        };
+    }
+
+    /** The session's results on the map: the gains, the cubes or NPCs, deaths and what was spent. */
+    private Card statsShort(WorldFeed feed) {
+        WorldSnapshot.Rewards r = feed.sessionRewards();
+        orbit.bot.run.Stats s = feed.sessionStats();
+        List<String[]> rows = new ArrayList<>();
+        rows.add(new String[] {"Уридий", money(r.uridium())});
+        rows.add(new String[] {"Кредиты", money(r.credits())});
+        rows.add(new String[] {"Опыт", money(r.experience())});
+        rows.add(new String[] {"Честь", money(r.honor())});
+        if (s != null) {
+            if (s.cubesFought() > 0) {
+                rows.add(new String[] {"Кубы", s.cubesKilled.get() + " из " + s.cubesFought()});
+            } else {
+                rows.add(new String[] {"Убито NPC", String.valueOf(s.kills.get())});
+            }
+            rows.add(new String[] {"Смерти", String.valueOf(s.deaths.get())});
+        }
+        if (r.spentUridium() > 0) {
+            rows.add(new String[] {"Потрачено уридия", money(r.spentUridium()), "!"});
+        }
+        if (r.spentCredits() > 0) {
+            rows.add(new String[] {"Потрачено кредитов", money(r.spentCredits()), "!"});
+        }
+        return rows("Итоги сессии", "", false, new Color(0xa78bfa), rows);
     }
 
     /** The drone formation the item bar marks as selected, by its name; «—» when none is marked. */
@@ -300,6 +428,8 @@ final class Hud {
     }
 
     static final int MAX_QUESTS = 6;
+    /** Over the map fewer: the map stays to be seen. */
+    static final int MAX_QUESTS_ON_MAP = 3;
 
     /** The taken quests: type and number, then each condition with its progress (the HUD's quest first). */
     private Card quests(orbit.world.Quests q) {
@@ -309,7 +439,7 @@ final class Hud {
         List<orbit.world.Quests.Quest> list = q.active().values().stream()
                 .sorted(Comparator.comparingInt((orbit.world.Quests.Quest x) -> x.id() == q.privileged() ? 0 : 1)
                         .thenComparingInt(orbit.world.Quests.Quest::id))
-                .limit(MAX_QUESTS).toList();
+                .limit(onMap ? MAX_QUESTS_ON_MAP : MAX_QUESTS).toList();
         int more = q.active().size() - list.size();
         int condH = line + 12;
         return new Card() {
@@ -403,14 +533,29 @@ final class Hud {
             int x = isRight ? right - width : left;
             int y = isRight ? ry : ly;
             if (y + h > bottom) {
-                if (isRight) {
+                // no room for the whole card: its heading alone, folded (not a card cut off)
+                int stub = pad + line + 2;
+                if (y + stub <= bottom) {
+                    frame(g, x, y, width, stub, DIM);
+                    g.setFont(font(Font.BOLD, 10.5f).deriveFont(Map.of(java.awt.font.TextAttribute.TRACKING, 0.08f)));
+                    g.setColor(HEADING);
+                    g.drawString(e.getKey().label.toUpperCase(java.util.Locale.ROOT) + "  ▸", x + pad, y + pad + 10);
+                    placed.put(new java.awt.Rectangle(x, y, width, stub), e.getKey());
+                    if (isRight) {
+                        ry += stub + 6;
+                    } else {
+                        ly += stub + 6;
+                    }
+                } else if (isRight) {
                     rightCut = true;
                 } else {
                     leftCut = true;
                 }
                 continue;
             }
-            translucent(g, x, y, width, h);
+            if (!onMap) {
+                translucent(g, x, y, width, h);
+            }
             c.paint(g, x, y, width);
             placed.put(new java.awt.Rectangle(x, y, width, h), e.getKey());
             if (isRight) {
@@ -1239,11 +1384,16 @@ final class Hud {
 
     private void frame(Graphics2D g, int x, int y, int w, int h, Color accent) {
         RoundRectangle2D.Double r = new RoundRectangle2D.Double(x, y, w, h, CARD_ARC, CARD_ARC);
-        g.setColor(CARD);
-        g.fill(r);
-        g.setColor(CARD_EDGE);
-        g.setStroke(new BasicStroke(1f));
-        g.draw(new RoundRectangle2D.Double(x + 0.5, y + 0.5, w - 1, h - 1, CARD_ARC, CARD_ARC));
+        if (onMap) {
+            g.setColor(new Color(10, 12, 18, 165)); // the map shows through, as under the strips
+            g.fill(r);
+        } else {
+            g.setColor(CARD);
+            g.fill(r);
+            g.setColor(CARD_EDGE);
+            g.setStroke(new BasicStroke(1f));
+            g.draw(new RoundRectangle2D.Double(x + 0.5, y + 0.5, w - 1, h - 1, CARD_ARC, CARD_ARC));
+        }
         // the card's colour as a thin line along its top, inside the corners
         java.awt.Shape clip = g.getClip();
         g.clip(r);
