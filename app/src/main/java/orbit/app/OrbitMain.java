@@ -1392,7 +1392,10 @@ public final class OrbitMain {
                     Thread.sleep(100);
                 }
                 log.info("Бот завершил работу: {}", runner.status());
-                log.info("Итог сессии: {}", feed.summary());
+                // a ship change goes on with the same session: no «итог» of it then (the user, 2026-11-16: the zeros
+                // logged at the Skylab's ship change read as the session's results gone)
+                log.info(runner.hangarRequest() != 0 ? "Смена корабля — сессия продолжается, пока: {}" : "Итог сессии: {}",
+                        feed.summary());
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             } catch (RuntimeException e) {
