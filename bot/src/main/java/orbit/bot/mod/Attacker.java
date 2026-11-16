@@ -799,7 +799,10 @@ public final class Attacker {
                     // an NPC that attacks on sight by the target: the circle would pass by it — lead the target off
                     // instead, it follows the ship and the slow one stays behind (the user, 2026-11-13 on 3-BL:
                     // Impulse II fought by Attend IX, the ship flew right up to it)
-                    WorldSnapshot.Ship danger = threats != null ? threats.dangerNear(t, radius) : null;
+                    // never the cube: its Protegits stay by it wherever it goes, leading it off only kept the ship out
+                    // of its reach (the user, 2026-11-16: «не кружит вокруг куба»); DarkBot just circles it
+                    WorldSnapshot.Ship danger = threats != null && !CubikonModule.isCubikon(t)
+                            ? threats.dangerNear(t, radius) : null;
                     if (danger != null) {
                         if (ledFrom.add(danger.name())) {
                             log.info("Увожу {} от {}", t.name(), danger.name()); // once a fight for each

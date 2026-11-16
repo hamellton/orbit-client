@@ -584,6 +584,43 @@ class AttackerTest {
         assertTrue(near < ticks * 0.1, "inside the other's radius " + near + " of " + ticks + " ticks");
     }
 
+    /** The angle in turns the ship flies round {@code name} in 30 s, a slow shooter beside it. */
+    private static double turnsBesideAShooter(String name) {
+        BotConfig c = moving("CIRCLE");
+        java.util.Map<String, BotConfig.NpcRule> npcs = new java.util.HashMap<>(c.npcs());
+        npcs.put(name, new BotConfig.NpcRule(550, 0, true, Set.of(), Set.of(), null));
+        Sim sim = new Sim(c.withNpcs(npcs), 1, 10_550, 6_000);
+        sim.lasers("ammunition_laser_lcb-10");
+        sim.npc(7, name, 10_000, 6_000);
+        shooter(sim, 8, 10_000, 5_600);
+        Attacker a = new Attacker(sim.ctx);
+        a.target(sim.world.snapshot(sim.now).ships().get(7));
+        double swept = 0;
+        double last = 0;
+        for (long t = 0; t < 30_000; t += 100) {
+            a.tick(true);
+            sim.now += 100 * Sim.MS;
+            var h = sim.hero();
+            double ang = Math.atan2(h.y() - 6_000, h.x() - 10_000);
+            if (t > 0) {
+                double d = ang - last;
+                d = Math.atan2(Math.sin(d), Math.cos(d));
+                swept += Math.abs(d);
+            }
+            last = ang;
+        }
+        return swept / (2 * Math.PI);
+    }
+
+    @Test
+    void theCubeIsCircledThoughItsGuardShootsTheShip() {
+        // live 2026-11-16 on gb2, 3-6: «Увожу Cubikon от Protegit» — no circling, the cube in reach 55 % of the fight
+        double cube = turnsBesideAShooter("-=[ Cubikon ]=-");
+        double other = turnsBesideAShooter("-=[ Target ]=-");
+        assertTrue(cube > 3, "the cube circled " + cube + " turns");
+        assertTrue(other < cube * 0.75, "another target is still led off: " + other + " vs " + cube);
+    }
+
     @Test
     void byAStillTargetTheShipStandsOnTheSafeSide() {
         Sim sim = new Sim(moving("STAND"), 1, 10_000, 5_400);
