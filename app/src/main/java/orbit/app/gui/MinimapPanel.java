@@ -211,8 +211,9 @@ final class MinimapPanel extends JPanel {
         java.awt.geom.RoundRectangle2D.Double frame = new java.awt.geom.RoundRectangle2D.Double(ox, oy, mw, mh, 10, 10);
         Shape oldClip = g.getClip();
         g.clip(frame);
-        boolean picture = ViewSettings.shared().mapPicture();
-        g.setColor(picture ? new Color(0x0b0e14) : SLATE);
+        ViewSettings.MapBackground ground = ViewSettings.shared().mapBackground();
+        boolean picture = ground == ViewSettings.MapBackground.PICTURE;
+        g.setColor(ground == ViewSettings.MapBackground.SLATE ? SLATE : new Color(0x0b0e14));
         g.fill(frame);
         java.awt.image.BufferedImage bg = hero.id() == 0 || !picture ? null : MinimapBackgrounds.get(hero.mapId());
         if (bg != null) {
@@ -221,7 +222,7 @@ final class MinimapPanel extends JPanel {
             g.setColor(new Color(6, 8, 12, 110)); // dim the picture so the marks stand out
             g.fill(frame);
         }
-        grid(g, p, map, picture);
+        grid(g, p, map, ground != ViewSettings.MapBackground.SLATE);
         if (hero.id() != 0 && !compact) {
             watermark(g, ox, oy, mw, mh, map);
         }

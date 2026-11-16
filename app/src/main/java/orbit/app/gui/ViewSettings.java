@@ -111,16 +111,28 @@ public final class ViewSettings {
     }
 
     private Numbers numbers = Numbers.EXACT;
-    /** The game's minimap picture under the marks; off — DarkBot's plain slate with the grid (the user, 2026-11-16). */
-    private boolean mapPicture = true;
+    /** Under the map's marks (the user, 2026-11-16): the game's minimap picture, a dark ground, or DarkBot's slate. */
+    public enum MapBackground {
+        PICTURE("Картинка игры"),
+        DARK("Тёмный"),
+        SLATE("Сине-серый (как DarkBot)");
 
-    public synchronized boolean mapPicture() {
-        return mapPicture;
+        public final String label;
+
+        MapBackground(String label) {
+            this.label = label;
+        }
     }
 
-    public void setMapPicture(boolean on) {
+    private MapBackground mapBackground = MapBackground.PICTURE;
+
+    public synchronized MapBackground mapBackground() {
+        return mapBackground;
+    }
+
+    public void setMapBackground(MapBackground b) {
         synchronized (this) {
-            mapPicture = on;
+            mapBackground = b;
         }
         changed();
     }
@@ -157,7 +169,11 @@ public final class ViewSettings {
                         v.shown.put(sec, Boolean.parseBoolean(s));
                     }
                 }
-                v.mapPicture = Boolean.parseBoolean(p.getProperty("map.picture", "true"));
+                try {
+                    v.mapBackground = MapBackground.valueOf(p.getProperty("map.background", MapBackground.PICTURE.name()));
+                } catch (IllegalArgumentException ignored) {
+                    // an old or broken value: the picture
+                }
                 try {
                     v.numbers = Numbers.valueOf(p.getProperty("numbers", Numbers.EXACT.name()));
                 } catch (IllegalArgumentException ignored) {
@@ -265,7 +281,7 @@ public final class ViewSettings {
         places.forEach((b, pl) -> p.setProperty("block." + b.name(), pl.name()));
         shown.forEach((s, on) -> p.setProperty("section." + s.name(), String.valueOf(on)));
         p.setProperty("numbers", numbers.name());
-        p.setProperty("map.picture", String.valueOf(mapPicture));
+        p.setProperty("map.background", mapBackground.name());
         try {
             Files.createDirectories(file.getParent());
             try (Writer w = Files.newBufferedWriter(file)) {
