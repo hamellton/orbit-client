@@ -185,4 +185,65 @@ class ServiceVisitTest {
         }
         assertEquals(ServiceVisit.Phase.SERVICE, v.phase(), "still at it");
     }
+    @Test
+    void aQuickTransportSpentBeforeItsOrderIsDoneStillLeadsToTheNextTrip() throws Exception {
+        // live 2026-11-16 on gb2: the ore landed and went into the lab while the site's page was read again
+        Sim sim = sim();
+        orbit.protocol.gen.ShipInitializationCommand si = new orbit.protocol.gen.ShipInitializationCommand();
+        si.userId = 1;
+        si.mapId = 1;
+        si.x = 1_000;
+        si.y = 1_000;
+        si.hitPoints = 100;
+        si.hitMax = 100;
+        si.cargoSpace = 3_000;
+        si.cargoSpaceMax = 3_000;
+        sim.world.apply(si, sim.now);
+        EnricherTest.lab(sim, new int[] {0, 6, 20_000});
+        ServiceVisit v = new ServiceVisit(sim.ctx);
+        java.util.List<Map<String, Long>> sent = new java.util.concurrent.CopyOnWriteArrayList<>();
+        java.util.concurrent.CountDownLatch landed = new java.util.concurrent.CountDownLatch(1);
+        java.util.concurrent.CountDownLatch spent = new java.util.concurrent.CountDownLatch(1);
+        v.setSkylab(new SkylabAccess() {
+            @Override
+            public Stock stock() {
+                return new Stock(false, Map.of("promerium", 1_000_000L));
+            }
+
+            @Override
+            public void transport(Map<String, Long> amounts, boolean fast) throws java.io.IOException {
+                sent.add(amounts);
+                if (sent.size() == 1) {
+                    landed.countDown(); // in the hold at once
+                    try {
+                        spent.await(5, java.util.concurrent.TimeUnit.SECONDS); // the page read again only now
+                    } catch (InterruptedException e) {
+                        throw new java.io.IOException(e);
+                    }
+                }
+            }
+        });
+        v.tick(WORK, true);
+        sim.now += 60_000_000_000L;
+        v.tick(CITADEL, true);
+        EnricherTest.lab(sim, new int[] {0, 6, 19_990});
+        for (int i = 0; i < 100 && landed.getCount() > 0; i++) {
+            v.tick(CITADEL, true);
+            Thread.sleep(5);
+        }
+        EnricherTest.hold(sim, new int[] {6, 3_000});
+        sim.now += 1_000_000_000L;
+        v.tick(CITADEL, true); // into the lab while the order is still on its way
+        assertTrue(sim.sent.stream().anyMatch(p -> p instanceof LabUpdateItemRequest), "enriched at once");
+        sim.now += 11_000_000_000L;
+        EnricherTest.lab(sim, new int[] {0, 6, 49_990});
+        EnricherTest.hold(sim, new int[] {6, 0});
+        spent.countDown();
+        for (int i = 0; i < 200 && sent.size() < 2; i++) {
+            v.tick(CITADEL, true);
+            sim.now += 100_000_000L;
+            Thread.sleep(5);
+        }
+        assertEquals(2, sent.size(), "the second trip, not a 15 min wait");
+    }
 }

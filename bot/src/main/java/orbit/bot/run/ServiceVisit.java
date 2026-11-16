@@ -284,8 +284,11 @@ public final class ServiceVisit {
                 long fillTo = fill.get(item);
                 long need = (fillTo - left + WorldSnapshot.Lab.PER_ORE - 1) / WorldSnapshot.Lab.PER_ORE;
                 long n = Math.min(need, have);
-                if (ordered && have > holdAtOrder.getOrDefault(ore, 0L)) {
-                    landed = true; // the order's ore: once it is in the lab, the next trip
+                if (orderStarted && have > holdAtOrder.getOrDefault(ore, 0L)) {
+                    // the order's ore: once it is in the lab, the next trip — also while the order is still being sent
+                    // (live 2026-11-16 on gb2: the quick one landed and went into the lab before the site's page was
+                    // read again, the visit then waited 15 min for ore already spent)
+                    landed = true;
                 }
                 ctx.actions().labEnrich(item, ore, n);
                 sentAt = now;
