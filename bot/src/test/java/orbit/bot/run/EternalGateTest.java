@@ -64,7 +64,7 @@ class EternalGateTest {
 
     @Test
     void theLasersEnrichedFirst() throws Exception {
-        Sim sim = new Sim(GateModuleTest.config("{\"gates\":[\"eternal\"],\"eternal\":{\"lasersMin\":50000}}"), 26,
+        Sim sim = new Sim(GateModuleTest.config("{\"gates\":[\"eternal\"],\"eternal\":{\"lasersMin\":50000,\"map\":\"1-BL\"}}"), 26,
                 10_000, 6_000);
         cpus(sim, 3);
         EnricherTest.lab(sim, new int[] {0, 6, 20_000});

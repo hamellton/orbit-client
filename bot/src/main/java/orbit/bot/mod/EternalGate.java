@@ -47,6 +47,7 @@ public final class EternalGate {
     private long cpuAt = Long.MIN_VALUE / 2;
     private long boosterAt = Long.MIN_VALUE / 2;
     private long lasersSince;
+    private long labAskedAt = Long.MIN_VALUE / 2;
     private boolean exited;
     private boolean suiciding;
     private String stop;
@@ -68,9 +69,17 @@ public final class EternalGate {
         return n.isBoolean() ? n.asBoolean() : def;
     }
 
-    /** The BL map the run starts from. */
+    /**
+     * The BL map the run starts from: {@code own} (the default) the company's — a VRU account has no way to 1-BL (live
+     * 2026-11-16 on gb2: «нет пути с карты 3-6 на 1-BL»), else the one named.
+     */
     int blMap(JsonNode e) {
-        orbit.world.maps.MapCatalog.MapInfo m = ctx.maps().byName(e.path("map").asText("1-BL"));
+        String name = e.path("map").asText("own");
+        if ("own".equalsIgnoreCase(name)) {
+            int f = ctx.world().get().hero().factionId();
+            name = (f >= 1 && f <= 3 ? f : 1) + "-BL";
+        }
+        orbit.world.maps.MapCatalog.MapInfo m = ctx.maps().byName(name);
         return m != null ? m.id() : 306;
     }
 
@@ -112,7 +121,15 @@ public final class EternalGate {
         long min = e.path("lasersMin").asLong(0);
         WorldSnapshot.Enrichment laser = w.inventory().lab().items().get(0);
         long left = laser == null ? 0 : laser.left();
-        if (min > 0 && w.inventory().lab().nanos() != 0 && left < min) {
+        if (min > 0 && w.inventory().lab().nanos() == 0) {
+            if ((now - labAskedAt) / 1_000_000 > 10_000) {
+                labAskedAt = now;
+                ctx.actions().labInfo(); // the lasers are checked before a run: the lab's answer first
+            }
+            show.accept("Вечные врата: жду данные лаборатории (лазеры)");
+            return 0;
+        }
+        if (min > 0 && left < min) {
             if (lasersSince == 0) {
                 lasersSince = now;
             }

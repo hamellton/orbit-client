@@ -1,6 +1,6 @@
 {
   "schema": 3,
-  "description": "[Default] EBG — Вечные врата Блэклайт как DarkBot SharedPlugin (профиль друга EBG.json): вход с 1-BL по CPU, бить всех, кроме Abide I и Steadfast III, разводить Uber Kristallon, бустеры между волнами, тормоз на 256-й волне (самоубийство). Конфигурация 1 + Moth, ремонт 40→65 %, MCB-50, на тяжёлых UCB-100. Копию — под свой корабль и аккаунт (обогащение лазеров, крафт CPU, число забегов).",
+  "description": "[Default] EBG — Вечные врата Блэклайт как DarkBot SharedPlugin (профиль друга EBG.json): вход со своей BL-карты по CPU, бить всех, кроме Abide I и Steadfast III, разводить Uber Kristallon, бустеры между волнами, тормоз на 256-й волне (самоубийство). Конфигурация 1 + Moth, ремонт 40→65 %, MCB-50, на тяжёлых UCB-100. Копию — под свой корабль и аккаунт (обогащение лазеров, крафт CPU, число забегов).",
   "module": "GALAXY_GATE",
   "general": {
     "workingMap": 306,
@@ -1619,7 +1619,7 @@
       },
       "eternal": {
         "runs": 0,
-        "map": "1-BL",
+        "map": "own",
         "craft": false,
         "craftKeep": 1,
         "whenOut": "logout",

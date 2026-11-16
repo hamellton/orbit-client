@@ -20,7 +20,7 @@ import orbit.config.BotConfig;
 final class EbgSection implements Section {
 
     static final String KEY = GateSection.KEY;
-    static final String[] MAPS = {"1-BL", "2-BL", "3-BL"};
+    static final String[] MAPS = {"Своей компании", "1-BL", "2-BL", "3-BL"};
     static final String[] OUT = {"Улететь на базу и выйти из игры", "Ждать на месте"};
     static final String[] BRAKE = {"Самоубийство у NPC (быстро, следующий забег сразу)", "Выйти порталом домой"};
     static final List<String> BOOSTERS = List.of("DAMAGE", "DAMAGE_LASER", "HITCHANCE_LASER", "HITPOINTS",
@@ -129,7 +129,8 @@ final class EbgSection implements Section {
         on.setSelected(listed || s.path("gateId").asInt(0) == -4);
         JsonNode e = s.path("eternal");
         Form.set(runs, e.path("runs").asInt(0));
-        map.setSelectedItem(e.path("map").asText("1-BL"));
+        String m = e.path("map").asText("own");
+        map.setSelectedItem("own".equalsIgnoreCase(m) ? MAPS[0] : m);
         craft.setSelected(b(e, "craft", false));
         Form.set(craftKeep, e.path("craftKeep").asInt(1));
         whenOut.setSelectedIndex("wait".equalsIgnoreCase(e.path("whenOut").asText("logout")) ? 1 : 0);
@@ -184,7 +185,7 @@ final class EbgSection implements Section {
         }
         ObjectNode e = s.putObject("eternal");
         e.put("runs", Form.intOf(runs));
-        e.put("map", String.valueOf(map.getSelectedItem()));
+        e.put("map", map.getSelectedIndex() == 0 ? "own" : String.valueOf(map.getSelectedItem()));
         e.put("craft", craft.isSelected());
         e.put("craftKeep", Form.intOf(craftKeep));
         e.put("whenOut", whenOut.getSelectedIndex() == 1 ? "wait" : "logout");
