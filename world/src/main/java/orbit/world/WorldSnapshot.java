@@ -281,6 +281,22 @@ public record WorldSnapshot(long nanos, Hero hero, Map<Integer, Ship> ships, Map
     public record Rewards(double credits, double uridium, double honor, double experience, Map<String, Double> items) {
 
         public static final Rewards NONE = new Rewards(0, 0, 0, 0, Map.of());
+
+        /** What came since {@code base} (a reset of the window's statistics). */
+        public Rewards minus(Rewards base) {
+            if (base == null || base == NONE) {
+                return this;
+            }
+            Map<String, Double> left = new java.util.LinkedHashMap<>();
+            items.forEach((k, v) -> {
+                double d = v - base.items().getOrDefault(k, 0.0);
+                if (d > 0) {
+                    left.put(k, d);
+                }
+            });
+            return new Rewards(Math.max(0, credits - base.credits), Math.max(0, uridium - base.uridium),
+                    Math.max(0, honor - base.honor), Math.max(0, experience - base.experience), Map.copyOf(left));
+        }
     }
 
     /**

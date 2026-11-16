@@ -47,6 +47,37 @@ public final class WorldFeed {
         return stats;
     }
 
+    /** The window's statistics start here (its «Сбросить»): rewards, counters and the clock from this moment. */
+    private volatile WorldSnapshot.Rewards rewardsBase = WorldSnapshot.Rewards.NONE;
+    private volatile orbit.bot.run.Stats statsBase;
+    private volatile orbit.bot.run.Stats statsOf;
+
+    /** The rewards for the window and the session's results: since the session began or the last reset. */
+    public WorldSnapshot.Rewards sessionRewards() {
+        return snapshot().rewards().minus(rewardsBase);
+    }
+
+    /** The counters for the window: since the session began or the last reset ({@code null} without a bot). */
+    public orbit.bot.run.Stats sessionStats() {
+        orbit.bot.run.Stats s = stats;
+        if (s == null) {
+            return null;
+        }
+        return statsBase == null || statsOf != s ? s : s.since(statsBase);
+    }
+
+    /** «Сбросить статистику»: the window's results and the session's clock count from now; the bot is not touched. */
+    public void resetStatistics() {
+        rewardsBase = snapshot().rewards();
+        orbit.bot.run.Stats s = stats;
+        statsBase = s == null ? null : s.copy();
+        statsOf = s;
+        if (sessionStart != 0) {
+            sessionStart = now();
+            sessionEnd = 0;
+        }
+    }
+
     /** Session length in hours (0 before the session starts). */
     public double sessionHours() {
         return sessionNanos() / 3.6e12;
@@ -70,7 +101,7 @@ public final class WorldFeed {
 
     /** The session's results in one line (for the log). */
     public String summary() {
-        return SessionSummary.text(snapshot().rewards(), stats, sessionHours());
+        return SessionSummary.text(sessionRewards(), sessionStats(), sessionHours());
     }
 
     private final String account;
@@ -414,6 +445,10 @@ public final class WorldFeed {
         loggedOut = false;
         sessionStart = 0;
         sessionEnd = 0;
+        // a new session's results from nothing: the world's rewards run on over the account's stay
+        rewardsBase = snapshot().rewards();
+        statsBase = null;
+        statsOf = null;
     }
 
     /**

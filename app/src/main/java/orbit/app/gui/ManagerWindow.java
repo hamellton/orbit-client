@@ -705,7 +705,7 @@ public final class ManagerWindow {
         String results = "";
         if (feed.sessionStartNanos() != 0) { // after a stop: the session's length and results stay
             session = Hud.clock(java.time.Duration.ofNanos(feed.sessionNanos()));
-            WorldSnapshot.Rewards r = feed.snapshot().rewards();
+            WorldSnapshot.Rewards r = feed.sessionRewards();
             double hours = feed.sessionHours();
             results = money(r.credits(), hours) + " кр · " + money(r.uridium(), hours) + " ур";
         }

@@ -52,4 +52,38 @@ public final class Stats {
     public final java.util.Set<String> closedPortals = java.util.concurrent.ConcurrentHashMap.newKeySet();
     /** Cubikons that died while the bot was shooting at them. */
     public final AtomicInteger cubesKilled = new AtomicInteger();
+
+    /**
+     * The counters since {@code base} — a copy for the window after its statistics were reset (the bot's own counters go
+     * on untouched: the hour's summary and the day's totals count from them).
+     */
+    public Stats since(Stats base) {
+        Stats d = new Stats();
+        if (base == null) {
+            base = new Stats();
+        }
+        d.kills.set(Math.max(0, kills.get() - base.kills.get()));
+        d.boxes.set(Math.max(0, boxes.get() - base.boxes.get()));
+        d.deaths.set(Math.max(0, deaths.get() - base.deaths.get()));
+        d.repairs.set(Math.max(0, repairs.get() - base.repairs.get()));
+        d.cubesKilled.set(Math.max(0, cubesKilled.get() - base.cubesKilled.get()));
+        for (int i = 0, n = Math.max(0, cubesFought() - base.cubesFought()); i < n; i++) {
+            d.cubes.add(i);
+        }
+        java.util.Map<String, Integer> was = base.pickedSoFar();
+        pickedSoFar().forEach((k, v) -> {
+            int n = v - was.getOrDefault(k, 0);
+            if (n > 0) {
+                d.picked.put(k, new AtomicInteger(n));
+            }
+        });
+        d.selling = selling;
+        d.cargoMode = cargoMode;
+        return d;
+    }
+
+    /** A frozen copy of the counters now (the base of a reset). */
+    public Stats copy() {
+        return since(null);
+    }
 }

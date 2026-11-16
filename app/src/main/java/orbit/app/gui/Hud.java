@@ -1023,7 +1023,7 @@ final class Hud {
     }
 
     private Card stats(WorldSnapshot w, WorldFeed feed) {
-        List<String> lines = orbit.app.SessionSummary.lines(w.rewards(), feed.stats(), feed.sessionHours());
+        List<String> lines = orbit.app.SessionSummary.lines(feed.sessionRewards(), feed.sessionStats(), feed.sessionHours());
         // today over all runs (the user, 2026-11-13: the session starts from nothing at each start)
         List<String> today = orbit.app.DailyTotals.of(feed.account()).lines();
         Font textFont = font(Font.PLAIN, 12f);

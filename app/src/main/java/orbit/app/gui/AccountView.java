@@ -315,6 +315,20 @@ final class AccountView extends JPanel {
             }
         });
         actions.add(refreshInfo);
+        JButton reset = new JButton("Сбросить статистику");
+        reset.setToolTipText("Обнулить «за сессию»: добычу, кубы, NPC, смерти и время — с этого момента. Бот работает"
+                + " дальше; сводка за час и итог за сегодня не меняются");
+        reset.addActionListener(e -> {
+            if (javax.swing.JOptionPane.showConfirmDialog(reset, "Обнулить статистику сессии аккаунта «"
+                    + tab.feed().account() + "»?", "Сбросить статистику", javax.swing.JOptionPane.OK_CANCEL_OPTION)
+                    == javax.swing.JOptionPane.OK_OPTION) {
+                tab.feed().resetStatistics();
+                try (var mdc = org.slf4j.MDC.putCloseable("account", tab.feed().account())) {
+                    org.slf4j.LoggerFactory.getLogger(AccountView.class).info("Статистика сессии сброшена");
+                }
+            }
+        });
+        actions.add(reset);
         JButton view = new JButton("Блоки ▾");
         view.setToolTipText("Где показывать блоки");
         view.addActionListener(e -> BlockMenu.all().show(view, 0, view.getHeight()));

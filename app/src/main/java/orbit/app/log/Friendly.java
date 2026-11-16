@@ -164,6 +164,10 @@ public final class Friendly {
             st.cubeKilledAt = time;
             return Out.NONE;
         }
+        if (m.equals("Статистика сессии сброшена")) {
+            st.startAt = time; // «■ Остановлен. За N мин» counts from here too
+            return Out.add("↺ Статистика сброшена — считаю с этого момента", false);
+        }
         Out g = gate(st, m, time);
         if (g != null) {
             return g;
