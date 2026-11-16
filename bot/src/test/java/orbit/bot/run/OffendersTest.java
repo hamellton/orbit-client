@@ -214,48 +214,8 @@ class OffendersTest {
     }
 
     @Test
-    void anNpcShootingTheShipThatIsNotFoughtIsLeft() {
-        // live 2026-11-13: roaming for Impulse II, Abide I (not on the list) shot the ship to death
-        Sim sim = new Sim(config(false), 93, 20_000, 7_000);
-        sim.npc(55, "\\\\ Abide I //", 20_600, 7_000);
-        ore(sim, "far", 14_000, 7_000);
-        BotRunner r = new BotRunner(sim.ctx, () -> false, s -> { });
-        orbit.protocol.gen.AttackLaserRunCommand run = new orbit.protocol.gen.AttackLaserRunCommand();
-        run.attackerId = 55;
-        run.targetId = 1;
-        sim.world.apply(run, sim.now);
-        sim.run(r::tick, 300);
-        assertTrue(r.status().startsWith("Ухожу от \\\\ Abide I //"), r.status());
-        sim.run(r::tick, 20_000);
-        var h = sim.world.snapshot(sim.now).hero();
-        assertTrue(Math.hypot(h.x() - 20_600, h.y() - 7_000) > 560, "out of its reach: " + h.x() + "/" + h.y());
-    }
-
-    @Test
-    void steppingAwayFromAShooterDoesNotRunIntoAnotherNpc() {
-        // live 2026-11-13 on 2-BL: away from Abide I into Steadfast III and back
-        Sim sim = new Sim(config(false), 93, 20_000, 7_000);
-        sim.npc(55, "-=[ Shooter ]=-", 20_600, 7_000);
-        sim.npc(56, "-=[ Waiting ]=-", 18_900, 7_000); // straight behind the ship
-        BotRunner r = new BotRunner(sim.ctx, () -> false, s -> { });
-        orbit.protocol.gen.AttackLaserRunCommand run = new orbit.protocol.gen.AttackLaserRunCommand();
-        run.attackerId = 55;
-        run.targetId = 1;
-        sim.world.apply(run, sim.now);
-        double closest = Double.MAX_VALUE;
-        for (int t = 0; t < 80; t++) {
-            sim.run(r::tick, 100);
-            var h = sim.world.snapshot(sim.now).hero();
-            closest = Math.min(closest, Math.hypot(h.x() - 18_900, h.y() - 7_000));
-        }
-        var h = sim.world.snapshot(sim.now).hero();
-        assertTrue(Math.hypot(h.x() - 20_600, h.y() - 7_000) > 800, "out of the shooter's reach: " + h.x() + "/" + h.y());
-        assertTrue(closest > 800, "kept off the other one: " + (int) closest);
-    }
-
-    @Test
     void theWayOutStaysOutOfTheConfigsAvoidedPart() {
-        // live 2026-11-16 on GE1, 5-3: away from Interceptors into the avoided part, out of the palladium field
+        // live 2026-11-16 on GE1, 5-3: away from a shooter into the avoided part, out of the palladium field
         var map = orbit.world.maps.MapCatalog.bundled().info(93);
         int res = 100;
         int edge = (int) Math.ceil(20_400.0 / map.width() * res); // from x ≈ 20 400 east: avoided
@@ -264,14 +224,14 @@ class OffendersTest {
             rows.add(".".repeat(edge) + "#".repeat(res - edge));
         }
         BotConfig.Zones zones = new BotConfig.Zones(null, new BotConfig.ZoneGrid(res, rows));
-        BotConfig c = config(false).withZones(java.util.Map.of(93, zones));
+        BotConfig c = config(true).withZones(java.util.Map.of(93, zones));
         Sim sim = new Sim(c, 93, 20_000, 7_000);
-        sim.npc(55, "-=[ Shooter ]=-", 19_500, 7_000); // west: straight away from it is east, into the avoided part
+        player(sim, 77, "Hunter", 18_500, 7_000); // west: straight away from him is east, into the avoided part
         BotRunner r = new BotRunner(sim.ctx, () -> false, x -> { });
-        shoots(sim, 55);
-        sim.run(r::tick, 20_000);
+        shoots(sim, 77);
+        sim.run(r::tick, 30_000);
         var h = sim.world.snapshot(sim.now).hero();
         assertTrue(h.x() < 20_600, "not into the avoided part: " + h.x() + "/" + h.y());
-        assertTrue(Math.hypot(h.x() - 19_500, h.y() - 7_000) > 560, "still out of its reach: " + h.x() + "/" + h.y());
+        assertTrue(Math.hypot(h.x() - 18_500, h.y() - 7_000) > 2_500, "out of his circle: " + h.x() + "/" + h.y());
     }
 }

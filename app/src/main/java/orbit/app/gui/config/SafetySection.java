@@ -43,7 +43,6 @@ final class SafetySection implements Section {
     private final JCheckBox avoid = new JCheckBox("Обходить тех, кто стрелял или убил (за сессию)");
     private final JSpinner avoidRadius = Form.number(500, 10_000, 100);
     private final JCheckBox stations = new JCheckBox("Держаться дальше от чужих станций кланов, на");
-    private final JCheckBox npcs = new JCheckBox("Отходить от NPC, которых не бью, если они стреляют");
     private final JSpinner stationRadius = Form.number(500, 5_000, 100);
     private final JComponent view;
 
@@ -83,7 +82,6 @@ final class SafetySection implements Section {
                 .note("Не убегает на портал: работает дальше, но на другом краю карты. Работает и при «Не убегать».")
                 .row("", Form.inline(stations, stationRadius))
                 .note("Станции чужих компаний стреляют (Blacklight): цели и ящики под ними не берёт, облетает.")
-                .row("", npcs)
                 .note("Выключено — как в DarkBot: бьёт свою цель, а от остальных только кружит в стороне.")
                 .section("Гибель")
                 .row("Стоп после смертей", maxDeaths)
@@ -145,7 +143,6 @@ final class SafetySection implements Section {
         stations.setSelected(f.stationRadius() > 0);
         Form.set(stationRadius, f.stationRadius() > 0 ? f.stationRadius() : BotConfig.Flee.STATION_RADIUS);
         stationRadius.setEnabled(stations.isSelected());
-        npcs.setSelected(f.npcs());
     }
 
     @Override
@@ -156,7 +153,7 @@ final class SafetySection implements Section {
         BotConfig.Flee f = new BotConfig.Flee(FLEE_MODES[fleeMode.getSelectedIndex()], names(fleePlayers.getText()),
                 names(fleeNever.getText()), Form.intOf(fleeSight), Form.intOf(fleeRemember), fleeJump.isSelected(),
                 Form.intOf(fleeWait), avoid.isSelected(), Form.intOf(avoidRadius),
-                stations.isSelected() ? Form.intOf(stationRadius) : 0, npcs.isSelected());
+                stations.isSelected() ? Form.intOf(stationRadius) : 0);
         if (!f.equals(c.flee())) {
             c = c.withFlee(f);
         }
