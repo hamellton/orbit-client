@@ -22,6 +22,8 @@ public final class CraftWatch {
     private static final Logger log = LoggerFactory.getLogger(CraftWatch.class);
 
     static final long CHECK_MS = 5_000;
+    /** A start the game ignored (no resources): tried again no sooner than this. */
+    static final long IGNORED_RETRY_MS = 30 * 60_000;
     /** A start that changed nothing (the recipe still free) is tried again no sooner than this. */
     static final long RETRY_MS = 120_000;
     /** No crafting before the game has listed the recipes after a login. */
@@ -126,6 +128,13 @@ public final class CraftWatch {
             if (last != null && now - last < RETRY_MS * 1_000_000) {
                 continue;
             }
+            if (last != null && told.add("!" + r.recipe())) {
+                // a start the game ignored: the resources are short (the game tells their counts only as they change)
+                log.warn("Крафт: игра не запустила {} — видимо, не хватает ресурсов (нужно: {}); снова через {} мин",
+                        name(r), price(r.recipe(), r.amount()), IGNORED_RETRY_MS / 60_000);
+                startedAt.put(r.recipe(), now + (IGNORED_RETRY_MS - RETRY_MS) * 1_000_000);
+                continue;
+            }
             String lacking = lacking(w, r.recipe(), r.amount());
             if (lacking != null) {
                 if (told.add("$" + r.recipe() + lacking)) {
@@ -161,6 +170,15 @@ public final class CraftWatch {
             }
         }
         return out.isEmpty() ? null : String.join(", ", out);
+    }
+
+    /** «500 Eternal Fragment, 500 Rinusk, 150 000 кредиты» — a recipe's price for {@code amount} batches. */
+    public static String price(String recipe, int amount) {
+        java.util.List<String> out = new java.util.ArrayList<>();
+        for (orbit.config.RecipeCosts.Part p : orbit.config.RecipeCosts.of(recipe)) {
+            out.add(num(p.amount() * Math.max(1, amount)) + " " + partName(p.item()));
+        }
+        return out.isEmpty() ? "?" : String.join(", ", out);
     }
 
     private static String num(double v) {

@@ -188,7 +188,7 @@ public final class EternalGate {
     private boolean craftGivenUp;
     private String craftLacking;
     /** A CPU's craft not begun so long after the starts: no resources for it. */
-    static final long CRAFT_GIVE_UP_MS = 7 * 60_000;
+    static final long CRAFT_GIVE_UP_MS = 3 * 60_000;
 
     /** EBG's portal on the BL map, when the CPU opened it. */
     WorldSnapshot.Portal portal() {
@@ -233,7 +233,8 @@ public final class EternalGate {
         if ((ctx.now() - craftSince) / 1_000_000 > CRAFT_GIVE_UP_MS) {
             if (!craftGivenUp) {
                 craftGivenUp = true;
-                log.warn("Вечные врата: крафт CPU не начался за {} мин — не хватает ресурсов", CRAFT_GIVE_UP_MS / 60_000);
+                log.warn("Вечные врата: крафт CPU не начался за {} мин — не хватает ресурсов (нужно {})",
+                        CRAFT_GIVE_UP_MS / 60_000, orbit.bot.run.CraftWatch.price(GateCatalog.EBG_CPU_RECIPE, 1));
             }
             return false;
         }
