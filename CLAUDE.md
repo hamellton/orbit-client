@@ -10,7 +10,6 @@ Status: Stage 2 done; stage 3 in progress (login, game connection, vault, client
 - AstraBot and other bots copied from the friend's VPS lie in `vps-copy/` (not in git, with `vps.txt`); they may be studied.
   What is where and where to look per topic (DarkBot's full sources in `vps-copy/DarkOrbit BOTS/DB/src`, BL/behemoth/invoke
   profiles, BLCycle logs, AstraBot configs): `docs/REFERENCE-BOTS.md`. Never copy credentials from those files.
-- The second Mac runs the production bots: touch it only when asked; how to deploy there: `docs/SECOND-MAC.md`.
 - DarkBot (GPL): take facts and logic, do not copy code wholesale.
 - Do not touch binaries in `../DO-files/lib` and `../DO-files/plugins`.
 - UI, logs, README in Russian; code and comments in English.
