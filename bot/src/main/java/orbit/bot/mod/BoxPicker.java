@@ -122,6 +122,31 @@ public final class BoxPicker {
         }
     }
 
+    private boolean fight;
+    private double fightNpcX;
+    private double fightNpcY;
+    private double fightNearNpc;
+
+    /**
+     * DarkBot's Kill &amp; Collect in a fight ({@code LootNCollectorModule}): the best box of the map (priority, then
+     * the nearest) is taken only when it is within the collect radius of the ship — and, for an NPC flagged
+     * {@code IGNORE_BOXES}, within {@code nearNpc} of the NPC ({@code nearNpc} &le; 0: no such limit). The ship's mode
+     * stays the fight's; the caller keeps shooting.
+     */
+    public boolean tickFight(double npcX, double npcY, double nearNpc) {
+        fight = true;
+        fightNpcX = npcX;
+        fightNpcY = npcY;
+        fightNearNpc = nearNpc;
+        keepShipMode = true;
+        try {
+            return tick(Double.NaN, Double.NaN);
+        } finally {
+            fight = false;
+            keepShipMode = false;
+        }
+    }
+
     /** True while busy with a box (the caller should not move the ship). Boxes near the ship. */
     public boolean tick() {
         return tick(Double.NaN, Double.NaN);
@@ -226,8 +251,8 @@ public final class BoxPicker {
     private WorldSnapshot.Collectable find(BotConfig c, WorldSnapshot w, long now) {
         WorldSnapshot.Hero h = w.hero();
         ignored.values().removeIf(t -> now - t > 120_000_000_000L);
-        java.util.function.BiPredicate<Integer, Integer> reach = anywhere ? ctx.nav().reachability() : null;
-        return w.collectables().values().stream()
+        java.util.function.BiPredicate<Integer, Integer> reach = anywhere || fight ? ctx.nav().reachability() : null;
+        WorldSnapshot.Collectable best = w.collectables().values().stream()
                 .filter(b -> b.kind() == WorldSnapshot.CollectableKind.BOX || !anyType && b.kind() == WorldSnapshot.CollectableKind.ORE)
                 .filter(b -> !ignored.containsKey(b.hash()))
                 .filter(b -> {
@@ -246,8 +271,9 @@ public final class BoxPicker {
                 .filter(b -> now >= leaveUntil || Math.hypot(b.x() - leaveX, b.y() - leaveY) > LEAVE_RADIUS)
                 // not inside a no-access zone (the ship cannot get there)
                 .filter(b -> !orbit.world.maps.ZoneGeometry.blocked(w, b.x(), b.y()))
-                // not in the config's avoided zone (DarkBot's «avoided zones»)
-                .filter(b -> !Zones.avoided(c, w.hero().mapId(), b.x(), b.y(), ctx.maps()))
+                // not deep in the config's avoided zone: DarkBot's zones are obstacles and a box counts while the
+                // nearest free point is closer than 200 (CollectorModule.canCollect)
+                .filter(b -> !avoidedDeep(c, w, b.x(), b.y()))
                 // a full hold (the config does something about it): no more boxes that fill it
                 .filter(b -> !BotConfig.Collect.fillsCargo(key(b)) || !cargoFull(c, w))
                 .filter(b -> reach != null ? reach.test(b.x(), b.y()) : Double.isNaN(anchorX)
@@ -263,6 +289,30 @@ public final class BoxPicker {
                     return r == null ? 0 : r.priority();
                 }).thenComparingDouble(b -> Math.hypot(b.x() - h.x(), b.y() - h.y())))
                 .orElse(null);
+        if (best != null && fight && (Math.hypot(best.x() - h.x(), best.y() - h.y()) > c.collect().radius()
+                || fightNearNpc > 0 && Math.hypot(best.x() - fightNpcX, best.y() - fightNpcY) > fightNearNpc)) {
+            return null;
+        }
+        return best;
+    }
+
+    /** The reach DarkBot gives a box by an obstacle: the nearest free point closer than this. */
+    static final double FREE_NEAR = 200;
+
+    /** In the config's avoided zone with no free point within {@link #FREE_NEAR} (eight directions looked at). */
+    private boolean avoidedDeep(BotConfig c, WorldSnapshot w, double x, double y) {
+        int map = w.hero().mapId();
+        if (!Zones.avoided(c, map, x, y, ctx.maps())) {
+            return false;
+        }
+        double r = FREE_NEAR - 10;
+        for (int i = 0; i < 8; i++) {
+            double a = Math.PI / 4 * i;
+            if (!Zones.avoided(c, map, x + Math.cos(a) * r, y + Math.sin(a) * r, ctx.maps())) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**
@@ -279,11 +329,16 @@ public final class BoxPicker {
                 && w.cargoFree() <= c.collect().cargoFullAt();
     }
 
-    /** Another player is closer to the box than we are. */
-    private static boolean contested(WorldSnapshot w, WorldSnapshot.Collectable b) {
+    /**
+     * DarkBot's {@code IGNORE_CONTESTED_BOXES} ({@code CollectorModule.isContested}): another player flies to this very
+     * box and gets there sooner than the ship would in twice its time (pessimistic: the ship's speed is unsteady).
+     * Other ships' speed is not known here: taken as the ship's.
+     */
+    static boolean contested(WorldSnapshot w, WorldSnapshot.Collectable b) {
         WorldSnapshot.Hero h = w.hero();
-        double mine = Math.hypot(b.x() - h.x(), b.y() - h.y());
-        return w.ships().values().stream().anyMatch(s -> s.kind() == WorldSnapshot.ShipKind.PLAYER
-                && Math.hypot(b.x() - s.x(), b.y() - s.y()) < Math.min(mine, 300));
+        double mine = Math.hypot(b.x() - h.x(), b.y() - h.y()) * 2;
+        return w.ships().values().stream().anyMatch(s -> s.kind() == WorldSnapshot.ShipKind.PLAYER && s.id() != h.id()
+                && s.moving() && Math.hypot(s.targetX() - b.x(), s.targetY() - b.y()) < 1
+                && Math.hypot(b.x() - s.x(), b.y() - s.y()) < mine);
     }
 }

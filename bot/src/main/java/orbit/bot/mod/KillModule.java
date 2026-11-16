@@ -81,6 +81,10 @@ public final class KillModule implements BotModule {
                 attacker.target(better);
             }
         }
+        if (collect && attacker.targetId() != 0 && fightBox(c, w)) {
+            status = "Бой · подбираю " + boxes.currentName();
+            return;
+        }
         if (attacker.targetId() != 0 && attacker.tick(true)) {
             status = "Бой";
             return;
@@ -232,6 +236,31 @@ public final class KillModule implements BotModule {
         }
         ctx.nav().tick();
         status = "Лечу к " + name + " по пеленгатору";
+        return true;
+    }
+
+    /** DarkBot's Kill &amp; Collect leaves the boxes to a target this weak: it is finished first. */
+    static final double FINISH_BELOW = 0.25;
+
+    /**
+     * DarkBot's Kill &amp; Collect in a fight ({@code LootNCollectorModule.tick}): a box within the collect radius of
+     * the ship is taken while the target is shot, unless the target is under a quarter of its HP; for a target
+     * flagged {@code IGNORE_BOXES} only boxes within twice its radius (at most 800) of it.
+     */
+    private boolean fightBox(BotConfig c, WorldSnapshot w) {
+        WorldSnapshot.Ship t = w.ships().get(attacker.targetId());
+        if (t == null || t.health().known() && t.health().hpPercent() < FINISH_BELOW) {
+            boxes.clear();
+            return false;
+        }
+        int map = w.hero().mapId();
+        BotConfig.NpcRule r = Targets.rule(c, t, map);
+        double nearNpc = r != null && r.has(BotConfig.NpcFlag.IGNORE_BOXES)
+                ? Math.min(800, Targets.radius(c, t, map) * 2) : -1;
+        if (!boxes.tickFight(t.x(), t.y(), nearNpc)) {
+            return false;
+        }
+        attacker.tick(false);
         return true;
     }
 
