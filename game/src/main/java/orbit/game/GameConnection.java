@@ -205,7 +205,9 @@ public final class GameConnection implements AutoCloseable {
     }
 
     private static final java.util.regex.Pattern GATE_NOTICE = java.util.regex.Pattern.compile(
-            "(?i)-=-\\s*\\d+\\s*-=-|\\d+\\s+lives?\\s+left\\.?|wave\\s+\\d+\\.?|gate\\s+completed\\.?");
+            "(?i)-=-\\s*\\d+\\s*-=-|\\d+\\s+lives?\\s+left\\.?|wave\\s+\\d+\\.?|gate\\s+completed\\.?"
+                    // EBG (live 2026-11-16 on gb2: «Eternal Blacklight Gate - Wave 1» stopped the account as a person's line)
+                    + "|eternal\\s+blacklight\\s+gate\\s*-\\s*wave\\s*\\d+\\.?");
 
     /** After a restart notice the game is tried again this much later (and a little more, at random). */
     static final Duration RESTART_WAIT = Duration.ofMinutes(5);

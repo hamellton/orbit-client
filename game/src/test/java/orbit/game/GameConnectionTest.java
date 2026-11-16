@@ -340,6 +340,8 @@ class GameConnectionTest {
         // a gate's countdown and notices (live 2026-11-15 on gb2: « -=- 15 -=- » stopped the account)
         assertNull(GameConnection.troubleOf("0|A|STD| -=- 15 -=- "));
         assertNull(GameConnection.troubleOf("0|A|STD|-=- 0 -=-"));
+        assertNull(GameConnection.troubleOf("0|A|STD|Eternal Blacklight Gate - Wave 1"), "EBG's wave line");
+        assertNull(GameConnection.troubleOf("0|A|STD|Eternal Blacklight Gate - Wave 154"));
         assertNull(GameConnection.troubleOf("0|A|STD|5 lives left"));
         assertNull(GameConnection.troubleOf("0|A|STD|Wave 12"));
         assertNull(GameConnection.troubleOf("0|A|STD|Gate completed."));
