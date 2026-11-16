@@ -317,6 +317,12 @@ public final class ServiceVisit {
                                         e.getKey(), there, e.getValue());
                             }
                             long n = Math.min(Math.min(e.getValue(), there), free);
+                            if (n < Math.min(e.getValue(), there)) {
+                                // the hold, not the storage (live 2026-11-16 on gb2: 5 000 seprom in an 8 000 hold, 2 997
+                                // of the 14 000 promerium came)
+                                log.warn("Обслуживание: в трюме место на {} {} из нужных {} — везу {}", e.getKey(), free,
+                                        e.getValue(), n);
+                            }
                             if (n > 0) {
                                 send.put(e.getKey(), n);
                                 free -= n;
