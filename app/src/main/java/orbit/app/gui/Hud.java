@@ -34,12 +34,14 @@ final class Hud {
     static final Color SHIELD_BAR = new Color(0x4f82d1);
     static final Color BAR_TRACK = new Color(0x232a36);
     static final int PAD = 12;
-    static final int LINE = 17;
+    static final int LINE = 19;
     static final int BAR = 14;
 
     /** Sizes of this renderer: the normal ones, or tighter for cards on a small map. */
     final int pad;
     final int line;
+    /** From a heading's top to the first row under its rule: a little more than a row (the user: «отступа не хватает»). */
+    final int head;
     final int bar;
     private final float fontScale;
     private static final int MAX_ATTACKER_ROWS = 4;
@@ -61,7 +63,8 @@ final class Hud {
     Hud(Font base, boolean compact) {
         this.base = base;
         this.pad = compact ? 8 : PAD;
-        this.line = compact ? 14 : LINE;
+        this.line = compact ? 15 : LINE;
+        this.head = line + (compact ? 4 : 8);
         this.bar = compact ? 10 : BAR;
         this.fontScale = compact ? 0.86f : 1f;
     }
@@ -141,7 +144,7 @@ final class Hud {
         return new Card() {
             @Override
             public int height(int width) {
-                return pad + line + list.size() * rowH + pad - 4;
+                return pad + head + list.size() * rowH + pad - 4;
             }
 
             @Override
@@ -149,7 +152,7 @@ final class Hud {
                 frame(g, x, y, width, height(width), GATE_BAR);
                 heading(g, x, y, width, "Врата", "энергия " + money((long) Math.max(0, gs.samples())) + " · уридий "
                         + money((long) Math.max(0, gs.money())));
-                int ry = y + pad + line;
+                int ry = y + pad + head;
                 for (orbit.config.GateCatalog.Gate gate : list) {
                     WorldSnapshot.Gate st = gs.gate(gate.builderId());
                     int parts = Math.max(0, st.parts());
@@ -205,7 +208,7 @@ final class Hud {
         return new Card() {
             @Override
             public int height(int width) {
-                return pad + line + LAB_ITEMS.size() * line + pad - 4;
+                return pad + head + LAB_ITEMS.size() * line + pad - 4;
             }
 
             @Override
@@ -213,7 +216,7 @@ final class Hud {
                 frame(g, x, y, width, height(width), LAB_BAR);
                 heading(g, x, y, width, "Обогащение", age + " · раз в 5 мин");
                 g.setFont(font(Font.PLAIN, 11f));
-                int ry = y + pad + line;
+                int ry = y + pad + head;
                 for (int i = 0; i < LAB_ITEMS.size(); i++) {
                     WorldSnapshot.Enrichment e = lab.items().get(i);
                     boolean has = e != null && e.left() > 0;
@@ -264,7 +267,7 @@ final class Hud {
         return new Card() {
             @Override
             public int height(int width) {
-                return pad + 2 * line + wrap(measure(font(Font.PLAIN, 11f)), modLine, width - 2 * pad).size() * line
+                return pad + head + line + wrap(measure(font(Font.PLAIN, 11f)), modLine, width - 2 * pad).size() * line
                         + s.ores().size() * rowH + pad - 4;
             }
 
@@ -273,7 +276,7 @@ final class Hud {
                 frame(g, x, y, width, height(width), SKYLAB_BAR);
                 heading(g, x, y, width, "Скайлаб", age + " · раз в 20 мин");
                 g.setFont(font(Font.PLAIN, 11f));
-                int ry = y + pad + line;
+                int ry = y + pad + head;
                 g.setColor(s.transporting() ? TEXT : DIM);
                 g.drawString(clip(g, "Транспорт: " + (s.transporting() ? "в пути" : "свободен")
                         + (robots > 0 ? " · роботов ждут: " + robots : ""), width - 2 * pad), x + pad, ry + 10);
@@ -312,7 +315,7 @@ final class Hud {
         return new Card() {
             @Override
             public int height(int width) {
-                int h = pad + line;
+                int h = pad + head;
                 for (orbit.world.Quests.Quest x : list) {
                     h += line + x.leaves().size() * condH;
                 }
@@ -323,7 +326,7 @@ final class Hud {
             public void paint(Graphics2D g, int x, int y, int width) {
                 frame(g, x, y, width, height(width), QUEST_BAR);
                 heading(g, x, y, width, "Квесты", String.valueOf(q.active().size()));
-                int ry = y + pad + line;
+                int ry = y + pad + head;
                 for (orbit.world.Quests.Quest quest : list) {
                     g.setFont(font(Font.BOLD, 12f));
                     g.setColor(TEXT);
@@ -620,14 +623,14 @@ final class Hud {
         return new Card() {
             @Override
             public int height(int width) {
-                return pad + line + rows.size() * (line - 1) + (pills.isEmpty() ? 0 : line + 2) + pad - 4;
+                return pad + head + rows.size() * (line - 1) + (pills.isEmpty() ? 0 : line + 2) + pad - 4;
             }
 
             @Override
             public void paint(Graphics2D g, int x, int y, int width) {
                 frame(g, x, y, width, height(width), BOOST);
                 heading(g, x, y, width, "Бустеры", "");
-                int ty = y + pad + line + 11;
+                int ty = y + pad + head + 11;
                 g.setFont(font(Font.PLAIN, 12f));
                 FontMetrics fm = g.getFontMetrics();
                 for (String[] r : rows) {
@@ -894,7 +897,7 @@ final class Hud {
         return new Card() {
             @Override
             public int height(int width) {
-                return pad + line + rows * rowH + (more ? line : 0) + pad - 4;
+                return pad + head + rows * rowH + (more ? line : 0) + pad - 4;
             }
 
             @Override
@@ -902,7 +905,7 @@ final class Hud {
                 frame(g, x, y, width, height(width), MinimapPanel.ENEMY);
                 heading(g, x, y, width, "Атакуют меня", String.valueOf(w.hero().attackers().size()));
                 g.setFont(font(Font.PLAIN, 11f));
-                int ry = y + pad + line;
+                int ry = y + pad + head;
                 int row = 0;
                 for (Map.Entry<String, List<Ship>> e : byName.entrySet()) {
                     if (row++ == rows) {
@@ -951,7 +954,7 @@ final class Hud {
         return new Card() {
             @Override
             public int height(int width) {
-                int hgt = pad + line;
+                int hgt = pad + head;
                 for (WorldSnapshot.Member m : others) {
                     hgt += rowH + (m.targetName().isEmpty() || m.loggedOut() ? 0 : targetH);
                 }
@@ -963,7 +966,7 @@ final class Hud {
                 frame(g, x, y, width, height(width), MinimapPanel.ALLY);
                 heading(g, x, y, width, "Группа", group.members().size() + (group.leaderId() == h.id() ? " · вы лидер" : ""));
                 g.setFont(font(Font.PLAIN, 11f));
-                int ry = y + pad + line;
+                int ry = y + pad + head;
                 for (WorldSnapshot.Member m : others) {
                     String where = m.loggedOut() ? "не в игре"
                             : m.mapId() != h.mapId() && m.mapId() != 0 ? MapCatalog.bundled().info(m.mapId()).name()
@@ -1019,7 +1022,7 @@ final class Hud {
                 for (String text : today) {
                     todayRows += wrap(measure(textFont), text, width - 2 * pad).size();
                 }
-                return pad + line + rows * (line - 1) + 6 + line + todayRows * (line - 1) + pad - 4;
+                return pad + head + rows * (line - 1) + 6 + line + todayRows * (line - 1) + pad - 4;
             }
 
             @Override
@@ -1027,7 +1030,7 @@ final class Hud {
                 frame(g, x, y, width, height(width), new Color(0xa78bfa));
                 heading(g, x, y, width, "Итоги сессии", "");
                 g.setFont(textFont);
-                int ty = y + pad + line + 11;
+                int ty = y + pad + head + 11;
                 for (int i = 0; i < lines.size(); i++) {
                     g.setColor(i < 4 ? TEXT : DIM);
                     for (String part : wrap(g.getFontMetrics(), lines.get(i), width - 2 * pad)) {
@@ -1223,7 +1226,7 @@ final class Hud {
         g.setColor(HEADING);
         g.drawString(clip(g, title.toUpperCase(java.util.Locale.ROOT), width - 2 * pad - rw - 8), x + pad, y + pad + 10);
         g.setColor(RULE);
-        g.fillRect(x + pad, y + pad + line - 2, width - 2 * pad, 1);
+        g.fillRect(x + pad, y + pad + line - 1, width - 2 * pad, 1);
     }
 
     static final Color HEADING = new Color(0x97a3b6);
