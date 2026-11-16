@@ -168,6 +168,10 @@ public final class Friendly {
             st.startAt = time; // «■ Остановлен. За N мин» counts from here too
             return Out.add("↺ Статистика сброшена — считаю с этого момента", false);
         }
+        if (m.startsWith("Вечные врата: ") && m.matches(".*(забег|тормоз|бустер|использую CPU|CPU для Вечных врат нет|"
+                + "не обогатились|выход из игры).*")) {
+            return Out.add(m.replace("Вечные врата: ", "∞ "), warn);
+        }
         Out g = gate(st, m, time);
         if (g != null) {
             return g;

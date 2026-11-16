@@ -576,7 +576,16 @@ final class MinimapPanel extends JPanel {
             return (int) Math.round(vy + 8);
         }
         WorldSnapshot.Gate st = gate.builderId() != 0 ? w.gates().gate(gate.builderId()) : null;
-        StringBuilder t = new StringBuilder("Врата " + gate.name().split(" ")[0]);
+        StringBuilder t = new StringBuilder("eternal".equals(gate.key()) ? "Вечные врата" : "Врата " + gate.name().split(" ")[0]);
+        if ("eternal".equals(gate.key())) {
+            WorldSnapshot.Eternal e = w.gates().eternal();
+            if (e.wave() > 0) {
+                t.append("  ·  волна ").append(e.wave());
+            }
+            if (e.cpus() >= 0) {
+                t.append("  ·  CPU ").append(e.cpus());
+            }
+        }
         if (st != null && st.wave() > 0) {
             t.append("  ·  волна ").append(st.wave()).append(gate.waves() > 0 ? " / " + gate.waves() : "");
         }

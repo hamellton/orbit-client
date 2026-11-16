@@ -15,7 +15,7 @@ import org.junit.jupiter.api.io.TempDir;
 class ConfigFoldersTest {
 
     static final List<String> DEFAULTS = List.of("Behemoth", "Behemoth Train", "Blacklight Impulse", "Blacklight Invoke",
-            "Cubikon", "Galaxy Gates ABG", "Palladium");
+            "Cubikon", "EBG", "Galaxy Gates ABG", "Palladium");
 
     @Test
     void theProgramsDefaultsAreListedFirstAndRead(@TempDir Path dir) throws IOException {
