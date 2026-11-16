@@ -369,10 +369,7 @@ public final class World {
             case HitpointInfoCommand p -> hero.health = hero.health.withHp(p.hitpoints, p.hitpointsMax)
                     .withNanoHull(p.nanoHull, p.nanoHullMax);
             case AttributeShipSpeedUpdateCommand p -> setHeroSpeed(p.newSpeed, nanos, "обновление");
-            case AttributeCreditsUpdateCommand p -> {
-                hero.credits = p.credits;
-                hero.uridium = p.uridium;
-            }
+            case AttributeCreditsUpdateCommand p -> balance(p.credits, p.uridium);
             case AttributeLevelUpUpdateCommand p -> hero.level = p.level;
             case ShipSelectionCommand p -> select(p);
             case ShipDeselectionCommand p -> hero.selectedId = 0;
@@ -662,7 +659,8 @@ public final class World {
                 new WorldSnapshot.Inventory(Map.copyOf(ores), Map.copyOf(resources), Map.copyOf(bootyKeys),
                         Map.copyOf(tradePrices), tradeNanos, petTradeNanos, Map.copyOf(recipes), lab), pet,
                 Map.copyOf(activatable), jumpingTo, death, java.util.Set.copyOf(slotItems), recentKills(nanos),
-                new WorldSnapshot.Rewards(gainedCredits, gainedUridium, gainedHonor, gainedExperience, Map.copyOf(loot)),
+                new WorldSnapshot.Rewards(gainedCredits, gainedUridium, gainedHonor, gainedExperience, Map.copyOf(loot),
+                        spentCredits, spentUridium),
                 List.copyOf(invitations), List.copyOf(contacts.values()), Map.copyOf(mines),
                 boostersKnown ? new WorldSnapshot.Boosters(true, Map.copyOf(boosters), Map.copyOf(boosterTotals))
                         : WorldSnapshot.Boosters.NONE,
@@ -787,6 +785,21 @@ public final class World {
     }
 
     private double gainedCredits;
+    /** What the balance fell by, all told: the spending (each purchase, repair, gate life, quick transport…). */
+    private double spentCredits;
+    private double spentUridium;
+    private boolean balanceKnown;
+
+    /** The hero's balance as the server tells it; a fall is counted as spent. */
+    private void balance(double credits, double uridium) {
+        if (balanceKnown) {
+            spentCredits += Math.max(0, hero.credits - credits);
+            spentUridium += Math.max(0, hero.uridium - uridium);
+        }
+        balanceKnown = true;
+        hero.credits = credits;
+        hero.uridium = uridium;
+    }
     private double gainedUridium;
     private double gainedHonor;
     private double gainedExperience;
@@ -849,8 +862,7 @@ public final class World {
         hero.factionId = p.factionId;
         hero.clanId = p.clanId;
         hero.level = p.level;
-        hero.credits = p.credits;
-        hero.uridium = p.uridium;
+        balance(p.credits, p.uridium);
         hero.experience = p.ep;
         hero.honor = p.honourPoints;
         // cargoSpace is the free space: it grows by exactly the amount of ore sold (recordings)
@@ -1120,8 +1132,8 @@ public final class World {
                     double total = parseDouble(a[5], -1);
                     if (total >= 0) {
                         switch (a[3]) {
-                            case "CRE" -> hero.credits = total;
-                            case "URI" -> hero.uridium = total;
+                            case "CRE" -> balance(total, hero.uridium);
+                            case "URI" -> balance(hero.credits, total);
                             case "HON" -> hero.honor = total;
                             case "EP" -> {
                                 hero.experience = total;

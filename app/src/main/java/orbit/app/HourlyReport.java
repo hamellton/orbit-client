@@ -24,9 +24,15 @@ public final class HourlyReport {
 
     /** The counters an hour is told by (rewards, the bot's own counts). */
     public record Totals(double uridium, double credits, double experience, double honor, int kills, int cubes,
-                         int repairs, int deaths, Map<String, Integer> picked, Map<String, Double> items) {
+                         int repairs, int deaths, Map<String, Integer> picked, Map<String, Double> items,
+                         double spentUridium, double spentCredits) {
 
         public static final Totals NONE = new Totals(0, 0, 0, 0, 0, 0, 0, 0, Map.of(), Map.of());
+
+        public Totals(double uridium, double credits, double experience, double honor, int kills, int cubes,
+                      int repairs, int deaths, Map<String, Integer> picked, Map<String, Double> items) {
+            this(uridium, credits, experience, honor, kills, cubes, repairs, deaths, picked, items, 0, 0);
+        }
 
         static Totals of(WorldFeed feed) {
             var r = feed.snapshot().rewards();
@@ -34,7 +40,7 @@ public final class HourlyReport {
             return new Totals(r.uridium(), r.credits(), r.experience(), r.honor(),
                     s == null ? 0 : s.kills.get(), s == null ? 0 : s.cubesKilled.get(),
                     s == null ? 0 : s.repairs.get(), s == null ? 0 : s.deaths.get(),
-                    s == null ? Map.of() : s.pickedSoFar(), Map.copyOf(r.items()));
+                    s == null ? Map.of() : s.pickedSoFar(), Map.copyOf(r.items()), r.spentUridium(), r.spentCredits());
         }
     }
 
@@ -84,6 +90,18 @@ public final class HourlyReport {
         return text;
     }
 
+    /** «1 200 уридия, 50 000 кредитов» — what was spent, {@code null} when nothing. */
+    static String spent(double uridium, double credits) {
+        List<String> p = new ArrayList<>();
+        if (uridium > 0) {
+            p.add(SessionSummary.num(uridium) + " уридия");
+        }
+        if (credits > 0) {
+            p.add(SessionSummary.num(credits) + " кредитов");
+        }
+        return p.isEmpty() ? null : String.join(", ", p);
+    }
+
     private long nextHour(long millis) {
         LocalDateTime t = LocalDateTime.ofInstant(Instant.ofEpochMilli(millis), zone).truncatedTo(ChronoUnit.HOURS)
                 .plusHours(1);
@@ -105,6 +123,10 @@ public final class HourlyReport {
         add(parts, "кредиты", diff(a.credits(), b.credits()));
         add(parts, "опыт", diff(a.experience(), b.experience()));
         add(parts, "честь", diff(a.honor(), b.honor()));
+        String spent = spent(diff(a.spentUridium(), b.spentUridium()), diff(a.spentCredits(), b.spentCredits()));
+        if (spent != null) {
+            parts.add("потрачено " + spent);
+        }
         int kills = (int) diff(a.kills(), b.kills());
         if (kills > 0) {
             parts.add("NPC " + kills);

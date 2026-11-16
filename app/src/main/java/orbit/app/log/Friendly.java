@@ -486,7 +486,8 @@ public final class Friendly {
         add(out, grab(s, "палладий ([\\d\\u00a0 ]*\\d)"), " палладия");
         String deaths = grab(s, "смертей (\\d+)");
         out.add("смертей " + (deaths == null ? "0" : deaths));
-        return String.join(", ", out);
+        String spent = grab(s, "Потрачено: ([^;]+)");
+        return String.join(", ", out) + (spent == null ? "" : "; потрачено " + spent.strip());
     }
 
     /** «Сводка 11:34–12:00 · в игре все 26 мин · уридий +6 523 · …» → «Час 11:34–12:00: 6 523 уридия · …». */
@@ -513,6 +514,10 @@ public final class Friendly {
         String deaths = grab(s, "смертей (\\d+)");
         if (deaths != null) {
             out.add("смертей " + deaths);
+        }
+        String spent = grab(s, "потрачено ([^·]+)");
+        if (spent != null) {
+            out.add("потрачено " + spent.strip());
         }
         return "Час " + span + ": " + String.join(" · ", out);
     }

@@ -278,9 +278,18 @@ public record WorldSnapshot(long nanos, Hero hero, Map<Integer, Ship> ships, Map
      * What the server's reward log ({@code 0|LM|ST|…}) has granted since the world model started:
      * currencies and points, and items by id (resources, ammunition, rockets, mines, extra energy, log disks).
      */
-    public record Rewards(double credits, double uridium, double honor, double experience, Map<String, Double> items) {
+    public record Rewards(double credits, double uridium, double honor, double experience, Map<String, Double> items,
+                          double spentCredits, double spentUridium) {
 
         public static final Rewards NONE = new Rewards(0, 0, 0, 0, Map.of());
+
+        /**
+         * Without what was spent. {@code spentCredits}, {@code spentUridium}: every fall of the balance (ammunition,
+         * boosters, paid repairs, a gate's lives and spins, the Skylab's quick transport…; the user, 2026-11-16).
+         */
+        public Rewards(double credits, double uridium, double honor, double experience, Map<String, Double> items) {
+            this(credits, uridium, honor, experience, items, 0, 0);
+        }
 
         /** What came since {@code base} (a reset of the window's statistics). */
         public Rewards minus(Rewards base) {
@@ -295,7 +304,8 @@ public record WorldSnapshot(long nanos, Hero hero, Map<Integer, Ship> ships, Map
                 }
             });
             return new Rewards(Math.max(0, credits - base.credits), Math.max(0, uridium - base.uridium),
-                    Math.max(0, honor - base.honor), Math.max(0, experience - base.experience), Map.copyOf(left));
+                    Math.max(0, honor - base.honor), Math.max(0, experience - base.experience), Map.copyOf(left),
+                    Math.max(0, spentCredits - base.spentCredits), Math.max(0, spentUridium - base.spentUridium));
         }
     }
 

@@ -91,6 +91,8 @@ public final class DailyTotals {
         int cubes = 0;
         int repairs = 0;
         int deaths = 0;
+        double spentUri = 0;
+        double spentCr = 0;
         Map<String, Integer> picked = new TreeMap<>();
         Map<String, Double> items = new TreeMap<>();
         for (HourlyReport.Totals[] r : runs.values()) {
@@ -104,12 +106,14 @@ public final class DailyTotals {
             cubes += b.cubes() - a.cubes();
             repairs += b.repairs() - a.repairs();
             deaths += b.deaths() - a.deaths();
+            spentUri += Math.max(0, b.spentUridium() - a.spentUridium());
+            spentCr += Math.max(0, b.spentCredits() - a.spentCredits());
             b.picked().forEach((k, v) -> picked.merge(k, v - a.picked().getOrDefault(k, 0), Integer::sum));
             b.items().forEach((k, v) -> items.merge(k, v - a.items().getOrDefault(k, 0.0), Double::sum));
         }
         picked.values().removeIf(v -> v <= 0);
         items.values().removeIf(v -> v <= 0);
-        return new HourlyReport.Totals(uri, cr, xp, hon, kills, cubes, repairs, deaths, picked, items);
+        return new HourlyReport.Totals(uri, cr, xp, hon, kills, cubes, repairs, deaths, picked, items, spentUri, spentCr);
     }
 
     /** Lines for the window's card. */
@@ -118,6 +122,10 @@ public final class DailyTotals {
         List<String> out = new ArrayList<>();
         out.add("Уридий: " + SessionSummary.num(t.uridium()) + "   кредиты: " + SessionSummary.num(t.credits()));
         out.add("Опыт: " + SessionSummary.num(t.experience()) + "   честь: " + SessionSummary.num(t.honor()));
+        String spent = HourlyReport.spent(t.spentUridium(), t.spentCredits());
+        if (spent != null) {
+            out.add("Потрачено: " + spent);
+        }
         out.add("Убито NPC " + t.kills() + (t.cubes() > 0 ? ", кубов " + t.cubes() : "")
                 + "   ремонтов " + t.repairs() + "   смертей " + t.deaths());
         if (!t.picked().isEmpty()) {
@@ -183,6 +191,8 @@ public final class DailyTotals {
         n.put("cubes", t.cubes());
         n.put("repairs", t.repairs());
         n.put("deaths", t.deaths());
+        n.put("spentUridium", t.spentUridium());
+        n.put("spentCredits", t.spentCredits());
         ObjectNode picked = n.putObject("picked");
         t.picked().forEach(picked::put);
         ObjectNode items = n.putObject("items");
@@ -197,6 +207,7 @@ public final class DailyTotals {
         n.path("items").properties().forEach(e -> items.put(e.getKey(), e.getValue().asDouble()));
         return new HourlyReport.Totals(n.path("uridium").asDouble(), n.path("credits").asDouble(),
                 n.path("experience").asDouble(), n.path("honor").asDouble(), n.path("kills").asInt(),
-                n.path("cubes").asInt(), n.path("repairs").asInt(), n.path("deaths").asInt(), picked, items);
+                n.path("cubes").asInt(), n.path("repairs").asInt(), n.path("deaths").asInt(), picked, items,
+                n.path("spentUridium").asDouble(), n.path("spentCredits").asDouble());
     }
 }
