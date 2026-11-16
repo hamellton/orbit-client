@@ -108,6 +108,9 @@ final class Sim {
     /** The server keeps the ship where it is: moves are sent but not taken (held at the box check's edge). */
     boolean holdShip;
 
+    /** Ammunition that fires on use without the bar showing it selected (RSB-75 live), with how many are left. */
+    final java.util.Map<String, Double> unseenShots = new java.util.HashMap<>();
+
     /** The server never starts an attack (no ammunition on board). */
     boolean blockAttacks;
 
@@ -142,6 +145,14 @@ final class Sim {
             st.menuItemId = m.menuItemId;
             st.selected = true;
             st.counterValue = 10_000;
+            st.available = true;
+            world.apply(st, now);
+        } else if (p instanceof MenuActionRequest m && unseenShots.containsKey(m.menuItemId)) {
+            // fired at once and back to the ammunition before: the bar never shows it selected, only fewer of it
+            MenuItemStatusCommand st = new MenuItemStatusCommand();
+            st.menuItemId = m.menuItemId;
+            st.selected = false;
+            st.counterValue = unseenShots.merge(m.menuItemId, -1.0, Double::sum);
             st.available = true;
             world.apply(st, now);
         } else if (p instanceof MenuActionRequest m && m.menuItemId.startsWith("ammunition_laser")) {

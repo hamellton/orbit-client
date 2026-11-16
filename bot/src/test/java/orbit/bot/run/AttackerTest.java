@@ -808,4 +808,24 @@ class AttackerTest {
         assertEquals(0, used(sim, "ability_venom") + used(sim, "equipment_extra_cpu_ish-01")
                 + used(sim, "ammunition_specialammo_emp-01"), "nothing spent off the behemoth");
     }
+
+    @Test
+    void anRsbShotSeenOnlyAsFewerRoundsIsNoRefusedSwitch() {
+        BotConfig c = BotConfig.empty()
+                .withLoot(new BotConfig.Loot("ammunition_laser_lcb-10", null, 0, 0, "ammunition_laser_rsb-75", true, 0, null,
+                        false, false, List.of()))
+                .withNpcs(Map.of("-=[ Target ]=-", new BotConfig.NpcRule(500, 0, true, Set.of(), Set.of(), null)));
+        Sim sim = new Sim(c, 1, 10_400, 6_000);
+        sim.lasers("ammunition_laser_lcb-10", "ammunition_laser_rsb-75");
+        sim.unseenShots.put("ammunition_laser_rsb-75", 10_000.0);
+        sim.npc(7, "-=[ Target ]=-", 10_000, 6_000);
+        Attacker a = new Attacker(sim.ctx);
+        a.target(sim.world.snapshot(sim.now).ships().get(7));
+        for (int t = 0; t < 300; t++) { // 30 s
+            a.tick(true);
+            sim.now += 100 * Sim.MS;
+        }
+        // every RSB press fired: the bot keeps firing it, no minute-long pause after a second «failed» press
+        assertTrue(used(sim, "ammunition_laser_rsb-75") >= 8, "RSB kept firing: " + used(sim, "ammunition_laser_rsb-75"));
+    }
 }

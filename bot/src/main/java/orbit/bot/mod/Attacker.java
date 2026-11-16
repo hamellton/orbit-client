@@ -47,6 +47,8 @@ public final class Attacker {
     private String missingRocket;
     /** Ammunition switches sent without the game confirming them. */
     private int ammoTries;
+    /** How many of the wanted ammunition there were at the last press: fewer since means it fired. */
+    private double ammoCountAtPress = -1;
     private long rocketSelectAt = Long.MIN_VALUE / 2;
     private long rocketPressAt;
     private long rocketFiredAt = Long.MIN_VALUE / 2;
@@ -887,6 +889,12 @@ public final class Attacker {
             // before — live 2026-11-13 on the VPS, a false «не переключает» a minute without RSB)
             ammoTries = 0;
         }
+        if (wanted != null && ammo.equals(triedAmmo) && ammoCountAtPress >= 0 && wanted.counter() < ammoCountAtPress) {
+            // fewer than at the press: it fired, though the bar never showed it selected (live 2026-11-16 on gb2:
+            // RSB-75 shot and the game went back to A-BL between two looks — a false «не переключает» at a Behemoth)
+            ammoTries = 0;
+            ammoCountAtPress = wanted.counter();
+        }
         if (ammo != null && !ammo.equals(triedAmmo)) {
             triedAmmo = ammo; // SAB and back are two switches, not two failed tries of one
             ammoTries = 0;
@@ -910,6 +918,7 @@ public final class Attacker {
                             selected == null ? 0 : (long) selected.counter());
                 }
                 ctx.actions().useItem(ammo); // with a target selected this also starts the attack
+                ammoCountAtPress = wanted.counter();
                 ammoAt = now;
                 pressedAt = now;
                 pressAt = 0;
