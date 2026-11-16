@@ -310,7 +310,13 @@ public final class ServiceVisit {
                         Map<String, Long> send = new LinkedHashMap<>();
                         long free = room < 0 ? Long.MAX_VALUE : room;
                         for (Map.Entry<String, Long> e : lacking.entrySet()) {
-                            long n = Math.min(Math.min(e.getValue(), st.ores().getOrDefault(e.getKey(), 0L)), free);
+                            long there = st.ores().getOrDefault(e.getKey(), 0L);
+                            if (there < e.getValue()) {
+                                // told, not refused: what there is goes (the user, 2026-11-16: 14 000 set, 2 997 came)
+                                log.warn("Обслуживание: на складе Скайлаба {} {} из нужных {} — везу сколько есть",
+                                        e.getKey(), there, e.getValue());
+                            }
+                            long n = Math.min(Math.min(e.getValue(), there), free);
                             if (n > 0) {
                                 send.put(e.getKey(), n);
                                 free -= n;
