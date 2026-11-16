@@ -109,8 +109,13 @@ public final class Skylab {
         if (sent.status() >= 400) {
             throw new IOException("Skylab: HTTP " + sent.status() + " на отправку");
         }
+        Info before = parse(r.body(), System.currentTimeMillis());
         Info after = parse(http.get(page, page).body(), System.currentTimeMillis());
-        if (!after.transporting()) {
+        // the quick one lands at once, no transport on its way after it (live 2026-11-16 on gb2: 2 997 promerium came,
+        // the visit took it for a refusal): taken when the ore left the storage
+        boolean left = amounts.entrySet().stream().anyMatch(e -> e.getValue() > 0 && before.ore(e.getKey()) != null
+                && after.ore(e.getKey()) != null && after.ore(e.getKey()).amount() < before.ore(e.getKey()).amount());
+        if (!after.transporting() && !left) {
             throw new IOException("Skylab: после отправки транспорт не в пути — сайт не принял (" + amounts + ")");
         }
         return after;
