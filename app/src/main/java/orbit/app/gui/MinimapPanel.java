@@ -436,8 +436,10 @@ final class MinimapPanel extends JPanel {
             gameFeed(g, vx, plaqueBottom + 6, vw);
             // the blocks the user put on the map: full cards on a big map, compact ones on a small one
             boolean big = vw >= BIG_MAP;
+            // a low map: the small cards too, so more of them shows (the user, 2026-11-16: a small window)
+            boolean roomy = big && vh >= 700;
             java.util.Map<java.awt.Rectangle, ViewSettings.Block> placed = new java.util.LinkedHashMap<>();
-            Hud cards = big ? mapHud : mapCompactHud;
+            Hud cards = roomy ? mapHud : mapCompactHud;
             int panel = big ? (int) Math.max(230, Math.min(320, vw * 0.26)) : (int) Math.max(170, Math.min(250, vw * 0.34));
             int left = (int) Math.round(vx) + 10;
             int right = (int) Math.round(vx + vw) - 10;

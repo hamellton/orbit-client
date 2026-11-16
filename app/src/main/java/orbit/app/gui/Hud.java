@@ -102,8 +102,8 @@ final class Hud {
         }
         put(out, ViewSettings.Block.ATTACKERS, onMap ? attackersShort(w) : attackers(w));
         put(out, ViewSettings.Block.BOOSTERS, boosters(w.boosters(), feed.now()));
-        if (w.pet().owned()) {
-            out.put(ViewSettings.Block.PET, pet(w.pet(), w.nanos()));
+        if (w.pet().owned() && (!onMap || w.pet().active())) {
+            out.put(ViewSettings.Block.PET, pet(w.pet(), w.nanos())); // «не выпущен» says nothing over the map
         }
         if (w.group().exists()) {
             out.put(ViewSettings.Block.GROUP, group(w));
@@ -116,6 +116,88 @@ final class Hud {
             out.put(ViewSettings.Block.STATS, onMap ? statsShort(feed) : stats(w, feed));
         }
         return out;
+    }
+
+    /**
+     * The smallest form of a block over the map (the user, 2026-11-16: on a small window «ничего не открыто и не
+     * поместилось» — AstraBot shows less, but shows it): a few lines, used when the short card does not fit; {@code null}
+     * for a block with none (it folds to its heading).
+     */
+    Card mini(ViewSettings.Block b, WorldSnapshot w, WorldFeed feed) {
+        WorldSnapshot.Hero h = w.hero();
+        if (h.id() == 0) {
+            return null;
+        }
+        List<String[]> rows = new ArrayList<>();
+        switch (b) {
+            case SHIP -> {
+                long used = w.inventory().ores().isEmpty() ? h.cargoMax() - h.cargoFree() : w.inventory().cargoUsed();
+                rows.add(new String[] {"Кредиты", orbit.app.log.Friendly.short_(h.credits())});
+                rows.add(new String[] {"Уридий", orbit.app.log.Friendly.short_(h.uridium())});
+                rows.add(new String[] {"Трюм", h.cargoMax() > 0 ? used + " / " + h.cargoMax() : "—"});
+                return rows(h.name() + (h.shipType().isBlank() ? "" : "  " + shipName(h.shipType())), "", true,
+                        MinimapPanel.HERO, rows);
+            }
+            case STATS -> {
+                WorldSnapshot.Rewards r = feed.sessionRewards();
+                orbit.bot.run.Stats s = feed.sessionStats();
+                rows.add(new String[] {"Уридий", orbit.app.log.Friendly.short_(r.uridium())});
+                rows.add(new String[] {"Кредиты", orbit.app.log.Friendly.short_(r.credits())});
+                if (s != null) {
+                    rows.add(s.cubesFought() > 0 ? new String[] {"Кубы", s.cubesKilled.get() + " из " + s.cubesFought()}
+                            : new String[] {"Убито NPC", String.valueOf(s.kills.get())});
+                }
+                return rows("Итоги сессии", "", false, new Color(0xa78bfa), rows);
+            }
+            case BOOSTERS -> {
+                WorldSnapshot.Boosters bs = w.boosters();
+                if (!bs.known() || bs.active().isEmpty()) {
+                    return null;
+                }
+                long now = feed.now();
+                bs.active().values().stream()
+                        .sorted(Comparator.comparingLong((WorldSnapshot.Booster x) -> x.secondsLeftAt(now) < 0
+                                ? Long.MAX_VALUE : x.secondsLeftAt(now)))
+                        .limit(3)
+                        .forEach(x -> rows.add(new String[] {x.lootId().replaceFirst("^booster_", "")
+                                .replaceFirst("^equipment_[a-z]+_[a-z]+_", "").toUpperCase(java.util.Locale.ROOT),
+                                x.secondsLeftAt(now) >= 0 ? hm(x.secondsLeftAt(now)) : ""}));
+                return rows("Бустеры", bs.active().size() > 3 ? String.valueOf(bs.active().size()) : "", false, BOOST, rows);
+            }
+            case ATTACKERS -> {
+                for (int id : h.attackers()) {
+                    Ship a = w.ships().get(id);
+                    if (a != null && rows.size() < 3) {
+                        rows.add(new String[] {MinimapPanel.label(a), a.health().known()
+                                ? Math.round(100 * a.health().hpPercent()) + "%" : ""});
+                    }
+                }
+                return rows.isEmpty() ? null
+                        : rows("Атакуют меня", String.valueOf(h.attackers().size()), false, MinimapPanel.ENEMY, rows);
+            }
+            case LAB -> {
+                WorldSnapshot.Lab lab = w.inventory().lab();
+                for (int i = 0; i < LAB_ITEMS.size(); i++) {
+                    WorldSnapshot.Enrichment e = lab.items().get(i);
+                    if (e != null && e.left() > 0) {
+                        rows.add(new String[] {LAB_ITEMS.get(i), orbit.app.log.Friendly.short_(e.left()) + " "
+                                + LAB_UNITS.get(i)});
+                    }
+                }
+                return rows.isEmpty() ? null : rows("Обогащение", "", false, LAB_BAR, rows);
+            }
+            case SKYLAB -> {
+                orbit.auth.Skylab.Info sk = feed.skylab();
+                if (sk == null) {
+                    return null;
+                }
+                rows.add(new String[] {"Транспорт", sk.transporting() ? "в пути" : "свободен"});
+                return rows("Скайлаб", "", false, SKYLAB_BAR, rows);
+            }
+            default -> {
+                return null;
+            }
+        }
     }
 
     /** Label — value rows in one column, the values in columns: the short cards of the map. */
@@ -532,6 +614,14 @@ final class Hud {
             boolean isRight = !oneColumn && e.getKey().right();
             int x = isRight ? right - width : left;
             int y = isRight ? ry : ly;
+            if (y + h > bottom && onMap) {
+                // no room for the card: its smallest form, if that fits (AstraBot shows less, but shows it)
+                Card m = mini(e.getKey(), w, feed);
+                if (m != null && y + m.height(width) <= bottom) {
+                    c = m;
+                    h = m.height(width);
+                }
+            }
             if (y + h > bottom) {
                 // no room for the whole card: its heading alone, folded (not a card cut off)
                 int stub = pad + line + 2;
