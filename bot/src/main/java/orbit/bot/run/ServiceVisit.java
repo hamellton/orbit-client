@@ -59,6 +59,8 @@ public final class ServiceVisit {
     private boolean landed;
     /** Trips this visit (the user, 2026-11-16: «один раз отправил — обогатил, второй раз отправил — обогатил»). */
     private int trips;
+    /** A visit cut by a stop is finished after the next start: its ship to go back to is kept on disk. */
+    private boolean savedChecked;
     /** What the visit brought, by ore name, and each item's level when it began — for the visit's one summary line. */
     private final Map<String, Long> brought = new java.util.concurrent.ConcurrentHashMap<>();
     private final Map<Integer, Long> levelAtStart = new java.util.concurrent.ConcurrentHashMap<>();
@@ -114,6 +116,22 @@ public final class ServiceVisit {
         WorldSnapshot w = ctx.world().get();
         switch (phase) {
             case IDLE -> {
+                if (!savedChecked && service > 0 && activeHangar != 0) {
+                    savedChecked = true;
+                    int back = savedReturn(service);
+                    if (back > 0 && back != service && activeHangar == service) {
+                        // stopped on the service ship mid-visit (the user, 2026-11-16: started again on the Citadel,
+                        // it flew off to the cubes on it): back to the ship it came from first
+                        returnTo = back;
+                        phase = Phase.RETURNING;
+                        log.info("Обслуживание: вошёл на корабле для Скайлаба после прерванного визита — обратно на {}",
+                                back);
+                        return new Step(back, "Обслуживание: обратно на свой корабль");
+                    }
+                    if (back > 0 && activeHangar != service) {
+                        saveReturn(service, 0); // already on another ship: nothing to finish
+                    }
+                }
                 if (service <= 0 && !toldNoShip && s.path("enabled").asBoolean(false) && s.path("visit").asBoolean(false)
                         && w.hero().id() != 0 && needed(s, w)) {
                     toldNoShip = true;
@@ -137,6 +155,7 @@ public final class ServiceVisit {
                 trips = 0;
                 brought.clear();
                 levelAtStart.clear();
+                saveReturn(service, returnTo);
                 phase = Phase.GOING;
                 log.info("Обслуживание: обогащению не хватает руды — пересаживаюсь на корабль для Скайлаба (ангар {}),"
                         + " потом обратно на {}", service, returnTo);
@@ -159,6 +178,7 @@ public final class ServiceVisit {
             case RETURNING -> {
                 if (activeHangar == returnTo || activeHangar != 0 && activeHangar != service) {
                     phase = Phase.IDLE;
+                    saveReturn(service, 0);
                     nextAt = now + (long) (Math.max(0.5, s.path("visitEveryHours").asDouble(3)) * 3_600_000_000_000L);
                     log.info("Обслуживание: снова на своём корабле (ангар {})", activeHangar);
                     return Step.NONE;
@@ -195,6 +215,7 @@ public final class ServiceVisit {
         trips = 0;
         brought.clear();
         levelAtStart.clear();
+        saveReturn(service, returnTo);
         phase = Phase.GOING;
         log.info("Обслуживание: перед ангаром {} — на корабль для Скайлаба (ангар {}): обогащению не хватает руды",
                 wanted, service);
@@ -404,6 +425,48 @@ public final class ServiceVisit {
             return back(null);
         }
         return busy(now, s, arrived ? "обогащаю" : "жду руду со Скайлаба");
+    }
+
+    private java.nio.file.Path returnFile() {
+        return ctx.dataDir() == null ? null : ctx.dataDir().resolve("service-return.json");
+    }
+
+    /** The ship a visit from the service ship {@code service} goes back to, {@code 0} = none (kept on disk). */
+    int savedReturn(int service) {
+        java.nio.file.Path f = returnFile();
+        if (f == null || !java.nio.file.Files.exists(f)) {
+            return memoryReturn.getOrDefault(service, 0);
+        }
+        try {
+            return new com.fasterxml.jackson.databind.ObjectMapper().readTree(f.toFile()).path(String.valueOf(service)).asInt(0);
+        } catch (java.io.IOException | RuntimeException e) {
+            return 0;
+        }
+    }
+
+    private final Map<Integer, Integer> memoryReturn = new java.util.HashMap<>();
+
+    private void saveReturn(int service, int back) {
+        java.nio.file.Path f = returnFile();
+        if (f == null) {
+            memoryReturn.put(service, back);
+            return;
+        }
+        try {
+            com.fasterxml.jackson.databind.ObjectMapper json = new com.fasterxml.jackson.databind.ObjectMapper();
+            com.fasterxml.jackson.databind.node.ObjectNode all = java.nio.file.Files.exists(f)
+                    && json.readTree(f.toFile()) instanceof com.fasterxml.jackson.databind.node.ObjectNode o ? o
+                    : json.createObjectNode();
+            if (back > 0) {
+                all.put(String.valueOf(service), back);
+            } else {
+                all.remove(String.valueOf(service));
+            }
+            java.nio.file.Files.createDirectories(f.toAbsolutePath().getParent());
+            json.writeValue(f.toFile(), all);
+        } catch (java.io.IOException | RuntimeException e) {
+            log.warn("Обслуживание: не сохранить корабль для возврата: {}", e.getMessage());
+        }
     }
 
     /** The lab's time of the login on the service ship: answers before it are the other ship's. */

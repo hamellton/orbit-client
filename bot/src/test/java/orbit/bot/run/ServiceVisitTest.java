@@ -246,4 +246,34 @@ class ServiceVisitTest {
         }
         assertEquals(2, sent.size(), "the second trip, not a 15 min wait");
     }
+    @Test
+    void stoppedOnTheServiceShipItGoesBackToItsOwnAfterTheNextStart(@org.junit.jupiter.api.io.TempDir java.nio.file.Path dir)
+            throws Exception {
+        // live 2026-11-16 on gb2: stopped on the Citadel mid-visit, started again — it flew off to the cubes on it
+        Sim sim = sim();
+        BotContext c = sim.ctx;
+        BotContext disk = new BotContext(c.world(), c.config(), c.actions(), c.nav(), c.traveler(), c.maps(), c.random(),
+                c.clock(), c.repair(), c.ship(), dir, c.stats(), c.ships());
+        EnricherTest.lab(sim, new int[] {0, 6, 20_000});
+        ServiceVisit v = new ServiceVisit(disk);
+        assertEquals(CITADEL, v.tick(WORK, true).switchTo());
+        // the app closed here; a new start logs in on the citadel
+        ServiceVisit again = new ServiceVisit(disk);
+        assertEquals(WORK, again.tick(CITADEL, true).switchTo(), "back to its own ship first");
+        assertEquals(ServiceVisit.Phase.RETURNING, again.phase());
+        assertEquals(ServiceVisit.Step.NONE, again.tick(WORK, true));
+        assertEquals(ServiceVisit.Phase.IDLE, again.phase());
+        assertEquals(0, new ServiceVisit(disk).savedReturn(CITADEL), "done: nothing kept");
+    }
+
+    @Test
+    void theServiceShipChosenAsTheWorkingOneIsLeftAlone(@org.junit.jupiter.api.io.TempDir java.nio.file.Path dir)
+            throws Exception {
+        Sim sim = sim();
+        BotContext c = sim.ctx;
+        BotContext disk = new BotContext(c.world(), c.config(), c.actions(), c.nav(), c.traveler(), c.maps(), c.random(),
+                c.clock(), c.repair(), c.ship(), dir, c.stats(), c.ships());
+        EnricherTest.lab(sim, new int[] {0, 6, 900_000});
+        assertEquals(0, new ServiceVisit(disk).tick(CITADEL, true).switchTo(), "no visit cut short: it stays");
+    }
 }
