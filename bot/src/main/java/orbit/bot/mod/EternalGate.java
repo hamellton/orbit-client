@@ -181,6 +181,7 @@ public final class EternalGate {
     }
 
     private WorldSnapshot.Portal portal;
+    private long recipesSince;
 
     /** EBG's portal on the BL map, when the CPU opened it. */
     WorldSnapshot.Portal portal() {
@@ -192,6 +193,14 @@ public final class EternalGate {
         if (!on(e, "craft", false)) {
             return false;
         }
+        if (w.inventory().recipes().isEmpty()) {
+            // the game lists the recipes a moment after the login: «nothing to craft» is not judged before (2 min)
+            if (recipesSince == 0) {
+                recipesSince = ctx.now();
+            }
+            return (ctx.now() - recipesSince) / 1_000_000 < 120_000;
+        }
+        recipesSince = 0;
         WorldSnapshot.Recipe r = w.inventory().recipes().get(GateCatalog.EBG_CPU_RECIPE);
         return r != null && (r.state() == WorldSnapshot.RecipeState.AVAILABLE || r.state() == WorldSnapshot.RecipeState.BUILDING
                 || r.state() == WorldSnapshot.RecipeState.READY);
