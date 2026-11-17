@@ -26,6 +26,10 @@ public final class NpcCatalog {
         }
     }
 
+    /** Numbers of the Blacklight NPCs by AstraBot's list, the locator's targets on 1-, 2- and 3-BL. */
+    static final Map<Integer, String> BLACKLIGHT = Map.of(175, "Impulse II", 176, "Attend IX", 177, "Invoke XVI",
+            178, "Mindfire Behemoth", 266, "Strokelight Barrage", 268, "Abide I", 159, "Barrage Seeker Rocket");
+
     private static volatile NpcCatalog bundled;
     private final Map<Integer, Npc> byId;
 
@@ -43,6 +47,9 @@ public final class NpcCatalog {
                         m.put(n.path("npcId").asInt(), new Npc(n.path("npcId").asInt(), n.path("name").asText()));
                     }
                 }
+                // the Blacklight NPCs the client's game.xml leaves out (AstraBot's NPC table, 2026-11-13): without them the
+                // config's locator list had no invoke or behemoth (the user, 2026-11-17)
+                BLACKLIGHT.forEach((id, name) -> m.putIfAbsent(id, new Npc(id, name)));
                 c = new NpcCatalog(Map.copyOf(m));
                 bundled = c;
             } catch (IOException e) {
