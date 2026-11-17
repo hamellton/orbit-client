@@ -656,6 +656,16 @@ final class MinimapPanel extends JPanel {
         orbit.bot.run.BotRunner run = feed.runner();
         int limit = run == null ? -1 : run.maxDeaths();
         rows.add("смерти " + (st == null ? 0 : st.deaths.get()) + "/" + (limit > 0 ? String.valueOf(limit) : "∞"));
+        // AstraBot's stats have these too (the user, 2026-11-17): the ship, configuration | formation, speed, cloak
+        if (!hero.shipType().isBlank()) {
+            rows.add("корабль " + Hud.shipName(hero.shipType().replaceFirst("_design_.*$", "")));
+        }
+        String formation = Hud.formation(w.items()).replaceFirst(" \\(.*$", "");
+        rows.add("конфиг " + hero.config() + (formation.equals("—") ? "" : " | " + formation));
+        if (hero.speed() > 0) {
+            rows.add("скорость " + hero.speed());
+        }
+        rows.add("невидимость " + (hero.cloaked() ? "да" : "нет"));
         java.util.List<Color> colors = java.util.Collections.nCopies(rows.size(), Hud.TEXT);
         backgrounded(g, rows, colors, vx, vy, vh, bottom, false);
     }
