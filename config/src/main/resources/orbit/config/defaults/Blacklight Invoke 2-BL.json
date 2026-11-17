@@ -6213,8 +6213,8 @@
     "rememberSec": 60,
     "jump": true,
     "waitSec": 90,
-    "avoid": false,
-    "avoidRadius": 2500,
+    "avoid": true,
+    "avoidRadius": 1500,
     "stationRadius": 1600
   },
   "group": {
