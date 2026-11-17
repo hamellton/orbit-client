@@ -243,6 +243,23 @@ class QuestModuleTest {
     }
 
     @Test
+    void cargoThatDoesNotCountSendsTheShipToTheNextOwnMap() {
+        // gb2 2026-11-17: Streuner's cargo on 3-1 left «Сборщик дураниума» at 0/100 — after ten boxes another 3-x map
+        int map = MapCatalog.bundled().byName("3-1").id();
+        Sim sim = new Sim(BotConfig.empty(), map, 10_000, 6_000);
+        sim.lasers("ammunition_laser_lcb-10");
+        take(sim, 504, 3, 23, 100, "0", "0", "0", "0", "5");
+        QuestModule m = new QuestModule(sim.ctx, NpcMaps.shared(), orbit.world.maps.OreMaps.inMemory());
+        m.visited(sim.now);
+        sim.run(m::tick, 1_000);
+        assertEquals(map, m.workingMap());
+        sim.ctx.stats().boxes.addAndGet(QuestModule.CARGO_TRIES);
+        sim.run(m::tick, 1_000);
+        String now = MapCatalog.bundled().info(m.workingMap()).name();
+        assertTrue(m.workingMap() != map && now.startsWith("3-"), now);
+    }
+
+    @Test
     void salvageKillsTheNpcsAndPicksTheirCargo() {
         // 310023 (ru1 2026-11-12): «salvage 100» — the cargo boxes of killed NPCs (SalvageCondition: faction, ship
         // type, NPC number, loot type, ore); here the NPC is Saimon (6), who lives on x-3 and x-4

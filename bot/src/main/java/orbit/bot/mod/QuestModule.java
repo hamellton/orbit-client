@@ -231,8 +231,11 @@ public final class QuestModule implements BotModule {
             if (work == null || work.quest() != next.quest() || work.condition() != next.condition()
                     || work.kind() != next.kind() || work.map() != next.map()) {
                 Quests.Condition c = condition(q.active().get(next.quest()), next.condition());
-                log.info("Квест {}: {} {}/{} — {} на {}", orbit.world.QuestTitles.label(next.quest()), QuestTexts.condition(c), (long) c.current(),
-                        (long) c.target(), what(next.kind()), ctx.maps().info(next.map()).name());
+                log.info("Квест {}: {} {}/{} — {} на {}{}", orbit.world.QuestTitles.label(next.quest()), QuestTexts.condition(c), (long) c.current(),
+                        (long) c.target(), what(next.kind()), ctx.maps().info(next.map()).name(),
+                        // the server's fields of a cargo condition (faction, ship type, NPC, loot type, ore): which
+                        // NPCs carry what is known nowhere else (2026-11-17)
+                        next.kind() == Kind.SALVAGE ? " (условие сервера: " + c.matches() + ")" : "");
             }
             if (worker != null) {
                 worker.pause();
@@ -241,12 +244,13 @@ public final class QuestModule implements BotModule {
             work = next;
             onMapSince = 0;
             seenWanted = false;
+            cargoFrom = -1;
         }
         Quests.Condition c = condition(q.active().get(work.quest()), work.condition());
         String progress = QuestTexts.condition(c) + (c.target() > 0 ? " " + (long) c.current() + "/" + (long) c.target() : "");
         switch (work.kind()) {
             case KILL, DAMAGE, SALVAGE, BOX, ORE -> {
-                if (notFound(w, now)) {
+                if (notFound(w, now) || noCount(w, c)) {
                     return;
                 }
                 if (followLocator(w, now, progress)) {
@@ -342,6 +346,42 @@ public final class QuestModule implements BotModule {
         status = "Квест " + work.quest() + ": " + progress + " · лечу по пеленгатору";
         return true;
     }
+
+    /**
+     * Cargo picked up on the work's map and the condition not moving: its NPCs there carry other ore (live 2026-11-17 on
+     * gb2: Streuner's cargo on 3-1, «Сборщик дураниума» 0/100 after dozens) — that map is left out, the next one tried.
+     */
+    private boolean noCount(WorldSnapshot w, Quests.Condition c) {
+        if (work.kind() != Kind.SALVAGE || w.hero().mapId() != work.map()) {
+            cargoFrom = -1;
+            return false;
+        }
+        long picked = ctx.stats().boxes.get();
+        if (cargoFrom < 0 || c.current() != cargoAt) {
+            cargoFrom = picked;
+            cargoAt = c.current();
+            return false;
+        }
+        if (picked - cargoFrom < CARGO_TRIES) {
+            return false;
+        }
+        log.warn("Квест {}: на {} подобрал {} грузов, а «{}» не растёт ({}/{}) — здесь в грузе не то, пробую другую карту",
+                work.quest(), ctx.maps().info(work.map()).name(), picked - cargoFrom, QuestTexts.condition(c),
+                (long) c.current(), (long) c.target());
+        notThere.computeIfAbsent(work.map(), k -> new TreeSet<>()).add(work.condition());
+        cargoFrom = -1;
+        if (worker != null) {
+            worker.pause();
+        }
+        worker = null;
+        work = null;
+        return true;
+    }
+
+    /** Cargo boxes picked with no progress before a map counts as the wrong one. */
+    public static final int CARGO_TRIES = 10;
+    private long cargoFrom = -1;
+    private double cargoAt;
 
     /** Killing on the work's map with none of its NPCs seen for a while: that map is left out, the next one tried. */
     private boolean notFound(WorldSnapshot w, long now) {
