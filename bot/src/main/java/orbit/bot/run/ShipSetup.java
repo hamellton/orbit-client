@@ -44,6 +44,8 @@ public final class ShipSetup {
     private long configAt = Long.MIN_VALUE / 2;
     private long formationAt = Long.MIN_VALUE / 2;
     private String missingTold;
+    private long unavailableSince;
+    private String unavailableTold;
     /** The formation asked for and not yet confirmed (null: none pending). */
     private String asked;
     /** Formation item → the id the server reported right after it was asked for (learned per session). */
@@ -153,6 +155,19 @@ public final class ShipSetup {
             Integer known = ids.containsKey(f) ? ids.get(f) : formationId(f);
             // asking for the formation the ship already has gets no answer: check the server's number first
             boolean on = item != null && item.selected() || known != null && known == h.formation();
+            // on the bar but not usable (not bought, or blocked): nothing was said, the ship just kept its formation
+            // (live 2026-11-17: Heart in every mode of a palladium config, the ship stayed on Moth all day, no line)
+            if (item != null && !on && !item.available()) {
+                if (unavailableSince == 0) {
+                    unavailableSince = now;
+                } else if (now - unavailableSince > MISSING_WARN_MS * 1_000_000 && !f.equals(unavailableTold)) {
+                    unavailableTold = f;
+                    log.warn("Формация {} на панели есть, но недоступна (не куплена или заблокирована){} — оставляю текущую",
+                            orbit.config.ItemCatalog.label(f), item.buyable() ? ", её можно купить" : "");
+                }
+            } else {
+                unavailableSince = 0;
+            }
             long answerMs = Math.min(FORMATION_ANSWER_MAX_MS, FORMATION_ANSWER_MS << Math.min(unanswered, 3));
             boolean waiting = asked != null && now - formationAt < answerMs * 1_000_000;
             if (item != null && !on && !waiting && item.available() && cooledDown(item, now)
