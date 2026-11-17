@@ -1095,11 +1095,18 @@ final class MinimapPanel extends JPanel {
         if (!pet.active() || !pet.locatorWithin(w.nanos(), Hud.LOCATOR_SHOWN_MS)) {
             return;
         }
-        double lx = p.x(pet.locatorX());
-        double ly = p.y(pet.locatorY());
-        boolean onTarget = target != null && Math.hypot(p.x(target.x()) - lx, p.y(target.y()) - ly) <= 10 * u;
-        double cx = onTarget ? p.x(target.x()) : lx;
-        double cy = onTarget ? p.y(target.y()) : ly;
+        // the server's point comes every few seconds and the NPC moves on meanwhile: the ring rides the NPC by the point —
+        // the selected target first, else the nearest one (the user, 2026-11-17: the ring lagged behind the target, the
+        // red one did not)
+        double px = pet.locatorX();
+        double py = pet.locatorY();
+        Ship on = target != null && target.npc() && Math.hypot(target.x() - px, target.y() - py) <= LOCATOR_SNAP ? target
+                : w.ships().values().stream().filter(Ship::npc)
+                        .filter(s -> Math.hypot(s.x() - px, s.y() - py) <= LOCATOR_SNAP)
+                        .min(java.util.Comparator.comparingDouble(s -> Math.hypot(s.x() - px, s.y() - py))).orElse(null);
+        boolean onTarget = on != null && on == target;
+        double cx = on != null ? p.x(on.x()) : p.x(px);
+        double cy = on != null ? p.y(on.y()) : p.y(py);
         double r = onTarget ? 10 * u : 7 * u;
         g.setColor(LOCATOR);
         g.setStroke(new BasicStroke((float) (1.5 * u)));
@@ -1110,6 +1117,9 @@ final class MinimapPanel extends JPanel {
             drawLabel(g, "пеленгатор", cx + r + 4 * u, cy + 4 * u, LOCATOR);
         }
     }
+
+    /** How far an NPC may have gone from the locator's last point and still be the one it shows (game units). */
+    static final double LOCATOR_SNAP = 1_500;
 
     /** Faint lines every 1000 game units, like the game's own minimap ruler. */
     private void grid(Graphics2D g, Projection p, MapCatalog.MapInfo map, boolean picture) {

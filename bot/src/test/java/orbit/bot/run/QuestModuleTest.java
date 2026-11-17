@@ -529,6 +529,16 @@ class QuestModuleTest {
         a.visited(along.now);
         along.run(a::tick, 3_000);
         assertEquals(901, along.world.snapshot(along.now).hero().selectedId(), a.status());
+        // both kills done, the alloy left: the Kristallon fought to call up the Gygerthrall that drop it
+        Sim alloy = new Sim(BotConfig.empty(), map, 10_000, 6_000);
+        alloy.lasers("ammunition_laser_ucb-100");
+        conversionTheory(alloy, 230, 500);
+        alloy.npc(900, "-=[ Blighted Kristallon ]=-", 10_300, 6_000);
+        QuestModule l = new QuestModule(alloy.ctx, NpcMaps.shared(), orbit.world.maps.OreMaps.inMemory());
+        l.visited(alloy.now);
+        alloy.run(l::tick, 3_000);
+        assertEquals(map, l.workingMap(), l.status());
+        assertEquals(900, alloy.world.snapshot(alloy.now).hero().selectedId(), l.status());
     }
 
     @Test
