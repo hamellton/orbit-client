@@ -7,5 +7,8 @@ Behemoth Train
 Blacklight Invoke 1-BL
 Blacklight Invoke 2-BL
 Blacklight Invoke 3-BL
+Blacklight Invoke Train 1-BL
+Blacklight Invoke Train 2-BL
+Blacklight Invoke Train 3-BL
 Blacklight Impulse
 EBG
