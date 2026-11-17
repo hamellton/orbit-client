@@ -395,6 +395,9 @@ public final class BotRunner {
      * dropped for a moment with Boss Kristallon at 1 % and the ship left it), no NPC shooting the ship.
      */
     private boolean fightOver(WorldSnapshot w) {
+        if (ctx.now() < fightBackUntil) {
+            return false;
+        }
         int now = module != null ? module.fightTarget() : 0;
         if (stopWhenFreeTarget != 0 && now == stopWhenFreeTarget && w.ships().containsKey(stopWhenFreeTarget)) {
             return false;
@@ -921,7 +924,12 @@ public final class BotRunner {
     private int[] logoutPortal(WorldSnapshot w) {
         WorldSnapshot.Hero h = w.hero();
         java.util.List<int[]> all = new java.util.ArrayList<>();
-        w.portals().values().forEach(x -> all.add(new int[] {x.x(), x.y()}));
+        // not the galaxy gates' portals: the server sends them on x-1 too (seven on 3-1, company 0, unknown to the map's
+        // facts), they lead nowhere without a built gate — the ship went to one to log out (live 2026-11-17); a
+        // company's portal the facts lack still counts (5-3's to 5-2, 2026-11-11)
+        w.portals().values().stream()
+                .filter(x -> x.factionId() != 0 || ctx.maps().portalNear(h.mapId(), x.x(), x.y(), 400) != null)
+                .forEach(x -> all.add(new int[] {x.x(), x.y()}));
         if (all.isEmpty()) {
             ctx.maps().portals(h.mapId()).forEach(x -> all.add(new int[] {x.x(), x.y()}));
         }
@@ -934,6 +942,21 @@ public final class BotRunner {
     static final long FIRED_AT_JUMP_NS = 3_000_000_000L;
     private long firedAtSince;
     private long stopJumpAt = Long.MIN_VALUE / 2;
+
+    /** Fighting back before a logout: this long at least before the fight may count as over. */
+    static final long FIGHT_BACK_NS = 15_000_000_000L;
+    private long fightBackUntil;
+
+    /** The first NPC shooting the ship, 0 none. */
+    private static int npcFiring(WorldSnapshot w) {
+        for (int id : w.hero().attackers()) {
+            WorldSnapshot.Ship s = w.ships().get(id);
+            if (s != null && s.npc() && s.attackTargetId() == w.hero().id()) {
+                return id;
+            }
+        }
+        return 0;
+    }
 
     private static boolean underNpcFire(WorldSnapshot w) {
         for (int id : w.hero().attackers()) {
@@ -1059,7 +1082,11 @@ public final class BotRunner {
                 logoutAt = 0;
                 stopWhenFree = reason;
                 stopWhenFreeSince = stopAskedAt;
-                stopWhenFreeTarget = 0;
+                // the NPC that shoots is the fight to finish, and the module gets time to take it on: the next tick
+                // found the ship not shooting yet and called the fight over — logout, «отбиваюсь», logout… for a
+                // minute and a half, never shooting back (live 2026-11-17 on 3-1, Streuners)
+                stopWhenFreeTarget = npcFiring(w);
+                fightBackUntil = now + FIGHT_BACK_NS;
                 return true;
             }
         } else {

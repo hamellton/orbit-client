@@ -175,6 +175,28 @@ class BotRunnerTest {
     }
 
     @Test
+    void logsOutNotByAGalaxyGatesPortal() throws Exception {
+        // live 2026-11-17 on 3-1: the server's gate portals (company 0, unknown to the map's facts) — the ship went to
+        // the one at 17/85 to log out; the real one to 3-2 is at 20/20
+        Sim sim = new Sim(CubikonModuleTest.config(9, false), 9, 2_000, 8_000);
+        for (int[] g : new int[][] {{1, 1_700, 8_500, 0}, {2, 2_000, 2_000, 3}}) {
+            orbit.protocol.gen.JumpgateCreateCommand j = new orbit.protocol.gen.JumpgateCreateCommand();
+            j.gateId = g[0];
+            j.x = g[1];
+            j.y = g[2];
+            j.factionId = g[3];
+            j.isVisibleOnMinimap = true;
+            sim.world.apply(j, sim.now);
+        }
+        BotRunner r = new BotRunner(sim.ctx, () -> false, s -> { });
+        sim.run(r::tick, 500);
+        r.stop("тест");
+        sim.run(r::tick, 30_000);
+        var h = sim.hero();
+        assertTrue(Math.hypot(h.x() - 2_000, h.y() - 2_000) <= Safety.AT_PORTAL + 50, "at the portal to 3-2: " + h);
+    }
+
+    @Test
     void unsupportedModuleStops() {
         Sim sim = new Sim(BotConfig.empty().withModule(BotConfig.Module.UNSUPPORTED), 1, 1_000, 1_000);
         BotRunner r = new BotRunner(sim.ctx, () -> false, s -> { });
