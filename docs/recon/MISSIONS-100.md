@@ -134,6 +134,8 @@ N | номер | название | условия | ограничения | н
   Prismatium — Kristallin, Kristallon (и их боссы); Scrap — Saimon, Mordon; Mucosum — Lordakia, Lordakium, Sibelonit;
   Plasmide — Sibelon, Devolarium; Hybrid Alloy — Blighted Gygerthrall (пользователь); они появляются, когда бьёшь
   Blighted Kristallon (живут на x-7) — бот бьёт Kristallon, пока Gygerthrall рядом нет.
+- Ящик ресурса: alloy падает в своём ящике `HYBRID_ALLOY_BOX` (как в квестовом конфиге AstraBot), остальные ресурсы —
+  грузом (`FROM_SHIP`); бот подбирает тот, что нужен открытым условиям квеста.
 - **Все условия квеста разом**: пока бот делает одно условие, NPC других открытых условий того же квеста на этой карте
   тоже цели (122011: Gygerthrall, вызванные боем с Kristallon, и их груз с alloy). Карта —
   ближайшая, где эти NPC есть по таблице NPC; другие карты наугад не пробуются (пользователь: лишнее).

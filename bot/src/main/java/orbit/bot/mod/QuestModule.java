@@ -964,11 +964,17 @@ public final class QuestModule implements BotModule {
 
     /** The config for the work: only its NPCs or collectables listed, the working map the work's map. */
     private BotContext questContext(Work wk) {
-        return new BotContext(ctx.world(), () -> questConfig(ctx.config().get(), withSeen(wk), side(wk), cargoOpen(wk)),
+        return new BotContext(ctx.world(), () -> questConfig(ctx.config().get(), withSeen(wk), side(wk), boxesOpen(wk)),
                 ctx.actions(), ctx.nav(),
                 ctx.traveler(), ctx.maps(), ctx.random(), ctx.clock(), ctx.repair(), ctx.ship(), ctx.dataDir(), ctx.stats(),
                 ctx.ships());
     }
+
+    /**
+     * The box a resource drops in, when not the plain cargo ({@link #CARGO}): the Gygerthrall's alloy comes in its own
+     * box (live 2026-11-17 on gb2: none picked while only the cargo was on; AstraBot's QUESTS profile collects it too).
+     */
+    static final Map<String, String> LOOT_BOXES = Map.of("hybrid", "HYBRID_ALLOY_BOX");
 
     /**
      * NPCs that call up others when fought ({@link QuestTargets#norm} names): Blighted Kristallon brings the Blighted
@@ -1030,11 +1036,26 @@ public final class QuestModule implements BotModule {
         return out;
     }
 
-    /** The work's quest has a cargo or resource condition open: the cargo of the NPCs fought is picked. */
-    private boolean cargoOpen(Work wk) {
+    /** The boxes the work's quest's open cargo and resource conditions want picked ({@link #LOOT_BOXES}, else cargo). */
+    private Set<String> boxesOpen(Work wk) {
         Quests.Quest quest = ctx.world().get().quests().active().get(wk.quest());
-        return quest != null && quest.leaves().stream()
-                .anyMatch(o -> !o.completed() && (o.type() == Quests.COLLECT_LOOT || o.type() == Quests.SALVAGE));
+        Set<String> out = new TreeSet<>();
+        if (quest == null) {
+            return out;
+        }
+        for (Quests.Condition o : quest.leaves()) {
+            if (o.completed()) {
+                continue;
+            }
+            if (o.type() == Quests.SALVAGE) {
+                out.add(CARGO);
+            } else if (o.type() == Quests.COLLECT_LOOT && !o.matches().isEmpty()) {
+                String id = o.matches().getFirst().toLowerCase(java.util.Locale.ROOT);
+                LOOT_NPCS.keySet().stream().filter(id::contains).findFirst()
+                        .ifPresent(k -> out.add(LOOT_BOXES.getOrDefault(k, CARGO)));
+            }
+        }
+        return out;
     }
 
     /** The work's NPCs as they are named in sight, too: the table may write a name a little otherwise. */
@@ -1053,15 +1074,15 @@ public final class QuestModule implements BotModule {
     }
 
     static BotConfig questConfig(BotConfig c, Work wk) {
-        return questConfig(c, wk, Map.of(), false);
+        return questConfig(c, wk, Map.of(), wk.kind() == Kind.SALVAGE ? Set.of(CARGO) : Set.of());
     }
 
     /**
      * @param side  more NPCs to fight with their priority (lower first): the quest's other open conditions' NPCs and the
      *              ones that call them up ({@link #side})
-     * @param cargo the quest has a cargo or resource condition open: their cargo picked whatever the work is
+     * @param boxes the boxes the quest's open cargo and resource conditions want: picked whatever the work is
      */
-    static BotConfig questConfig(BotConfig c, Work wk, Map<String, Integer> side, boolean cargo) {
+    static BotConfig questConfig(BotConfig c, Work wk, Map<String, Integer> side, Set<String> boxes) {
         BotConfig out = c;
         if (wk.kind() == Kind.KILL || wk.kind() == Kind.DAMAGE || wk.kind() == Kind.SALVAGE) {
             Map<String, BotConfig.NpcRule> npcs = new LinkedHashMap<>();
@@ -1076,24 +1097,26 @@ public final class QuestModule implements BotModule {
                         : new BotConfig.NpcRule(0, p, true, Set.of(), Set.of(), null)); // 0: the default radius
             });
             out = out.withNpcs(npcs);
-            if (wk.kind() == Kind.SALVAGE || cargo) {
-                // their cargo too: what the condition counts
+            if (!boxes.isEmpty()) {
+                // their cargo or resource boxes too: what the conditions count
                 BotConfig.Collect k = c.collect();
-                Map<String, BotConfig.BoxRule> boxes = new LinkedHashMap<>(k.boxes());
-                BotConfig.BoxRule own = k.boxes().get(CARGO);
-                boxes.put(CARGO, new BotConfig.BoxRule(true, own != null ? own.waitMs() : 0, own != null ? own.priority() : 0));
-                out = out.withCollect(new BotConfig.Collect(boxes, k.radius(), k.stayAwayFromEnemies(), k.ignoreContested(),
+                Map<String, BotConfig.BoxRule> rules = new LinkedHashMap<>(k.boxes());
+                for (String b : boxes) {
+                    BotConfig.BoxRule own = k.boxes().get(b);
+                    rules.put(b, new BotConfig.BoxRule(true, own != null ? own.waitMs() : 0, own != null ? own.priority() : 0));
+                }
+                out = out.withCollect(new BotConfig.Collect(rules, k.radius(), k.stayAwayFromEnemies(), k.ignoreContested(),
                         k.cargo(), k.cargoFullAt(), k.sellOres()));
             }
         } else if (wk.kind() == Kind.BOX || wk.kind() == Kind.ORE) {
             BotConfig.Collect k = c.collect();
-            Map<String, BotConfig.BoxRule> boxes = new LinkedHashMap<>();
+            Map<String, BotConfig.BoxRule> picks = new LinkedHashMap<>();
             for (String n : wk.names()) {
                 BotConfig.BoxRule own = k.boxes().get(n);
-                boxes.put(n, new BotConfig.BoxRule(true, own != null ? own.waitMs() : n.startsWith("ore_") ? 800 : 0,
+                picks.put(n, new BotConfig.BoxRule(true, own != null ? own.waitMs() : n.startsWith("ore_") ? 800 : 0,
                         own != null ? own.priority() : 0));
             }
-            out = out.withNpcs(Map.of()).withCollect(new BotConfig.Collect(boxes, k.radius(), k.stayAwayFromEnemies(),
+            out = out.withNpcs(Map.of()).withCollect(new BotConfig.Collect(picks, k.radius(), k.stayAwayFromEnemies(),
                     k.ignoreContested(), k.cargo(), k.cargoFullAt(), k.sellOres()));
         }
         BotConfig.General g = c.general();

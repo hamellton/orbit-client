@@ -532,6 +532,25 @@ class QuestModuleTest {
     }
 
     @Test
+    void theAlloyIsPickedFromItsOwnBox() {
+        // live 2026-11-17 on gb2: the Gygerthrall drop the alloy in HYBRID_ALLOY_BOX, not as plain cargo — none was picked
+        Sim sim = new Sim(BotConfig.empty(), MapCatalog.bundled().byName("3-7").id(), 10_000, 6_000);
+        sim.lasers("ammunition_laser_ucb-100");
+        conversionTheory(sim, 152, 365);
+        orbit.protocol.gen.AddBoxCommand box = new orbit.protocol.gen.AddBoxCommand();
+        box.hash = "alloy1";
+        box.boxType = "HYBRID_ALLOY_BOX";
+        box.x = 10_300;
+        box.y = 6_000;
+        sim.world.apply(box, sim.now);
+        QuestModule m = new QuestModule(sim.ctx, NpcMaps.shared(), orbit.world.maps.OreMaps.inMemory());
+        m.visited(sim.now);
+        sim.run(m::tick, 6_000);
+        assertTrue(sim.sent.stream().anyMatch(p -> p instanceof orbit.protocol.gen.CollectBoxRequest r
+                && "alloy1".equals(r.itemHash)), m.status());
+    }
+
+    @Test
     void oreBoundToAMapIsCollectedThere() {
         // «Endurium 30 000 on enemy x-4» (mission 23): the ore where the quest counts it, not the nearest field
         int map34 = MapCatalog.bundled().byName("3-4").id();
