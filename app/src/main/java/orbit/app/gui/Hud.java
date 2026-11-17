@@ -1423,10 +1423,20 @@ final class Hud {
     static final int STRIP_HEIGHT = 46;
 
     void strip(Graphics2D g, int x, int y, int width, WorldFeed feed, String config) {
+        strip(g, x, y, width, feed, config, false);
+    }
+
+    /** @param below under the map (a small one): a solid band, no fade over the map */
+    void strip(Graphics2D g, int x, int y, int width, WorldFeed feed, String config, boolean below) {
         int h = STRIP_HEIGHT;
         int top = y - h;
-        g.setPaint(new GradientPaint(0, top - 18, new Color(10, 12, 18, 0), 0, top + 10, new Color(10, 12, 18, 225)));
-        g.fillRect(x, top - 18, width, h + 18);
+        if (below) {
+            g.setColor(new Color(10, 12, 18));
+            g.fillRect(x, top, width, h);
+        } else {
+            g.setPaint(new GradientPaint(0, top - 18, new Color(10, 12, 18, 0), 0, top + 10, new Color(10, 12, 18, 225)));
+            g.fillRect(x, top - 18, width, h + 18);
+        }
         AccountStatus st = AccountStatus.of(feed);
         g.setFont(font(Font.BOLD, 12f));
         FontMetrics fm = g.getFontMetrics();
