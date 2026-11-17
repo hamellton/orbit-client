@@ -33,18 +33,6 @@ public final class BoxPicker {
     static final long MAX_WAY_NS = 60_000_000_000L;
     private long startedAt;
     private long nearAt;
-    /** Boxes near this spot are left until then ({@code IGNORE_BOXES}). */
-    private double leaveX;
-    private double leaveY;
-    private long leaveUntil;
-    static final double LEAVE_RADIUS = 600;
-
-    /** Leaves the boxes near (x, y) until {@code until} (nanos): an NPC flagged {@code IGNORE_BOXES} died there. */
-    public void leaveAround(double x, double y, long until) {
-        leaveX = x;
-        leaveY = y;
-        leaveUntil = until;
-    }
     /** Before clicking a box again at least this long (a box without a wait of its own). */
     static final long MIN_STAY_MS = 700;
     /** The config's name of the box being taken ({@code ore_8}, {@code BONUS_BOX}). */
@@ -71,6 +59,11 @@ public final class BoxPicker {
     }
 
     /** «палладий»: what is being picked up now, for the status. */
+    /** The box being taken, {@code null} none or gone. */
+    public WorldSnapshot.Collectable currentBox(WorldSnapshot w) {
+        return hash == null ? null : w.collectables().get(hash);
+    }
+
     public String currentName() {
         return orbit.config.LootNames.of(current);
     }
@@ -274,7 +267,6 @@ public final class BoxPicker {
                     return r != null && r.collect() && orbit.config.BoxCatalog.collectable(key(b));
                 })
                 // not where an NPC flagged IGNORE_BOXES died a moment ago
-                .filter(b -> now >= leaveUntil || Math.hypot(b.x() - leaveX, b.y() - leaveY) > LEAVE_RADIUS)
                 // not inside a no-access zone (the ship cannot get there)
                 .filter(b -> !orbit.world.maps.ZoneGeometry.blocked(w, b.x(), b.y()))
                 // not deep in the config's avoided zone: DarkBot's zones are obstacles and a box counts while the

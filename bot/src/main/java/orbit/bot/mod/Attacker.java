@@ -223,6 +223,16 @@ public final class Attacker {
     }
 
     /** The last NPC killed: where, when, whether its boxes are left ({@code IGNORE_BOXES}). */
+    /**
+     * The ship's mode for this tick while it goes for a box in the fight (DarkBot's {@code setConfig(box)}: the roam mode
+     * for a box over three radii away), {@code null} the fight's own.
+     */
+    private BotConfig.ShipMode boxShipMode;
+
+    public void boxShipMode(BotConfig.ShipMode mode) {
+        boxShipMode = mode;
+    }
+
     public record Kill(String name, double x, double y, long nanos, boolean leaveBoxes) {
     }
 
@@ -780,11 +790,14 @@ public final class Attacker {
             // the NPC's own formation (AstraBot: Invoke XVI in Drill), the config's configuration
             fightMode = new BotConfig.ShipMode(fightMode.config(), rule.formation());
         }
+        BotConfig.ShipMode boxMode = boxShipMode;
+        boxShipMode = null;
         if (gate != null) {
             // SharedPlugin's setConfig: the repair's mode as it is, beyond 2 000 roam, else the fight's
             ctx.ship().want(repair != null ? repair : dist > GATE_ROAM ? c.general().roam() : fightMode);
         } else {
-            ctx.ship().want(chasing || runCircle ? c.general().run() : onTheWay ? c.general().travel() : fightMode);
+            ctx.ship().want(boxMode != null ? boxMode
+                    : chasing || runCircle ? c.general().run() : onTheWay ? c.general().travel() : fightMode);
         }
         Threats threats = move ? new Threats(ctx, ctx.world().get(), c, t.id()) : null;
         double baseRadius = Targets.baseRadius(c, t, h.mapId());

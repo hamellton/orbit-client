@@ -100,11 +100,8 @@ public final class KillModule implements BotModule {
             status = "Бой";
             return;
         }
-        // the boxes of an NPC flagged IGNORE_BOXES are left a while where it died
-        Attacker.Kill k = attacker.lastKill();
-        if (k != null && k.leaveBoxes()) {
-            boxes.leaveAround(k.x(), k.y(), k.nanos() + LEAVE_BOXES_NS);
-        }
+        // IGNORE_BOXES counts in the fight only, as DarkBot's: once it is dead its boxes are taken like any (the user,
+        // 2026-11-17: «1 в 1»)
         // no fight: any box in sight (DarkBot's collector); its radius only counts next to a target
         if (collect && boxes.tickAnywhere()) {
             status = "Подбираю " + boxes.currentName();
@@ -279,6 +276,12 @@ public final class KillModule implements BotModule {
         if (!boxes.tickFight(t.x(), t.y(), nearNpc)) {
             return false;
         }
+        // DarkBot's setConfig(box): the roam mode for a box over three of the target's radii away, else the fight's
+        WorldSnapshot.Collectable b = boxes.currentBox(w);
+        WorldSnapshot.Hero h = w.hero();
+        if (b != null && Math.hypot(b.x() - h.x(), b.y() - h.y()) > Targets.radius(c, t, map) * 3) {
+            attacker.boxShipMode(c.general().roam());
+        }
         attacker.tick(false);
         return true;
     }
@@ -306,8 +309,6 @@ public final class KillModule implements BotModule {
                             c.loot().fight().trainRadius()));
     }
 
-    /** The boxes where an NPC flagged {@code IGNORE_BOXES} died are left this long. */
-    static final long LEAVE_BOXES_NS = 30_000_000_000L;
 
     /** A target with this many NPCs that attack on sight about it is left for a lone one. */
     static final int CROWD_MAX = 2;
