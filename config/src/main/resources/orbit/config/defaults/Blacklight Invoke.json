@@ -6208,5 +6208,10 @@
     "leaveWithoutListed": false,
     "kickUnlisted": false
   },
-  "description": "[Default] Инвоки на 2-BL как у DarkBot на VPS (Invoke1BL Defence): Kill & collect, патруль по 4 угловым точкам предпочитаемой зоны, стены запретных зон отрезают бегемота и поезда; Invoke XVI первым, Impulse II тоже; EMP/ISH от игроков; возрождение у портала. Не протестирован."
+  "description": "[Default] Инвоки на 2-BL как у DarkBot на VPS (Invoke1BL Defence): Kill & collect, патруль по 4 угловым точкам предпочитаемой зоны, стены запретных зон отрезают бегемота и поезда; Invoke XVI первым, Impulse II тоже; EMP/ISH от игроков; возрождение у портала. Не протестирован.",
+  "modules": {
+    "kill": {
+      "dropForHigher": true
+    }
+  }
 }

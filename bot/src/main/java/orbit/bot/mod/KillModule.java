@@ -67,18 +67,29 @@ public final class KillModule implements BotModule {
     public void tick() {
         BotConfig c = ctx.config().get();
         WorldSnapshot w = ctx.world().get();
+        boolean dropAll = c.moduleSettings("kill").path("dropForHigher").asBoolean(false);
         if (kill && attacker.targetId() != 0) {
             // one of a higher priority came in sight (an invoke while an Impulse is fought): to it at once, unless the
-            // one fought is nearly dead or shoots the ship (the user, 2026-11-13)
+            // one fought is nearly dead or shoots the ship (the user, 2026-11-13) — with «бросать всё» in any case
             WorldSnapshot.Ship now = w.ships().get(attacker.targetId());
             WorldSnapshot.Ship better = now == null ? null : pick(c, w);
             BotConfig.NpcRule nowRule = now == null ? null : Targets.rule(c, now, w.hero().mapId());
             if (better != null && better.id() != now.id() && nowRule != null
                     && Targets.rule(c, better, w.hero().mapId()).priority() < nowRule.priority()
-                    && now.attackTargetId() != w.hero().id() && !(now.health().known() && now.health().hpPercent() < 0.3)) {
+                    && (dropAll || now.attackTargetId() != w.hero().id()
+                    && !(now.health().known() && now.health().hpPercent() < 0.3))) {
                 log.info("Вижу {} — важнее, чем {}: переключаюсь", better.name(), now.name());
                 attacker.clear();
                 attacker.target(better);
+            }
+            // the locator has found one of a higher priority out of sight: everything dropped, to it (the user,
+            // 2026-11-17: «бросить всё и бежать к высшему приоритету в любом случае»)
+            // (only when there is somewhere to fly: a point just found empty leaves the fight as it is)
+            if (dropAll && now != null && nowRule != null && attacker.targetId() == now.id()
+                    && locatorPriority(c, w) < nowRule.priority() && locatorFresh(w) && followLocator(c, w)) {
+                log.info("Пеленгатор нашёл цель важнее, чем {}: бросаю бой и лечу", now.name());
+                attacker.clear();
+                return;
             }
         }
         if (collect && attacker.targetId() != 0 && fightBox(c, w)) {
@@ -122,8 +133,10 @@ public final class KillModule implements BotModule {
     }
 
     /**
-     * The best NPC of the list flagged {@code PET_LOCATOR} for this map that is not in sight (the user, 2026-11-13: the
-     * locator on Boss Kristallon): the pet's enemy locator looks for it.
+     * The best NPC of the list flagged {@code PET_LOCATOR} for this map (the user, 2026-11-13: the locator on Boss
+     * Kristallon): the pet's enemy locator looks for it — also while one is in sight and fought (live 2026-11-17 on the
+     * VPS: dropped then, the pet took the config's mode, «ищет Cubikon», blind to the next invoke for the fight and some
+     * 5 s after it).
      */
     @Override
     public int petLocator() {
@@ -136,10 +149,16 @@ public final class KillModule implements BotModule {
         return c.npcs().entrySet().stream()
                 .filter(e -> e.getValue().kill() && e.getValue().has(BotConfig.NpcFlag.PET_LOCATOR)
                         && e.getValue().appliesOn(map))
-                .filter(e -> w.ships().values().stream().noneMatch(s -> s.npc() && e.getKey().equals(s.name())))
                 .filter(e -> !attacker.tooStrong(e.getKey()))
                 .sorted(java.util.Comparator.comparingInt(e -> e.getValue().priority()))
                 .mapToInt(e -> npcNumber(e.getKey())).filter(id -> id > 0).findFirst().orElse(0);
+    }
+
+    /** The pet's locator has a fresh point (not one just found empty): something to fly to. */
+    private boolean locatorFresh(WorldSnapshot w) {
+        WorldSnapshot.Pet pet = w.pet();
+        return pet.active() && pet.gear() == orbit.protocol.gen.PetGearTypeModule.PETGEARTYPE_ENEMY_LOCATOR
+                && pet.locatorWithin(w.nanos(), LEAD_FRESH_MS);
     }
 
     /** The list's priority of the NPC the locator looks for now, {@link Integer#MAX_VALUE} when it looks for none. */

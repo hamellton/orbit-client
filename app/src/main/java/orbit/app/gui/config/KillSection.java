@@ -57,6 +57,7 @@ final class KillSection implements Section {
     private final JSpinner ignoreFarther = Form.number(0, 50_000, 500);
     private final JSpinner smartCircle = Form.number(0, 20, 1);
     private final JCheckBox avoidTrains = new JCheckBox("Обходить чужие поезда");
+    private final JCheckBox dropForHigher = new JCheckBox("Бросать всё ради цели выше по приоритету");
     private final JSpinner trainPlayers = Form.number(2, 20, 1);
     private final JSpinner trainRadius = Form.number(300, 5_000, 100);
     private final JSpinner ishBelow = Form.number(5, 95, 5);
@@ -167,6 +168,9 @@ final class KillSection implements Section {
                 + "стоячий (инвок, бегемот) — стоять в безопасной точке. Кубы — кружить.<br>"
                 + "Во всех режимах — подальше от других NPC (сильнее от тех, кто бьёт нас), врагов, станций,<br>"
                 + "мин и запретных зон. Своё движение у NPC — в таблице, колонка «Движение».</html>");
+        dropForHigher.setToolTipText("<html>Пеленгатор нашёл цель выше по приоритету (меньше число в столбце «Приоритет»)"
+                + "<br>или она показалась рядом — бой бросается сразу, даже если текущая цель почти убита или стреляет"
+                + "<br>в корабль, и бот летит к ней. Выключено — бросает, только если текущая не стреляет и не добита.</html>");
         avoidTrains.setToolTipText("<html>Не брать цель, у которой собралась чужая группа (поезд):<br>"
                 + "столько игроков не из нашей группы в этом радиусе от цели (как «avoidTrain» в AstraBot)</html>");
         ishBelow.setToolTipText("ISH-01 у NPC с флагом USE_ISH, когда HP корабля ниже этого");
@@ -201,6 +205,7 @@ final class KillSection implements Section {
                 .row("", groupNpcs)
                 .row("Не видеть дальше", ignoreFarther)
                 .row("Смотреть вперёд при кружении", smartCircle)
+                .row("", dropForHigher)
                 .row("", avoidTrains)
                 .row("Поезд — игроков от", Form.inline(trainPlayers, new javax.swing.JLabel("в радиусе"), trainRadius))
                 .row("ISH-01 при HP ниже", Form.inline(ishBelow, new javax.swing.JLabel("%")))
@@ -318,6 +323,7 @@ final class KillSection implements Section {
         Form.set(smartCircle, l.circleIterations());
         BotConfig.FightOptions fo = l.fight();
         avoidTrains.setSelected(fo.avoidTrains());
+        dropForHigher.setSelected(c.moduleSettings("kill").path("dropForHigher").asBoolean(false));
         Form.set(trainPlayers, fo.trainPlayers());
         Form.set(trainRadius, fo.trainRadius());
         Form.set(ishBelow, (int) Math.round(fo.ishBelow() * 100));
@@ -370,6 +376,8 @@ final class KillSection implements Section {
                         ? null : Integer.valueOf(Form.intOf(smartCircle)),
                 fightOptions());
         Map<String, BotConfig.NpcRule> list = new TreeMap<>(npcs.get());
-        return c.withLoot(l).withNpcs(list);
+        com.fasterxml.jackson.databind.node.ObjectNode k = c.moduleSettings("kill");
+        k.put("dropForHigher", dropForHigher.isSelected());
+        return c.withLoot(l).withNpcs(list).withModuleSettings("kill", k);
     }
 }
