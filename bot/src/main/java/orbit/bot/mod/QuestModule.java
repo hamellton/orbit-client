@@ -453,7 +453,9 @@ public final class QuestModule implements BotModule {
      * gb2: Streuner's cargo on 3-1, «Сборщик дураниума» 0/100 after dozens) — that map is left out, the next one tried.
      */
     private boolean noCount(WorldSnapshot w, Quests.Condition c) {
-        if (work.kind() != Kind.SALVAGE || w.hero().mapId() != work.map()) {
+        // a resource's NPCs come from the wiki's table: no guessing at other maps (the user, 2026-11-17: «лишнее, потом
+        // баг может быть»)
+        if (work.kind() != Kind.SALVAGE || work.ore() == LOOT || w.hero().mapId() != work.map()) {
             cargoFrom = -1;
             return false;
         }
@@ -463,7 +465,7 @@ public final class QuestModule implements BotModule {
             cargoAt = c.current();
             return false;
         }
-        if (picked - cargoFrom < (work.ore() == LOOT ? LOOT_TRIES : CARGO_TRIES)) {
+        if (picked - cargoFrom < CARGO_TRIES) {
             return false;
         }
         log.warn("Квест {}: на {} подобрал {} грузов, а «{}» не растёт ({}/{}) — здесь в грузе не то, пробую другую карту",
@@ -481,8 +483,6 @@ public final class QuestModule implements BotModule {
 
     /** Cargo boxes picked with no progress before a map counts as the wrong one. */
     public static final int CARGO_TRIES = 10;
-    /** A resource drops now and then (Hybrid Alloy ~ every second kill): more cargo before a map counts as wrong. */
-    public static final int LOOT_TRIES = 40;
     private long cargoFrom = -1;
     private double cargoAt;
 
@@ -779,8 +779,7 @@ public final class QuestModule implements BotModule {
     /** Collect an ore: where it lies in sight, else the nearest map where it was seen. */
     /**
      * «Собрать resource_collectable_…»: the NPCs that carry it ({@link #LOOT_NPCS}) killed and their cargo picked, on the
-     * nearest map they live on ({@link NpcMaps}; the quest's own maps if it binds them); the cargo not counting there —
-     * the next map ({@link #noCount}).
+     * nearest map they live on ({@link NpcMaps}; the quest's own maps if it binds them).
      */
     private Work lootWork(Quests.Quest quest, Quests.Condition c, WorldSnapshot w) {
         String id = c.matches().isEmpty() ? "" : c.matches().getFirst().toLowerCase(java.util.Locale.ROOT);
