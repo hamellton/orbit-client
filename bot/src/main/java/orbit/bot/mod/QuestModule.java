@@ -556,6 +556,17 @@ public final class QuestModule implements BotModule {
         if (!sources.isEmpty()) {
             return null;
         }
+        // no NPC named anywhere (300011 «Сборщик дураниума»): the plain NPCs of the company's own maps, the nearest —
+        // the config's list and working map sent a VRU ship to MMO's 1-1 and killed nothing there (live 2026-11-17)
+        Map<Integer, Set<String>> home = ownMapNpcs(c, w.hero().factionId());
+        Integer near = nearest(home.keySet(), w.hero());
+        if (near != null) {
+            Set<String> names = home.get(near);
+            Set<String> want = new TreeSet<>();
+            names.forEach(n -> want.add(QuestTargets.norm(n)));
+            return new Work(quest.id(), c.id(), Kind.SALVAGE, near, Set.copyOf(names), Double.NaN, Double.NaN, -1,
+                    Set.copyOf(want), 0);
+        }
         BotConfig cfg = ctx.config().get();
         Set<String> own = new TreeSet<>();
         cfg.npcs().forEach((n, r) -> {
@@ -566,6 +577,35 @@ public final class QuestModule implements BotModule {
         int map = cfg.general().workingMap();
         return own.isEmpty() ? null : new Work(quest.id(), c.id(), Kind.SALVAGE, map > 0 ? map : w.hero().mapId(),
                 Set.copyOf(own), Double.NaN, Double.NaN, -1);
+    }
+
+    /**
+     * The company's own maps (1-x for MMO, 2-x EIC, 3-x VRU) with the plain NPCs known there — no Boss or Uber ones, they
+     * are the hard ones and the cargo counts the same; maps already found without them are left out.
+     */
+    Map<Integer, Set<String>> ownMapNpcs(Quests.Condition c, int faction) {
+        Map<Integer, Set<String>> out = new LinkedHashMap<>();
+        if (faction < 1 || faction > 3) {
+            return out;
+        }
+        for (int m : npcMaps.maps()) {
+            String n = ctx.maps().info(m).name();
+            if (n.length() < 3 || n.charAt(0) - '0' != faction || n.charAt(1) != '-'
+                    || notThere.getOrDefault(m, Set.of()).contains(c.id())) {
+                continue;
+            }
+            Set<String> plain = new TreeSet<>();
+            for (String npc : npcMaps.on(m)) {
+                String k = QuestTargets.norm(npc);
+                if (!k.startsWith("boss") && !k.startsWith("uber")) {
+                    plain.add(npc);
+                }
+            }
+            if (!plain.isEmpty()) {
+                out.put(m, plain);
+            }
+        }
+        return out;
     }
 
     /** The pirates' names (letters only, lower case), the «Uber» ones too. */

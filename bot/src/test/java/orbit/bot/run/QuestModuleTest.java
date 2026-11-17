@@ -225,6 +225,24 @@ class QuestModuleTest {
     }
 
     @Test
+    void salvageOfNoNamedNpcKillsThePlainNpcsOfTheCompanysOwnMap() {
+        // 300011 «Сборщик дураниума» (gb2 2026-11-17): cargo with duranium, no NPC named — a VRU ship on 3-1 kills the
+        // Streuner there, not the config's NPCs on its working map (1-1 was set: MMO's home map, ten deaths)
+        int map = MapCatalog.bundled().byName("3-1").id();
+        BotConfig c = BotConfig.empty().withGeneral(new BotConfig.General(MapCatalog.bundled().byName("1-1").id(), null, null, null,
+                false, false, 300, false, false));
+        Sim sim = new Sim(c, map, 10_000, 6_000);
+        sim.lasers("ammunition_laser_lcb-10");
+        take(sim, 503, 3, 23, 100, "0", "0", "0", "0", "5");
+        sim.npc(810, "-=[ Streuner ]=-", 10_500, 6_100);
+        QuestModule m = new QuestModule(sim.ctx, NpcMaps.shared(), orbit.world.maps.OreMaps.inMemory());
+        m.visited(sim.now);
+        sim.run(m::tick, 3_000);
+        assertEquals(map, m.workingMap(), MapCatalog.bundled().info(m.workingMap()).name());
+        assertEquals(810, sim.world.snapshot(sim.now).hero().selectedId(), m.status());
+    }
+
+    @Test
     void salvageKillsTheNpcsAndPicksTheirCargo() {
         // 310023 (ru1 2026-11-12): «salvage 100» — the cargo boxes of killed NPCs (SalvageCondition: faction, ship
         // type, NPC number, loot type, ore); here the NPC is Saimon (6), who lives on x-3 and x-4
