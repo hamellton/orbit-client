@@ -847,6 +847,12 @@ public final class World {
         if (balanceKnown) {
             spentCredits += Math.max(0, hero.credits - credits);
             spentUridium += Math.max(0, hero.uridium - uridium);
+            if (hero.uridium - uridium >= 1) {
+                // each fall told: «потрачено» in the hour's report came with no purchase in the log (live 2026-11-17 on
+                // the VPS, 1 709 uridium) — what fell when, to be matched with what the bot did then
+                log.info("Уридий: −{} (было {}, стало {})", String.format("%,.0f", hero.uridium - uridium),
+                        String.format("%,.0f", hero.uridium), String.format("%,.0f", uridium));
+            }
         }
         balanceKnown = true;
         hero.credits = credits;

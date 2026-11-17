@@ -78,6 +78,14 @@ class FriendlyTest {
     }
 
     @Test
+    void windowsCommasInTheHourAndSessionNumbersAreThousands() {
+        // live 2026-11-17 on the VPS: «Час 08:31–09:00: 948 уридия · 5 кредитов» — the report wrote 5,495,923
+        assertEquals("Час 08:31–09:00: 6 922 уридия · 5,5 млн кредитов · NPC 3 · смертей 7 · потрачено 1,709 уридия",
+                Friendly.hour("Сводка 08:31–09:00 · в игре все 28 мин · уридий +6,922 · кредиты +5,495,923 · опыт"
+                        + " +1,127,000 · честь +2,457 · потрачено 1,709 уридия · NPC 3 · ремонтов 0 · смертей 7"));
+    }
+
+    @Test
     void eachLootIsItsOwnRowAndOtherLinesFold() {
         line(I, "orbit.app.LootLog", "Добыча: +16 уридия");
         line(I, "orbit.app.LootLog", "Добыча: +16 уридия");

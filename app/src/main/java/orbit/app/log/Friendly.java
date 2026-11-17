@@ -98,7 +98,7 @@ public final class Friendly {
     private static final Pattern VISIT_RESUME = p("^Обслуживание: вошёл на корабле для Скайлаба .* обратно на (\\d+)$");
     private static final Pattern ENRICH = p("^Обогащение: (\\S+) ← (\\S+) (\\d+) \\(было (\\d+)\\)$");
     private static final Pattern LOOT_PART = p("^\\+([\\d\\s\\u00a0.,]*\\d)\\s+(.+)$");
-    private static final Pattern NUM = p("[\\d\\u00a0 ]*\\d");
+    private static final Pattern NUM = p("[\\d\\u00a0 ,]*\\d");
 
     /** Lines that never reach the journal: the routine and the machinery. */
     private static final Pattern HIDDEN = p(String.join("|",
@@ -438,7 +438,10 @@ public final class Friendly {
     }
 
     private static double parse(String digits) {
-        return Double.parseDouble(digits.replaceAll("[\\s\\u00a0]", "").replace(',', '.'));
+        String d = digits.replaceAll("[\\s\\u00a0]", "");
+        // «5,495,923» — commas between groups of three are thousands (Windows' report, live 2026-11-17 on the VPS:
+        // «5 кредитов»); «1,6» is a decimal comma
+        return Double.parseDouble(d.matches("\\d{1,3}(,\\d{3})+") ? d.replace(",", "") : d.replace(',', '.'));
     }
 
     /** «+614 400 опыта · +1 024 уридия» → «+1 024 уридия, +614 тыс. опыта» (uridium, credits, experience, honour first). */
@@ -481,8 +484,8 @@ public final class Friendly {
     /** The session's results in a few words: uridium, credits, cubes or NPC, palladium, deaths. */
     static String totals(String s) {
         List<String> out = new ArrayList<>();
-        add(out, grab(s, "Уридий: ([\\d\\u00a0 ]*\\d)"), " уридия");
-        add(out, grab(s, "Кредиты: ([\\d\\u00a0 ]*\\d)"), " кредитов");
+        add(out, grab(s, "Уридий: ([\\d\\u00a0 ,]*\\d)"), " уридия");
+        add(out, grab(s, "Кредиты: ([\\d\\u00a0 ,]*\\d)"), " кредитов");
         String cubes = grab(s, "добито (\\d+)");
         if (cubes != null && !cubes.equals("0")) {
             out.add(cubes + " " + plural(Integer.parseInt(cubes), "куб", "куба", "кубов"));
@@ -492,7 +495,7 @@ public final class Friendly {
                 out.add("NPC " + npc);
             }
         }
-        add(out, grab(s, "палладий ([\\d\\u00a0 ]*\\d)"), " палладия");
+        add(out, grab(s, "палладий ([\\d\\u00a0 ,]*\\d)"), " палладия");
         String deaths = grab(s, "смертей (\\d+)");
         out.add("смертей " + (deaths == null ? "0" : deaths));
         String spent = grab(s, "Потрачено: ([^;]+)");
@@ -507,8 +510,8 @@ public final class Friendly {
         if (inGame != null) {
             out.add(inGame);
         }
-        add(out, grab(s, "уридий \\+([\\d\\u00a0 ]*\\d)"), " уридия");
-        add(out, grab(s, "кредиты \\+([\\d\\u00a0 ]*\\d)"), " кредитов");
+        add(out, grab(s, "уридий \\+([\\d\\u00a0 ,]*\\d)"), " уридия");
+        add(out, grab(s, "кредиты \\+([\\d\\u00a0 ,]*\\d)"), " кредитов");
         String cubes = grab(s, "кубов (\\d+)");
         if (cubes != null) {
             out.add(cubes + " " + plural(Integer.parseInt(cubes), "куб", "куба", "кубов"));
@@ -518,7 +521,7 @@ public final class Friendly {
                 out.add("NPC " + npc);
             }
         }
-        String pal = grab(s, "палладий \\+?([\\d\\u00a0 ]*\\d)");
+        String pal = grab(s, "палладий \\+?([\\d\\u00a0 ,]*\\d)");
         add(out, pal, " палладия");
         String deaths = grab(s, "смертей (\\d+)");
         if (deaths != null) {
@@ -551,7 +554,7 @@ public final class Friendly {
         List<String> ores = new ArrayList<>();
         List<String> items = new ArrayList<>();
         for (String part : parts) {
-            Matcher m = Pattern.compile("^(\\p{L}+) ([\\d\\u00a0 ]*\\d)$").matcher(part.strip());
+            Matcher m = Pattern.compile("^(\\p{L}+) ([\\d\\u00a0 ,]*\\d)$").matcher(part.strip());
             if (m.matches()) {
                 String ore = m.group(1);
                 ores.add(m.group(2) + " " + Character.toUpperCase(ore.charAt(0)) + ore.substring(1));
