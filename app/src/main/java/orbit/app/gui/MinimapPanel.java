@@ -217,7 +217,10 @@ final class MinimapPanel extends JPanel {
         java.awt.image.BufferedImage bg = hero.id() == 0 || ground != ViewSettings.MapBackground.PICTURE
                 ? null : MinimapBackgrounds.get(hero.mapId());
         double dpi = Math.max(1, g.getTransform().getScaleX());
-        BackKey key = new BackKey(getWidth(), getHeight(), dpi, ox, oy, mw, mh, map.id(), map.name(), ground, bg,
+        // DarkBot's map name: «3-BL→2-BL» while a jump is under way
+        String title = w.jumpingTo() != 0 && w.jumpingTo() != map.id() && hero.id() != 0
+                ? map.name() + "→" + catalog.info(w.jumpingTo()).name() : map.name();
+        BackKey key = new BackKey(getWidth(), getHeight(), dpi, ox, oy, mw, mh, map.id(), title, ground, bg,
                 hero.id() != 0 && !compact);
         if (!key.equals(backKey) || back == null) {
             back = background(key, p, map);
@@ -227,7 +230,7 @@ final class MinimapPanel extends JPanel {
         // 10 frames a second); redrawn when the size, the map or the background choice change
         g.drawImage(back, 0, 0, getWidth(), getHeight(), null);
         if (key.named()) {
-            sessionClock(g, ox, oy, mw, mh, map.name());
+            sessionClock(g, ox, oy, mw, mh, title);
         }
         java.awt.geom.RoundRectangle2D.Double frame = new java.awt.geom.RoundRectangle2D.Double(ox, oy, mw, mh, 10, 10);
         Shape oldClip = g.getClip();
@@ -409,6 +412,7 @@ final class MinimapPanel extends JPanel {
                 g.setStroke(new BasicStroke(1f));
             }
             locatorRing(g, w, p, u, target, labelFont);
+            trail(g, w, p, u);
             // the hero: a glow, then the dot
             g.setColor(new Color(HERO.getRed(), HERO.getGreen(), HERO.getBlue(), 60));
             g.fill(new Ellipse2D.Double(hx - 9 * u, hy - 9 * u, 18 * u, 18 * u));
@@ -421,43 +425,30 @@ final class MinimapPanel extends JPanel {
         double vy = Math.max(oy, 0);
         double vw = Math.min(ox + mw, getWidth()) - vx;
         double vh = Math.min(oy + mh, getHeight()) - vy;
-        int pillsBottom = hud.boostPills(g, (int) Math.round(vx + vw) - 8, (int) Math.round(vy) + 8,
-                (int) Math.round(vw * (compact ? 0.45 : 0.5)), w.boosters(), compact || vw < BIG_MAP);
-        if (compact) {
-            hud.targetChip(g, (int) Math.round(vx) + 8, (int) Math.round(vy) + 8, (int) Math.round(vw * 0.3), w);
-            hud.strip(g, (int) Math.round(vx), (int) Math.round(vy + vh), (int) Math.round(vw), feed, config.get());
-        } else {
-            int chipBottom = mapChip(g, vx, vy, vw, hero, map);
-            int ratesBottom = chipBottom;
-            int plaqueBottom = gatePlaque(g, vx, vy, vw, w, hero);
-            gameFeed(g, vx, plaqueBottom + 6, vw);
-            // the blocks the user put on the map: full cards on a big map, compact ones on a small one
-            boolean big = vw >= BIG_MAP;
-            // a low map: the small cards too, so more of them shows (the user, 2026-11-16: a small window)
-            boolean roomy = big && vh >= 700;
-            java.util.Map<java.awt.Rectangle, ViewSettings.Block> placed = new java.util.LinkedHashMap<>();
-            Hud cards = roomy ? mapHud : mapCompactHud;
-            int panel = big ? (int) Math.max(230, Math.min(320, vw * 0.26)) : (int) Math.max(170, Math.min(250, vw * 0.34));
-            int left = (int) Math.round(vx) + 10;
-            int right = (int) Math.round(vx + vw) - 10;
-            // the account strip along the bottom, as in the overview: the columns end above it
-            // the columns end above the «в час» block and the target's strip (they sit on the bottom strip)
-            int stripTop = (int) Math.round(vy + vh) - Hud.STRIP_HEIGHT - 22 - 4 * 16 - 10 - 8;
-            cards.mapBlocks(g, left, right, Math.max((int) Math.round(vy) + 46, ratesBottom + 8),
-                    Math.max((int) Math.round(vy) + 40, pillsBottom + 8),
-                    stripTop, panel, w, feed, config.get(), ViewSettings.shared(), placed, big);
-            cardsAt = placed;
-            Shape clip = g.getClip();
-            g.clip(frame);
-            hud.strip(g, (int) Math.round(vx), (int) Math.round(vy + vh), (int) Math.round(vw), feed, config.get());
-            int above = (int) Math.round(vy + vh) - Hud.STRIP_HEIGHT - 22;
-            if (ViewSettings.shared().onMap(ViewSettings.Block.TARGET)) {
-                // «Цель» on the map is this strip (as the card was): «Сбоку» or «Скрыть» take it off the map
-                hud.targetStrip(g, (int) Math.round(vx + vw) - 8, above, (int) Math.max(220, Math.min(380, vw * 0.38)), w);
-            }
-            rates(g, vx + 8, above, w); // «в час» on the left, the target on the right, the ship's strip under both
-            g.setClip(clip);
+        // the overlays as DarkBot draws them (the user, 2026-11-17: «наложения как в DarkBot 1 в 1»; the bottom strip,
+        // the game's fading lines and the map itself stay ours): stats left, boosters right, both in the middle of the
+        // height; the target's bars bottom right, the pet's bottom left, above our strip
+        int stripTop = (int) Math.round(vy + vh) - Hud.STRIP_HEIGHT - 18;
+        boolean roomForBlocks = vh >= (compact ? 300 : 260);
+        if (hero.id() != 0 && roomForBlocks) {
+            dbStats(g, vx, vy, vh, stripTop, w);
+            dbBoosters(g, vx + vw, vy, vh, stripTop, w);
         }
+        if (hero.id() != 0) {
+            dbTarget(g, vx + vw / 2 + 10, vw / 2 - 20, stripTop - 4, w);
+            dbPet(g, vx + 10, (vw / 2 - 20) * 0.25, vx + vw / 2 - 10, stripTop - 4, w);
+        }
+        if (!compact) {
+            menuHint(g, vx, vy, vw);
+            gameFeed(g, vx, (int) Math.round(vy) + 8, vw);
+            cardsAt = java.util.Map.of();
+        }
+        Shape stripClip = g.getClip();
+        if (!compact) {
+            g.clip(frame);
+        }
+        hud.strip(g, (int) Math.round(vx), (int) Math.round(vy + vh), (int) Math.round(vw), feed, config.get());
+        g.setClip(stripClip);
         if (w.boxCheck() != null) {
             boxCheck(g, w, p, vx, vy, vw);
         }
@@ -550,7 +541,7 @@ final class MinimapPanel extends JPanel {
             }
             grid(g, p, map, k.ground() != ViewSettings.MapBackground.SLATE);
             if (k.named()) {
-                watermark(g, ox, oy, mw, mh, map);
+                watermark(g, ox, oy, mw, mh, k.mapName());
             }
             g.setClip(null);
             g.setColor(BORDER);
@@ -572,8 +563,7 @@ final class MinimapPanel extends JPanel {
     }
 
     /** The map's name big and faint in the middle (as AstraBot and DarkBot); the session's time is drawn live. */
-    private void watermark(Graphics2D g, double ox, double oy, double mw, double mh, MapCatalog.MapInfo map) {
-        String name = map.name();
+    private void watermark(Graphics2D g, double ox, double oy, double mw, double mh, String name) {
         g.setFont(hud.font(Font.BOLD, watermarkSize(g, mw, mh, name)));
         java.awt.FontMetrics fm = g.getFontMetrics();
         g.setColor(new Color(255, 255, 255, 34));
@@ -596,101 +586,278 @@ final class MinimapPanel extends JPanel {
         }
     }
 
-    /** «В час»: uridium and credits per hour, deaths, the hold — a few lines above the bottom strip, on the left. */
-    private void rates(Graphics2D g, double x, int bottom, WorldSnapshot w) {
-        double hours = feed.sessionHours();
-        WorldSnapshot.Hero hero = w.hero();
-        if (hero.id() == 0) {
+    private static final java.util.regex.Pattern COUNT = java.util.regex.Pattern.compile("-=-\\s*(\\d+)\\s*-=-");
+
+    /** The header with its buttons is hidden: where the menu is, top left (the map chip that held it is gone). */
+    private void menuHint(Graphics2D g, double vx, double vy, double vw) {
+        if (ViewSettings.shared().shown(ViewSettings.Section.HEADER)) {
             return;
         }
-        java.util.List<String[]> rows = new java.util.ArrayList<>();
-        if (hours >= 1.0 / 60) {
-            WorldSnapshot.Rewards r = feed.sessionRewards();
-            rows.add(new String[] {"уридий / ч", orbit.app.log.Friendly.short_(r.uridium() / hours)});
-            rows.add(new String[] {"кредиты / ч", orbit.app.log.Friendly.short_(r.credits() / hours)});
+        String hint = getWidth() >= 700 ? "☰ правый клик — меню" : "☰"; // a small map has no room for words
+        g.setFont(hud.font(Font.PLAIN, 11f));
+        java.awt.FontMetrics hm = g.getFontMetrics();
+        int hw = hm.stringWidth(hint) + 16;
+        g.setColor(DB_BACK);
+        g.fillRect((int) Math.round(vx) + 8, (int) Math.round(vy) + 8, hw, 22);
+        g.setColor(Hud.DIM);
+        g.drawString(hint, (float) (vx + 16), (float) (vy + 23));
+    }
+
+    /** DarkBot's {@code texts_background}: a dark band the map shows through. */
+    static final Color DB_BACK = new Color(10, 12, 18, 170);
+
+    /**
+     * DarkBot's stats area ({@code OverlayDrawer.drawStats}): per hour credits, uridium, experience and honour, the hold,
+     * the deaths of the limit — small, on a dark band at the left edge, in the middle of the map's height.
+     */
+    private void dbStats(Graphics2D g, double vx, double vy, double vh, int bottom, WorldSnapshot w) {
+        WorldSnapshot.Hero hero = w.hero();
+        double hours = Math.max(feed.sessionHours(), 1.0 / 3600);
+        WorldSnapshot.Rewards r = feed.sessionRewards();
+        java.util.List<String> rows = new java.util.ArrayList<>();
+        rows.add("кредиты/ч " + group(r.credits() / hours));
+        rows.add("уридий/ч " + group(r.uridium() / hours));
+        rows.add("опыт/ч " + group(r.experience() / hours));
+        rows.add("честь/ч " + group(r.honor() / hours));
+        if (hero.cargoMax() > 0) {
+            rows.add("трюм " + group(Math.max(0, hero.cargoMax() - w.cargoFree())) + "/" + group(hero.cargoMax()));
         }
         orbit.bot.run.Stats st = feed.sessionStats();
-        if (st != null) {
-            rows.add(new String[] {"смерти", String.valueOf(st.deaths.get())});
+        orbit.bot.run.BotRunner run = feed.runner();
+        int limit = run == null ? -1 : run.maxDeaths();
+        rows.add("смерти " + (st == null ? 0 : st.deaths.get()) + "/" + (limit > 0 ? String.valueOf(limit) : "∞"));
+        java.util.List<Color> colors = java.util.Collections.nCopies(rows.size(), Hud.TEXT);
+        backgrounded(g, rows, colors, vx, vy, vh, bottom, false);
+    }
+
+    /** Booster kinds in DarkBot's short words, with a colour each (DarkBot colours them by kind). */
+    record DbBoost(String small, String prefix, Color color) {
+    }
+
+    static final java.util.Map<String, DbBoost> DB_BOOSTS = java.util.Map.ofEntries(
+            java.util.Map.entry("DAMAGE", new DbBoost("DMG", "dmg", new Color(0xef5350))),
+            java.util.Map.entry("HITPOINTS", new DbBoost("HP", "hp", new Color(0x66bb6a))),
+            java.util.Map.entry("SHIELD", new DbBoost("SHD", "shd", new Color(0x42a5f5))),
+            java.util.Map.entry("EXPERIENCE_POINTS", new DbBoost("EP", "ep", new Color(0xab47bc))),
+            java.util.Map.entry("HONOUR_POINTS", new DbBoost("HON", "hon", new Color(0xffca28))),
+            java.util.Map.entry("REPAIR", new DbBoost("REP", "rep", new Color(0xffa726))),
+            java.util.Map.entry("COLLECT_RESOURCES", new DbBoost("RES", "res", new Color(0x26c6da))),
+            java.util.Map.entry("ABILITY_COOLDOWN_TIME", new DbBoost("CD", "cd", new Color(0x8d6e63))),
+            java.util.Map.entry("SHIELD_REGENERATION", new DbBoost("SHR", "shr", new Color(0x5c6bc0))));
+
+    /**
+     * DarkBot's booster area ({@code OverlayDrawer.drawBoosters}): a row a kind, «%3s %2.0f%% %s» — the time left, the
+     * bonus, the kind — in the kind's colour, on a dark band at the right edge, in the middle of the map's height.
+     */
+    private void dbBoosters(Graphics2D g, double right, double vy, double vh, int bottom, WorldSnapshot w) {
+        WorldSnapshot.Boosters b = w.boosters();
+        if (!b.known()) {
+            return;
         }
-        if (hero.cargoMax() > 0) {
-            long used = Math.max(0, hero.cargoMax() - w.cargoFree());
-            rows.add(new String[] {"трюм", String.format("%,d / %,d", used, hero.cargoMax()).replace(',', ' ')});
+        long now = w.nanos();
+        java.util.List<String> rows = new java.util.ArrayList<>();
+        java.util.List<Color> colors = new java.util.ArrayList<>();
+        // a steady order, kind by kind (the totals are a hash map: the rows jumped from frame to frame)
+        java.util.List<String> order = java.util.List.of("DAMAGE", "HITPOINTS", "SHIELD", "SHIELD_REGENERATION",
+                "EXPERIENCE_POINTS", "HONOUR_POINTS", "REPAIR", "COLLECT_RESOURCES", "ABILITY_COOLDOWN_TIME");
+        java.util.List<java.util.Map.Entry<String, Double>> kinds = new java.util.ArrayList<>(b.totals().entrySet());
+        kinds.sort(java.util.Comparator.comparingInt((java.util.Map.Entry<String, Double> e) -> {
+            int i = order.indexOf(e.getKey().replace("_NEWBIE", ""));
+            return i < 0 ? order.size() : i;
+        }).thenComparing(java.util.Map.Entry::getKey));
+        kinds.forEach(e -> {
+            String attr = e.getKey();
+            Double total = e.getValue();
+            if (total == null || total <= 0) {
+                return;
+            }
+            DbBoost kind = DB_BOOSTS.get(attr.replace("_NEWBIE", ""));
+            String small = kind != null ? kind.small() : attr.substring(0, Math.min(3, attr.length()));
+            long left = -1;
+            for (WorldSnapshot.Booster x : b.active().values()) {
+                String id = x.lootId().replaceFirst("^booster_", "");
+                if (kind != null && id.startsWith(kind.prefix() + "-")) {
+                    left = Math.max(left, x.secondsLeftAt(now));
+                }
+            }
+            rows.add(String.format(java.util.Locale.ROOT, "%3s %2.0f%% %s", shortTime(left), total, small));
+            colors.add(kind != null ? kind.color() : Hud.TEXT);
+        });
+        backgrounded(g, rows, colors, right, vy, vh, bottom, true);
+    }
+
+    /** DarkBot's {@code Time.secondsToShort}: «2h», «47m», «30s»; «∞» for a booster with no time. */
+    static String shortTime(long seconds) {
+        if (seconds < 0) {
+            return "∞";
         }
+        return seconds >= 3600 ? seconds / 3600 + "h" : seconds >= 60 ? seconds / 60 + "m" : seconds + "s";
+    }
+
+    /** 12 345 678: DarkBot's «###,###,###» with spaces. */
+    static String group(double v) {
+        return String.format(java.util.Locale.ROOT, "%,.0f", v).replace(',', ' ');
+    }
+
+    /** DarkBot's {@code drawBackgrounded}: rows of 15 px on a band as wide as the widest, centred on the height. */
+    private void backgrounded(Graphics2D g, java.util.List<String> rows, java.util.List<Color> colors, double edge,
+                              double vy, double vh, int bottom, boolean right) {
         if (rows.isEmpty()) {
             return;
         }
-        Font key = hud.font(Font.PLAIN, 11f);
-        Font val = new Font(Font.MONOSPACED, Font.PLAIN, 12);
-        int width = 196;
-        int line = 16;
-        int h = rows.size() * line + 10;
-        int y = bottom - h;
-        g.setColor(new Color(10, 12, 18, 150)); // the portals under it show through
-        g.fillRect((int) x, y, width, h);
-        int ty = y + 16;
-        for (String[] r : rows) {
-            g.setFont(key);
-            g.setColor(Hud.DIM);
-            g.drawString(r[0], (int) x + 10, ty);
-            g.setFont(val);
-            g.setColor(Hud.TEXT);
-            g.drawString(r[1], (int) x + width - 10 - g.getFontMetrics().stringWidth(r[1]), ty);
-            ty += line;
+        g.setFont(hud.font(Font.PLAIN, compact ? 10f : 11f));
+        java.awt.FontMetrics fm = g.getFontMetrics();
+        int line = compact ? 13 : 15;
+        int width = rows.stream().mapToInt(fm::stringWidth).max().orElse(0) + 8;
+        int height = rows.size() * line + 4;
+        int top = (int) Math.round(vy + vh / 2 - height / 2.0);
+        top = Math.max((int) Math.round(vy) + 4, Math.min(top, bottom - height - 4)); // clear of the bottom strip
+        int left = right ? (int) Math.round(edge) - width : (int) Math.round(edge);
+        g.setColor(DB_BACK);
+        g.fillRect(left, top, width, height);
+        for (int i = 0; i < rows.size(); i++) {
+            g.setColor(colors.get(i));
+            g.drawString(rows.get(i), left + 4, top + (i + 1) * line - 1);
         }
     }
 
-    private static final java.util.regex.Pattern COUNT = java.util.regex.Pattern.compile("-=-\\s*(\\d+)\\s*-=-");
+    /**
+     * DarkBot's target ({@code InfosDrawer.drawHealth}): its name in its side's colour, centred, then hull and shield as
+     * bars of 12 px with the numbers on them — over the bottom strip, on the right half.
+     */
+    private void dbTarget(Graphics2D g, double x, double width, int bottom, WorldSnapshot w) {
+        WorldSnapshot.Hero h = w.hero();
+        int id = h.attackTargetId() != 0 ? h.attackTargetId() : h.selectedId();
+        Ship t = w.ships().get(id);
+        if (t == null) {
+            return;
+        }
+        int bar = compact ? 9 : 12;
+        boolean shield = t.health().shieldMax() > 0;
+        int barsTop = bottom - bar - (shield ? bar : 0);
+        g.setFont(hud.font(Font.PLAIN, compact ? 11f : 12f));
+        g.setColor(shipColor(t, h, w.group()));
+        String name = Hud.clip(g, label(t), (int) width);
+        g.drawString(name, (float) (x + (width - g.getFontMetrics().stringWidth(name)) / 2), barsTop - 4);
+        if (t.health().known()) {
+            dbBars(g, x, barsTop, width, bar, t.health().hp(), t.health().hpMax(), t.health().shield(),
+                    t.health().shieldMax(), true);
+        }
+    }
 
-    /** In a galaxy gate: the gate, its wave, the lives and the countdown to the wave, top centre. @return its bottom */
-    private int gatePlaque(Graphics2D g, double vx, double vy, double vw, WorldSnapshot w, WorldSnapshot.Hero hero) {
-        orbit.config.GateCatalog.Gate gate = hero.id() == 0 ? null : orbit.config.GateCatalog.byMap(hero.mapId());
-        if (gate == null) {
-            return (int) Math.round(vy + 8);
+    /**
+     * DarkBot's pet ({@code InfosDrawer.drawHealth}): a quarter-wide hull bar of 6 px with the name over it, the fuel under
+     * it; the pet's target likewise at the right end of the left half — over the bottom strip.
+     */
+    private void dbPet(Graphics2D g, double x, double width, double rightEnd, int bottom, WorldSnapshot w) {
+        WorldSnapshot.Pet pet = w.pet();
+        if (!pet.active() || width < 30) {
+            return;
         }
-        WorldSnapshot.Gate st = gate.builderId() != 0 ? w.gates().gate(gate.builderId()) : null;
-        StringBuilder t = new StringBuilder("eternal".equals(gate.key()) ? "Вечные врата" : "Врата " + gate.name().split(" ")[0]);
-        if ("eternal".equals(gate.key())) {
-            WorldSnapshot.Eternal e = w.gates().eternal();
-            if (e.wave() > 0) {
-                t.append("  ·  волна ").append(e.wave());
-            }
-            if (e.cpus() >= 0) {
-                t.append("  ·  CPU ").append(e.cpus());
-            }
+        int bar = 6;
+        int fuelTop = bottom - bar;
+        int hullTop = fuelTop - bar - 2;
+        g.setFont(hud.font(Font.PLAIN, compact ? 9f : 10f));
+        if (pet.health().known()) {
+            dbBars(g, x, hullTop, width, bar, pet.health().hp(), pet.health().hpMax(), 0, 0, false);
         }
-        if (st != null && st.wave() > 0) {
-            t.append("  ·  волна ").append(st.wave()).append(gate.waves() > 0 ? " / " + gate.waves() : "");
+        if (pet.fuelMax() > 0) {
+            g.setColor(new Color(0x5a5a5a));
+            g.fillRect((int) Math.round(x), fuelTop, (int) Math.round(width), bar);
+            g.setColor(new Color(0xf2f2f2));
+            g.fillRect((int) Math.round(x), fuelTop,
+                    (int) Math.round(width * Math.max(0, Math.min(1, (double) pet.fuel() / pet.fuelMax()))), bar);
         }
-        if (st != null && st.lives() > 0) {
-            t.append("  ·  жизней ").append(st.lives());
-        }
-        long now = feed.nowNanos();
-        java.util.List<orbit.world.World.GameNote> notes = feed.gameNotes();
-        for (int i = notes.size() - 1; i >= 0; i--) {
-            orbit.world.World.GameNote n = notes.get(i);
-            java.util.regex.Matcher m = n.text() == null ? null : COUNT.matcher(n.text());
-            if (m != null && m.find()) {
-                int left = Integer.parseInt(m.group(1));
-                if (now - n.nanos() < 1_500_000_000L) {
-                    t.append("  ·  ").append(left == 0 ? "волна пошла" : "⏱ волна через " + left + " с");
-                }
-                break;
-            }
-        }
-        g.setFont(hud.font(Font.BOLD, 13f));
-        java.awt.FontMetrics fm = g.getFontMetrics();
-        String text = Hud.clip(g, t.toString(), (int) vw - 60);
-        int width = fm.stringWidth(text) + 24;
-        int x = (int) Math.round(vx + (vw - width) / 2);
-        int y = (int) Math.round(vy + 10);
-        g.setColor(new Color(10, 12, 18, 200));
-        g.fillRect(x, y, width, 28);
-        g.setColor(new Color(MinimapPanel.HERO.getRed(), MinimapPanel.HERO.getGreen(), MinimapPanel.HERO.getBlue(), 170));
-        g.fillRect(x, y, width, 2);
         g.setColor(Hud.TEXT);
-        g.drawString(text, x + 12, y + 19);
-        return y + 28;
+        String name = Hud.clip(g, pet.name(), (int) width);
+        g.drawString(name, (float) (x + (width - g.getFontMetrics().stringWidth(name)) / 2), hullTop - 3);
+        Ship self = w.ships().get(pet.id());
+        Ship t = self == null ? null : w.ships().get(self.attackTargetId());
+        if (t != null && t.health().known()) {
+            double tx = rightEnd - width;
+            dbBars(g, tx, hullTop, width, bar, t.health().hp(), t.health().hpMax(), 0, 0, false);
+            g.setColor(shipColor(t, w.hero(), w.group()));
+            String tn = Hud.clip(g, label(t), (int) width);
+            g.drawString(tn, (float) (tx + (width - g.getFontMetrics().stringWidth(tn)) / 2), hullTop - 3);
+        }
+    }
+
+    static final Color DB_HEALTH = new Color(0x3fa864);
+    static final Color DB_SHIELD = new Color(0x4f82d1);
+
+    /** DarkBot's bars: hull on a darker track, the shield under it; the numbers on them when {@code numbers}. */
+    private void dbBars(Graphics2D g, double x, int y, double width, int height, double hp, double hpMax, double sh,
+                        double shMax, boolean numbers) {
+        int ix = (int) Math.round(x);
+        int iw = (int) Math.round(width);
+        g.setColor(DB_HEALTH.darker().darker());
+        g.fillRect(ix, y, iw, height);
+        g.setColor(DB_HEALTH);
+        g.fillRect(ix, y, hpMax <= 0 ? 0 : (int) Math.round(iw * Math.max(0, Math.min(1, hp / hpMax))), height);
+        Font font = hud.font(Font.PLAIN, compact ? 8f : 10f);
+        if (numbers && height >= 8) {
+            g.setFont(font);
+            dbNumber(g, group(hp) + "/" + group(hpMax), ix, iw, y + height - 2);
+        }
+        if (shMax > 0) {
+            int sy = y + height;
+            g.setColor(DB_SHIELD.darker().darker());
+            g.fillRect(ix, sy, iw, height);
+            g.setColor(DB_SHIELD);
+            g.fillRect(ix, sy, (int) Math.round(iw * Math.max(0, Math.min(1, sh / shMax))), height);
+            if (numbers && height >= 8) {
+                g.setFont(font);
+                dbNumber(g, group(sh) + "/" + group(shMax), ix, iw, sy + height - 2);
+            }
+        }
+    }
+
+    private static void dbNumber(Graphics2D g, String text, int x, int width, int baseline) {
+        java.awt.FontMetrics fm = g.getFontMetrics();
+        g.setColor(Hud.TEXT);
+        g.drawString(text, x + (width - fm.stringWidth(text)) / 2, baseline);
+    }
+
+    /** DarkBot's trail ({@code TrailDrawer}): the ship's way over the last seconds, fading from the oldest. */
+    static final long TRAIL_NS = 15_000_000_000L;
+    private final java.util.ArrayDeque<double[]> trail = new java.util.ArrayDeque<>();
+    private int trailMap;
+
+    private void trail(Graphics2D g, WorldSnapshot w, Projection p, double u) {
+        WorldSnapshot.Hero h = w.hero();
+        long now = w.nanos();
+        if (trailMap != h.mapId()) {
+            trail.clear();
+            trailMap = h.mapId();
+        }
+        double[] last = trail.peekLast();
+        double moved = last == null ? Double.MAX_VALUE : Math.hypot(h.x() - last[0], h.y() - last[1]);
+        if (last != null && moved > 5_000) {
+            trail.clear(); // a jump on the map (a revive, a teleport): no line across
+            last = null;
+        }
+        if (last == null || moved > 250) {
+            trail.addLast(new double[] {h.x(), h.y(), now});
+        }
+        while (!trail.isEmpty() && now - trail.peekFirst()[2] > TRAIL_NS) {
+            trail.removeFirst();
+        }
+        if (trail.size() < 2) {
+            return;
+        }
+        g.setStroke(new BasicStroke((float) Math.max(1, u), BasicStroke.CAP_BUTT, BasicStroke.JOIN_ROUND));
+        double[] prev = null;
+        for (double[] pt : trail) {
+            if (prev != null) {
+                float a = (float) Math.max(0, Math.min(1, 1 - (now - pt[2]) / (double) TRAIL_NS));
+                g.setColor(new Color(224, 224, 224, (int) (200 * a)));
+                g.draw(new Line2D.Double(p.x(prev[0]), p.y(prev[1]), p.x(pt[0]), p.y(pt[1])));
+            }
+            prev = pt;
+        }
+        g.setColor(new Color(224, 224, 224, 200));
+        g.draw(new Line2D.Double(p.x(prev[0]), p.y(prev[1]), p.x(h.x()), p.y(h.y())));
+        g.setStroke(new BasicStroke(1f));
     }
 
     /**
@@ -706,9 +873,6 @@ final class MinimapPanel extends JPanel {
             long age = now - n.nanos();
             if (age > FEED_SHOW_NS + FEED_FADE_NS) {
                 break;
-            }
-            if (n.text() != null && COUNT.matcher(n.text()).find()) {
-                continue; // the countdown is on the gate's plaque
             }
             shown.add(0, n);
         }
@@ -812,38 +976,6 @@ final class MinimapPanel extends JPanel {
             g.setFont(labelFont);
             drawLabel(g, "пеленгатор", cx + r + 4 * u, cy + 4 * u, LOCATOR);
         }
-    }
-
-    /** The map's name and the hero's place in the top-left corner of the map. */
-    /** @return the chip's bottom */
-    private int mapChip(Graphics2D g, double ox, double oy, double width, WorldSnapshot.Hero hero, MapCatalog.MapInfo map) {
-        // the map's name is the watermark in the middle now: here where the ship is
-        String text = hero.id() == 0 || feed.loggedOut() ? feed.state()
-                : map.name() + "   " + hero.x() / 100 + "/" + hero.y() / 100;
-        g.setFont(hud.font(Font.BOLD, 13f));
-        java.awt.FontMetrics fm = g.getFontMetrics();
-        text = Hud.clip(g, text, (int) width - 40); // never past the map's edge
-        int w = fm.stringWidth(text) + 20;
-        g.setColor(new Color(10, 12, 18, 200));
-        g.fill(new java.awt.geom.RoundRectangle2D.Double(ox + 10, oy + 10, w, 26, 13, 13));
-        g.setColor(Hud.TEXT);
-        g.drawString(text, (float) (ox + 20), (float) (oy + 28));
-        if (!ViewSettings.shared().shown(ViewSettings.Section.HEADER)) {
-            // the header with its buttons is hidden: say where the menu is
-            String hint = getWidth() >= 700 ? "☰ правый клик — меню" : "☰"; // a small map has no room for words
-            g.setFont(hud.font(Font.PLAIN, 11f));
-            java.awt.FontMetrics hm = g.getFontMetrics();
-            int hw = hm.stringWidth(hint) + 16;
-            double hx = ox + 10 + w + 6;
-            if (hx + hw > ox + width - 10) {
-                return (int) Math.round(oy + 36); // no room left beside the text
-            }
-            g.setColor(new Color(10, 12, 18, 200));
-            g.fill(new java.awt.geom.RoundRectangle2D.Double(hx, oy + 10, hw, 26, 13, 13));
-            g.setColor(Hud.DIM);
-            g.drawString(hint, (float) (hx + 8), (float) (oy + 27));
-        }
-        return (int) Math.round(oy + 36);
     }
 
     /** Faint lines every 1000 game units, like the game's own minimap ruler. */

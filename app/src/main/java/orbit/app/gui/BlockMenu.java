@@ -56,7 +56,7 @@ final class BlockMenu {
         });
     }
 
-    /** «Цель»: Сбоку / На карте / Скрыть. */
+    /** «Цель»: Сбоку / Скрыть. */
     static JPopupMenu forBlock(ViewSettings.Block b) {
         JPopupMenu menu = new JPopupMenu(b.label);
         JMenuItem title = new JMenuItem(b.label);
@@ -65,7 +65,7 @@ final class BlockMenu {
         menu.addSeparator();
         ButtonGroup choice = new ButtonGroup();
         ViewSettings v = ViewSettings.shared();
-        for (ViewSettings.Place p : ViewSettings.Place.values()) {
+        for (ViewSettings.Place p : ViewSettings.Place.choices()) {
             JRadioButtonMenuItem r = new JRadioButtonMenuItem(p.label, v.place(b) == p);
             r.addActionListener(e -> v.set(b, p));
             choice.add(r);
@@ -134,7 +134,7 @@ final class BlockMenu {
         for (ViewSettings.Block b : ViewSettings.Block.values()) {
             JMenu item = new JMenu(b.label + ":  " + v.place(b).label.toLowerCase());
             ButtonGroup choice = new ButtonGroup();
-            for (ViewSettings.Place p : ViewSettings.Place.values()) {
+            for (ViewSettings.Place p : ViewSettings.Place.choices()) {
                 JRadioButtonMenuItem r = new JRadioButtonMenuItem(p.label, v.place(b) == p);
                 r.addActionListener(e -> v.set(b, p));
                 choice.add(r);
@@ -161,12 +161,8 @@ final class BlockMenu {
         ViewSettings v = ViewSettings.shared();
         JMenuItem side = new JMenuItem("Все сбоку");
         side.addActionListener(e -> v.setAll(ViewSettings.Place.SIDE));
-        JMenuItem map = new JMenuItem("Все на карте");
-        map.addActionListener(e -> v.setAll(ViewSettings.Place.MAP));
-        JMenuItem both = new JMenuItem("Все везде");
-        both.addActionListener(e -> v.setAll(ViewSettings.Place.BOTH));
         JMenuItem none = new JMenuItem("Скрыть все");
         none.addActionListener(e -> v.setAll(ViewSettings.Place.HIDDEN));
-        return new JMenuItem[] {side, map, both, none};
+        return new JMenuItem[] {side, none};
     }
 }

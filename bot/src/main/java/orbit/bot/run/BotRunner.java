@@ -279,6 +279,11 @@ public final class BotRunner {
         activeHangar = id;
     }
 
+    /** The config's death limit ({@code -1} or 0: none), for the map's stats. */
+    public int maxDeaths() {
+        return ctx.config().get().safety().maxDeaths();
+    }
+
     /** The module running ({@code null} before the first tick). */
     public orbit.config.BotConfig.Module moduleKind() {
         return moduleKind;

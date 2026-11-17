@@ -63,6 +63,19 @@ public final class ViewSettings {
         public boolean map() {
             return this == MAP || this == BOTH;
         }
+
+        /**
+         * The choices offered: the map has DarkBot's overlays only (the user, 2026-11-17: «то, чего в DarkBot нет на
+         * карте, — только в боковой панели»), so a block is beside it or hidden.
+         */
+        public static List<Place> choices() {
+            return List.of(SIDE, HIDDEN);
+        }
+
+        /** «На карте» and «Сбоку и на карте» of before: beside the map now. */
+        static Place normalized(Place p) {
+            return p == MAP || p == BOTH ? SIDE : p;
+        }
     }
 
     /** The parts of the account view around the map, each to show or hide. */
@@ -90,7 +103,7 @@ public final class ViewSettings {
     private ViewSettings(Path file) {
         this.file = file;
         for (Block b : Block.values()) {
-            places.put(b, b == Block.TARGET || b == Block.ATTACKERS ? Place.MAP : Place.SIDE);
+            places.put(b, Place.SIDE);
         }
         for (Section s : Section.values()) {
             shown.put(s, true);
@@ -183,7 +196,7 @@ public final class ViewSettings {
                     String s = p.getProperty("block." + b.name());
                     if (s != null) {
                         try {
-                            v.places.put(b, Place.valueOf(s));
+                            v.places.put(b, Place.normalized(Place.valueOf(s)));
                         } catch (IllegalArgumentException ignored) {
                             // an old or broken value: keep the default
                         }
@@ -202,7 +215,7 @@ public final class ViewSettings {
 
     public void set(Block b, Place p) {
         synchronized (this) {
-            places.put(b, p);
+            places.put(b, Place.normalized(p));
         }
         changed();
     }
@@ -211,7 +224,7 @@ public final class ViewSettings {
     public void setAll(Place p) {
         synchronized (this) {
             for (Block b : Block.values()) {
-                places.put(b, p);
+                places.put(b, Place.normalized(p));
             }
         }
         changed();
