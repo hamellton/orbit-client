@@ -919,8 +919,10 @@ class BehemothModuleTest {
             r.userId = 900 + i;
             sim.world.apply(r, sim.now);
         }
-        sim.run(m::tick, 2_000);
-        assertTrue(m.workingMap() != 308, "gone: on to the next map");
+        sim.run(m::tick, 10_000);
+        assertEquals(308, m.workingMap(), "out of sight a moment (the edge of the view): still waiting");
+        sim.run(m::tick, 40_000);
+        assertTrue(m.workingMap() != 308, "gone for good: on to the next map");
     }
 
     @Test

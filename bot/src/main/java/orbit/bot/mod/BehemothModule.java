@@ -2305,16 +2305,27 @@ public final class BehemothModule implements BotModule {
             return false; // by the timer the next is far: the train is still there after the kill (live 2026-11-14)
         }
         int n = enemiesBySpawn(w, h, TRAIN_COMING);
+        long now = ctx.now();
         if (n >= TRAIN_MIN) {
             if (!trainWaitTold) {
                 trainWaitTold = true;
                 log.info("{}: поезд ({} врагов) у места появления — бегемот, похоже, скоро здесь: жду дальше",
                         ctx.maps().info(h.mapId()).name(), n);
             }
+            trainSeenMap = h.mapId();
+            trainSeenNs = now;
             return true;
         }
-        return false;
+        // seen from the wait point at the edge of the view the train flickers in and out of sight: held on a while
+        // after its last look (live 2026-11-17 on the VPS, 2-BL 08:05: «жду дальше», then gone 4 s later — the
+        // timer unknown, the train there was all there was to go by)
+        return trainSeenMap == h.mapId() && now - trainSeenNs < TRAIN_STICKY_NS;
     }
+
+    /** A train seen by the spawn keeps the ship waiting this long after it was last in sight. */
+    static final long TRAIN_STICKY_NS = 45_000_000_000L;
+    private int trainSeenMap;
+    private long trainSeenNs;
 
     /** Seconds between looks for a freer side ({@code freeSide}). */
     static final long SIDE_LOOK_NS = 3_000_000_000L;
