@@ -1971,20 +1971,27 @@ public final class BehemothModule implements BotModule {
      * {@link #WAY_GRACE_NS} more (live 2026-11-13 on the VPS, 2-BL: a detour round the server's zones ate the wait).
      */
     private boolean waitOver(int map) {
+        holdNote = null;
         if (waitMap != map || ctx.now() < waitUntil + (reachedMap == map ? 0 : WAY_GRACE_NS)) {
             return false;
         }
+        long left = respawn(map) + FIRST_SPARE_MS - (ctx.now() - waitStarted) / 1_000_000;
         if (waitingFirst(map)) {
+            holdNote = "первого с запуска, стою до появления (ещё до " + clock(Math.max(0, left)) + ")";
             return false;
         }
         if (holdUnknown(map)) {
+            holdNote = "время неизвестно, стою до появления (ещё до " + clock(Math.max(0, left)) + ")";
             return false;
         }
         WorldSnapshot w = ctx.world().get();
+        long maxLeft = Math.max(0, (waitUntil + TRAIN_WAIT_MAX_NS - ctx.now()) / 1_000_000);
         if (trainComing(w, w.hero())) {
+            holdNote = "у места появления поезд — он ждёт его (ещё до " + clock(maxLeft) + ")";
             return false;
         }
         if (behemothListed && ctx.now() - waitUntil < TRAIN_WAIT_MAX_NS) {
+            holdNote = "пеленгатор видит его на карте (ещё до " + clock(maxLeft) + ")";
             return false; // it is on the map by the locator's list: wait for it
         }
         if (enemyNear(w, w.hero()) && ctx.now() - waitUntil < TRAIN_WAIT_MAX_NS) {
@@ -1992,10 +1999,14 @@ public final class BehemothModule implements BotModule {
                 enemyWaitTold = true;
                 log.info("Враги рядом — не вылетаю с точки, пока не уйдут (до 3 мин)");
             }
+            holdNote = "враги рядом — не вылетаю (ещё до " + clock(maxLeft) + ")";
             return false;
         }
         return true;
     }
+
+    /** Why the ship still waits once the map's own wait is over, for the status; {@code null} — it is not over. */
+    private String holdNote;
 
     /** Flies to the map's wait point and waits; the wait over and no behemoth: the next map. */
     private void waitHere(JsonNode s, WorldSnapshot.Hero h) {
@@ -2096,7 +2107,7 @@ public final class BehemothModule implements BotModule {
                 return;
             }
         }
-        status = "Жду бегемота, " + clock((waitUntil - now) / 1_000_000);
+        status = holdNote != null ? "Жду бегемота: " + holdNote : "Жду бегемота, " + clock(Math.max(0, waitUntil - now) / 1_000_000);
     }
 
     /**

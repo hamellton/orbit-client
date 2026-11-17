@@ -933,6 +933,7 @@ class BehemothModuleTest {
         m.workingMap();
         sim.run(m::tick, 5 * 60_000);
         assertEquals(308, m.workingMap(), "nothing known here or anywhere: waiting on");
+        assertTrue(m.status().startsWith("Жду бегемота: время неизвестно"), "why, not «0 с»: " + m.status());
     }
 
     @Test
