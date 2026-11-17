@@ -377,7 +377,11 @@ final class KillSection implements Section {
                 fightOptions());
         Map<String, BotConfig.NpcRule> list = new TreeMap<>(npcs.get());
         com.fasterxml.jackson.databind.node.ObjectNode k = c.moduleSettings("kill");
+        BotConfig out = c.withLoot(l).withNpcs(list);
+        if (!dropForHigher.isSelected() && !k.has("dropForHigher")) {
+            return out; // off and never set: the config stays as it was
+        }
         k.put("dropForHigher", dropForHigher.isSelected());
-        return c.withLoot(l).withNpcs(list).withModuleSettings("kill", k);
+        return out.withModuleSettings("kill", k);
     }
 }
