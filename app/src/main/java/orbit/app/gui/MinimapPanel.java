@@ -431,19 +431,17 @@ final class MinimapPanel extends JPanel {
         // the map's bottom as DarkBot's (the user, 2026-11-17: «нижнюю полосу тоже как в DarkBot»): the ship's name and
         // bars on the left half, the target's on the right, the pet over the ship's, the configuration in the corner
         int bottom = (int) Math.round(vy + vh);
-        int stripTop = bottom - 56;
+        int stripTop = bottom - (compact ? 80 : 96); // over the ship's bars and the pet's
         boolean roomForBlocks = vh >= (compact ? 300 : 260);
         if (hero.id() != 0 && roomForBlocks) {
             dbStats(g, vx, vy, vh, stripTop, w);
             dbBoosters(g, vx + vw, vy, vh, stripTop, w);
         }
         if (hero.id() != 0) {
-            dbHero(g, vx + 10, vw / 2 - 20, bottom - 10, w);
+            int nameTop = dbHero(g, vx + 10, vw / 2 - 20, bottom - 10, w);
             dbTarget(g, vx + vw / 2 + 10, vw / 2 - 20, bottom - 10, w);
-            dbPet(g, vx + 10, (vw / 2 - 20) * 0.25, vx + vw / 2 - 10, bottom - 34, w);
-            g.setFont(hud.font(Font.PLAIN, compact ? 10f : 11f));
-            g.setColor(Hud.TEXT);
-            g.drawString(String.valueOf(hero.config()), (float) (vx + 12), bottom - 12);
+            // the pet over the ship's name, clear of it (on top of each other in DarkBot's places, the user, 2026-11-17)
+            dbPet(g, vx + 10, (vw / 2 - 20) * 0.25, vx + vw / 2 - 10, nameTop - 4, w);
         } else {
             g.setFont(hud.font(Font.PLAIN, 12f));
             g.setColor(Hud.DIM);
@@ -776,19 +774,29 @@ final class MinimapPanel extends JPanel {
         }
     }
 
-    /** DarkBot's own ship ({@code InfosDrawer.drawHealth}): the name over hull and shield bars of 12 px with numbers. */
-    private void dbHero(Graphics2D g, double x, double width, int bottom, WorldSnapshot w) {
+    /**
+     * DarkBot's own ship ({@code InfosDrawer.drawHealth}): the name over hull and shield bars of 12 px with numbers; the
+     * configuration at the name line's left (DarkBot puts it in the corner, on the bars). @return the name's top
+     */
+    private int dbHero(Graphics2D g, double x, double width, int bottom, WorldSnapshot w) {
         WorldSnapshot.Hero h = w.hero();
         int bar = compact ? 9 : 12;
         int barsTop = bottom - 2 * bar;
         g.setFont(hud.font(Font.PLAIN, compact ? 11f : 12f));
+        java.awt.FontMetrics fm = g.getFontMetrics();
+        int baseline = barsTop - 6;
+        String config = "конф. " + h.config();
+        int cw = fm.stringWidth(config) + 10;
+        g.setColor(Hud.DIM);
+        g.drawString(config, (float) x, baseline);
         g.setColor(Hud.TEXT);
-        String name = Hud.clip(g, h.name(), (int) width);
-        g.drawString(name, (float) (x + (width - g.getFontMetrics().stringWidth(name)) / 2), barsTop - 6);
+        String name = Hud.clip(g, h.name(), (int) width - 2 * cw);
+        g.drawString(name, (float) (x + (width - fm.stringWidth(name)) / 2), baseline);
         if (h.health().known()) {
             dbBars(g, x, barsTop, width, bar, h.health().hp(), h.health().hpMax(), h.health().shield(),
                     Math.max(h.health().shieldMax(), 1), true);
         }
+        return baseline - fm.getAscent();
     }
 
     /**
