@@ -86,6 +86,15 @@ class FriendlyTest {
     }
 
     @Test
+    void windowsCommasInLootAreThousands() {
+        // live 2026-11-17 on the VPS: two behemoth boxes read «+11 уридия, +139 чести» — the log said 11,430 and 138,504
+        assertEquals("+11 430 уридия, +40,1 млн кредитов, +22,7 млн опыта, +139 тыс. чести, +230 Rinusk,"
+                        + " +255 Blacklight-trace, +66 Mindfire-cerebrum, +504 Eternal-fragment",
+                Friendly.loot("+230 Rinusk  ·  +255 Blacklight-trace  ·  +66 Mindfire-cerebrum  ·  +504 Eternal-fragment"
+                        + "  ·  +22,708,398 опыта  ·  +138,504 чести  ·  +40,080,776 кредитов  ·  +11,430 уридия"));
+    }
+
+    @Test
     void eachLootIsItsOwnRowAndOtherLinesFold() {
         line(I, "orbit.app.LootLog", "Добыча: +16 уридия");
         line(I, "orbit.app.LootLog", "Добыча: +16 уридия");
