@@ -920,7 +920,8 @@ public record BotConfig(
                          Double escapeHp, Boolean oneWayJumps, Integer maxDeathsPerPlayer, Integer honorBreakMinutes) {
 
         public static final int DEFAULT_HONOR_BREAK_MINUTES = 15;
-        public static final int DEFAULT_PAID_REVIVES = 2;
+        /** Off by default (the user, 2026-11-17: repairs' price does not matter); kept to turn on for a weak account. */
+        public static final int DEFAULT_PAID_REVIVES = 0;
         public static final int DEFAULT_PAID_REVIVE_MINUTES = 3;
         public static final double DEFAULT_ESCAPE_HP = 0.25;
         public static final Safety DEFAULT = new Safety(0.5, 0.9, 0.5, 0, null, null, 10, "PORTAL", 10, 10);

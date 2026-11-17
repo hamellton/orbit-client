@@ -828,7 +828,7 @@
     "revive": "PORTAL",
     "waitBeforeReviveSec": 10,
     "waitAfterReviveSec": 10,
-    "paidRevives": 2,
+    "paidRevives": 0,
     "paidReviveMinutes": 3,
     "escapeHp": 0.25,
     "oneWayJumps": false

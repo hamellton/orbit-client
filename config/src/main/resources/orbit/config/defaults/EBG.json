@@ -248,7 +248,7 @@
     "revive": "BASE",
     "waitBeforeReviveSec": 5,
     "waitAfterReviveSec": 3,
-    "paidRevives": 2,
+    "paidRevives": 0,
     "paidReviveMinutes": 3,
     "escapeHp": 0.25,
     "oneWayJumps": false,

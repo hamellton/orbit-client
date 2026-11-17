@@ -23,7 +23,7 @@ class MigrationsTest {
     void schemaTwoLimitsPaidRevivesInARow() throws Exception {
         ObjectNode old = (ObjectNode) Json.MAPPER.readTree("{\"schema\": 2, \"safety\": {\"revive\": \"PORTAL\", \"maxDeaths\": 5}}");
         BotConfig c = Migrations.read(old);
-        assertEquals(2, c.safety().paidRevives());
+        assertEquals(BotConfig.Safety.DEFAULT_PAID_REVIVES, c.safety().paidRevives());
         assertEquals(3, c.safety().paidReviveMinutes());
         assertEquals(5, c.safety().maxDeaths(), "the rest stays");
         ObjectNode off = (ObjectNode) Json.MAPPER.readTree("{\"schema\": 3, \"safety\": {\"paidRevives\": 0, \"paidReviveMinutes\": 3}}");
