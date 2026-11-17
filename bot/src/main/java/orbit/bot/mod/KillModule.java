@@ -50,6 +50,32 @@ public final class KillModule implements BotModule {
         return attacker.targetId();
     }
 
+    /** A target flagged {@code RUSH} is fought, or the locator leads to one this very moment. */
+    @Override
+    public boolean rushing() {
+        return attacker.fighting(BotConfig.NpcFlag.RUSH) || ctx.now() - leadRushAt < LEAD_RUSH_NS;
+    }
+
+    /** No keeping off offenders while rushing: the runner's circles wait for the target's death. */
+    @Override
+    public boolean holdsGround() {
+        return rushing();
+    }
+
+    private long leadRushAt = Long.MIN_VALUE / 2;
+    static final long LEAD_RUSH_NS = 1_500_000_000L;
+
+    /** The NPC the locator looks for now is flagged {@code RUSH} in the list. */
+    private boolean locatorRush(BotConfig c, WorldSnapshot w) {
+        int npc = petLocator();
+        if (npc == 0) {
+            return false;
+        }
+        int map = w.hero().mapId();
+        return c.npcs().entrySet().stream().anyMatch(e -> e.getValue().kill() && e.getValue().has(BotConfig.NpcFlag.RUSH)
+                && e.getValue().appliesOn(map) && npcNumber(e.getKey()) == npc);
+    }
+
     /** HP Link while an NPC flagged so is fought (AstraBot «HP Link»). */
     @Override
     public int petGear() {
@@ -246,7 +272,11 @@ public final class KillModule implements BotModule {
             log.info("Пеленгатор нашёл {} на {}/{}, в {} от нас — лечу", name, lead[0] / 100, lead[1] / 100,
                     String.format("%,d", (int) dist).replace(',', ' '));
         }
-        ctx.ship().want(c.general().travel());
+        boolean rush = locatorRush(c, w);
+        if (rush) {
+            leadRushAt = now; // the run mode, and nothing turns the ship off its way to it
+        }
+        ctx.ship().want(rush ? c.general().run() : c.general().travel());
         if (ctx.nav().idle() || Math.hypot(ctx.nav().destination().x() - lead[0], ctx.nav().destination().y() - lead[1]) > 300) {
             ctx.nav().moveTo(lead[0], lead[1], false);
         }
@@ -292,7 +322,10 @@ public final class KillModule implements BotModule {
         MapCatalog.MapInfo here = ctx.maps().info(w.hero().mapId());
         // «only in the preferred zone» (DarkBot's ONLY_KILL_PREFERRED; the user's BL_RINUSK keeps to a zone)
         boolean onlyZone = c.general().onlyKillPreferred();
-        return Targets.best(c, w, range, s -> attacker.gaveUp(s.id()) || ctx.nav().inDanger(s.x(), s.y())
+        int map = w.hero().mapId();
+        return Targets.best(c, w, range, s -> attacker.gaveUp(s.id())
+                    // one flagged RUSH is taken by the offenders' circles and the trains too (the user, 2026-11-17)
+                    || !rushed(c, s, map) && ctx.nav().inDanger(s.x(), s.y())
                     || onlyZone && !Zones.inPreferred(c, here, s.x(), s.y())
                     // not one in a crowd of NPCs that attack on sight (live 2026-11-13 on 2-BL: Abide I packs took
                     // 5–9 % of the hull a second while Impulse II was fought)
@@ -305,8 +338,13 @@ public final class KillModule implements BotModule {
                     // rule kept the ship off it until it was itself within 700 — live 2026-11-17 on the VPS)
                     || !Targets.ownerIgnored(c, w, s) && Targets.someoneNearer(w, s)
                     // a train by it: the config's «обходить чужие поезда» (AstraBot avoidTrain)
-                    || c.loot().fight().avoidTrains() && Targets.train(w, s, c.loot().fight().trainPlayers(),
-                            c.loot().fight().trainRadius()));
+                    || !rushed(c, s, map) && c.loot().fight().avoidTrains() && Targets.train(w, s,
+                            c.loot().fight().trainPlayers(), c.loot().fight().trainRadius()));
+    }
+
+    private static boolean rushed(BotConfig c, WorldSnapshot.Ship s, int map) {
+        BotConfig.NpcRule r = Targets.rule(c, s, map);
+        return r != null && r.has(BotConfig.NpcFlag.RUSH);
     }
 
 

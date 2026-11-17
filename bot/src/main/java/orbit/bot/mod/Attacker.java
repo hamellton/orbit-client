@@ -347,6 +347,9 @@ public final class Attacker {
         // the behemoth's staged defence holds on the way in too: the train shoots from 1 600 (live 2026-11-14 on the VPS,
         // 3-BL: ISH at 11 %, EMP at 1 % — nothing while out of reach)
         boolean staged = plan != null && plan.threatPlayers() > 0;
+        if (plan == null && rule != null && rule.has(BotConfig.NpcFlag.RUSH)) {
+            rush(c, w, h, dist, now);
+        }
         if (!staged && (dist > radius + 100 || !shotAt)) {
             return;
         }
@@ -393,6 +396,68 @@ public final class Attacker {
             useFirstReady(w, JAMX, now, "JAM-X");
         }
     }
+
+    /**
+     * A target flagged {@code RUSH} (the user, 2026-11-17: «рваться напролом с импульсом и стенкой, как на бегемоте»):
+     * EMP-01 once it is nearer than {@code modules.kill.rushEmpWithin} and an enemy player is about (shooting the ship or
+     * within {@link #RUSH_ENEMY_NEAR}) — their locks gone on the way in; ISH-01 when the hull falls fast ({@link
+     * #RUSH_FAST_LOSS} within {@link #RUSH_LOSS_NS}) or is below the config's ISH threshold under players' fire. Each only
+     * when ready, within the config's spend limits; not both at once.
+     */
+    private void rush(BotConfig c, WorldSnapshot w, WorldSnapshot.Hero h, double dist, long now) {
+        BotConfig.FightOptions fo = c.loot().fight();
+        double hp = h.health().hpPercent();
+        if (hp >= 0) {
+            hpSeen.addLast(new double[] {now, hp});
+            while (hpSeen.size() > 1 && now - hpSeen.peekFirst()[0] > RUSH_LOSS_NS) {
+                hpSeen.removeFirst();
+            }
+        }
+        int shooting = 0;
+        boolean near = false;
+        for (WorldSnapshot.Ship s : w.ships().values()) {
+            if (s.kind() != WorldSnapshot.ShipKind.PLAYER || !orbit.bot.run.Flee.enemy(s, h) && !h.attackers().contains(s.id())) {
+                continue;
+            }
+            if (h.attackers().contains(s.id())) {
+                shooting++;
+            }
+            if (Math.hypot(s.x() - h.x(), s.y() - h.y()) <= RUSH_ENEMY_NEAR) {
+                near = true;
+            }
+        }
+        int within = c.moduleSettings("kill").path("rushEmpWithin").asInt(BotConfig.DEFAULT_RUSH_EMP_WITHIN);
+        if ((shooting > 0 || near) && dist <= within && now - ishAt > ISH_HOLDS_NS
+                && may(w, h, EMP, fo.empSpend(), empUses, empAt, now)) {
+            log.info("Напролом: EMP-01 — до цели {}, врагов рядом{} (за сутки {})", (int) dist,
+                    shooting > 0 ? ", стреляют " + shooting : "",
+                    AbilityUse.today(h.id(), EMP, System.currentTimeMillis()) + 1);
+            ctx.actions().useItem(EMP);
+            pressed(w, EMP, now);
+            empUses++;
+            empAt = now;
+            return;
+        }
+        double lost = hpSeen.isEmpty() || hp < 0 ? 0 : hpSeen.peekFirst()[1] - hp;
+        boolean fast = lost >= RUSH_FAST_LOSS;
+        boolean low = shooting > 0 && hp >= 0 && hp < fo.ishBelow();
+        if ((fast || low) && now - empAt > EMP_THEN_ISH_NS && may(w, h, ISH, fo.ishSpend(), ishUses, ishAt, now)) {
+            log.info("Напролом: ISH-01 — HP {}%{} (за сутки {})", Math.round(hp * 100),
+                    fast ? ", теряю " + Math.round(lost * 100) + "% за " + RUSH_LOSS_NS / 1_000_000_000L + " с" : "",
+                    AbilityUse.today(h.id(), ISH, System.currentTimeMillis()) + 1);
+            ctx.actions().useItem(ISH);
+            pressed(w, ISH, now);
+            ishUses++;
+            ishAt = now;
+        }
+    }
+
+    /** A rush's EMP-01 counts enemy players this near the ship even when they do not shoot yet. */
+    static final double RUSH_ENEMY_NEAR = 1_500;
+    /** A rush's ISH-01: this much of the hull lost within {@link #RUSH_LOSS_NS}. */
+    static final double RUSH_FAST_LOSS = 0.15;
+    static final long RUSH_LOSS_NS = 2_000_000_000L;
+    private final java.util.ArrayDeque<double[]> hpSeen = new java.util.ArrayDeque<>();
 
     /**
      * The behemoth's fight under a train (the user, 2026-11-14: «навык, потом пониже HP стенка, потом импульс — не
@@ -777,7 +842,9 @@ public final class Attacker {
         track(t, now);
         // the run mode to catch up is the config's «chase» only: DarkBot's AGGRESSIVE_FOLLOW changes the radius alone
         // (the user, 2026-11-17: «1 в 1 как в даркботе»)
-        boolean chasing = move && dist > radius + CHASE_GAP && c.general().runModeChase();
+        // a target flagged RUSH: the run mode to it too (the user, 2026-11-17: invokes through the enemy trains)
+        boolean chasing = move && dist > radius + CHASE_GAP
+                && (c.general().runModeChase() || rule != null && rule.has(BotConfig.NpcFlag.RUSH));
         boolean onTheWay = move && dist > radius + APPROACH && h.attackers().isEmpty();
         BotConfig.FightMove mode = mode(c, rule, t, h, now);
         // DarkBot's RUN_CONFIG_IN_CIRCLE: the run configuration to catch a nearly dead target that got away (below

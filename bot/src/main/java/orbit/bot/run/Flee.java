@@ -151,7 +151,7 @@ public final class Flee {
     }
 
     /** Another faction and not an allied clan (or a pact). */
-    static boolean enemy(WorldSnapshot.Ship s, WorldSnapshot.Hero h) {
+    public static boolean enemy(WorldSnapshot.Ship s, WorldSnapshot.Hero h) {
         if (s.relation() == ClanRelationModule.TYPE_ALLIED || s.relation() == ClanRelationModule.TYPE_NON_AGGRESSION_PACT) {
             return false;
         }

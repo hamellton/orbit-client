@@ -647,8 +647,18 @@ public record BotConfig(
          * RSB fighting it (AstraBot «Use RSB»): once any NPC of the config has this flag, RSB only on those; a config
          * with none flagged — on every NPC, as before
          */
-        USE_RSB
+        USE_RSB,
+        /**
+         * Rush it through the enemies (the user, 2026-11-17: invokes farmed under enemy trains, as on the behemoth): while
+         * it is the target or the locator leads to it — no repair, no flight, no keeping off offenders or trains; the run
+         * mode to it; EMP-01 with enemies about once it is nearer than {@code modules.kill.rushEmpWithin}; ISH-01 on a
+         * fast loss of hull. All back as soon as it is dead.
+         */
+        RUSH
     }
+
+    /** {@code modules.kill.rushEmpWithin} unset: EMP-01 on a rush once the target is this near. */
+    public static final int DEFAULT_RUSH_EMP_WITHIN = 1_500;
 
     /** Some NPC rule of the config carries {@code flag}. */
     public boolean anyNpc(NpcFlag flag) {

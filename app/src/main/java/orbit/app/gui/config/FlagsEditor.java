@@ -36,7 +36,7 @@ final class FlagsEditor extends AbstractCellEditor implements TableCellEditor {
             case NO_CIRCLE -> "не кружить вокруг";
             case KAMIKAZE -> "камикадзе питомца рядом с ним";
             case PASSIVE -> "бить, только если он стреляет в нас (как Passive в DarkBot)";
-            case IGNORE_BOXES -> "не собирать его ящики (30 с у места, где он погиб)";
+            case IGNORE_BOXES -> "в бою с ним — только ящики рядом с ним";
             case ATTACK_SECOND -> "второй целью в группе — пока не работает";
             case PET_LOCATOR -> "искать пеленгатором питомца, когда его не видно";
             case USE_EMP -> "EMP-01 раз за бой, когда он в радиусе (чужие теряют прицел)";
@@ -46,6 +46,7 @@ final class FlagsEditor extends AbstractCellEditor implements TableCellEditor {
             case USE_ABILITY -> "способность корабля (Venom, Sentinel, Solace, Spectrum…), когда готова";
             case USE_RSB -> "RSB по нему (если хоть у одного NPC стоит — RSB только по отмеченным)";
             case HOLD_TARGET -> "держать цель до смерти, не бросать, даже если она долго не теряет HP (врата)";
+            case RUSH -> "напролом: без ремонта, бегства и обхода врагов, ИМП и стенка, пока он жив";
         };
     }
 

@@ -97,6 +97,28 @@ class BotRunnerTest {
     }
 
     @Test
+    void aRushTargetInSightKeepsTheShipFromTheRepair() throws Exception {
+        // the user, 2026-11-17: «совсем не уходить, пока инвок жив»
+        BotConfig c = CubikonModuleTest.config(90, false)
+                .withSafety(new BotConfig.Safety(0.5, 0.9, 0.5, 0, null, null, 10, "PORTAL", 0, 0));
+        java.util.Map<String, BotConfig.NpcRule> npcs = new java.util.HashMap<>(c.npcs());
+        npcs.put("\\\\ Invoke XVI //", new BotConfig.NpcRule(600, -10, true, java.util.Set.of("RUSH"),
+                java.util.Set.of(), null));
+        c = c.withNpcs(npcs);
+        Sim sim = new Sim(c, 26, 10_000, 6_000);
+        sim.npc(77, "\\\\ Invoke XVI //", 10_600, 6_000);
+        orbit.protocol.gen.AttackHitCommand hit = new orbit.protocol.gen.AttackHitCommand();
+        hit.attackerId = 99;
+        hit.victimId = 1;
+        hit.victimHitpoints = 30_000;
+        hit.victimShield = 50_000;
+        sim.world.apply(hit, sim.now);
+        BotRunner r = new BotRunner(sim.ctx, () -> false, s -> { });
+        sim.run(r::tick, 2_000);
+        assertTrue(r.state() != BotRunner.State.REPAIRING, "the invoke first: " + r.state());
+    }
+
+    @Test
     void takesTheConfiguredFreeRepairAfterAPause() throws Exception {
         BotConfig c = CubikonModuleTest.config(90, false)
                 .withSafety(new BotConfig.Safety(0.5, 0.9, 0.5, 0, null, null, 10, "PORTAL", 5, 0));

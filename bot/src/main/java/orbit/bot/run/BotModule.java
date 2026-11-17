@@ -111,6 +111,14 @@ public interface BotModule {
     }
 
     /**
+     * True while the module rushes a target flagged {@code RUSH}: the runner leaves no repair, flight or keeping off
+     * offenders to it till the target is dead (the user, 2026-11-17: «совсем не уходить, пока инвок жив»).
+     */
+    default boolean rushing() {
+        return false;
+    }
+
+    /**
      * A quiet moment for a planned new login (DarkBot's refresh): nothing under way and nothing due within a few
      * minutes. By default when not {@link #busy()}.
      */

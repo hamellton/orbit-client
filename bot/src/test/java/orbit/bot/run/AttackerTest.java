@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.Set;
 import orbit.bot.mod.Attacker;
 import orbit.config.BotConfig;
+import orbit.protocol.gen.ShipCreateCommand;
 import org.junit.jupiter.api.Test;
 
 class AttackerTest {
@@ -314,6 +315,29 @@ class AttackerTest {
         sim.run(() -> a.tick(true), 1_000);
         assertEquals(1, used(sim, "equipment_extra_cpu_ish-01"), "ISH below 60 %");
         assertEquals(1, used(sim, "ammunition_specialammo_emp-01"), "still one EMP");
+    }
+
+    @Test
+    void aRushThrowsEmpWithAnEnemyAboutOnceTheTargetIsNearEnough() {
+        // the user, 2026-11-17: invokes under the enemy trains — EMP once the invoke is nearer than 1 500
+        Sim sim = new Sim(invoke(Set.of("RUSH"), null), 1, 13_000, 6_000);
+        sim.lasers("ammunition_laser_lcb-10", "ammunition_specialammo_emp-01", "equipment_extra_cpu_ish-01");
+        sim.npc(7, "-=[ Target ]=-", 10_000, 6_000);
+        ShipCreateCommand enemy = new ShipCreateCommand();
+        enemy.userId = 500;
+        enemy.userName = "Morreti";
+        enemy.factionId = 1; // the ship is VRU (3)
+        enemy.x = 10_700; // by the invoke, as a train camps it
+        enemy.y = 6_300;
+        sim.world.apply(enemy, sim.now);
+        Attacker a = new Attacker(sim.ctx);
+        a.target(sim.world.snapshot(sim.now).ships().get(7));
+        sim.holdShip = true; // 3 000 away: too far yet
+        sim.run(() -> a.tick(true), 1_000);
+        assertEquals(0, used(sim, "ammunition_specialammo_emp-01"), "3 000 from the target: not yet");
+        sim.holdShip = false;
+        sim.run(() -> a.tick(true), 8_000);
+        assertEquals(1, used(sim, "ammunition_specialammo_emp-01"), "nearer than 1 500 with an enemy by: EMP");
     }
 
     @Test

@@ -99,6 +99,7 @@ public final class BotRunner {
     private int offendersSeen;
     private boolean avoiding;
     private BotModule module;
+    private boolean rushTold;
 
     /** The module at work, {@code null} before the first tick. */
     public BotModule module() {
@@ -572,7 +573,15 @@ public final class BotRunner {
             return;
         }
         nudgeWhenStill(h);
-        if (flee.tick()) {
+        // a RUSH target in sight counts too: the trip to repair is dropped for it (the user: «совсем не уходить, пока
+        // инвок жив»)
+        boolean rush = module != null && (module.rushing() || rushInSight(w));
+        if (rush != rushTold) {
+            rushTold = rush;
+            log.info(rush ? "Напролом: без ремонта, бегства и обхода врагов, пока цель жива"
+                    : "Напролом окончен: ремонт, бегство и обход врагов снова как в конфиге");
+        }
+        if (!rush && flee.tick()) {
             if (module != null) {
                 module.pause();
             }
@@ -582,7 +591,9 @@ public final class BotRunner {
         }
         // the repair before keeping off others: getting away from an NPC must not stop the trip to the portal (live
         // 2026-11-13: 75 % → 23 % in 8 s while stepping out of reach, the repair never began, killed)
-        if (safety.tick(module != null && module.busy(), almostDead(w))) {
+        if (rush) {
+            safety.healOnly(); // the heal abilities go on, the trip to repair waits for the target's death
+        } else if (safety.tick(module != null && module.busy(), almostDead(w))) {
             if (module != null) {
                 module.pause();
             }
@@ -590,7 +601,7 @@ public final class BotRunner {
             show("Ремонт, HP " + Safety.pct(h.health().hpPercent()) + "%");
             return;
         }
-        if (offenders.active()) {
+        if (offenders.active() && !rush) {
             if (offenders.sightings() != offendersSeen) {
                 offendersSeen = offenders.sightings();
                 if (module != null) {
@@ -837,6 +848,24 @@ public final class BotRunner {
 
     /** The target shot has less than this left: the early repair waits for its end. */
     static final double ALMOST_DEAD = 0.1;
+
+    /** An NPC the config flags {@code RUSH} is in sight. */
+    private boolean rushInSight(WorldSnapshot w) {
+        BotConfig c = ctx.config().get();
+        if (!c.anyNpc(BotConfig.NpcFlag.RUSH)) {
+            return false;
+        }
+        int map = w.hero().mapId();
+        for (WorldSnapshot.Ship s : w.ships().values()) {
+            if (s.npc()) {
+                BotConfig.NpcRule r = orbit.bot.mod.Targets.rule(c, s, map);
+                if (r != null && r.kill() && r.has(BotConfig.NpcFlag.RUSH)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
 
     private static boolean almostDead(WorldSnapshot w) {
         WorldSnapshot.Ship t = w.ships().get(w.hero().attackTargetId());
