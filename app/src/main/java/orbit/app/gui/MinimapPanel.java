@@ -644,31 +644,79 @@ final class MinimapPanel extends JPanel {
         WorldSnapshot.Hero hero = w.hero();
         double hours = Math.max(feed.sessionHours(), 1.0 / 3600);
         WorldSnapshot.Rewards r = feed.sessionRewards();
-        java.util.List<String> rows = new java.util.ArrayList<>();
-        rows.add("кредиты/ч " + group(r.credits() / hours));
-        rows.add("уридий/ч " + group(r.uridium() / hours));
-        rows.add("опыт/ч " + group(r.experience() / hours));
-        rows.add("честь/ч " + group(r.honor() / hours));
+        // titles dim on the left, values on the right edge, a thin line between the groups (the user, 2026-11-17)
+        java.util.List<String[]> rows = new java.util.ArrayList<>();
+        rows.add(new String[] {"кредиты/ч", group(r.credits() / hours)});
+        rows.add(new String[] {"уридий/ч", group(r.uridium() / hours)});
+        rows.add(new String[] {"опыт/ч", group(r.experience() / hours)});
+        rows.add(new String[] {"честь/ч", group(r.honor() / hours)});
+        rows.add(null);
         if (hero.cargoMax() > 0) {
-            rows.add("трюм " + group(Math.max(0, hero.cargoMax() - w.cargoFree())) + "/" + group(hero.cargoMax()));
+            rows.add(new String[] {"трюм", group(Math.max(0, hero.cargoMax() - w.cargoFree())) + " / " + group(hero.cargoMax())});
         }
         orbit.bot.run.Stats st = feed.sessionStats();
         orbit.bot.run.BotRunner run = feed.runner();
         int limit = run == null ? -1 : run.maxDeaths();
-        rows.add("смерти " + (st == null ? 0 : st.deaths.get()) + "/" + (limit > 0 ? String.valueOf(limit) : "∞"));
+        rows.add(new String[] {"смерти", (st == null ? 0 : st.deaths.get()) + " / " + (limit > 0 ? String.valueOf(limit) : "∞")});
+        rows.add(null);
         // AstraBot's stats have these too (the user, 2026-11-17): the ship, configuration | formation, speed, cloak
         if (!hero.shipType().isBlank()) {
-            rows.add("корабль " + Hud.shipName(hero.shipType().replaceFirst("_design_.*$", "")));
+            rows.add(new String[] {"корабль", Hud.shipName(hero.shipType().replaceFirst("_design_.*$", ""))});
         }
         String formation = Hud.formation(w.items()).replaceFirst(" \\(.*$", "");
-        rows.add("конфиг " + hero.config() + (formation.equals("—") ? "" : " | " + formation));
+        rows.add(new String[] {"конфиг", hero.config() + (formation.equals("—") ? "" : " | " + formation)});
         if (hero.speed() > 0) {
-            rows.add("скорость " + hero.speed());
+            rows.add(new String[] {"скорость", String.valueOf(hero.speed())});
         }
-        rows.add("невидимость " + (hero.cloaked() ? "да" : "нет"));
-        java.util.List<Color> colors = java.util.Collections.nCopies(rows.size(), Hud.TEXT);
-        backgrounded(g, rows, colors, vx, vy, vh, bottom, false);
+        rows.add(new String[] {"невидимость", hero.cloaked() ? "да" : "нет"});
+        statsTable(g, rows, vx, vy, vh, bottom);
     }
+
+    /**
+     * The stats as a table on DarkBot's dark band: titles dim, values in the text colour flush right, a {@code null} row a
+     * thin line between groups; centred on the map's height like {@link #backgrounded}.
+     */
+    private void statsTable(Graphics2D g, java.util.List<String[]> rows, double edge, double vy, double vh, int bottom) {
+        g.setFont(hud.font(Font.PLAIN, compact ? 10f : 11f));
+        java.awt.FontMetrics fm = g.getFontMetrics();
+        int line = compact ? 13 : 15;
+        int gapRow = compact ? 5 : 7;
+        int pad = 4;
+        int titles = 0;
+        int values = 0;
+        int height = 4;
+        for (String[] row : rows) {
+            if (row == null) {
+                height += gapRow;
+                continue;
+            }
+            titles = Math.max(titles, fm.stringWidth(row[0]));
+            values = Math.max(values, fm.stringWidth(row[1]));
+            height += line;
+        }
+        int width = pad + titles + (compact ? 10 : 14) + values + pad;
+        int top = (int) Math.round(vy + vh / 2 - height / 2.0);
+        top = Math.max((int) Math.round(vy) + 4, Math.min(top, bottom - height - 4)); // clear of the bottom strip
+        int left = (int) Math.round(edge);
+        g.setColor(DB_BACK);
+        g.fillRect(left, top, width, height);
+        int y = top;
+        for (String[] row : rows) {
+            if (row == null) {
+                g.setColor(STATS_RULE);
+                g.drawLine(left + pad, y + gapRow / 2, left + width - pad, y + gapRow / 2);
+                y += gapRow;
+                continue;
+            }
+            y += line;
+            g.setColor(Hud.DIM);
+            g.drawString(row[0], left + pad, y - 1);
+            g.setColor(Hud.TEXT);
+            g.drawString(row[1], left + width - pad - fm.stringWidth(row[1]), y - 1);
+        }
+    }
+
+    private static final Color STATS_RULE = new Color(255, 255, 255, 40);
 
     /** Booster kinds in DarkBot's short words, with a colour each (DarkBot colours them by kind). */
     record DbBoost(String small, String prefix, Color color) {
