@@ -60,6 +60,7 @@ final class KillSection implements Section {
     private final JCheckBox dropForHigher = new JCheckBox("Бросать всё ради цели выше по приоритету");
     private final JSpinner trainPlayers = Form.number(2, 20, 1);
     private final JSpinner rushEmpWithin = Form.number(0, 10_000, 100);
+    private final JCheckBox useCloak = new JCheckBox("Невидимость (CL04K), пока нет боя");
     private final JSpinner trainRadius = Form.number(300, 5_000, 100);
     private final JSpinner ishBelow = Form.number(5, 95, 5);
     // how much EMP-01 and ISH-01 may be spent (0 = no limit)
@@ -207,6 +208,7 @@ final class KillSection implements Section {
                 .row("Не видеть дальше", ignoreFarther)
                 .row("Смотреть вперёд при кружении", smartCircle)
                 .row("", dropForHigher)
+                .row("", useCloak)
                 .row("", avoidTrains)
                 .row("Поезд — игроков от", Form.inline(trainPlayers, new javax.swing.JLabel("в радиусе"), trainRadius))
                 .row("ISH-01 при HP ниже", Form.inline(ishBelow, new javax.swing.JLabel("%")))
@@ -327,6 +329,7 @@ final class KillSection implements Section {
         avoidTrains.setSelected(fo.avoidTrains());
         dropForHigher.setSelected(c.moduleSettings("kill").path("dropForHigher").asBoolean(false));
         Form.set(rushEmpWithin, c.moduleSettings("kill").path("rushEmpWithin").asInt(BotConfig.DEFAULT_RUSH_EMP_WITHIN));
+        useCloak.setSelected(c.moduleSettings("kill").path("useCloak").asBoolean(false));
         Form.set(trainPlayers, fo.trainPlayers());
         Form.set(trainRadius, fo.trainRadius());
         Form.set(ishBelow, (int) Math.round(fo.ishBelow() * 100));
@@ -382,7 +385,8 @@ final class KillSection implements Section {
         com.fasterxml.jackson.databind.node.ObjectNode k = c.moduleSettings("kill");
         BotConfig out = c.withLoot(l).withNpcs(list);
         boolean rushSet = Form.intOf(rushEmpWithin) != BotConfig.DEFAULT_RUSH_EMP_WITHIN || k.has("rushEmpWithin");
-        if (!dropForHigher.isSelected() && !k.has("dropForHigher") && !rushSet) {
+        boolean cloakSet = useCloak.isSelected() || k.has("useCloak");
+        if (!dropForHigher.isSelected() && !k.has("dropForHigher") && !rushSet && !cloakSet) {
             return out; // off and never set: the config stays as it was
         }
         if (dropForHigher.isSelected() || k.has("dropForHigher")) {
@@ -390,6 +394,9 @@ final class KillSection implements Section {
         }
         if (rushSet) {
             k.put("rushEmpWithin", Form.intOf(rushEmpWithin));
+        }
+        if (cloakSet) {
+            k.put("useCloak", useCloak.isSelected());
         }
         return out.withModuleSettings("kill", k);
     }

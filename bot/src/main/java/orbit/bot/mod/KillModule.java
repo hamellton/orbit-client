@@ -18,6 +18,8 @@ public final class KillModule implements BotModule {
     private final boolean collect;
     private final Attacker attacker;
     private final BoxPicker boxes;
+    /** {@code modules.kill.useCloak}: the cloak on while nothing is fought (the train invoke configs). */
+    private final Cloaker cloaker;
     private double[] roamTo;
     private long roamUntil;
     private String status = "";
@@ -28,6 +30,7 @@ public final class KillModule implements BotModule {
         this.collect = collect;
         this.attacker = new Attacker(ctx);
         this.boxes = new BoxPicker(ctx);
+        this.cloaker = new Cloaker(ctx);
     }
 
     @Override
@@ -54,6 +57,14 @@ public final class KillModule implements BotModule {
     @Override
     public boolean rushing() {
         return attacker.fighting(BotConfig.NpcFlag.RUSH) || ctx.now() - leadRushAt < LEAD_RUSH_NS;
+    }
+
+    /** Between maps the cloak too, when the config keeps one on out of the fights. */
+    @Override
+    public void travelling() {
+        if (ctx.config().get().moduleSettings("kill").path("useCloak").asBoolean(false)) {
+            cloaker.tick(false);
+        }
     }
 
     /** No keeping off offenders while rushing: the runner's circles wait for the target's death. */
@@ -94,6 +105,9 @@ public final class KillModule implements BotModule {
         BotConfig c = ctx.config().get();
         WorldSnapshot w = ctx.world().get();
         boolean dropAll = c.moduleSettings("kill").path("dropForHigher").asBoolean(false);
+        if (c.moduleSettings("kill").path("useCloak").asBoolean(false)) {
+            cloaker.tick(attacker.targetId() != 0);
+        }
         if (kill && attacker.targetId() != 0) {
             // one of a higher priority came in sight (an invoke while an Impulse is fought): to it at once, unless the
             // one fought is nearly dead or shoots the ship (the user, 2026-11-13) — with «бросать всё» in any case
