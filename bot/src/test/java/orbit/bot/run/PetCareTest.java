@@ -303,6 +303,32 @@ class PetCareTest {
         assertEquals(PetGearTypeModule.PETGEARTYPE_GUARD, gears(sim).getLast().gearTypeToActivate.typeValue);
     }
 
+    private static void targets(Sim sim, Integer... npcs) {
+        orbit.protocol.gen.PetLocatorGearInitializationCommand c = new orbit.protocol.gen.PetLocatorGearInitializationCommand();
+        c.possibleTargetValues = List.of(npcs);
+        sim.world.apply(c, sim.now);
+    }
+
+    @Test
+    void theLocatorIsSetAgainWhenItsTargetComesBackToTheMap() {
+        // live 2026-11-17: no points after the first invoke died — the game wants the target chosen again
+        Sim sim = new Sim(config("ENEMY_LOCATOR", 0), 26, 10_000, 6_000);
+        owned(sim);
+        PetCare pet = new PetCare(sim.ctx);
+        sim.run(pet::tick, 1_000);
+        launched(sim);
+        targets(sim, 13, 80);
+        sim.run(pet::tick, 10_000);
+        assertEquals(1, gears(sim).size(), "set once; the list naming the target is no reason to ask again");
+        targets(sim, 80); // the target died
+        sim.run(pet::tick, 10_000);
+        assertEquals(1, gears(sim).size());
+        targets(sim, 13, 80); // a new one
+        sim.run(pet::tick, 10_000);
+        assertEquals(2, gears(sim).size(), "set again for the new one");
+        assertEquals(13, gears(sim).getLast().optParam);
+    }
+
     @Test
     void withHumanPausesTheLaunchWaitsAMomentLikeAPlayer() throws Exception {
         Sim sim = new Sim(config("ENEMY_LOCATOR", 0).withModuleSettings("human",

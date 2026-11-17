@@ -296,6 +296,9 @@ public final class PetCare {
      */
     private java.util.function.IntSupplier moduleLocator = () -> 0;
     private int askedParam;
+    /** The locator's target list last looked at, and whether the wanted target was missing from it (not just unseen). */
+    private long listSeenNanos;
+    private boolean paramGone;
     private boolean noLocatorTold;
     private int missingFightGear = -1;
 
@@ -359,6 +362,19 @@ public final class PetCare {
             }
             return;
         }
+        // the locator's target back in its list (a new one after the last died): the game sends no points for it until it
+        // is chosen again (live 2026-11-17 on the VPS: silent after the first invoke died, once the fights no longer
+        // switched the mode back and forth) — chosen again, as DarkBot's PetManager does when its pick is not selected
+        if (want == PetGearTypeModule.PETGEARTYPE_ENEMY_LOCATOR && param > 0 && pet.locatorTargetsNanos() != listSeenNanos) {
+            boolean listed = pet.locatorTargets().contains(param);
+            if (listed && paramGone && askedGear == want && askedParam == param) {
+                log.info("Пеленгатор: {} снова на карте — настраиваю пеленгатор на него заново", locatorTarget(param));
+                askedGear = -1;
+                tries = 0;
+            }
+            paramGone = !listed;
+            listSeenNanos = pet.locatorTargetsNanos();
+        }
         // the server's word after our request: another mode means it was turned down or changed (Guard)
         boolean overruled = pet.gearNanos() > askedAt && pet.gear() >= 0 && pet.gear() != want;
         if (askedGear == want && askedParam == param && !overruled) {
@@ -371,7 +387,7 @@ public final class PetCare {
             return;
         }
         if (gearAt == 0) {
-            gearAt = now + ctx.pause(800, 2_000);
+            gearAt = now + ctx.react(800, 2_000);
             return;
         }
         if (now < gearAt) {
