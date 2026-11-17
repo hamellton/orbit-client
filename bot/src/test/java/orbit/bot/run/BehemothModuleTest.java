@@ -926,6 +926,29 @@ class BehemothModuleTest {
     }
 
     @Test
+    void aMapWhoseTimeIsUnknownIsWaitedOnUntilItsBehemothComes() throws Exception {
+        // the user, 2026-11-17: 2-BL's time unknown, two minutes there and on, again and again all night
+        Sim sim = new Sim(with(config(30), "{\"waitUnknown\": true}"), 308, 5_700, 2_600);
+        BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
+        m.workingMap();
+        sim.run(m::tick, 5 * 60_000);
+        assertEquals(308, m.workingMap(), "nothing known here or anywhere: waiting on");
+    }
+
+    @Test
+    void aMapWhoseTimeIsUnknownIsLeftForAKnownOneInTime() throws Exception {
+        Sim sim = new Sim(with(config(30), "{\"waitUnknown\": true}"), 308, 5_700, 2_600);
+        SpawnMemory mem = SpawnMemory.inMemory();
+        BehemothModule m = new BehemothModule(sim.ctx, mem);
+        mem.killed(306, 19_400, 5_800, m.wallMs() - 900_000 + 4 * 60_000); // 1-BL's due in 4 min
+        m.workingMap();
+        sim.run(m::tick, 60_000);
+        assertEquals(308, m.workingMap(), "1-BL's not yet: on here");
+        sim.run(m::tick, 3 * 60_000);
+        assertEquals(306, m.workingMap(), "time to fly to the known one");
+    }
+
+    @Test
     void theSpawnIsKeptOffOnTheWayToTheNextMapToo() throws Exception {
         // live 2026-11-13 on the VPS, 3-BL: from the wait point 36/21 to the 2-BL portal the way ran past the spawn
         Sim sim = new Sim(with(config(2), "{\"avoidSpawn\": true, \"awayFromPortals\": true}"), 308, 3_600, 2_100);

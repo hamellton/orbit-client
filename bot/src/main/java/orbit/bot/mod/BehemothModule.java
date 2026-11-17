@@ -1860,6 +1860,50 @@ public final class BehemothModule implements BotModule {
         return true;
     }
 
+    private int unknownTold;
+    private int unknownLeaveTold;
+
+    /**
+     * {@code waitUnknown} (the user, 2026-11-17: «если таймера нет, то почему он не ждёт на месте до того, пока бегемот не
+     * появится?»; live on the VPS that night: 2-BL's time unknown, two minutes there and on, again and again, a train
+     * waiting by its spawn): on a map whose behemoth's time is not known the ship stays till it comes — at most a respawn
+     * and {@link #FIRST_SPARE_MS} — leaving earlier only for a known one on another map when its flight must start.
+     */
+    private boolean holdUnknown(int map) {
+        JsonNode s = settings();
+        if (!on(s, "waitUnknown", false)) {
+            return false;
+        }
+        long wall = wallMs();
+        if (dueAt(map, wall) > 0 || skipped(map)) {
+            return false;
+        }
+        long waited = (ctx.now() - waitStarted) / 1_000_000;
+        if (waited > respawn(map) + FIRST_SPARE_MS) {
+            return false;
+        }
+        for (int m : maps(s)) {
+            if (m == map || skipped(m)) {
+                continue;
+            }
+            long due = dueAt(m, wall);
+            if (due > wall - 30_000 && due - travelMs(map, m) - lead() <= wall) {
+                if (unknownLeaveTold != m * 1000 + map) {
+                    unknownLeaveTold = m * 1000 + map;
+                    log.info("{}: время неизвестно, но на {} бегемот по таймеру через {} — лечу к нему",
+                            ctx.maps().info(map).name(), ctx.maps().info(m).name(), clock(Math.max(0, due - wall)));
+                }
+                return false;
+            }
+        }
+        if (unknownTold != map) {
+            unknownTold = map;
+            log.info("{}: время бегемота неизвестно — жду здесь, пока не появится (до {}); раньше улечу только к известному"
+                    + " на другой карте", ctx.maps().info(map).name(), clock(respawn(map) + FIRST_SPARE_MS));
+        }
+        return true;
+    }
+
     /**
      * {@code relearnTimers} (the user, 2026-11-15: «если уже запомнил тайминги, а потом что-то поменялось и не может найти
      * бегемота какое-то время — ждать на карте до появления, и так на трёх картах»; live the night before on the VPS:
@@ -1931,6 +1975,9 @@ public final class BehemothModule implements BotModule {
             return false;
         }
         if (waitingFirst(map)) {
+            return false;
+        }
+        if (holdUnknown(map)) {
             return false;
         }
         WorldSnapshot w = ctx.world().get();
@@ -2033,7 +2080,8 @@ public final class BehemothModule implements BotModule {
         if (now >= checkAt) {
             checkAt = now + 5_000_000_000L;
             int better = choose(h.mapId(), 0);
-            if (better != h.mapId() && dueAt(h.mapId(), wall) <= 0 && !behemothListed && !waitingFirst(h.mapId())) {
+            if (better != h.mapId() && dueAt(h.mapId(), wall) <= 0 && !behemothListed && !waitingFirst(h.mapId())
+                    && !holdUnknown(h.mapId())) {
                 // here nothing is due by the clock, there one is: leave now, the flight counted
                 log.info("На {} бегемот по времени раньше — перелетаю", ctx.maps().info(better).name());
                 emptyAt.put(h.mapId(), wall);

@@ -4422,6 +4422,7 @@
       "avoidTrainPaths": false,
       "locatorList": false,
       "waitFirst": true,
+      "waitUnknown": true,
       "followTrain": true,
       "respawnSeconds": 915,
       "powersForBehemoth": true,
