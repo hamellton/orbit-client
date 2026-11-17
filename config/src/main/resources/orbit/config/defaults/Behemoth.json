@@ -4466,6 +4466,7 @@
   },
   "modules": {
     "behemoth": {
+      "waitUnknown": true,
       "maps": [
         306,
         307,

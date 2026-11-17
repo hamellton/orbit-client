@@ -2035,6 +2035,11 @@ public final class BehemothModule implements BotModule {
                 memory.forgetTimes(h.mapId());
                 log.info("{}: по таймеру бегемот должен был быть {} назад, его нет — таймер неверный, забываю",
                         ctx.maps().info(h.mapId()).name(), clock(wall - due));
+                if (holdUnknown(h.mapId())) {
+                    // its time unknown now: waited on here like any map not known (the user, 2026-11-17: «а если он
+                    // улетел, а там таймер сбился — то что?») — a wrong timer was most often early, it may come yet
+                    return;
+                }
             }
             emptyAt.put(h.mapId(), wall);
             int next = choose(h.mapId(), h.mapId());

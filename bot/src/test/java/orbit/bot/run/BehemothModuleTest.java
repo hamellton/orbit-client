@@ -1329,6 +1329,20 @@ class BehemothModuleTest {
     }
 
     @Test
+    void aTimerThatDidNotComeTrueLeavesTheShipWaitingThereWhenUnknownMapsAreWaitedOn() throws Exception {
+        // the user, 2026-11-17: «а если он улетел, а там таймер сбился — то что?»
+        Sim sim = new Sim(with(config(30), "{\"waitUnknown\": true}"), 308, 5_700, 2_600);
+        SpawnMemory mem = SpawnMemory.inMemory();
+        BehemothModule m = new BehemothModule(sim.ctx, mem);
+        mem.killed(308, 4_700, 3_900, m.wallMs() + 30_000 - 900_000); // due in 30 s
+        m.workingMap();
+        sim.run(m::tick, 3 * 60_000);
+        assertEquals(0, m.dueAt(308, m.wallMs()), "it did not come: unknown");
+        sim.run(m::tick, 3 * 60_000);
+        assertEquals(308, m.workingMap(), "unknown now: waited on here till it comes");
+    }
+
+    @Test
     void moreThanThreeUnwatchedRespawnsLeaveTheTimerUnknown() throws Exception {
         // CARNAGE's BLCycle «stale_dropped … limit=3»
         Sim sim = new Sim(with(config(30), "{\"arriveOnTime\": true}"), 306, 5_700, 2_600);
