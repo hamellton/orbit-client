@@ -1,8 +1,9 @@
 {
   "schema": 3,
+  "description": "[Default] Инвоки на 1-BL как у DarkBot на VPS (Invoke1BL Defence): Kill & collect, патруль по 4 угловым точкам предпочитаемой зоны, стены запретных зон отрезают бегемота и поезда; Invoke XVI первым, Impulse II тоже; EMP/ISH от игроков; возрождение у портала. Копия конфига «invoke - 2-BL» с VPS (2026-11-17), зоны и точки всех BL-карт из того же профиля DarkBot.",
   "module": "KILL_COLLECT",
   "general": {
-    "workingMap": 307,
+    "workingMap": 306,
     "offensive": {
       "config": 1,
       "formation": "drone_formation_f-3d-dr"
@@ -3006,17 +3007,20 @@
         307,
         308
       ],
-      "sab": false,
-      "ammo": "ammunition_laser_mcb-50"
+      "ammo": "ammunition_laser_mcb-50",
+      "sab": false
     },
     "\\\\ Invoke XVI //": {
       "radius": 500.0,
       "priority": -10000,
       "kill": true,
       "flags": [
+        "AGGRESSIVE_FOLLOW",
         "IGNORE_ATTACKED",
+        "IGNORE_BOXES",
         "IGNORE_OWNERSHIP",
         "PET_LOCATOR",
+        "USE_ABILITY",
         "USE_EMP",
         "USE_ISH",
         "USE_RSB"
@@ -3026,8 +3030,8 @@
         307,
         308
       ],
-      "sab": false,
       "ammo": "ammunition_laser_a-bl",
+      "sab": false,
       "formation": "drone_formation_f-3d-dr"
     },
     "\\\\ Mindfire Behemoth //": {
@@ -3087,22 +3091,25 @@
     }
   },
   "loot": {
+    "ammo": "ammunition_laser_ucb-100",
     "sabBelow": 0.8,
     "sabNpcShieldMin": 12000,
     "rsb": "ammunition_laser_rsb-75",
     "groupNpcs": true,
     "ignoreFartherThan": 3000,
+    "rocket": "ammunition_rocket_plt-2021",
     "fireRockets": true,
     "circle": true,
     "fallback": [],
+    "launcher": "ammunition_rocketlauncher_eco-10",
     "fireLauncher": true,
     "runCircle": true,
     "smartCircle": 5,
-    "ammo": "ammunition_laser_ucb-100",
-    "rocket": "ammunition_rocket_plt-2021",
-    "launcher": "ammunition_rocketlauncher_eco-10",
     "options": {
-      "ishBelow": 0.7
+      "ishBelow": 0.7,
+      "avoidTrains": false,
+      "trainPlayers": 3,
+      "trainRadius": 1500
     }
   },
   "collect": {
@@ -3304,7 +3311,7 @@
   "pet": {
     "enabled": true,
     "gear": "ENEMY_LOCATOR",
-    "locatorTarget": 0,
+    "locatorTarget": 13,
     "noRepair": false,
     "comboRepairBelow": 0.0,
     "kamikaze": {
@@ -3329,7 +3336,7 @@
       "shieldBelow": -1.0,
       "hpPodBelow": -1.0
     },
-    "maxDeaths": -1,
+    "maxDeaths": 0,
     "revive": "PORTAL",
     "waitBeforeReviveSec": 5,
     "waitAfterReviveSec": 15,
@@ -3337,7 +3344,8 @@
     "paidReviveMinutes": 3,
     "escapeHp": 0.25,
     "oneWayJumps": false,
-    "maxDeathsPerPlayer": 0
+    "maxDeathsPerPlayer": 0,
+    "honorBreakMinutes": 15
   },
   "zones": {
     "306": {
@@ -3619,6 +3627,11 @@
         "jump": "ESCAPING"
       }
     ]
+  },
+  "modules": {
+    "kill": {
+      "dropForHigher": true
+    }
   },
   "extra": {
     "darkbot.GROUP": {
@@ -6163,6 +6176,10 @@
     "enabled": false,
     "keepCredits": 0.0,
     "keepUridium": 0.0,
+    "boosters": [
+      "DMG-B01",
+      "DMG-B02"
+    ],
     "boosterMinutes": 0,
     "crafts": [
       {
@@ -6198,8 +6215,7 @@
     "waitSec": 90,
     "avoid": false,
     "avoidRadius": 2500,
-    "stationRadius": 1600,
-    "npcs": true
+    "stationRadius": 1600
   },
   "group": {
     "accept": "ANY",
@@ -6207,11 +6223,5 @@
     "invite": false,
     "leaveWithoutListed": false,
     "kickUnlisted": false
-  },
-  "description": "[Default] Инвоки на 2-BL как у DarkBot на VPS (Invoke1BL Defence): Kill & collect, патруль по 4 угловым точкам предпочитаемой зоны, стены запретных зон отрезают бегемота и поезда; Invoke XVI первым, Impulse II тоже; EMP/ISH от игроков; возрождение у портала. Не протестирован.",
-  "modules": {
-    "kill": {
-      "dropForHigher": true
-    }
   }
 }
