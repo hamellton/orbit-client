@@ -606,7 +606,7 @@ final class MinimapPanel extends JPanel {
         int y = (int) Math.round(vy) + 8;
         int h = fm.getHeight() + 6;
         int dot = compact ? 6 : 8;
-        String text = Hud.clip(g, st.label + (action == null || action.isBlank() ? "" : "  ·  " + action),
+        String text = Hud.clip(g, st.label + (action == null || action.isBlank() ? "" : "  ·  " + action) + fightAmmo(),
                 (int) (vw * (compact ? 0.7 : 0.45)));
         int width = dot + 8 + fm.stringWidth(text) + 10;
         g.setColor(DB_BACK);
@@ -616,6 +616,27 @@ final class MinimapPanel extends JPanel {
         g.setColor(Hud.TEXT);
         g.drawString(text, x + 6 + dot + 6, y + (h + fm.getAscent() - fm.getDescent()) / 2);
         return y + h;
+    }
+
+    /**
+     * While the ship shoots: the ammunition in use, as AstraBot's line «Killing … | ammo: A-BL» (the user, 2026-11-17);
+     * nothing out of a fight.
+     */
+    private String fightAmmo() {
+        WorldSnapshot w = feed.snapshot();
+        if (w.hero().attackTargetId() == 0) {
+            return "";
+        }
+        StringBuilder out = new StringBuilder();
+        WorldSnapshot.Item laser = w.selected("lasers");
+        if (laser != null) {
+            out.append("  ·  лазеры: ").append(orbit.config.ItemCatalog.label(laser.id()));
+        }
+        WorldSnapshot.Item rocket = w.selected("rockets");
+        if (rocket != null) {
+            out.append("  ·  ракеты: ").append(orbit.config.ItemCatalog.label(rocket.id()));
+        }
+        return out.toString();
     }
 
     /** The header with its buttons is hidden: where the menu is, under the state line. */
