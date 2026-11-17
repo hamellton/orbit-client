@@ -617,7 +617,7 @@ public record BotConfig(
         IGNORE_BOXES,
         /** not taken until it shoots the ship (DarkBot «Passive»); a fight begun goes on */
         PASSIVE,
-        /** follow it when it runs: aim where it flies, catch up in the run mode */
+        /** DarkBot's: nearly dead (below 25 %) — fought at three quarters of its radius, so it does not get away */
         AGGRESSIVE_FOLLOW,
         /** prefer it as the second target of a group */
         ATTACK_SECOND,

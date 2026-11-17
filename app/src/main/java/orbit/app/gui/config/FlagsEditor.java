@@ -32,7 +32,7 @@ final class FlagsEditor extends AbstractCellEditor implements TableCellEditor {
         return switch (f) {
             case IGNORE_OWNERSHIP -> "бить, даже если его начал другой игрок";
             case IGNORE_ATTACKED -> "бить, даже если его бьют другие";
-            case AGGRESSIVE_FOLLOW -> "догонять, когда убегает";
+            case AGGRESSIVE_FOLLOW -> "почти убитого (< 25 %) бить ближе — радиус × 0,75";
             case NO_CIRCLE -> "не кружить вокруг";
             case KAMIKAZE -> "камикадзе питомца рядом с ним";
             case PASSIVE -> "бить, только если он стреляет в нас (как Passive в DarkBot)";

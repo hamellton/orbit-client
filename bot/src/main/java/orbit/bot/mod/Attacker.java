@@ -765,9 +765,10 @@ public final class Attacker {
         double dist = t.distanceTo(h.x(), h.y());
         BotConfig.NpcRule rule = Targets.rule(c, t, h.mapId());
         targetRule = rule; // the pet's HP Link and the boxes go by it from the first moment of the fight
-        boolean follow = rule != null && rule.has(BotConfig.NpcFlag.AGGRESSIVE_FOLLOW);
         track(t, now);
-        boolean chasing = move && dist > radius + CHASE_GAP && (follow || c.general().runModeChase());
+        // the run mode to catch up is the config's «chase» only: DarkBot's AGGRESSIVE_FOLLOW changes the radius alone
+        // (the user, 2026-11-17: «1 в 1 как в даркботе»)
+        boolean chasing = move && dist > radius + CHASE_GAP && c.general().runModeChase();
         boolean onTheWay = move && dist > radius + APPROACH && h.attackers().isEmpty();
         BotConfig.FightMove mode = mode(c, rule, t, h, now);
         // DarkBot's RUN_CONFIG_IN_CIRCLE: the run configuration to catch a nearly dead target that got away (below
@@ -810,10 +811,10 @@ public final class Attacker {
             }
         } else if (move && dist > (holding ? radius * KITE_APPROACH : radius + 60) && now >= nextApproach) {
             // a fleeing target: aim where it will be and go well inside the radius, re-aiming often (live 2026-11-12:
-            // Boss Kristallon ran, the ship stopped at the radius of where it had been and never fired); the
-            // «aggressive follow» flag aims at where it flies; one that stays: come in from its safer side
+            // Boss Kristallon ran, the ship stopped at the radius of where it had been and never fired); one that stays:
+            // come in from its safer side
             boolean fleeing = t.moving();
-            double[] at = follow && fleeing ? new double[] {t.targetX(), t.targetY()} : ahead(t, h, radius);
+            double[] at = ahead(t, h, radius);
             double keep = fleeing ? radius * CHASE_INSIDE : radius;
             double[] to = edgeHold ? inward(t, h, radius) : fleeing ? null : safeSide(threats, at, keep, h);
             if (to == null) {
@@ -1301,8 +1302,17 @@ public final class Attacker {
                     r = Math.min(600, r);
                 }
             }
-        } else if (!raw && !learnedFarther && (!t.moving() || t.health().known() && t.health().hpPercent() < 0.25)) {
-            r = Math.min(r, 600); // DarkBot's modifyRadius; the repair's 2 000 is taken raw
+        } else if (!raw) {
+            // DarkBot's modifyRadius: a nearly dead NPC with «aggressive follow» — the radius × 0.75, on every map, not
+            // in the gates only (the user, 2026-11-17)
+            boolean low = t.health().known() && t.health().hpPercent() < 0.25;
+            BotConfig.NpcRule rr0 = Targets.rule(ctx.config().get(), t, h.mapId());
+            if (low && rr0 != null && rr0.has(BotConfig.NpcFlag.AGGRESSIVE_FOLLOW)) {
+                r *= 0.75;
+            }
+            if (!learnedFarther && (!t.moving() || low)) {
+                r = Math.min(r, 600); // DarkBot's modifyRadius; the repair's 2 000 is taken raw
+            }
         }
         if (gate == null && fleeing(t, h)) {
             r *= 0.8; // one going away does not leave the radius while the ship goes round
