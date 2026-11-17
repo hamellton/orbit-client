@@ -450,8 +450,9 @@ final class MinimapPanel extends JPanel {
             String state = Hud.clip(g, feed.title() + "  ·  " + feed.action(), (int) vw - 20);
             g.drawString(state, (float) (vx + 10), bottom - 12);
         }
+        int statusBottom = mapStatus(g, vx, vy, vw);
         if (!compact) {
-            menuHint(g, vx, vy, vw);
+            menuHint(g, vx, statusBottom, vw);
             gameFeed(g, vx, (int) Math.round(vy) + 8, vw);
             cardsAt = java.util.Map.of();
         }
@@ -594,7 +595,32 @@ final class MinimapPanel extends JPanel {
 
     private static final java.util.regex.Pattern COUNT = java.util.regex.Pattern.compile("-=-\\s*(\\d+)\\s*-=-");
 
-    /** The header with its buttons is hidden: where the menu is, top left (the map chip that held it is gone). */
+    /**
+     * The account's state and the bot's action, top left where DarkBot writes the module's status (the user, 2026-11-17:
+     * «на карте тоже всегда нужно это показывать»): «● В игре · Жду бегемота…». @return the line's bottom
+     */
+    private int mapStatus(Graphics2D g, double vx, double vy, double vw) {
+        AccountStatus st = AccountStatus.of(feed);
+        String action = feed.action();
+        g.setFont(hud.font(Font.PLAIN, compact ? 10f : 12f));
+        java.awt.FontMetrics fm = g.getFontMetrics();
+        int x = (int) Math.round(vx) + 8;
+        int y = (int) Math.round(vy) + 8;
+        int h = fm.getHeight() + 6;
+        int dot = compact ? 6 : 8;
+        String text = Hud.clip(g, st.label + (action == null || action.isBlank() ? "" : "  ·  " + action),
+                (int) (vw * (compact ? 0.7 : 0.45)));
+        int width = dot + 8 + fm.stringWidth(text) + 10;
+        g.setColor(DB_BACK);
+        g.fillRect(x, y, width, h);
+        g.setColor(st.color);
+        g.fillOval(x + 6, y + (h - dot) / 2, dot, dot);
+        g.setColor(Hud.TEXT);
+        g.drawString(text, x + 6 + dot + 6, y + (h + fm.getAscent() - fm.getDescent()) / 2);
+        return y + h;
+    }
+
+    /** The header with its buttons is hidden: where the menu is, under the state line. */
     private void menuHint(Graphics2D g, double vx, double vy, double vw) {
         if (ViewSettings.shared().shown(ViewSettings.Section.HEADER)) {
             return;
@@ -604,9 +630,9 @@ final class MinimapPanel extends JPanel {
         java.awt.FontMetrics hm = g.getFontMetrics();
         int hw = hm.stringWidth(hint) + 16;
         g.setColor(DB_BACK);
-        g.fillRect((int) Math.round(vx) + 8, (int) Math.round(vy) + 8, hw, 22);
+        g.fillRect((int) Math.round(vx) + 8, (int) Math.round(vy) + 4, hw, 22);
         g.setColor(Hud.DIM);
-        g.drawString(hint, (float) (vx + 16), (float) (vy + 23));
+        g.drawString(hint, (float) (vx + 16), (float) (vy + 19));
     }
 
     /** DarkBot's {@code texts_background}: a dark band the map shows through. */

@@ -176,9 +176,11 @@ public final class Friendly {
         if (g != null) {
             return g;
         }
-        if (logger.endsWith("BotRunner") && m.equals("Выход из игры")) {
+        Matcher out = LOGOUT.matcher(m);
+        if (logger.endsWith("BotRunner") && out.matches()) {
             st.logoutAt = time;
-            return replace("logout", "⏱ Выход из игры", true);
+            // the game counts down (20 s, 5 s with premium): the window shows what is left of it
+            return replace("logout", "⏱ Выход из игры (" + (out.group(1) != null ? out.group(1) : "20") + " с)", true);
         }
         if (m.equals("Сервер завершил сессию (выход)") && st.logoutAt != 0) {
             long took = time - st.logoutAt;
@@ -501,6 +503,9 @@ public final class Friendly {
         String spent = grab(s, "Потрачено: ([^;]+)");
         return String.join(", ", out) + (spent == null ? "" : "; потрачено " + spent.strip());
     }
+
+    /** The bot's logout line, with the game's countdown since 2026-11-17: «Выход из игры (20 с)». */
+    private static final Pattern LOGOUT = Pattern.compile("Выход из игры(?: \\((\\d+) с\\))?");
 
     /** «Сводка 11:34–12:00 · в игре все 26 мин · уридий +6 523 · …» → «Час 11:34–12:00: 6 523 уридия · …». */
     static String hour(String s) {

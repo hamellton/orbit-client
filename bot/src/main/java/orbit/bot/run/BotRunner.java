@@ -116,6 +116,8 @@ public final class BotRunner {
     static final double STILL_RADIUS = 40;
     private long logoutAt;
     private long logoutPressedAt = Long.MIN_VALUE / 2;
+    /** The game's logout countdown of the last press: 20 s, 5 s with premium. */
+    private long logoutSeconds = 20;
     private String lastStatus = "";
 
     /**
@@ -1067,11 +1069,14 @@ public final class BotRunner {
             logoutAt = now + ctx.pause(1_000, 3_000);
         }
         if (now >= logoutAt && !h.moving() && now - logoutPressedAt > 30_000_000_000L) {
-            log.info("Выход из игры");
+            // the game's countdown: 20 s, 5 s with premium (the user, 2026-11-17)
+            logoutSeconds = h.premium() ? 5 : 20;
+            log.info("Выход из игры ({} с)", logoutSeconds);
             ctx.actions().logout();
             logoutPressedAt = now;
         }
-        show("Выход из игры");
+        long gone = (now - logoutPressedAt) / 1_000_000_000L;
+        show(gone <= logoutSeconds + 10 ? "Выход из игры через " + Math.max(0, logoutSeconds - gone) + " с" : "Выход из игры");
         return true;
     }
 

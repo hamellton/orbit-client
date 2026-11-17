@@ -93,4 +93,13 @@ class LogPanelTest {
         assertEquals("2 ч 10 мин", LogPanel.periodText(130 * 60_000L));
         assertEquals("1 д 6 ч", LogPanel.periodText(30 * 3_600_000L));
     }
+
+    @Test
+    void aLogoutCountsDownFromTheGamesTime() {
+        // the user, 2026-11-17: «выход — это отсчёт», 20 s, 5 s with premium
+        org.junit.jupiter.api.Assertions.assertEquals("⏱ Выход из игры … через 14 с",
+                LogPanel.countdown("⏱ Выход из игры (20 с)", 6));
+        org.junit.jupiter.api.Assertions.assertEquals("⏱ Выход из игры … через 0 с",
+                LogPanel.countdown("⏱ Выход из игры (5 с)", 9));
+    }
 }

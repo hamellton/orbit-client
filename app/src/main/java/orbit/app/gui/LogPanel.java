@@ -1059,8 +1059,8 @@ public final class LogPanel extends JPanel {
             g.setColor(e.level() == LogEntry.Level.ERROR ? ERROR_FG
                     : e.level() == LogEntry.Level.WARN ? new Color(0xfde68a)
                     : e.important() || e.category() == LogCategory.SUMMARY ? Theme.TEXT : ROUTINE);
-            String words = e.liveSince() > 0 ? e.text() + " … " + Math.max(0, (System.currentTimeMillis() - e.liveSince())
-                    / 1000) + " с" : e.text();
+            String words = e.liveSince() > 0 ? countdown(e.text(), (System.currentTimeMillis() - e.liveSince()) / 1000)
+                    : e.text();
             g.drawString(clip(g.getFontMetrics(), words, w - x - rightW - 6), x, base);
         }
 
@@ -1275,5 +1275,17 @@ public final class LogPanel extends JPanel {
 
     void drainNow() {
         drain();
+    }
+
+    /**
+     * A row counting a logout down (the user, 2026-11-17: «выход — это отсчёт»): «⏱ Выход из игры (20 с)» seconds in →
+     * «⏱ Выход из игры … через 14 с».
+     */
+    static String countdown(String text, long gone) {
+        java.util.regex.Matcher m = java.util.regex.Pattern.compile("^(.*) \\((\\d+) с\\)$").matcher(text);
+        if (!m.matches()) {
+            return text + " … " + Math.max(0, gone) + " с";
+        }
+        return m.group(1) + " … через " + Math.max(0, Long.parseLong(m.group(2)) - gone) + " с";
     }
 }
