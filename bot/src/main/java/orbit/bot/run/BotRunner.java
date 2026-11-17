@@ -928,6 +928,7 @@ public final class BotRunner {
         // facts), they lead nowhere without a built gate — the ship went to one to log out (live 2026-11-17); a
         // company's portal the facts lack still counts (5-3's to 5-2, 2026-11-11)
         w.portals().values().stream()
+                .filter(x -> orbit.world.maps.PortalTypes.gate(x.designId()) == null)
                 .filter(x -> x.factionId() != 0 || ctx.maps().portalNear(h.mapId(), x.x(), x.y(), 400) != null)
                 .forEach(x -> all.add(new int[] {x.x(), x.y()}));
         if (all.isEmpty()) {

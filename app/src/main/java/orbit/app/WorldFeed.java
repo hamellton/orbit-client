@@ -333,10 +333,22 @@ public final class WorldFeed {
                             jg.y / 100, maps.info(b[3]).name());
                 }
             }
+            // a gate's or event map's portal by its type, as DarkBot knows them (the user, 2026-11-17: «мы то знаем»)
+            case orbit.protocol.gen.JumpgateCreateCommand jg when orbit.world.maps.PortalTypes.gate(jg.designId) != null
+                    && world.snapshot(now()).hero().mapId() > 0 ->
+                    log.debug("Портал на {} на {}: {}/{}", orbit.world.maps.PortalTypes.gate(jg.designId),
+                            maps.info(world.snapshot(now()).hero().mapId()).name(), jg.x / 100, jg.y / 100);
+            // other types without a company: newer gates and events DarkBot does not list either (300, 304, 307, 55 on 3-1)
+            case orbit.protocol.gen.JumpgateCreateCommand jg when jg.factionId == 0 && jg.designId != 1
+                    && maps.portalNear(world.snapshot(now()).hero().mapId(), jg.x, jg.y, 400) == null
+                    && world.snapshot(now()).hero().mapId() > 0 ->
+                    log.debug("Портал врат или события (тип {}) на {}: {}/{}", jg.designId,
+                            maps.info(world.snapshot(now()).hero().mapId()).name(), jg.x / 100, jg.y / 100);
             case orbit.protocol.gen.JumpgateCreateCommand jg when maps.portalNear(
                     world.snapshot(now()).hero().mapId(), jg.x, jg.y, 400) == null && world.snapshot(now()).hero().mapId() > 0 ->
-                    log.info("Портал без названия на {}: {}/{} (компания {}) — куда ведёт, узнаю после прыжка",
-                            maps.info(world.snapshot(now()).hero().mapId()).name(), jg.x / 100, jg.y / 100, jg.factionId);
+                    log.info("Портал без названия на {}: {}/{} (компания {}, тип {}) — куда ведёт, узнаю после прыжка",
+                            maps.info(world.snapshot(now()).hero().mapId()).name(), jg.x / 100, jg.y / 100, jg.factionId,
+                            jg.designId);
             // a base's HQ, refinery and repair dock with their company: where the ship can repair safely
             case orbit.protocol.gen.AssetCreateCommand a when a.type != null
                     && java.util.Set.of(46, 47, 50, 51, 52, 53, 54).contains((int) a.type.typeValue) -> {
