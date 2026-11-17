@@ -18,6 +18,8 @@ Status: Stage 2 done; stage 3 in progress (login, game connection, vault, client
   Remote `origin` = `git@github-hamellton:hamellton/orbit-client.git` (personal account, private).
   Repo-local identity `hamellton <hamelltonn@gmail.com>` — never commit here with the work email.
 - Never log passwords, dosid, sessionID or keys.
+- The map (`MinimapPanel`, its overlays, map-only mode) is frozen as of 2026-11-17: change its look or behaviour only
+  with the user's explicit consent (`docs/PLAN.md`, «Карта: дизайн и функции заморожены»).
 
 ## Tools
 - JPEXS FFDec: `~/tools/ffdec-26.4.0/ffdec.jar` (CLI: `java -jar ffdec.jar -help`).
