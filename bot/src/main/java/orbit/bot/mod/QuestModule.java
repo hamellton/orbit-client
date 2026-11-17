@@ -57,7 +57,34 @@ public final class QuestModule implements BotModule {
      */
     static final int ENEMY_MAP_EXTRA_HOPS = 8;
 
-    enum Kind { KILL, DAMAGE, SALVAGE, BOX, ORE, SELL, MAP }
+    enum Kind { KILL, DAMAGE, SALVAGE, BOX, ORE, SELL, MAP, REFINE, SKYLAB }
+
+    /** {@code Work.ore} of a resource's salvage («собрать Prismatium» — from the NPCs that carry it). */
+    static final int LOOT = -3;
+
+    /**
+     * Which NPCs carry a resource a quest asks to collect ({@code COLLECT_LOOT}, «resource_collectable_hybrid-alloy»):
+     * darkorbitwiki «Elite Missions (Level 22+)», Tips and Tricks (2026-11-17) — Prismatium from all Kristallin and
+     * Kristallon, Scrap from Saimon and Mordon, Mucosum from Lordakia, Lordakium and Sibelonit, Plasmide from Sibelon and
+     * Devolarium; Hybrid Alloy grew with the Blighted kills on gb2 (122011, ~0,5 a kill). Names as {@link
+     * QuestTargets#norm}; Uber ones are left out (4-5), the plain ones and bosses do. Where they live — {@link NpcMaps}.
+     */
+    static final Map<String, Set<String>> LOOT_NPCS = Map.of(
+            "prismatium", Set.of("kristallin", "kristallon", "bosskristallin", "bosskristallon"),
+            "scrap", Set.of("saimon", "mordon", "bosssaimon", "bossmordon"),
+            "mucosum", Set.of("lordakia", "lordakium", "sibelonit", "bosslordakia", "bosslordakium", "bosssibelonit"),
+            "plasmid", Set.of("sibelon", "devolarium", "bosssibelon", "bossdevolarium"),
+            "hybrid", Set.of("blightedkristallon", "blightedgygerthrall"));
+
+    /**
+     * Refined ore from raw ore in the hold ({@code OreTypeModule}: ore → {ingredient → per unit}), DarkBot's AutoRefine:
+     * prometid = 20 prometium + 10 endurium, duranium = 20 terbium + 10 endurium, promerium = 10 prometid + 10 duranium +
+     * 1 xenomit.
+     */
+    static final Map<Integer, Map<Integer, Integer>> RECIPES = Map.of(
+            4, Map.of(0, 20, 1, 10),
+            5, Map.of(2, 20, 1, 10),
+            6, Map.of(4, 10, 5, 10, 3, 1));
 
     /** The cargo a killed NPC leaves ({@code FROM_SHIP}), what a «salvage» condition counts. */
     static final String CARGO = "FROM_SHIP";
@@ -260,6 +287,10 @@ public final class QuestModule implements BotModule {
         }
         Quests.Condition c = condition(q.active().get(work.quest()), work.condition());
         String progress = QuestTexts.condition(c) + (c.target() > 0 ? " " + (long) c.current() + "/" + (long) c.target() : "");
+        if (work.kind() != Kind.SKYLAB && !ctx.stats().questOres.get().isEmpty()) {
+            ctx.stats().questOres.set(Map.of());
+        }
+        checkWay(w, c, now);
         switch (work.kind()) {
             case KILL, DAMAGE, SALVAGE, BOX, ORE -> {
                 if (notFound(w, now) || noCount(w, c)) {
@@ -280,6 +311,35 @@ public final class QuestModule implements BotModule {
                 ctx.nav().tick();
                 status = "Квест " + named(work.quest()) + ": " + progress + " · продаю";
             }
+            case REFINE -> {
+                long n = canRefine(w, work.ore());
+                if (n > 0 && now - refinedAt > 3_000_000_000L) {
+                    log.info("Квест {}: перерабатываю в трюме {} {}", named(work.quest()), n,
+                            QuestTexts.ore(oldOre(work.ore())));
+                    ctx.actions().labRefine(work.ore(), n);
+                    refinedAt = now;
+                    if (work.ore() == QuestTargets.oreType(c.match(0))) {
+                        wayCheck = new double[] {c.id(), c.current(), -1};
+                        wayCheckAt = now;
+                    }
+                }
+                ctx.nav().tick();
+                status = "Квест " + named(work.quest()) + ": " + progress + " · перерабатываю в трюме";
+            }
+            case SKYLAB -> {
+                long left = Math.max(0, (long) (c.target() - c.current()));
+                long room = Math.max(0, w.cargoFree());
+                ctx.stats().questOres.set(left > 0 && room > 0 ? Map.of(work.ore(), Math.min(left, room)) : Map.of());
+                double aboardNow = w.inventory().ores().getOrDefault(work.ore(), 0.0);
+                if (wayCheck == null || (int) wayCheck[0] != c.id()) {
+                    wayCheck = new double[] {c.id(), c.current(), aboardNow};
+                    wayCheckAt = 0; // armed when the ore lands
+                } else if (wayCheckAt == 0 && aboardNow > wayCheck[2]) {
+                    wayCheckAt = now;
+                }
+                ctx.nav().tick();
+                status = "Квест " + named(work.quest()) + ": " + progress + " · жду руду со Скайлаба";
+            }
             case MAP -> {
                 if (!Double.isNaN(work.x()) && ctx.nav().idle()
                         && Math.hypot(w.hero().x() - work.x(), w.hero().y() - work.y()) > 150) {
@@ -291,6 +351,35 @@ public final class QuestModule implements BotModule {
             default -> {
             }
         }
+    }
+
+    /** A refining or Skylab ore a while ago and the counter where it was: that way does not count for the condition. */
+    private void checkWay(WorldSnapshot w, Quests.Condition c, long now) {
+        if (wayCheck == null || wayCheckAt == 0 || now - wayCheckAt < WAY_CHECK_NS) {
+            return;
+        }
+        double[] k = wayCheck;
+        wayCheck = null;
+        if ((int) k[0] != c.id() || c.current() > k[1]) {
+            return;
+        }
+        boolean skylab = k[2] >= 0;
+        (skylab ? skylabNoCount : refineNoCount).add(c.id());
+        log.warn("Квест {}: {} не засчитывается ({}) — {}", named(work.quest()),
+                skylab ? "руда со Скайлаба" : "переработка в трюме", QuestTexts.condition(c),
+                skylab ? "перерабатываю сам" : "везу со Скайлаба, если включён");
+        work = null;
+        worker = null;
+    }
+
+    /** The quest's old ore number of an {@code OreTypeModule} one (for the ore's Russian name). */
+    static int oldOre(int ore) {
+        for (int old = 0; old <= 42; old++) {
+            if (QuestTargets.oreType(old) == ore) {
+                return old;
+            }
+        }
+        return -1;
     }
 
     /**
@@ -374,7 +463,7 @@ public final class QuestModule implements BotModule {
             cargoAt = c.current();
             return false;
         }
-        if (picked - cargoFrom < CARGO_TRIES) {
+        if (picked - cargoFrom < (work.ore() == LOOT ? LOOT_TRIES : CARGO_TRIES)) {
             return false;
         }
         log.warn("Квест {}: на {} подобрал {} грузов, а «{}» не растёт ({}/{}) — здесь в грузе не то, пробую другую карту",
@@ -392,6 +481,8 @@ public final class QuestModule implements BotModule {
 
     /** Cargo boxes picked with no progress before a map counts as the wrong one. */
     public static final int CARGO_TRIES = 10;
+    /** A resource drops now and then (Hybrid Alloy ~ every second kill): more cargo before a map counts as wrong. */
+    public static final int LOOT_TRIES = 40;
     private long cargoFrom = -1;
     private double cargoAt;
 
@@ -468,6 +559,8 @@ public final class QuestModule implements BotModule {
             case BOX, ORE -> "собираю";
             case SELL -> "продаю";
             case MAP -> "лечу";
+            case REFINE -> "перерабатываю в трюме";
+            case SKYLAB -> "везу со Скайлаба";
         };
     }
 
@@ -543,8 +636,12 @@ public final class QuestModule implements BotModule {
             return new Work(quest.id(), c.id(), Kind.BOX, map > 0 ? map : h.mapId(), Set.of(BONUS_BOX), Double.NaN,
                     Double.NaN, -1);
         }
+        if (c.type() == Quests.COLLECT_LOOT && doing.contains("SALVAGE")) {
+            return lootWork(quest, c, w);
+        }
         if (c.type() == Quests.COLLECT && doing.contains("ORE")) {
-            return oreWork(quest, c, QuestTargets.oreType(c.match(0)), w);
+            int ore = QuestTargets.oreType(c.match(0));
+            return RECIPES.containsKey(ore) ? refinedWork(quest, c, ore, ore, w) : oreWork(quest, c, ore, w);
         }
         if (c.type() == Quests.SELL_ORE && doing.contains("SELL")) {
             int ore = QuestTargets.oreType(c.match(0));
@@ -680,6 +777,94 @@ public final class QuestModule implements BotModule {
     }
 
     /** Collect an ore: where it lies in sight, else the nearest map where it was seen. */
+    /**
+     * «Собрать resource_collectable_…»: the NPCs that carry it ({@link #LOOT_NPCS}) killed and their cargo picked, on the
+     * nearest map they live on ({@link NpcMaps}; the quest's own maps if it binds them); the cargo not counting there —
+     * the next map ({@link #noCount}).
+     */
+    private Work lootWork(Quests.Quest quest, Quests.Condition c, WorldSnapshot w) {
+        String id = c.matches().isEmpty() ? "" : c.matches().getFirst().toLowerCase(java.util.Locale.ROOT);
+        Set<String> want = LOOT_NPCS.entrySet().stream().filter(e -> id.contains(e.getKey())).map(Map.Entry::getValue)
+                .findFirst().orElse(null);
+        if (want == null) {
+            return null;
+        }
+        Map<Integer, Set<String>> where = new LinkedHashMap<>();
+        for (int m : npcMaps.maps()) {
+            Set<String> names = new TreeSet<>();
+            npcMaps.on(m).stream().filter(n -> want.contains(QuestTargets.norm(n))).forEach(names::add);
+            if (!names.isEmpty()) {
+                where.put(m, names);
+            }
+        }
+        List<Integer> on = c.onMaps();
+        if (!on.isEmpty()) {
+            where.keySet().retainAll(on);
+        }
+        where.keySet().removeIf(m -> notThere.getOrDefault(m, Set.of()).contains(c.id()));
+        Integer best = nearest(where.keySet(), w.hero());
+        return best == null ? null : new Work(quest.id(), c.id(), Kind.SALVAGE, best, Set.copyOf(where.get(best)),
+                Double.NaN, Double.NaN, LOOT, want, 0);
+    }
+
+    /**
+     * Refined ore a quest wants collected (prometid, duranium, promerium): refined in the hold from what is aboard; else
+     * brought from the Skylab (its transport on); else the raw ore it is made of collected first (the user, 2026-11-17:
+     * «покупки нет, есть только скайлаб или переработка — любое должно подходить»). A way the counter does not move on
+     * is dropped for that condition. The hold nearly full with the refined ore: it is sold to make room (counted already).
+     */
+    private Work refinedWork(Quests.Quest quest, Quests.Condition c, int wanted, int ore, WorldSnapshot w) {
+        WorldSnapshot.Hero h = w.hero();
+        boolean refineOk = !refineNoCount.contains(c.id());
+        if (refineOk && canRefine(w, ore) > 0) {
+            return new Work(quest.id(), c.id(), Kind.REFINE, h.mapId(), Set.of(), Double.NaN, Double.NaN, ore);
+        }
+        if (ore == wanted) {
+            long free = w.cargoFree();
+            long max = h.cargoMax();
+            if (aboard(w, ore) && max > 0 && free < Math.max(100, max / 20)) {
+                return new Work(quest.id(), c.id(), Kind.SELL, 0, Set.of(), Double.NaN, Double.NaN, ore);
+            }
+            if (!skylabNoCount.contains(c.id()) && skylabOn()) {
+                return new Work(quest.id(), c.id(), Kind.SKYLAB, h.mapId(), Set.of(), Double.NaN, Double.NaN, ore);
+            }
+        }
+        if (!refineOk) {
+            return null;
+        }
+        // the ingredient furthest from one unit's share: refined itself — the same way down; raw — collected
+        Map<Integer, Integer> recipe = RECIPES.get(ore);
+        int need = recipe.entrySet().stream().min(java.util.Comparator.comparingDouble(
+                e -> w.inventory().ores().getOrDefault(e.getKey(), 0.0) / e.getValue())).orElseThrow().getKey();
+        return RECIPES.containsKey(need) ? refinedWork(quest, c, wanted, need, w) : oreWork(quest, c, need, w);
+    }
+
+    /** Units of a refined ore the hold's raw ores make now. */
+    static long canRefine(WorldSnapshot w, int ore) {
+        Map<Integer, Integer> recipe = RECIPES.get(ore);
+        if (recipe == null) {
+            return 0;
+        }
+        long n = Long.MAX_VALUE;
+        for (Map.Entry<Integer, Integer> e : recipe.entrySet()) {
+            n = Math.min(n, (long) (w.inventory().ores().getOrDefault(e.getKey(), 0.0) / e.getValue()));
+        }
+        return n == Long.MAX_VALUE ? 0 : n;
+    }
+
+    private boolean skylabOn() {
+        return ctx.config().get().moduleSettings("skylab").path("enabled").asBoolean(false);
+    }
+
+    /** Conditions whose counter did not move on a refining in the hold, or on ore brought from the Skylab. */
+    private final Set<Integer> refineNoCount = new java.util.HashSet<>();
+    private final Set<Integer> skylabNoCount = new java.util.HashSet<>();
+    /** The last refining or Skylab ore of the work: {condition, the counter before, the ore aboard before}, when. */
+    private double[] wayCheck;
+    private long wayCheckAt;
+    private long refinedAt = Long.MIN_VALUE / 2;
+    static final long WAY_CHECK_NS = 20_000_000_000L;
+
     private Work oreWork(Quests.Quest quest, Quests.Condition c, int ore, WorldSnapshot w) {
         if (ore < 0) {
             return null;
@@ -690,6 +875,16 @@ public final class QuestModule implements BotModule {
         if (here) {
             maps.add(w.hero().mapId());
         }
+        // «Endurium 30 000 on enemy x-4» (the user, 2026-11-17): only where the quest counts it — there even when the
+        // bot never saw that ore on it
+        List<Integer> on = c.onMaps();
+        if (!on.isEmpty()) {
+            maps.retainAll(on);
+            if (maps.isEmpty()) {
+                maps.addAll(on);
+            }
+        }
+        maps.removeIf(m -> notThere.getOrDefault(m, Set.of()).contains(c.id()));
         Integer best = nearest(maps, w.hero());
         return best == null ? null : new Work(quest.id(), c.id(), Kind.ORE, best, Set.of("ore_" + ore), Double.NaN,
                 Double.NaN, ore);

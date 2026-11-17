@@ -11,6 +11,12 @@ public final class Stats {
     /** NPCs the bot was shooting at when they died. */
     public final AtomicInteger kills = new AtomicInteger();
     public final AtomicInteger boxes = new AtomicInteger();
+    /**
+     * Ore a quest wants from the Skylab now ({@code OreTypeModule} number → amount; empty none): the quest module sets it,
+     * the Skylab transport brings it as it brings what the enrichment lacks.
+     */
+    public final java.util.concurrent.atomic.AtomicReference<java.util.Map<Integer, Long>> questOres =
+            new java.util.concurrent.atomic.AtomicReference<>(java.util.Map.of());
     /** What was picked up, by name («палладий», «бонус-бокс»), in the order first seen. */
     private final java.util.Map<String, AtomicInteger> picked = java.util.Collections.synchronizedMap(new java.util.LinkedHashMap<>());
 

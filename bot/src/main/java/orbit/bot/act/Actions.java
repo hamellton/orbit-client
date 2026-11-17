@@ -242,6 +242,19 @@ public final class Actions {
         sender.accept(r);
     }
 
+    /**
+     * Refines ore in the hold ({@code LabRefinementRequest}, the client's refinement window): {@code count} units of
+     * {@code ore} ({@code OreTypeModule}: prometid 4, duranium 5, promerium 6) from its raw ores aboard.
+     */
+    public void labRefine(int ore, long count) {
+        orbit.protocol.gen.LabRefinementRequest r = new orbit.protocol.gen.LabRefinementRequest();
+        r.toProduce = new orbit.protocol.gen.OreCountModule();
+        r.toProduce.oreType = new orbit.protocol.gen.OreTypeModule();
+        r.toProduce.oreType.typeValue = (short) ore;
+        r.toProduce.count = count;
+        sender.accept(r);
+    }
+
     /** Trinity Trials' window: {@code 0} its state, {@code 1} the pass, {@code 2} drop a level ({@code TrinityTrialsUIRequest}). */
     public void trinityWindow(int type) {
         orbit.protocol.gen.TrinityTrialsUIRequest r = new orbit.protocol.gen.TrinityTrialsUIRequest();

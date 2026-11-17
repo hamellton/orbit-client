@@ -456,6 +456,65 @@ class QuestModuleTest {
     }
 
     @Test
+    void aResourceIsCollectedFromTheNpcsThatCarryIt() {
+        // 122011 «Теория преобразования»: «собрать resource_collectable_hybrid-alloy 1200» — the Blighted, on x-7
+        Sim sim = new Sim(BotConfig.empty(), MapCatalog.bundled().byName("3-5").id(), 10_000, 6_000);
+        take(sim, 805, 2, 67, 1_200, "resource_collectable_hybrid-alloy");
+        QuestModule m = new QuestModule(sim.ctx, NpcMaps.shared(), orbit.world.maps.OreMaps.inMemory());
+        m.visited(sim.now);
+        m.tick();
+        assertEquals("3-7", MapCatalog.bundled().info(m.workingMap()).name(), m.status());
+        assertTrue(m.status().contains("hybrid-alloy 0/1200"), m.status());
+    }
+
+    @Test
+    void oreBoundToAMapIsCollectedThere() {
+        // «Endurium 30 000 on enemy x-4» (mission 23): the ore where the quest counts it, not the nearest field
+        int map34 = MapCatalog.bundled().byName("3-4").id();
+        int map14 = MapCatalog.bundled().byName("1-4").id();
+        Sim sim = new Sim(BotConfig.empty(), map34, 10_000, 6_000);
+        QuestDefinitionModule d = QuestGiverVisitTest.Giver.definition(806);
+        d.types.getFirst().type = 2;
+        QuestConditionModule c = d.rootCase.modifier.getFirst().condition;
+        c.type = 5;
+        c.displayType = 5;
+        c.matches = List.of("2"); // endurium
+        c.targetValue = 30_000;
+        QuestConditionModule on = new QuestConditionModule();
+        on.id = c.id + 1;
+        on.type = 77;
+        on.displayType = 77;
+        on.matches = List.of(String.valueOf(map14));
+        on.state = new orbit.protocol.gen.QuestConditionStateModule();
+        c.subConditions = List.of(on);
+        orbit.protocol.gen.QuestInitializationCommand init = new orbit.protocol.gen.QuestInitializationCommand();
+        init.quest = d;
+        sim.world.apply(init, sim.now);
+        QuestModule m = new QuestModule(sim.ctx, NpcMaps.shared(), orbit.world.maps.OreMaps.inMemory());
+        m.visited(sim.now);
+        m.tick();
+        assertEquals(map14, m.workingMap());
+    }
+
+    @Test
+    void refinedOreIsRefinedInTheHoldFromTheRawOneAboard() {
+        // «Collect Prometid» (missions 8, 23…): 20 prometium + 10 endurium a unit, refined in the hold
+        Sim sim = new Sim(BotConfig.empty(), MapCatalog.bundled().byName("3-1").id(), 10_000, 6_000);
+        orbit.protocol.gen.AttributeOreCountUpdateCommand o = new orbit.protocol.gen.AttributeOreCountUpdateCommand();
+        o.oreCountList = List.of(CargoCareTest.ore(0, 210), CargoCareTest.ore(1, 100));
+        sim.world.apply(o, sim.now);
+        take(sim, 807, 2, 5, 120_000, "11"); // prometid
+        QuestModule m = new QuestModule(sim.ctx, NpcMaps.shared(), orbit.world.maps.OreMaps.inMemory());
+        m.visited(sim.now);
+        sim.run(m::tick, 1_000);
+        var r = sim.sent.stream().filter(p -> p instanceof orbit.protocol.gen.LabRefinementRequest)
+                .map(p -> (orbit.protocol.gen.LabRefinementRequest) p).toList();
+        assertEquals(1, r.size(), m.status());
+        assertEquals(4, r.getFirst().toProduce.oreType.typeValue);
+        assertEquals(10, r.getFirst().toProduce.count, "min(210 / 20, 100 / 10)");
+    }
+
+    @Test
     void killsBoundToAMapAreDoneOnlyThere() {
         // Saimon live on x-3 and x-4; the ship is on 3-4, but the quest counts them on 3-3 only
         int map34 = MapCatalog.bundled().byName("3-4").id();

@@ -22,7 +22,7 @@ class CargoCareTest {
         sim.world.apply(o, sim.now);
     }
 
-    private static orbit.protocol.gen.OreCountModule ore(int type, double n) {
+    static orbit.protocol.gen.OreCountModule ore(int type, double n) {
         orbit.protocol.gen.OreCountModule m = new orbit.protocol.gen.OreCountModule();
         m.oreType = new orbit.protocol.gen.OreTypeModule();
         m.oreType.typeValue = (short) type;

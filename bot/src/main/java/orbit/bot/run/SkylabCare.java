@@ -68,7 +68,9 @@ public final class SkylabCare {
         if (now < failedUntil) {
             return; // the site refused a moment ago (no uridium for the quick one, a limit…): not again at once
         }
-        Map<Integer, Long> lacking = s.path("forEnrich").asBoolean(true) ? enrichMissing.get() : Map.of();
+        Map<Integer, Long> lacking = new LinkedHashMap<>(s.path("forEnrich").asBoolean(true) ? enrichMissing.get() : Map.of());
+        // a quest's refined ore (the user, 2026-11-17: «скайлаб или переработка»): brought like the enrichment's lack
+        ctx.stats().questOres.get().forEach((ore, n) -> lacking.merge(ore, n, Math::max));
         // the want must hold a minute: the ore of a transport may be landing in the hold this very second (live
         // 2026-11-15 on GE1: «нет seprom» 2 s before the 100 came, a second transport asked and refused)
         if (lacking.isEmpty()) {
