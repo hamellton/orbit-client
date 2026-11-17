@@ -225,7 +225,7 @@ public final class Safety {
                     oneWayTold = true;
                 }
             } else if (jumpAt == 0) {
-                jumpAt = now + ctx.pause(200, 700);
+                jumpAt = now + ctx.react(200, 700);
             } else if (now >= jumpAt) {
                 if (attacked) {
                     log.warn("На портале под огнём, HP {}% — прыгаю на {}", pct(hp), portal.toName());

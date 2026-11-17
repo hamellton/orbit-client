@@ -48,7 +48,7 @@ public final class PlayerFight {
         }
         targetId = s.id();
         targetName = s.name();
-        selectAt = ctx.now() + ctx.pause(200, 700);
+        selectAt = ctx.now() + ctx.react(200, 700);
         pressAt = 0;
         seenAt = ctx.now();
         WorldSnapshot.Hero h = ctx.world().get().hero();
@@ -118,7 +118,7 @@ public final class PlayerFight {
             return true;
         }
         if (pressAt == 0) {
-            pressAt = now + ctx.pause(300, 800);
+            pressAt = now + ctx.react(300, 800);
         }
         if (now >= pressAt && dist <= RANGE + 200 && now - pressedAt > 2_000_000_000L) {
             WorldSnapshot.Item laser = w.selected("lasers");

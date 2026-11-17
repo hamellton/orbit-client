@@ -29,6 +29,7 @@ final class GeneralSection implements Section {
     private final JCheckBox runTravel = new JCheckBox("Перелёты — в конфиге бегства");
     private final JCheckBox runChase = new JCheckBox("Догонять цель в конфиге бегства");
     private final JCheckBox avoidMines = new JCheckBox("Обходить мины");
+    private final JCheckBox humanPauses = new JCheckBox("Человеческие паузы перед действиями");
     private final JCheckBox avoidBases = new JCheckBox("Облетать вражеские базы на");
     private final JSpinner baseRadius = Form.number(100, 3000, 50);
     private final JTextArea description = new JTextArea(5, 50);
@@ -57,6 +58,10 @@ final class GeneralSection implements Section {
                 .row("", Form.inline(avoidBases, baseRadius))
                 .note("Чужие клановые станции, штабы и турели чужих фракций.")
                 .note("Догоняет, если цель дальше радиуса на 300+; AGGRESSIVE_FOLLOW — всегда.")
+                .section("Поведение")
+                .row("", humanPauses)
+                .note("Задержка «как у человека» перед выбором цели, выстрелом, ракетами, прыжком, выходом, выпуском питомца,"
+                        + " ремонтом. Выключено — сразу (быстрее успевает к цели). Защита от повторов остаётся всегда.")
                 .section("Облёт карты")
                 .row("", sequential)
                 .row("", onlyPreferred)
@@ -101,6 +106,7 @@ final class GeneralSection implements Section {
         Form.set(work, c.session().workMinutes());
         Form.set(rest, c.session().breakMinutes());
         Form.set(jitter, c.session().jitterMinutes());
+        humanPauses.setSelected(c.moduleSettings("human").path("pauses").asBoolean(false));
         description.setText(c.description());
         description.setCaretPosition(0);
     }
@@ -115,7 +121,13 @@ final class GeneralSection implements Section {
         BotConfig.Session session = new BotConfig.Session(Form.intOf(work), Form.intOf(rest), Form.intOf(jitter));
         BotConfig out = c.withModule(BotConfig.Module.values()[module.getSelectedIndex()]).withGeneral(g)
                 .withDescription(description.getText().strip());
-        return session.equals(c.session()) ? out : out.withSession(session);
+        out = session.equals(c.session()) ? out : out.withSession(session);
+        com.fasterxml.jackson.databind.node.ObjectNode human = c.moduleSettings("human");
+        if (!humanPauses.isSelected() && !human.has("pauses")) {
+            return out; // off and never set: the config stays as it was
+        }
+        human.put("pauses", humanPauses.isSelected());
+        return out.withModuleSettings("human", human);
     }
 
     /** Configuration 1/2 and a formation. */

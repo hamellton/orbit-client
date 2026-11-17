@@ -298,7 +298,9 @@ public final class KillModule implements BotModule {
                     || attacker.tooStrong(s.name())
                     // another player is by it and nearer: he gets there first (live 2026-11-13 on 2-1: 155 of 165
                     // targets gone before the ship came)
-                    || Targets.someoneNearer(w, s)
+                    // (not for an NPC whose rule ignores who hit first: the invoke's reward goes by the damage, the
+                    // rule kept the ship off it until it was itself within 700 — live 2026-11-17 on the VPS)
+                    || !Targets.ownerIgnored(c, w, s) && Targets.someoneNearer(w, s)
                     // a train by it: the config's «обходить чужие поезда» (AstraBot avoidTrain)
                     || c.loot().fight().avoidTrains() && Targets.train(w, s, c.loot().fight().trainPlayers(),
                             c.loot().fight().trainRadius()));

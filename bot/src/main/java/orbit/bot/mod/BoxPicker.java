@@ -230,7 +230,7 @@ public final class BoxPicker {
             // DarkBot's collector: click at once (a human moment), then stay the box's wait (collect.boxes waitMs,
             // ore_8 800 ms) plus 100 ms a retry while the game takes it; still there after that — click again
             if (collectAt == 0) {
-                collectAt = now + ctx.pause(100, 300);
+                collectAt = now + ctx.react(100, 300) + 1; // never 0: 0 is «not yet»
             }
             BotConfig.BoxRule r = rule(c, key(box));
             long stay = Math.max(MIN_STAY_MS, (r == null ? 0 : r.waitMs()) + Math.min(1_000, tries * 100L)) * 1_000_000L;
@@ -241,7 +241,7 @@ public final class BoxPicker {
                     return false;
                 }
                 ctx.actions().collect(box);
-                collectedAt = now;
+                collectedAt = Math.max(1, now); // never 0: 0 is «not yet»
                 tries++;
             }
         }

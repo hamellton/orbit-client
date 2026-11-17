@@ -186,7 +186,7 @@ public final class PetCare {
         if (!pet.active()) {
             // a moment after the login, a revive or a jump, like a player pressing the key
             if (launchAt == 0) {
-                launchAt = now + ctx.pause(2_000, 5_000);
+                launchAt = now + ctx.react(2_000, 5_000);
             }
             if (now >= launchAt && ms(now - launchedAt) > LAUNCH_RETRY_MS) {
                 log.info("Выпускаю питомца");

@@ -1066,7 +1066,7 @@ public final class BotRunner {
             firedAtSince = 0;
         }
         if (logoutAt == 0) {
-            logoutAt = now + ctx.pause(1_000, 3_000);
+            logoutAt = now + ctx.react(1_000, 3_000);
         }
         if (now >= logoutAt && !h.moving() && now - logoutPressedAt > 30_000_000_000L) {
             // the game's countdown: 20 s, 5 s with premium (the user, 2026-11-17)

@@ -855,7 +855,7 @@ public final class GateModule implements BotModule {
         double dist = Math.hypot(p.x() - h.x(), p.y() - h.y());
         if (w.activatable().containsKey(p.id()) && dist <= JUMP_RANGE && ms(now - pressedAt) > 3_000) {
             if (pressAt == 0) {
-                pressAt = now + ctx.pause(200, 1_000);
+                pressAt = now + ctx.react(200, 1_000);
             }
             if (now >= pressAt) {
                 ctx.actions().jump();

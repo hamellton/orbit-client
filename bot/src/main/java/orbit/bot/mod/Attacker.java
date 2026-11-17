@@ -610,7 +610,7 @@ public final class Attacker {
         if (t0Cubikon) {
             ctx.stats().cubeFought(s.id());
         }
-        selectAt = ctx.now() + ctx.pause(300, 900);
+        selectAt = ctx.now() + ctx.react(300, 900);
         pressAt = 0;
         lastHealth = -1;
         healthDropAt = ctx.now();
@@ -943,7 +943,7 @@ public final class Attacker {
         if (wanted != null && !wanted.selected() && wanted.counter() >= MIN_AMMO && ammoTries < 2
                 && now - ammoAt > 1_500_000_000L) {
             if (pressAt == 0) {
-                pressAt = now + ctx.pause(800, 1_500);
+                pressAt = now + ctx.react(800, 1_500);
             }
             if (now >= pressAt) {
                 log.info("Патроны: {}", orbit.config.ItemCatalog.label(ammo));
@@ -969,7 +969,7 @@ public final class Attacker {
             return true;
         }
         if (pressAt == 0) {
-            pressAt = now + ctx.pause(800, 1_500);
+            pressAt = now + ctx.react(800, 1_500);
         }
         if (now >= pressAt && dist <= radius + 200 && now - pressedAt > 3_000_000_000L) {
             WorldSnapshot.Item laser = w.selected("lasers");
@@ -1407,7 +1407,7 @@ public final class Attacker {
         if (!item.selected()) {
             if (now - rocketSelectAt > 2_000_000_000L) {
                 if (rocketPressAt == 0) {
-                    rocketPressAt = now + ctx.pause(300, 900);
+                    rocketPressAt = now + ctx.react(300, 900);
                 } else if (now >= rocketPressAt) {
                     log.info("Ракеты: {}", orbit.config.ItemCatalog.label(rocket));
                     missingRocket = null;
@@ -1421,7 +1421,7 @@ public final class Attacker {
         if (c.loot().fireRockets() && dist <= radius + ROCKET_EXTRA && item.remainingMs(now) == 0
                 && now - rocketFiredAt > 1_000_000_000L) {
             if (rocketFireAt == 0) {
-                rocketFireAt = now + ctx.pause(200, 800);
+                rocketFireAt = now + ctx.react(200, 800);
             } else if (now >= rocketFireAt) {
                 ctx.actions().attackRocket(t);
                 rocketFiredAt = now;
@@ -1469,7 +1469,7 @@ public final class Attacker {
         if (!item.selected()) {
             if (now - launcherSelectAt > 2_000_000_000L) {
                 if (launcherPressAt == 0) {
-                    launcherPressAt = now + ctx.pause(300, 900);
+                    launcherPressAt = now + ctx.react(300, 900);
                 } else if (now >= launcherPressAt) {
                     log.info("Ракетомёт: {}", orbit.config.ItemCatalog.label(wanted));
                     missingLauncher = null;
@@ -1495,7 +1495,7 @@ public final class Attacker {
         if (launcher.counter() >= full && launcher.remainingMs(now) == 0 && dist <= radius + ROCKET_EXTRA
                 && now - launcherFiredAt > 2_000_000_000L) {
             if (launcherFireAt == 0) {
-                launcherFireAt = now + ctx.pause(200, 800);
+                launcherFireAt = now + ctx.react(200, 800);
             } else if (now >= launcherFireAt) {
                 ctx.actions().useItem(launcher.id());
                 launcherFiredAt = now;

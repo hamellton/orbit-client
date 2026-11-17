@@ -106,7 +106,7 @@ public final class Revive {
         if (death == null && w.hero().alive()) {
             if (dead) {
                 dead = false;
-                resumeAt = now + Math.max(0, s.waitAfterReviveSec()) * 1_000_000_000L + ctx.pause(0, 3_000);
+                resumeAt = now + Math.max(0, s.waitAfterReviveSec()) * 1_000_000_000L + ctx.react(0, 3_000);
                 log.info("Снова в игре");
             }
             return now < resumeAt;
@@ -116,7 +116,7 @@ public final class Revive {
             deaths++;
             ctx.stats().deaths.incrementAndGet();
             ctx.nav().stop();
-            repairAt = now + Math.max(0, s.waitBeforeReviveSec()) * 1_000_000_000L + ctx.pause(2_000, 6_000);
+            repairAt = now + Math.max(0, s.waitBeforeReviveSec()) * 1_000_000_000L + ctx.react(2_000, 6_000);
             log.warn("Корабль уничтожен ({}) — смертей {}", death == null ? "?" : death.killer(), deaths);
             killerCounted = false;
             paidThisDeath = false;

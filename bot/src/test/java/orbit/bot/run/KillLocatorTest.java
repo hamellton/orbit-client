@@ -67,4 +67,30 @@ class KillLocatorTest {
         var d = sim.ctx.nav().destination();
         assertTrue(Math.hypot(d.x() - 16_000, d.y() - 9_000) < 300, "off to the locator's invoke: " + d);
     }
+
+    @Test
+    void anInvokeIsTakenThoughAnotherPlayerIsNearerToIt() throws Exception {
+        // its reward goes by the damage: «someone nearer gets it first» kept the ship off it until it was within 700
+        BotConfig c = BotConfig.empty()
+                .withLoot(new BotConfig.Loot("ammunition_laser_lcb-10", null, 0, 0, null, true, 0, null, false, false, null))
+                .withNpcs(Map.of(INVOKE, new BotConfig.NpcRule(500, -10000, true, Set.of("IGNORE_OWNERSHIP", "IGNORE_ATTACKED"),
+                        Set.of(), null), "-=[ Plain ]=-", new BotConfig.NpcRule(500, 0, true, Set.of(), Set.of(), null)));
+        for (String npc : new String[] {INVOKE, "-=[ Plain ]=-"}) {
+            Sim sim = new Sim(c, 307, 10_000, 6_000);
+            KillModule m = new KillModule(sim.ctx, true, false);
+            sim.npc(7, npc, 11_500, 6_000);
+            orbit.protocol.gen.ShipCreateCommand p = new orbit.protocol.gen.ShipCreateCommand();
+            p.userId = 50;
+            p.userName = "AstraBot";
+            p.x = 11_800;
+            p.y = 6_000;
+            sim.world.apply(p, sim.now);
+            sim.run(m::tick, 1_500);
+            if (npc.equals(INVOKE)) {
+                assertEquals(7, sim.hero().selected(), "the invoke selected from 1 500 away");
+            } else {
+                assertTrue(sim.hero().selected() != 7, "a plain NPC the other player is nearer to is left to him");
+            }
+        }
+    }
 }

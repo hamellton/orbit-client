@@ -128,6 +128,12 @@ public final class Targets {
         return s.attackTargetId() != h.id() && !h.attackers().contains(s.id());
     }
 
+    /** The NPC's rule fights it whoever hit first or attacks it ({@code IGNORE_OWNERSHIP}, {@code IGNORE_ATTACKED}). */
+    public static boolean ownerIgnored(BotConfig c, WorldSnapshot w, WorldSnapshot.Ship s) {
+        BotConfig.NpcRule r = rule(c, s, w.hero().mapId());
+        return r != null && (r.has(BotConfig.NpcFlag.IGNORE_OWNERSHIP) || r.has(BotConfig.NpcFlag.IGNORE_ATTACKED));
+    }
+
     /** A player this close to a target, and nearer to it than the ship, gets it first. */
     static final double NEARER = 700;
 

@@ -106,7 +106,7 @@ public final class Flee {
         }
         if (f.jump() && close && !oneWay && w.jumpingTo() == 0 && now - jumpedAt > 10_000_000_000L) {
             if (jumpAt == 0) {
-                jumpAt = now + ctx.pause(200, 600);
+                jumpAt = now + ctx.react(200, 600);
             } else if (now >= jumpAt) {
                 log.warn("{} у портала — прыгаю", threatName);
                 ctx.actions().jump();

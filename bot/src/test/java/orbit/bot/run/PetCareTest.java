@@ -67,9 +67,7 @@ class PetCareTest {
         owned(sim);
         PetCare pet = new PetCare(sim.ctx);
         sim.run(pet::tick, 1_000);
-        assertEquals(0, launches(sim), "a moment first, like a player");
-        sim.run(pet::tick, 5_000);
-        assertEquals(1, launches(sim));
+        assertEquals(1, launches(sim), "at once: the config's human pauses are off by default");
         launched(sim);
         sim.run(pet::tick, 40_000); // the server names the mode 12–32 s late, or not at all
         List<PetGearActivationRequest> g = gears(sim);
@@ -303,5 +301,17 @@ class PetCareTest {
         quest[0] = 0; // the quest's fight is over
         sim.run(pet::tick, 10_000);
         assertEquals(PetGearTypeModule.PETGEARTYPE_GUARD, gears(sim).getLast().gearTypeToActivate.typeValue);
+    }
+
+    @Test
+    void withHumanPausesTheLaunchWaitsAMomentLikeAPlayer() throws Exception {
+        Sim sim = new Sim(config("ENEMY_LOCATOR", 0).withModuleSettings("human",
+                orbit.config.Json.MAPPER.readTree("{\"pauses\": true}")), 26, 10_000, 6_000);
+        owned(sim);
+        PetCare pet = new PetCare(sim.ctx);
+        sim.run(pet::tick, 1_000);
+        assertEquals(0, launches(sim), "a moment first, like a player");
+        sim.run(pet::tick, 5_000);
+        assertEquals(1, launches(sim));
     }
 }
