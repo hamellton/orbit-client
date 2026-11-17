@@ -167,6 +167,7 @@ public final class ManagerWindow {
         frame.setLocationRelativeTo(null);
         refresh();
         frame.setVisible(true);
+        fitAtQuietMoments();
         if (model.names.isEmpty()) {
             SwingUtilities.invokeLater(this::add);
         }
@@ -867,5 +868,25 @@ public final class ManagerWindow {
             setToolTipText(value == null || value.toString().isEmpty() ? null : value.toString());
             return c;
         }
+    }
+
+    /**
+     * Only the map in the manager: the window takes the map's shape at quiet moments — the mode turned on, an account's
+     * tab opened, the start — and never while the user drags its edge (the user, 2026-11-17: the map's top was cut in a
+     * small window; «видно, как окно меняется» while resizing was not wanted). Same fit as the bot's window.
+     */
+    private void fitAtQuietMoments() {
+        Timer later = new Timer(150, e -> MainWindow.fitOnce(frame, pane));
+        later.setRepeats(false);
+        pane.addChangeListener(e -> later.restart());
+        boolean[] mapOnly = {ViewSettings.shared().mapOnlyNow()};
+        ViewSettings.shared().onChange(() -> SwingUtilities.invokeLater(() -> {
+            boolean now = ViewSettings.shared().mapOnlyNow();
+            if (now && !mapOnly[0]) {
+                later.restart(); // turned on: once, after the parts around the map are gone
+            }
+            mapOnly[0] = now;
+        }));
+        later.restart();
     }
 }

@@ -122,32 +122,38 @@ public final class MainWindow {
     }
 
     /**
+     * Only the map shown on an account's tab: the window's height made the map's shape once (the map then fills it, nothing
+     * cut). The overview is left alone.
+     */
+    static void fitOnce(JFrame frame, JComponent content) {
+        if (!ViewSettings.shared().mapOnlyNow() || frame.getExtendedState() != JFrame.NORMAL) {
+            return;
+        }
+        Component view = content instanceof JTabbedPane pane ? pane.getSelectedComponent() : content;
+        if (!(view instanceof AccountView) || view.getWidth() <= 0) {
+            return; // «Все» keeps its grid
+        }
+        int extra = frame.getHeight() - view.getHeight(); // title bar, tabs, borders
+        int want = extra + (int) Math.round(view.getWidth() / Grid.ASPECT);
+        java.awt.Rectangle screen = frame.getGraphicsConfiguration().getBounds();
+        if (want > screen.height) {
+            // too tall for the screen: keep the height, narrow the window to the map's shape instead
+            int height = screen.height - 40;
+            int width = (int) Math.round((height - extra) * Grid.ASPECT) + (frame.getWidth() - view.getWidth());
+            frame.setSize(Math.max(frame.getMinimumSize().width, width), height);
+        } else if (Math.abs(frame.getHeight() - want) > 3) {
+            frame.setSize(frame.getWidth(), Math.max(frame.getMinimumSize().height, want));
+        }
+    }
+
+    /**
      * Only the map shown on an account's tab: the window takes the map's shape, its height following the
      * width (after the user lets go of the edge), so no empty bands are left. The overview is left alone.
      */
     private static void fitToMap(JFrame frame, JComponent content) {
         Timer settle = new Timer(120, null);
         settle.setRepeats(false);
-        Runnable fit = () -> {
-            if (!ViewSettings.shared().mapOnlyNow() || frame.getExtendedState() != JFrame.NORMAL) {
-                return;
-            }
-            Component view = content instanceof JTabbedPane pane ? pane.getSelectedComponent() : content;
-            if (!(view instanceof AccountView) || view.getWidth() <= 0) {
-                return; // «Все» keeps its grid
-            }
-            int extra = frame.getHeight() - view.getHeight(); // title bar, tabs, borders
-            int want = extra + (int) Math.round(view.getWidth() / Grid.ASPECT);
-            java.awt.Rectangle screen = frame.getGraphicsConfiguration().getBounds();
-            if (want > screen.height) {
-                // too tall for the screen: keep the height, narrow the window to the map's shape instead
-                int height = screen.height - 40;
-                int width = (int) Math.round((height - extra) * Grid.ASPECT) + (frame.getWidth() - view.getWidth());
-                frame.setSize(Math.max(frame.getMinimumSize().width, width), height);
-            } else if (Math.abs(frame.getHeight() - want) > 3) {
-                frame.setSize(frame.getWidth(), Math.max(frame.getMinimumSize().height, want));
-            }
-        };
+        Runnable fit = () -> fitOnce(frame, content);
         settle.addActionListener(e -> fit.run());
         frame.addComponentListener(new java.awt.event.ComponentAdapter() {
             @Override
