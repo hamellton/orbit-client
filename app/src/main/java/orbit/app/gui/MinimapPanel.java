@@ -163,40 +163,14 @@ final class MinimapPanel extends JPanel {
     private Projection projection(MapCatalog.MapInfo map) {
         boolean mapOnly = !compact && ViewSettings.shared().mapOnlyNow();
         int pad = compact || mapOnly ? 0 : 8; // only the map: edge to edge
-        int height = mapHeight();
         double sx = (getWidth() - 2.0 * pad) / map.width();
-        double sy = (height - 2.0 * pad) / map.height();
+        double sy = (getHeight() - 2.0 * pad) / map.height();
         // only the map: it always covers the window (a sliver cut off while the window is being resized, until
         // the window takes the map's shape), so no empty band shows
         double scale = mapOnly ? Math.max(sx, sy) : Math.min(sx, sy);
         double ox = (getWidth() - map.width() * scale) / 2;
-        double oy = (height - map.height() * scale) / 2;
+        double oy = (getHeight() - map.height() * scale) / 2;
         return new Projection(ox, oy, scale);
-    }
-
-    /** The overlays drawn small this frame: the overview, or a map too low for the strip over it. */
-    private boolean small;
-
-    /** A map lower than this has the bottom strip under it, not over it (the user, 2026-11-17: a small window). */
-    static final int STRIP_OVER_MIN = 400;
-
-    /**
-     * True when the bottom strip goes under the map: the map seen in the whole panel would be lower than
-     * {@link #STRIP_OVER_MIN} (a map is 21 000 × 13 100 but a few; only the map: it covers the panel's height).
-     */
-    private boolean stripBelow() {
-        int h = getHeight();
-        if (h <= 3 * Hud.STRIP_HEIGHT) {
-            return false; // not laid out yet, or too small for anything
-        }
-        boolean mapOnly = !compact && ViewSettings.shared().mapOnlyNow();
-        double seen = mapOnly ? h : Math.min(h, getWidth() * 13_100.0 / 21_000);
-        return seen < STRIP_OVER_MIN;
-    }
-
-    /** The panel's height left for the map: all of it, or less the strip under it. */
-    private int mapHeight() {
-        return stripBelow() ? getHeight() - Hud.STRIP_HEIGHT : getHeight();
     }
 
     /** Draws the minimap of the feed's current state into an image (no window needed). */
@@ -450,35 +424,37 @@ final class MinimapPanel extends JPanel {
         double vx = Math.max(ox, 0);
         double vy = Math.max(oy, 0);
         double vw = Math.min(ox + mw, getWidth()) - vx;
-        boolean below = stripBelow();
-        small = compact || below; // a small map: the overlays as small as in the overview
-        double vh = Math.min(oy + mh, mapHeight()) - vy;
+        double vh = Math.min(oy + mh, getHeight()) - vy;
         // the overlays as DarkBot draws them (the user, 2026-11-17: «наложения как в DarkBot 1 в 1»; the bottom strip,
         // the game's fading lines and the map itself stay ours): stats left, boosters right, both in the middle of the
         // height; the target's bars bottom right, the pet's bottom left, above our strip
-        // the strip over the map's bottom, or under the map on a small one (the overlays then reach the map's bottom)
-        int stripTop = below ? (int) Math.round(vy + vh) - 2 : (int) Math.round(vy + vh) - Hud.STRIP_HEIGHT - 18;
+        // the map's bottom as DarkBot's (the user, 2026-11-17: «нижнюю полосу тоже как в DarkBot»): the ship's name and
+        // bars on the left half, the target's on the right, the pet over the ship's, the configuration in the corner
+        int bottom = (int) Math.round(vy + vh);
+        int stripTop = bottom - 56;
         boolean roomForBlocks = vh >= (compact ? 300 : 260);
         if (hero.id() != 0 && roomForBlocks) {
             dbStats(g, vx, vy, vh, stripTop, w);
             dbBoosters(g, vx + vw, vy, vh, stripTop, w);
         }
         if (hero.id() != 0) {
-            dbTarget(g, vx + vw / 2 + 10, vw / 2 - 20, stripTop - 4, w);
-            dbPet(g, vx + 10, (vw / 2 - 20) * 0.25, vx + vw / 2 - 10, stripTop - 4, w);
+            dbHero(g, vx + 10, vw / 2 - 20, bottom - 10, w);
+            dbTarget(g, vx + vw / 2 + 10, vw / 2 - 20, bottom - 10, w);
+            dbPet(g, vx + 10, (vw / 2 - 20) * 0.25, vx + vw / 2 - 10, bottom - 34, w);
+            g.setFont(hud.font(Font.PLAIN, compact ? 10f : 11f));
+            g.setColor(Hud.TEXT);
+            g.drawString(String.valueOf(hero.config()), (float) (vx + 12), bottom - 12);
+        } else {
+            g.setFont(hud.font(Font.PLAIN, 12f));
+            g.setColor(Hud.DIM);
+            String state = Hud.clip(g, feed.title() + "  ·  " + feed.action(), (int) vw - 20);
+            g.drawString(state, (float) (vx + 10), bottom - 12);
         }
         if (!compact) {
             menuHint(g, vx, vy, vw);
             gameFeed(g, vx, (int) Math.round(vy) + 8, vw);
             cardsAt = java.util.Map.of();
         }
-        Shape stripClip = g.getClip();
-        if (!compact && !below) {
-            g.clip(frame);
-        }
-        hud.strip(g, (int) Math.round(vx), (int) Math.round(vy + vh) + (below ? Hud.STRIP_HEIGHT : 0),
-                (int) Math.round(vw), feed, config.get(), below);
-        g.setClip(stripClip);
         if (w.boxCheck() != null) {
             boxCheck(g, w, p, vx, vy, vw);
         }
@@ -735,9 +711,9 @@ final class MinimapPanel extends JPanel {
         if (rows.isEmpty()) {
             return;
         }
-        g.setFont(hud.font(Font.PLAIN, small ? 10f : 11f));
+        g.setFont(hud.font(Font.PLAIN, compact ? 10f : 11f));
         java.awt.FontMetrics fm = g.getFontMetrics();
-        int line = small ? 13 : 15;
+        int line = compact ? 13 : 15;
         int width = rows.stream().mapToInt(fm::stringWidth).max().orElse(0) + 8;
         int height = rows.size() * line + 4;
         int top = (int) Math.round(vy + vh / 2 - height / 2.0);
@@ -762,16 +738,30 @@ final class MinimapPanel extends JPanel {
         if (t == null) {
             return;
         }
-        int bar = small ? 9 : 12;
-        boolean shield = t.health().shieldMax() > 0;
-        int barsTop = bottom - bar - (shield ? bar : 0);
-        g.setFont(hud.font(Font.PLAIN, small ? 11f : 12f));
+        int bar = compact ? 9 : 12;
+        int barsTop = bottom - 2 * bar; // DarkBot's place: the shield row under it, there or not
+        g.setFont(hud.font(Font.PLAIN, compact ? 11f : 12f));
         g.setColor(shipColor(t, h, w.group()));
         String name = Hud.clip(g, label(t), (int) width);
-        g.drawString(name, (float) (x + (width - g.getFontMetrics().stringWidth(name)) / 2), barsTop - 4);
+        g.drawString(name, (float) (x + (width - g.getFontMetrics().stringWidth(name)) / 2), barsTop - 6);
         if (t.health().known()) {
             dbBars(g, x, barsTop, width, bar, t.health().hp(), t.health().hpMax(), t.health().shield(),
                     t.health().shieldMax(), true);
+        }
+    }
+
+    /** DarkBot's own ship ({@code InfosDrawer.drawHealth}): the name over hull and shield bars of 12 px with numbers. */
+    private void dbHero(Graphics2D g, double x, double width, int bottom, WorldSnapshot w) {
+        WorldSnapshot.Hero h = w.hero();
+        int bar = compact ? 9 : 12;
+        int barsTop = bottom - 2 * bar;
+        g.setFont(hud.font(Font.PLAIN, compact ? 11f : 12f));
+        g.setColor(Hud.TEXT);
+        String name = Hud.clip(g, h.name(), (int) width);
+        g.drawString(name, (float) (x + (width - g.getFontMetrics().stringWidth(name)) / 2), barsTop - 6);
+        if (h.health().known()) {
+            dbBars(g, x, barsTop, width, bar, h.health().hp(), h.health().hpMax(), h.health().shield(),
+                    Math.max(h.health().shieldMax(), 1), true);
         }
     }
 
@@ -786,8 +776,8 @@ final class MinimapPanel extends JPanel {
         }
         int bar = 6;
         int fuelTop = bottom - bar;
-        int hullTop = fuelTop - bar - 2;
-        g.setFont(hud.font(Font.PLAIN, small ? 9f : 10f));
+        int hullTop = fuelTop - 2 * bar; // DarkBot: the hull at −52, the fuel at −40
+        g.setFont(hud.font(Font.PLAIN, compact ? 9f : 10f));
         if (pet.health().known()) {
             dbBars(g, x, hullTop, width, bar, pet.health().hp(), pet.health().hpMax(), 0, 0, false);
         }
@@ -824,7 +814,7 @@ final class MinimapPanel extends JPanel {
         g.fillRect(ix, y, iw, height);
         g.setColor(DB_HEALTH);
         g.fillRect(ix, y, hpMax <= 0 ? 0 : (int) Math.round(iw * Math.max(0, Math.min(1, hp / hpMax))), height);
-        Font font = hud.font(Font.PLAIN, small ? 8f : 10f);
+        Font font = hud.font(Font.PLAIN, compact ? 8f : 10f);
         if (numbers && height >= 8) {
             g.setFont(font);
             dbNumber(g, group(hp) + "/" + group(hpMax), ix, iw, y + height - 2);
