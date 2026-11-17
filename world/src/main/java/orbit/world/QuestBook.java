@@ -260,9 +260,29 @@ final class QuestBook {
             List<Quests.Condition> changed = replace(q.conditions(), conditionId, current, on, completed);
             if (changed != null) {
                 e.setValue(new Quests.Quest(q.id(), q.types(), changed, q.rewards(), q.star(), q.source()));
+                // each step of progress in the log (the user, 2026-11-17: a cargo quest stood at 0/100 unseen)
+                Quests.Condition was = find(q.conditions(), conditionId);
+                Quests.Condition now = find(changed, conditionId);
+                if (was != null && now != null && now.target() > 0 && !QuestTexts.isTime(now)
+                        && (long) was.current() != (long) now.current()) {
+                    log.info("Квест {}: {}", QuestTitles.label(q.id()), describe(now));
+                }
                 return;
             }
         }
+    }
+
+    private static Quests.Condition find(List<Quests.Condition> list, int id) {
+        for (Quests.Condition c : list) {
+            if (c.id() == id) {
+                return c;
+            }
+            Quests.Condition in = find(c.sub(), id);
+            if (in != null) {
+                return in;
+            }
+        }
+        return null;
     }
 
     /** The list with the condition updated, or {@code null} when it is not in it. */

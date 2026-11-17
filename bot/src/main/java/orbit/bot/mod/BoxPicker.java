@@ -186,10 +186,16 @@ public final class BoxPicker {
         BotConfig c = ctx.config().get();
         long now = ctx.now();
         if (hash != null && !w.collectables().containsKey(hash)) {
-            boxes++;
-            ctx.stats().boxes.incrementAndGet();
-            int n = ctx.stats().picked(orbit.config.LootNames.of(current));
-            log.info("Подобрал {} (тип {}, за сессию: {})", orbit.config.LootNames.of(current), current, n);
+            if (tries == 0) {
+                // gone before the ship asked for it (another took it, or the game removed it): not ours (live
+                // 2026-11-17 on gb2: «Подобрал груз» thirty times, the cargo quest still 0/100)
+                log.info("{} исчез раньше, чем я его взял", orbit.config.LootNames.of(current));
+            } else {
+                boxes++;
+                ctx.stats().boxes.incrementAndGet();
+                int n = ctx.stats().picked(orbit.config.LootNames.of(current));
+                log.info("Подобрал {} (тип {}, за сессию: {})", orbit.config.LootNames.of(current), current, n);
+            }
             hash = null;
         }
         if (hash == null) {
