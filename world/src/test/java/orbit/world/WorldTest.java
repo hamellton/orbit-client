@@ -252,6 +252,30 @@ class WorldTest {
     }
 
     @Test
+    void aNewLoginTakesThePetForInUntilTheServerSaysItIsOut() {
+        // live 2026-11-17 on gb2: the line dropped, no PetDeactivationCommand came, the pet was taken for out for 9 hours
+        World w = withHero();
+        PetHeroActivationCommand out = new PetHeroActivationCommand();
+        out.petId = 55;
+        out.ownerId = HERO;
+        w.apply(out, 0);
+        assertTrue(w.snapshot(0).pet().active());
+        ShipInitializationCommand again = new ShipInitializationCommand();
+        again.userId = HERO;
+        again.mapId = 308;
+        w.apply(again, 1);
+        PetInitializationCommand init = new PetInitializationCommand();
+        init.hasPet = true;
+        init.petIsAlive = true;
+        init.hasFuel = true;
+        w.apply(init, 1);
+        assertFalse(w.snapshot(1).pet().active(), "in after a login, as the server's client starts it");
+        assertTrue(w.snapshot(1).pet().owned() && w.snapshot(1).pet().alive(), "still owned and alive: launched again");
+        w.apply(out, 2);
+        assertTrue(w.snapshot(2).pet().active(), "out again by the server's word");
+    }
+
+    @Test
     void ownPetIsTrackedAndOtherPetsAreNotTakenForIt() {
         World w = withHero();
         PetInitializationCommand init = new PetInitializationCommand();

@@ -901,6 +901,12 @@ public final class World {
         death = null;
         pet = petLocator(0, 0, 0); // the locator's point was on the old map
         pet = petTargets(List.of(), 0); // and its targets
+        // every login (a jump, a revive, a reconnect) starts with the pet in: the real client launches it again and the
+        // server answers PetHeroActivationCommand (the recordings). Kept «out» when the line dropped and no
+        // PetDeactivationCommand came, the bot never launched it again (live 2026-11-17 on gb2: dead during a
+        // reconnect at 01:45, the pet shown working and its locator silent for 9 hours)
+        pet = pet(pet.owned(), pet.alive(), pet.hasFuel(), false, pet.id(), pet.name(), pet.level(), pet.health(),
+                pet.fuel(), pet.fuelMax(), pet.heat(), pet.heatMax(), pet.gear());
         // sent on every login (and on respawn); the server then lists the map contents again
         clearMap();
         hero.id = p.userId;
