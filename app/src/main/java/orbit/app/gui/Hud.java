@@ -130,7 +130,7 @@ final class Hud {
         if (w.group().exists()) {
             out.put(ViewSettings.Block.GROUP, group(w));
         }
-        put(out, ViewSettings.Block.QUESTS, quests(w.quests()));
+        put(out, ViewSettings.Block.QUESTS, quests(w.quests(), doing(feed)));
         put(out, ViewSettings.Block.GATES, gates(w, feed));
         put(out, ViewSettings.Block.SKYLAB, skylab(feed.skylab()));
         put(out, ViewSettings.Block.LAB, lab(w.inventory().lab(), feed.now()));
@@ -535,13 +535,25 @@ final class Hud {
     /** Over the map fewer: the map stays to be seen. */
     static final int MAX_QUESTS_ON_MAP = 3;
 
-    /** The taken quests: type and number, then each condition with its progress (the HUD's quest first). */
-    private Card quests(orbit.world.Quests q) {
+    /** The quest module's work now ({quest, condition}), {@code null} none or another module. */
+    private static int[] doing(WorldFeed feed) {
+        orbit.bot.run.BotRunner r = feed.runner();
+        return r != null && r.module() instanceof orbit.bot.mod.QuestModule m ? m.doing() : null;
+    }
+
+    /**
+     * The taken quests: type and number, then each condition with its progress. The one the bot works on first, marked
+     * «▶ сейчас» with a bar at the left and its condition marked, the others dimmed (the user, 2026-11-17: which quest is
+     * being done was not to be seen); then the HUD's quest.
+     */
+    Card quests(orbit.world.Quests q, int[] doing) {
         if (q.active().isEmpty()) {
             return null;
         }
+        int now = doing != null && q.active().containsKey(doing[0]) ? doing[0] : 0;
         List<orbit.world.Quests.Quest> list = q.active().values().stream()
-                .sorted(Comparator.comparingInt((orbit.world.Quests.Quest x) -> x.id() == q.privileged() ? 0 : 1)
+                .sorted(Comparator.comparingInt((orbit.world.Quests.Quest x) -> x.id() == now ? 0 : 1)
+                        .thenComparingInt(x -> x.id() == q.privileged() ? 0 : 1)
                         .thenComparingInt(orbit.world.Quests.Quest::id))
                 .limit(onMap ? MAX_QUESTS_ON_MAP : MAX_QUESTS).toList();
         int more = q.active().size() - list.size();
@@ -562,22 +574,37 @@ final class Hud {
                 heading(g, x, y, width, "Квесты", String.valueOf(q.active().size()));
                 int ry = y + pad + head;
                 for (orbit.world.Quests.Quest quest : list) {
+                    boolean current = quest.id() == now;
+                    boolean dim = now != 0 && !current;
+                    int top = ry;
                     g.setFont(font(Font.BOLD, 12f));
-                    g.setColor(TEXT);
+                    g.setColor(dim ? DIM : TEXT);
                     String title = orbit.world.QuestTitles.of(quest.id());
-                    String head = orbit.world.QuestTexts.type(quest.types()) + " " + quest.id()
+                    String head = (current ? "▶ " : "") + orbit.world.QuestTexts.type(quest.types()) + " " + quest.id()
                             + (title != null ? " «" + title + "»" : "") + (quest.id() == q.privileged() ? "  ★" : "");
-                    g.drawString(clip(g, head, width - 2 * pad), x + pad, ry + 11);
+                    String tag = current ? "сейчас" : "";
+                    int tagW = tag.isEmpty() ? 0 : g.getFontMetrics().stringWidth(tag) + 8;
+                    g.drawString(clip(g, head, width - 2 * pad - tagW), x + pad, ry + 11);
+                    if (current) {
+                        g.setColor(QUEST_BAR);
+                        g.drawString(tag, x + width - pad - tagW + 8, ry + 11);
+                    }
                     ry += line;
                     for (orbit.world.Quests.Condition c : quest.leaves()) {
-                        g.setFont(font(Font.PLAIN, 11f));
-                        g.setColor(c.completed() ? HP_BAR : TEXT);
-                        String text = (c.completed() ? "✓ " : "") + orbit.world.QuestTexts.condition(c);
+                        boolean working = current && doing[1] == c.id();
+                        g.setFont(font(working ? Font.BOLD : Font.PLAIN, 11f));
+                        g.setColor(c.completed() ? HP_BAR : dim ? DIM : TEXT);
+                        String text = (working ? "▶ " : c.completed() ? "✓ " : "") + orbit.world.QuestTexts.condition(c);
                         g.drawString(clip(g, text, width - 2 * pad), x + pad, ry + 10);
                         if (c.target() > 0 && !orbit.world.QuestTexts.isTime(c) && c.type() != orbit.world.Quests.AVOID_DEATH) {
-                            bar(g, x + pad, ry + 13, width - 2 * pad, 9, c.current(), c.target(), QUEST_BAR, false);
+                            bar(g, x + pad, ry + 13, width - 2 * pad, 9, c.current(), c.target(),
+                                    dim ? BAR_TRACK.brighter() : QUEST_BAR, false);
                         }
                         ry += condH;
+                    }
+                    if (current) {
+                        g.setColor(QUEST_BAR);
+                        g.fillRect(x + 3, top + 1, 3, ry - top - 4); // the bar at the left of the quest at work
                     }
                 }
                 if (more > 0) {

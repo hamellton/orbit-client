@@ -99,6 +99,11 @@ public final class BotRunner {
     private int offendersSeen;
     private boolean avoiding;
     private BotModule module;
+
+    /** The module at work, {@code null} before the first tick. */
+    public BotModule module() {
+        return module;
+    }
     private BotConfig.Module moduleKind;
     private State state = State.STARTING;
     private String status = "Вход в игру";

@@ -143,6 +143,18 @@ public final class QuestModule implements BotModule {
         return worker != null && worker.busy();
     }
 
+    /** The quest and condition worked on now ({quest, condition}), {@code null} none — the «Квесты» card marks them. */
+    public int[] doing() {
+        Work wk = work;
+        return wk == null ? null : new int[] {wk.quest(), wk.condition()};
+    }
+
+    /** «Теория преобразования» by its title (the user, 2026-11-17: the number alone said nothing), else the number. */
+    static String named(int quest) {
+        String t = orbit.world.QuestTitles.of(quest);
+        return t == null ? String.valueOf(quest) : "«" + t + "»";
+    }
+
     @Override
     public void pause() {
         if (worker != null) {
@@ -231,7 +243,7 @@ public final class QuestModule implements BotModule {
             if (work == null || work.quest() != next.quest() || work.condition() != next.condition()
                     || work.kind() != next.kind() || work.map() != next.map()) {
                 Quests.Condition c = condition(q.active().get(next.quest()), next.condition());
-                log.info("Квест {}: {} {}/{} — {} на {}{}", orbit.world.QuestTitles.label(next.quest()), QuestTexts.condition(c), (long) c.current(),
+                log.info("Квест {}: начинаю — {} {}/{}, {} на {}{}", orbit.world.QuestTitles.label(next.quest()), QuestTexts.condition(c), (long) c.current(),
                         (long) c.target(), what(next.kind()), ctx.maps().info(next.map()).name(),
                         // the server's fields of a cargo condition (faction, ship type, NPC, loot type, ore): which
                         // NPCs carry what is known nowhere else (2026-11-17)
@@ -261,12 +273,12 @@ public final class QuestModule implements BotModule {
                     worker = new KillModule(questContext(work), kill, true);
                 }
                 worker.tick();
-                status = "Квест " + work.quest() + ": " + progress + (worker.status().isEmpty() ? "" : " · " + worker.status());
+                status = "Квест " + named(work.quest()) + ": " + progress + (worker.status().isEmpty() ? "" : " · " + worker.status());
             }
             case SELL -> {
                 // the runner's cargo care sells (cargoPlan); here the ship waits by the work
                 ctx.nav().tick();
-                status = "Квест " + work.quest() + ": " + progress + " · продаю";
+                status = "Квест " + named(work.quest()) + ": " + progress + " · продаю";
             }
             case MAP -> {
                 if (!Double.isNaN(work.x()) && ctx.nav().idle()
@@ -274,7 +286,7 @@ public final class QuestModule implements BotModule {
                     ctx.nav().moveTo(work.x(), work.y(), false);
                 }
                 ctx.nav().tick();
-                status = "Квест " + work.quest() + ": " + progress;
+                status = "Квест " + named(work.quest()) + ": " + progress;
             }
             default -> {
             }
@@ -343,7 +355,7 @@ public final class QuestModule implements BotModule {
             ctx.nav().moveTo(lead[0], lead[1], false);
         }
         ctx.nav().tick();
-        status = "Квест " + work.quest() + ": " + progress + " · лечу по пеленгатору";
+        status = "Квест " + named(work.quest()) + ": " + progress + " · лечу по пеленгатору";
         return true;
     }
 

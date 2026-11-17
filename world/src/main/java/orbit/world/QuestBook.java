@@ -267,6 +267,9 @@ final class QuestBook {
                         && (long) was.current() != (long) now.current()) {
                     log.info("Квест {}: {}", QuestTitles.label(q.id()), describe(now));
                 }
+                if (was != null && now != null && !was.completed() && now.completed() && !now.bound()) {
+                    log.info("Квест {}: условие выполнено — {}", QuestTitles.label(q.id()), describe(now));
+                }
                 return;
             }
         }

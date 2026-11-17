@@ -45,7 +45,7 @@ class QuestModuleTest {
         sim.run(m::tick, 3_000);
         assertEquals(map, m.workingMap());
         assertEquals(501, sim.world.snapshot(sim.now).hero().selectedId(), "the quest's NPC, not the config's Streuner");
-        assertTrue(m.status().startsWith("Квест 122001: убить Protegit 0/35000"), m.status());
+        assertTrue(m.status().startsWith("Квест «Protegit: команда «Удалить»»: убить Protegit 0/35000"), m.status());
     }
 
     @Test
@@ -272,7 +272,7 @@ class QuestModuleTest {
         m.visited(sim.now);
         sim.run(m::tick, 3_000);
         assertEquals(800, sim.world.snapshot(sim.now).hero().selectedId());
-        assertTrue(m.status().startsWith("Квест 501: подобрать груз с NPC: Saimon"), m.status());
+        assertTrue(m.status().startsWith("Квест «Лордакии - источник неприятностей (3)»: подобрать груз с NPC: Saimon"), m.status());
 
         // the cargo it leaves is picked up
         Sim box = new Sim(BotConfig.empty(), map, 10_000, 6_000);
@@ -428,7 +428,7 @@ class QuestModuleTest {
         QuestModule m = new QuestModule(sim.ctx, NpcMaps.shared(), orbit.world.maps.OreMaps.inMemory());
         m.visited(sim.now);
         sim.run(m::tick, 5_000);
-        assertTrue(m.status().startsWith("Квест 122004"), "the first one, not the Protegit at hand: " + m.status());
+        assertTrue(m.status().startsWith("Квест «Безмолвный саботаж»"), "the first one, not the Protegit at hand: " + m.status());
         assertTrue(sim.sent.stream().anyMatch(p -> p instanceof orbit.protocol.gen.QuestCancelRequest r && r.questId == 120032));
         assertTrue(sim.sent.stream().noneMatch(p -> p instanceof orbit.protocol.gen.QuestCancelRequest r && r.questId == 122001),
                 "skipped, not cancelled");
