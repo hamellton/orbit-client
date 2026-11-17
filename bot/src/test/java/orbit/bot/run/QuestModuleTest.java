@@ -467,6 +467,70 @@ class QuestModuleTest {
         assertTrue(m.status().contains("hybrid-alloy 0/1200"), m.status());
     }
 
+    /** 122011 «Теория преобразования»: Blighted Kristallon (160), Blighted Gygerthrall (155), Hybrid Alloy. */
+    static void conversionTheory(Sim sim, double kristallon, double gygerthrall) {
+        QuestDefinitionModule d = QuestGiverVisitTest.Giver.definition(122011);
+        d.types.getFirst().type = 2;
+        List<orbit.protocol.gen.QuestElementModule> all = new java.util.ArrayList<>();
+        Object[][] conds = {{6, "160", 230.0, kristallon}, {6, "155", 500.0, gygerthrall},
+            {67, "resource_collectable_hybrid-alloy", 1_200.0, 255.0}};
+        int i = 1;
+        for (Object[] k : conds) {
+            QuestConditionModule c = new QuestConditionModule();
+            c.id = 122011 * 100 + i++;
+            c.type = (short) (int) (Integer) k[0];
+            c.displayType = c.type;
+            c.matches = List.of((String) k[1]);
+            c.targetValue = (Double) k[2];
+            c.mandatory = true;
+            c.state = new orbit.protocol.gen.QuestConditionStateModule();
+            c.state.currentValue = (Double) k[3];
+            c.state.completed = c.state.currentValue >= c.targetValue;
+            orbit.protocol.gen.QuestElementModule e = new orbit.protocol.gen.QuestElementModule();
+            e.questCase = new orbit.protocol.gen.QuestCaseModule();
+            e.condition = c;
+            all.add(e);
+        }
+        d.rootCase.modifier = all;
+        orbit.protocol.gen.QuestInitializationCommand init = new orbit.protocol.gen.QuestInitializationCommand();
+        init.quest = d;
+        sim.world.apply(init, sim.now);
+    }
+
+    @Test
+    void theGygerthrallAreFoughtAlongAndCalledUpByTheKristallon() {
+        // the user, 2026-11-17: the alloy drops from the Gygerthrall, which come when the Blighted Kristallon is fought
+        int map = MapCatalog.bundled().byName("3-7").id();
+        // the Kristallon done: the Gygerthrall's turn — one in sight is the target, not the Kristallon nearer
+        Sim sim = new Sim(BotConfig.empty(), map, 10_000, 6_000);
+        sim.lasers("ammunition_laser_ucb-100");
+        conversionTheory(sim, 230, 365);
+        sim.npc(900, "-=[ Blighted Kristallon ]=-", 10_300, 6_000);
+        sim.npc(901, "<=< Blighted Gygerthrall >=>", 11_000, 6_300);
+        QuestModule m = new QuestModule(sim.ctx, NpcMaps.shared(), orbit.world.maps.OreMaps.inMemory());
+        m.visited(sim.now);
+        sim.run(m::tick, 3_000);
+        assertEquals(901, sim.world.snapshot(sim.now).hero().selectedId(), m.status());
+        // none of them in sight: the Kristallon is fought to call them up
+        Sim call = new Sim(BotConfig.empty(), map, 10_000, 6_000);
+        call.lasers("ammunition_laser_ucb-100");
+        conversionTheory(call, 230, 365);
+        call.npc(900, "-=[ Blighted Kristallon ]=-", 10_300, 6_000);
+        QuestModule k = new QuestModule(call.ctx, NpcMaps.shared(), orbit.world.maps.OreMaps.inMemory());
+        k.visited(call.now);
+        call.run(k::tick, 3_000);
+        assertEquals(900, call.world.snapshot(call.now).hero().selectedId(), k.status());
+        // the Kristallon's own condition at work: a Gygerthrall that came is fought too
+        Sim along = new Sim(BotConfig.empty(), map, 10_000, 6_000);
+        along.lasers("ammunition_laser_ucb-100");
+        conversionTheory(along, 152, 365);
+        along.npc(901, "<=< Blighted Gygerthrall >=>", 10_300, 6_000);
+        QuestModule a = new QuestModule(along.ctx, NpcMaps.shared(), orbit.world.maps.OreMaps.inMemory());
+        a.visited(along.now);
+        along.run(a::tick, 3_000);
+        assertEquals(901, along.world.snapshot(along.now).hero().selectedId(), a.status());
+    }
+
     @Test
     void oreBoundToAMapIsCollectedThere() {
         // «Endurium 30 000 on enemy x-4» (mission 23): the ore where the quest counts it, not the nearest field

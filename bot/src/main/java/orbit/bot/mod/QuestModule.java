@@ -66,7 +66,8 @@ public final class QuestModule implements BotModule {
      * Which NPCs carry a resource a quest asks to collect ({@code COLLECT_LOOT}, «resource_collectable_hybrid-alloy»):
      * darkorbitwiki «Elite Missions (Level 22+)», Tips and Tricks (2026-11-17) — Prismatium from all Kristallin and
      * Kristallon, Scrap from Saimon and Mordon, Mucosum from Lordakia, Lordakium and Sibelonit, Plasmide from Sibelon and
-     * Devolarium; Hybrid Alloy grew with the Blighted kills on gb2 (122011, ~0,5 a kill). Names as {@link
+     * Devolarium; Hybrid Alloy from the Blighted Gygerthrall (the user, 2026-11-17), called up by fighting Blighted
+     * Kristallon ({@link #CALLED_BY}). Names as {@link
      * QuestTargets#norm}; Uber ones are left out (4-5), the plain ones and bosses do. Where they live — {@link NpcMaps}.
      */
     static final Map<String, Set<String>> LOOT_NPCS = Map.of(
@@ -74,7 +75,7 @@ public final class QuestModule implements BotModule {
             "scrap", Set.of("saimon", "mordon", "bosssaimon", "bossmordon"),
             "mucosum", Set.of("lordakia", "lordakium", "sibelonit", "bosslordakia", "bosslordakium", "bosssibelonit"),
             "plasmid", Set.of("sibelon", "devolarium", "bosssibelon", "bossdevolarium"),
-            "hybrid", Set.of("blightedkristallon", "blightedgygerthrall"));
+            "hybrid", Set.of("blightedgygerthrall"));
 
     /**
      * Refined ore from raw ore in the hold ({@code OreTypeModule}: ore → {ingredient → per unit}), DarkBot's AutoRefine:
@@ -963,9 +964,77 @@ public final class QuestModule implements BotModule {
 
     /** The config for the work: only its NPCs or collectables listed, the working map the work's map. */
     private BotContext questContext(Work wk) {
-        return new BotContext(ctx.world(), () -> questConfig(ctx.config().get(), withSeen(wk)), ctx.actions(), ctx.nav(),
+        return new BotContext(ctx.world(), () -> questConfig(ctx.config().get(), withSeen(wk), side(wk), cargoOpen(wk)),
+                ctx.actions(), ctx.nav(),
                 ctx.traveler(), ctx.maps(), ctx.random(), ctx.clock(), ctx.repair(), ctx.ship(), ctx.dataDir(), ctx.stats(),
                 ctx.ships());
+    }
+
+    /**
+     * NPCs that call up others when fought ({@link QuestTargets#norm} names): Blighted Kristallon brings the Blighted
+     * Gygerthrall, which carry the Hybrid Alloy (the user, 2026-11-17: «чтобы вторые были, нужно бить Blighted
+     * Kristallon»).
+     */
+    static final Map<String, String> CALLED_BY = Map.of("blightedgygerthrall", "blightedkristallon");
+    /** The priority of a caller: fought only when none of what it calls is in sight. */
+    static final int CALLER_PRIORITY = 10;
+
+    /**
+     * The other open conditions of the work's quest fought alongside on the work's map — 122011: while the Blighted
+     * Kristallon are killed the Gygerthrall they call up are killed too, and their alloy picked — and the callers of
+     * what is wanted, after it. Names as the map's NPC table and the sight write them.
+     */
+    private Map<String, Integer> side(Work wk) {
+        WorldSnapshot w = ctx.world().get();
+        Quests.Quest quest = w.quests().active().get(wk.quest());
+        if (quest == null || !(wk.kind() == Kind.KILL || wk.kind() == Kind.DAMAGE || wk.kind() == Kind.SALVAGE)) {
+            return Map.of();
+        }
+        Map<String, Integer> norms = new LinkedHashMap<>();
+        for (Quests.Condition o : quest.leaves()) {
+            if (o.completed() || o.id() == wk.condition()) {
+                continue;
+            }
+            if (QuestTargets.killing(o) || QuestTargets.damaging(o)) {
+                QuestTargets.wanted(o).forEach(n -> norms.putIfAbsent(n, 0));
+            } else if (o.type() == Quests.COLLECT_LOOT && !o.matches().isEmpty()) {
+                String id = o.matches().getFirst().toLowerCase(java.util.Locale.ROOT);
+                LOOT_NPCS.forEach((k, v) -> {
+                    if (id.contains(k)) {
+                        v.forEach(n -> norms.putIfAbsent(n, 0));
+                    }
+                });
+            }
+        }
+        Set<String> wanted = new TreeSet<>(wk.want());
+        wanted.addAll(norms.keySet());
+        for (String n : wanted) {
+            String caller = CALLED_BY.get(n);
+            if (caller != null && !wk.want().contains(caller)) {
+                norms.putIfAbsent(caller, CALLER_PRIORITY);
+            }
+        }
+        wk.want().forEach(norms::remove);
+        if (norms.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, Integer> out = new LinkedHashMap<>();
+        java.util.function.Consumer<String> add = name -> {
+            Integer p = norms.get(QuestTargets.norm(name));
+            if (p != null) {
+                out.putIfAbsent(name, p);
+            }
+        };
+        npcMaps.on(wk.map()).forEach(add);
+        w.ships().values().stream().filter(sh -> sh.npc() && sh.name() != null).map(WorldSnapshot.Ship::name).forEach(add);
+        return out;
+    }
+
+    /** The work's quest has a cargo or resource condition open: the cargo of the NPCs fought is picked. */
+    private boolean cargoOpen(Work wk) {
+        Quests.Quest quest = ctx.world().get().quests().active().get(wk.quest());
+        return quest != null && quest.leaves().stream()
+                .anyMatch(o -> !o.completed() && (o.type() == Quests.COLLECT_LOOT || o.type() == Quests.SALVAGE));
     }
 
     /** The work's NPCs as they are named in sight, too: the table may write a name a little otherwise. */
@@ -984,17 +1053,30 @@ public final class QuestModule implements BotModule {
     }
 
     static BotConfig questConfig(BotConfig c, Work wk) {
+        return questConfig(c, wk, Map.of(), false);
+    }
+
+    /**
+     * @param side  more NPCs to fight with their priority (lower first): the quest's other open conditions' NPCs and the
+     *              ones that call them up ({@link #side})
+     * @param cargo the quest has a cargo or resource condition open: their cargo picked whatever the work is
+     */
+    static BotConfig questConfig(BotConfig c, Work wk, Map<String, Integer> side, boolean cargo) {
         BotConfig out = c;
         if (wk.kind() == Kind.KILL || wk.kind() == Kind.DAMAGE || wk.kind() == Kind.SALVAGE) {
             Map<String, BotConfig.NpcRule> npcs = new LinkedHashMap<>();
-            for (String n : wk.names()) {
+            Map<String, Integer> all = new LinkedHashMap<>();
+            wk.names().forEach(n -> all.put(n, 0));
+            side.forEach(all::putIfAbsent);
+            all.forEach((n, prio) -> {
                 BotConfig.NpcRule own = c.npc(n);
-                npcs.put(n, own != null ? new BotConfig.NpcRule(own.radius(), own.priority(), true, own.flags(), Set.of(),
+                int p = prio == 0 && own != null ? own.priority() : prio;
+                npcs.put(n, own != null ? new BotConfig.NpcRule(own.radius(), p, true, own.flags(), Set.of(),
                         own.ammo(), own.sab(), own.rocket(), own.launcher())
-                        : new BotConfig.NpcRule(0, 0, true, Set.of(), Set.of(), null)); // 0: the default radius
-            }
+                        : new BotConfig.NpcRule(0, p, true, Set.of(), Set.of(), null)); // 0: the default radius
+            });
             out = out.withNpcs(npcs);
-            if (wk.kind() == Kind.SALVAGE) {
+            if (wk.kind() == Kind.SALVAGE || cargo) {
                 // their cargo too: what the condition counts
                 BotConfig.Collect k = c.collect();
                 Map<String, BotConfig.BoxRule> boxes = new LinkedHashMap<>(k.boxes());

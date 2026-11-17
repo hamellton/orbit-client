@@ -124,15 +124,18 @@ N | номер | название | условия | ограничения | н
 - Prismatium — со всех Kristallin и Kristallon; Scrap («Srap») — со всех Saimon и Mordon; Mucosum — со всех Lordakia,
   Lordakium и Sibelonit; Plasmide — со всех Sibelon и Devolarium. Mucosum и Scrap бывают и в Astral Box, Indoctrine Oil —
   в Prometheus Box. Ресурсы во вратах собирает P.E.T.
-- Hybrid Alloy — источник нигде не назван; на гб2 (2026-11-17) рос вместе с убийствами Blighted Kristallon и
-  Gygerthrall (~0,5 на убийство) — вывод по прогрессу, не проверено.
+- Hybrid Alloy — в источниках не назван; по словам пользователя — с Blighted Gygerthrall, которые появляются, когда
+  бьёшь Blighted Kristallon.
 
 ## Как бот проходит условия (2026-11-17)
 - **Убить / урон NPC** — где эти NPC живут (таблица NPC бота `npc-maps.json` + увиденное), ближайшая карта, свои карты
   раньше чужих; если квест привязывает к картам — только там.
 - **Собрать ресурс с NPC** (`resource_collectable_…`, условие 67) — бьёт NPC, которые его возят, и подбирает их груз:
   Prismatium — Kristallin, Kristallon (и их боссы); Scrap — Saimon, Mordon; Mucosum — Lordakia, Lordakium, Sibelonit;
-  Plasmide — Sibelon, Devolarium; Hybrid Alloy — Blighted Kristallon и Blighted Gygerthrall (живут на x-7). Карта —
+  Plasmide — Sibelon, Devolarium; Hybrid Alloy — Blighted Gygerthrall (пользователь); они появляются, когда бьёшь
+  Blighted Kristallon (живут на x-7) — бот бьёт Kristallon, пока Gygerthrall рядом нет.
+- **Все условия квеста разом**: пока бот делает одно условие, NPC других открытых условий того же квеста на этой карте
+  тоже цели (122011: Gygerthrall, вызванные боем с Kristallon, и их груз с alloy). Карта —
   ближайшая, где эти NPC есть по таблице NPC; другие карты наугад не пробуются (пользователь: лишнее).
 - **Собрать руду** — на ближайшем известном поле этой руды; если квест говорит «на такой-то карте» — только там (туда и
   без увиденного поля).
