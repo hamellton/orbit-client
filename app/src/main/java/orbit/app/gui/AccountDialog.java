@@ -45,7 +45,7 @@ final class AccountDialog {
     private final JPasswordField proxy = new JPasswordField(28);
     private final JCheckBox showProxy = new JCheckBox("показать");
     private final JLabel proxyResult = new JLabel(" ");
-    private final JComboBox<String> config = new JComboBox<>();
+    private final ConfigBox config = new ConfigBox();
     private final javax.swing.JSpinner clickHold = new javax.swing.JSpinner(
             new javax.swing.SpinnerNumberModel(1.0, 0.0, 30.0, 0.5));
     private final JLabel error = new JLabel(" ");
@@ -66,12 +66,7 @@ final class AccountDialog {
         server.setEditable(true);
         error.setForeground(new java.awt.Color(0xff6b5b));
         showProxy.addActionListener(e -> proxy.setEchoChar(showProxy.isSelected() ? (char) 0 : echo));
-        config.addItem(NO_CONFIG);
-        try {
-            orbit.config.ConfigStore.openDefault().list().forEach(config::addItem);
-        } catch (java.io.IOException ignored) {
-            // no configs yet
-        }
+        config.fill(java.util.List.of(NO_CONFIG), ConfigBox.folders(), NO_CONFIG);
 
         if (editing != null) {
             Account a = vault.get(editing);

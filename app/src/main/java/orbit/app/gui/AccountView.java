@@ -247,8 +247,8 @@ final class AccountView extends JPanel {
         if (tab.switchConfig() != null) {
             JLabel cfgLabel = new JLabel("Конфиг");
             cfgLabel.setForeground(Hud.DIM);
-            JComboBox<String> configs = new JComboBox<>();
-            configs.setPrototypeDisplayValue("CUBIKON_TEST_LONG");
+            ConfigBox configs = new ConfigBox();
+            configs.setPrototypeDisplayValue("📁 Blacklight  ›  Blacklight Invoke 1-BL");
             configs.setToolTipText("Применяется сразу");
             fill(configs);
             final boolean[] filling = {false};
@@ -454,21 +454,9 @@ final class AccountView extends JPanel {
         return bar;
     }
 
-    private void fill(JComboBox<String> box) {
-        String current = tab.config().get();
-        box.removeAllItems();
-        try {
-            List<String> names = orbit.config.ConfigStore.openDefault().list();
-            names.forEach(box::addItem);
-            if (current != null && !names.contains(current)) {
-                box.addItem(current);
-            }
-        } catch (java.io.IOException e) {
-            if (current != null) {
-                box.addItem(current);
-            }
-        }
-        box.setSelectedItem(current);
+    /** The configs by folders (the user, 2026-11-18), the account's own selected. */
+    private void fill(ConfigBox box) {
+        box.fill(List.of(), ConfigBox.folders(), tab.config().get());
     }
 
     private static JComponent chip(JLabel label) {
