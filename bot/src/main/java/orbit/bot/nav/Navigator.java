@@ -97,7 +97,7 @@ public final class Navigator {
             return false;
         }
         for (WorldSnapshot.Asset a : w.assets().values()) {
-            if (PathFinder.enemyBase(a, h.factionId()) && Math.hypot(a.x() - d.x(), a.y() - d.y()) > r
+            if (PathFinder.enemyBase(a, h) && Math.hypot(a.x() - d.x(), a.y() - d.y()) > r
                     && Math.hypot(a.x() - h.x(), a.y() - h.y()) > r
                     && distanceToSegment(a.x(), a.y(), h.x(), h.y(), x, y) < r) {
                 if (basesTold.add(a.id())) {

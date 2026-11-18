@@ -256,6 +256,27 @@ class PathFinderTest {
     }
 
     @Test
+    void anAlliedClansStationOfAnotherCompanyIsNoBar() {
+        // the user, 2026-11-18: «база не вражеская, зачем он её облетает» — an allied clan's (1) or one with a pact (2)
+        for (short relation : new short[] {1, 2}) {
+            orbit.world.World w = withStation(4000, 6000, 7000, 6000, 2);
+            orbit.protocol.gen.AssetCreateCommand a = new orbit.protocol.gen.AssetCreateCommand();
+            a.assetId = 77;
+            a.type = new orbit.protocol.gen.AssetTypeModule();
+            a.type.typeValue = 36;
+            a.userName = "Lynx";
+            a.factionId = 2;
+            a.posX = 7000;
+            a.posY = 6000;
+            a.clanRelation = new orbit.protocol.gen.ClanRelationModule();
+            a.clanRelation.type = relation;
+            w.apply(a, 2);
+            assertEquals(1, PathFinder.of(w.snapshot(2), orbit.world.maps.MapCatalog.bundled(), false, false, 500)
+                    .path(4000, 6000, 10000, 6000).size(), "relation " + relation + ": straight on");
+        }
+    }
+
+    @Test
     void aPortalByAnEnemyBaseIsStillReached() {
         WorldSnapshot s = withStation(4000, 6000, 7000, 6000, 2).snapshot(1);
         List<double[]> path = PathFinder.of(s, orbit.world.maps.MapCatalog.bundled(), false, false, 500)

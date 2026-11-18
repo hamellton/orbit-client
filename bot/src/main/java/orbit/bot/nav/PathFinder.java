@@ -91,9 +91,14 @@ public final class PathFinder {
     /** Asset types of stations that shoot ships of other factions ({@code AssetTypeModule}). */
     static final java.util.Set<Integer> BASE_TYPES = java.util.Set.of(36, 37, 46, 47, 55, 56, 57, 58);
 
-    /** An enemy station: a battle station or its module, a headquarters or a station turret of another faction. */
-    public static boolean enemyBase(WorldSnapshot.Asset a, int heroFaction) {
-        return BASE_TYPES.contains(a.type()) && a.factionId() != 0 && a.factionId() != heroFaction;
+    /**
+     * An enemy station: a battle station or its module, a headquarters or a station turret of another faction — not one
+     * of the ship's own clan, an allied clan's or one with a pact, which do not shoot (the user, 2026-11-18: «база не
+     * вражеская, зачем он её облетает»; the offenders' circles already left those).
+     */
+    public static boolean enemyBase(WorldSnapshot.Asset a, WorldSnapshot.Hero hero) {
+        return BASE_TYPES.contains(a.type()) && a.factionId() != 0 && a.factionId() != hero.factionId()
+                && (hero.clanId() == 0 || a.clanId() != hero.clanId()) && !a.friendlyClan();
     }
 
     /**
@@ -168,7 +173,7 @@ public final class PathFinder {
         }
         if (baseRadius > 0) {
             for (WorldSnapshot.Asset a : w.assets().values()) {
-                if (enemyBase(a, w.hero().factionId())) {
+                if (enemyBase(a, w.hero())) {
                     Obstacle o = circle(a.x(), a.y(), baseRadius);
                     list.add(o);
                     bases.add(o);
