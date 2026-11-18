@@ -172,6 +172,11 @@ public final class Friendly {
                 + "не обогатились|выход из игры).*")) {
             return Out.add(m.replace("Вечные врата: ", "∞ "), warn);
         }
+        // the Mimesis escort (docs/MIMESIS.md): the runs, the entry, the way out, the time out of the game
+        if (m.startsWith("Мимесис: ") && m.matches(".*(рейс \\d+|прыгаю в портал|не пускает|выхожу порталом|"
+                + "выхожу из игры).*")) {
+            return Out.add(m.replace("Мимесис: ", "◈ Мимесис: "), warn);
+        }
         Out g = gate(st, m, time);
         if (g != null) {
             return g;
@@ -390,6 +395,7 @@ public final class Friendly {
             case "PALLADIUM" -> "палладий";
             case "GALAXY_GATE" -> "Врата";
             case "LOW" -> "LoW";
+            case "MIMESIS" -> "Мимесис";
             case "BEHEMOTH" -> "бегемот";
             case "KILL_COLLECT" -> "NPC и ящики";
             case "QUESTS" -> "квесты";

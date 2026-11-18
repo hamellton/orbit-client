@@ -222,6 +222,35 @@ final class Hud {
         }
     }
 
+    /**
+     * «Мимесис» (docs/MIMESIS.md) in the gates' place: the keys, the run's and the event's score, the time to the next
+     * freighter or to the entry's close, as the server tells them. While the Mimesis module runs or on an escort map.
+     */
+    private Card escort(WorldSnapshot w, orbit.bot.run.BotRunner r) {
+        WorldSnapshot.Escort e = w.gates().escort();
+        boolean on = r != null && r.moduleKind() == orbit.config.BotConfig.Module.MIMESIS
+                || orbit.config.GateCatalog.escort(w.hero().mapId());
+        if (!on || !e.known()) {
+            return null;
+        }
+        List<String[]> rows = new ArrayList<>();
+        if (orbit.config.GateCatalog.escort(w.hero().mapId())) {
+            rows.add(new String[] {"Рейс", "идёт"});
+        }
+        rows.add(new String[] {"Очки рейса", money(e.runScore())});
+        rows.add(new String[] {"Очки всего", money(e.totalScore())});
+        if (e.timesKnown()) {
+            long close = (long) e.left(e.gateClose(), w.nanos());
+            long next = (long) e.left(e.nextSpawn(), w.nanos());
+            if (close > 0) {
+                rows.add(new String[] {"Вход открыт ещё", close / 60 + ":" + String.format("%02d", close % 60), "!"});
+            } else {
+                rows.add(new String[] {"Фрейтер через", next / 60 + " мин"});
+            }
+        }
+        return rows("Мимесис", e.keys() >= 0 ? "ключей " + e.keys() : "", false, GATE_BAR, rows);
+    }
+
     /** Label — value rows in one column, the values in columns: the short cards of the map. */
     private Card rows(String title, String right, boolean name, Color accent, List<String[]> rows) {
         return new Card() {
@@ -359,6 +388,10 @@ final class Hud {
         WorldSnapshot.Gates gs = w.gates();
         orbit.config.GateCatalog.Gate in = orbit.config.GateCatalog.byMap(w.hero().mapId());
         orbit.bot.run.BotRunner r = feed.runner();
+        Card escort = escort(w, r);
+        if (escort != null) {
+            return escort;
+        }
         boolean module = r != null && r.moduleKind() == orbit.config.BotConfig.Module.GALAXY_GATE;
         if (gs.infoNanos() == 0 || !module && in == null) {
             return null;

@@ -62,6 +62,10 @@ Status: Stage 2 done; stage 3 in progress (login, game connection, vault, client
   in SharedPlugin's order, Kekka's targeting at the Century Falcon leaving 3 Vagrants, the helpers out after the start
   (`LowBoard` = the accounts' word to each other in one program; `BotModule.restRequest` = out of the game till woken;
   the leader's config lists helper accounts he starts himself through `AccountRunner` = `LowBoard.Crew`, docs/LOW.md §11).
+  `MimesisModule` the Mimesis Mutiny escort (docs/MIMESIS.md): the run as DarkBot's DonorPlugin round the EM Freighter
+  with SharedPlugin's NPC table, AstraBot's automation round it (keys farmed between, x-1 before the hour by the server's
+  `PayloadEscort*` times, EMP/ISH/leech/Solace/Solaris, HP Link, EMAA-20 and its craft); escort maps are
+  `GateCatalog.instanced` like gates.
 - `app` — the bot application `orbit`; without arguments the account manager (`ManagerWindow`: master
   password in `VaultDialog`, accounts add/edit/remove with proxy check, start/stop each or all through
   `AccountRunner`, a tab per started account). Otherwise modes (FlatLaf window that fits any size: per account a header with a

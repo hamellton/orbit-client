@@ -66,6 +66,13 @@ public final class ConfigCheck {
                     out.add(error("не указаны врата"));
                 }
             }
+            case MIMESIS -> {
+                // on the base the escort map is lost: the server lets nobody back in (docs/MIMESIS.md)
+                if (!"SPOT".equalsIgnoreCase(c.safety().revive())) {
+                    out.add(warning("Мимесис: воскрешение не «на месте» — после смерти на базе обратно на карту эскорта"
+                            + " не пустят (вкладка «Безопасность»)"));
+                }
+            }
             case LOW -> {
                 com.fasterxml.jackson.databind.JsonNode ls = c.modules().get(BotConfig.Module.LOW.key());
                 String leader = ls == null ? "" : ls.path("leader").asText("").strip();

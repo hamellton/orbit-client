@@ -75,10 +75,17 @@ public record WorldSnapshot(long nanos, Hero hero, Map<Integer, Ship> ships, Map
      */
     public record Gates(Map<Integer, Gate> gates, double money, double samples, int energyCost, List<Integer> spinAmounts,
                         int spinSelected, long infoNanos, int setupGate, int setupError, long setupNanos, int spinError,
-                        long spinNanos, Trinity trinity, Eternal eternal, Low low) {
+                        long spinNanos, Trinity trinity, Eternal eternal, Low low, Escort escort) {
 
         public static final Gates NONE = new Gates(Map.of(), -1, -1, 0, List.of(), 0, 0, 0, 0, 0, 0, 0, Trinity.NONE,
-                Eternal.NONE, Low.NONE);
+                Eternal.NONE, Low.NONE, Escort.NONE);
+
+        public Gates(Map<Integer, Gate> gates, double money, double samples, int energyCost, List<Integer> spinAmounts,
+                     int spinSelected, long infoNanos, int setupGate, int setupError, long setupNanos, int spinError,
+                     long spinNanos, Trinity trinity, Eternal eternal, Low low) {
+            this(gates, money, samples, energyCost, spinAmounts, spinSelected, infoNanos, setupGate, setupError, setupNanos,
+                    spinError, spinNanos, trinity, eternal, low, Escort.NONE);
+        }
 
         public Gates(Map<Integer, Gate> gates, double money, double samples, int energyCost, List<Integer> spinAmounts,
                      int spinSelected, long infoNanos, int setupGate, int setupError, long setupNanos, int spinError,
@@ -163,6 +170,50 @@ public record WorldSnapshot(long nanos, Hero hero, Map<Integer, Ship> ships, Map
 
         public boolean known() {
             return nanos != 0;
+        }
+    }
+
+    /**
+     * The Mimesis escort (docs/MIMESIS.md) as the server tells it: {@code PayloadEscortInfoCommand} at each login and map
+     * load, {@code PayloadEscortKeyInfoCommand}, {@code PayloadEscortTimeInfoCommand} (seconds from when it came: to the
+     * next freighter, to the entry's close — 299 at the full hour, to the run's end — 2699), {@code PayloadEscortScoreCommand}.
+     *
+     * @param keys       Escort Keys, {@code -1} not told yet
+     * @param timeNanos  when the times came ({@code 0} never)
+     * @param scoreNanos when the score last came ({@code 0} never)
+     */
+    public record Escort(int keys, boolean inSession, double nextSpawn, double gateClose, double sessionEnd, long timeNanos,
+                         int totalScore, int runScore, long scoreNanos, long nanos) {
+
+        public static final Escort NONE = new Escort(-1, false, 0, 0, 0, 0, 0, 0, 0, 0);
+
+        public boolean known() {
+            return nanos != 0;
+        }
+
+        public boolean timesKnown() {
+            return timeNanos != 0;
+        }
+
+        /** Seconds left of a time told at {@code timeNanos}, at {@code now} (never below 0). */
+        public double left(double told, long now) {
+            return Math.max(0, told - (now - timeNanos) / 1e9);
+        }
+
+        public Escort withKeys(int k, long at) {
+            return new Escort(k, inSession, nextSpawn, gateClose, sessionEnd, timeNanos, totalScore, runScore, scoreNanos, at);
+        }
+
+        public Escort withTimes(double next, double close, double end, long at) {
+            return new Escort(keys, inSession, next, close, end, at, totalScore, runScore, scoreNanos, at);
+        }
+
+        public Escort withScore(int total, int run, long at) {
+            return new Escort(keys, inSession, nextSpawn, gateClose, sessionEnd, timeNanos, total, run, at, at);
+        }
+
+        public Escort withSession(boolean in, int total, long at) {
+            return new Escort(keys, in, nextSpawn, gateClose, sessionEnd, timeNanos, total, runScore, scoreNanos, at);
         }
     }
 

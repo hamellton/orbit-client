@@ -53,7 +53,7 @@ public final class Targets {
     public static double radius(BotConfig c, WorldSnapshot.Ship s, int mapId) {
         // in a galaxy gate the config's own, as DarkBot's SimpleGalaxyGate (the learning widened Protegit 630 → 720,
         // beyond the lasers' reach — live 2026-11-15 on gb2, GG β: circled, hardly shot)
-        if (orbit.config.GateCatalog.byMap(mapId) != null) {
+        if (orbit.config.GateCatalog.instanced(mapId)) {
             return baseRadius(c, s, mapId);
         }
         // learned from the base (the user's own or the recommended one) — the user's own number is where it starts

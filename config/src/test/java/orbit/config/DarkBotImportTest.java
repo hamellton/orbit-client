@@ -159,6 +159,25 @@ class DarkBotImportTest {
     }
 
     @Test
+    void mimesisProfilesBecomeTheMimesisModule() throws IOException {
+        JsonNode donor = Json.MAPPER.readTree("""
+                {"GENERAL": {"CURRENT_MODULE": "eu.darkbot.popcorn.don.MimesisGateModule", "WORKING_MAP": 14},
+                 "CUSTOM_CONFIGS": {"eu.darkbot.popcorn.don.MimesisGateModule": {"START_TRAVEL": 240,
+                     "PAUSE_AND_WAIT": false, "AFTER": {"STAY_INSIDE": 0.2, "IGNORE_NPC": true, "IGNORE_BOXES": false}}}}""");
+        BotConfig c = DarkBotImport.convert(donor, "").config();
+        assertEquals(BotConfig.Module.MIMESIS, c.module());
+        JsonNode m = c.modules().get("mimesis");
+        assertEquals(240, m.path("startTravelSeconds").asInt());
+        assertEquals("farm", m.path("between").asText());
+        assertEquals(20, m.path("after").path("stayHp").asInt());
+        assertTrue(m.path("after").path("ignoreNpc").asBoolean());
+        JsonNode shared = Json.MAPPER.readTree("""
+                {"GENERAL": {"CURRENT_MODULE": "dev.shared.do_gamer.module.simple_galaxy_gate.SimpleGalaxyGate"},
+                 "CUSTOM_CONFIGS": {"dev.shared.do_gamer.module.simple_galaxy_gate.SimpleGalaxyGate": {"gateId": -3}}}""");
+        assertEquals(BotConfig.Module.MIMESIS, DarkBotImport.convert(shared, "").config().module());
+    }
+
+    @Test
     void unknownModuleIsMarked() throws IOException {
         BotConfig c = DarkBotImport.convert(Json.MAPPER.readTree(
                 "{\"GENERAL\": {\"CURRENT_MODULE\": \"some.Other\"}}"), "").config();

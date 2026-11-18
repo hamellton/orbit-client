@@ -100,6 +100,10 @@ public final class DarkBotImport {
         Set<String> enabled = enabledFeatures(root);
         String moduleClass = general.path("CURRENT_MODULE").asText("");
         BotConfig.Module module = module(moduleClass);
+        if (module == BotConfig.Module.GALAXY_GATE
+                && root.path("CUSTOM_CONFIGS").path(moduleClass).path("gateId").asInt(0) == -3) {
+            module = BotConfig.Module.MIMESIS; // SharedPlugin's gate −3 «Mimesis Mutiny» (docs/MIMESIS.md)
+        }
         if (module == BotConfig.Module.UNSUPPORTED) {
             report.add("Модуль " + moduleClass + " не поддерживается — не запустится");
             extra.put("darkbot.module", Json.MAPPER.getNodeFactory().textNode(moduleClass));
@@ -155,6 +159,9 @@ public final class DarkBotImport {
         String c = cls.toLowerCase();
         if (c.contains("cubi")) {
             return BotConfig.Module.CUBIKON;
+        }
+        if (c.endsWith("mimesisgatemodule") || c.contains("mimesis")) {
+            return BotConfig.Module.MIMESIS; // DonorPlugin's MimesisGateModule (docs/MIMESIS.md)
         }
         if (c.endsWith("lowmodule")) {
             return BotConfig.Module.LOW; // KekkaReloaded's LoW module (docs/LOW.md)
@@ -383,6 +390,21 @@ public final class DarkBotImport {
                             + (gate.path("builder").path("enabled").asBoolean() ? "вкл" : "выкл")
                             + "");
                 }
+            }
+            case MIMESIS -> {
+                // DonorPlugin's MimesisConfig: START_TRAVEL, PAUSE_AND_WAIT, AFTER {STAY_INSIDE, IGNORE_NPC, IGNORE_BOXES}
+                JsonNode d = custom.path(moduleClass);
+                ObjectNode m = Json.MAPPER.createObjectNode();
+                m.put("startTravelSeconds", d.path("START_TRAVEL").asInt(180));
+                m.put("between", d.path("PAUSE_AND_WAIT").asBoolean(false) ? "logout" : "farm");
+                ObjectNode after = m.putObject("after");
+                after.put("stayHp", (int) Math.round(d.path("AFTER").path("STAY_INSIDE").asDouble(0.8) * 100));
+                after.put("ignoreNpc", d.path("AFTER").path("IGNORE_NPC").asBoolean(false));
+                after.put("ignoreBoxes", d.path("AFTER").path("IGNORE_BOXES").asBoolean(false));
+                modules.put(BotConfig.Module.MIMESIS.key(), m);
+                report.add("Мимесис: вылет за " + m.get("startTravelSeconds") + " с, между рейсами — "
+                        + ("farm".equals(m.path("between").asText()) ? "фарм ключей" : "вне игры") + ", после фрейтера HP "
+                        + after.get("stayHp") + "%");
             }
             default -> {
                 JsonNode own = custom.path(moduleClass);

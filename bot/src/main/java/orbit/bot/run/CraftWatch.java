@@ -59,6 +59,13 @@ public final class CraftWatch {
                 rules.add(cpu);
             }
         }
+        // the Mimesis escort: EMAA-20 crafted from the Byte Remnants (modules.mimesis.craftEmaa, AstraBot «Craft EMAA-20»)
+        if (cfg.module() == BotConfig.Module.MIMESIS) {
+            BotConfig.CraftRule emaa = orbit.bot.mod.MimesisModule.craftRule(cfg);
+            if (emaa != null) {
+                rules.add(emaa);
+            }
+        }
         if (rules.isEmpty()) {
             return;
         }

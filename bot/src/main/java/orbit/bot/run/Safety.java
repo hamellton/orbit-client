@@ -131,7 +131,7 @@ public final class Safety {
         checkJump(w, h, now);
         heal(w, s, now, hp, attacked);
         noteHp(hp, now);
-        boolean gate = orbit.config.GateCatalog.byMap(h.mapId()) != null;
+        boolean gate = orbit.config.GateCatalog.instanced(h.mapId());
         if (!repairing && gate) {
             // SharedPlugin's needsRepairing: below the range's min, or below «no NPC» with no target or one above 90 %
             double t = gateTargetHp == null ? -1 : gateTargetHp.getAsDouble();
@@ -168,7 +168,7 @@ public final class Safety {
                 ctx.stats().repairs.incrementAndGet();
                 repairMap = h.mapId();
                 ctx.nav().stop();
-                if (orbit.config.GateCatalog.byMap(h.mapId()) != null) {
+                if (orbit.config.GateCatalog.instanced(h.mapId())) {
                     log.info("HP {}% — во вратах: отхожу от NPC и чинюсь там же (порталы не трогаю)", pct(hp));
                 } else {
                     SafePlaces.Place to = SafePlaces.nearest(w, ctx.maps(), ctx.stats().closedPortals, s.oneWayJumps(),
@@ -185,7 +185,7 @@ public final class Safety {
             return false;
         }
         ctx.ship().want(s.repairMode());
-        if (orbit.config.GateCatalog.byMap(h.mapId()) != null) {
+        if (orbit.config.GateCatalog.instanced(h.mapId())) {
             // in a galaxy gate no portal is a shelter: the one learned there leads home, out of the gate, and the NPCs
             // follow to it (live 2026-11-15 on gb2, GG α: off to it at 59 %, shot there by the Protegits, jumped at
             // 21 % and killed) — away from the NPCs inside the gate, the repair there (DarkBot repairs in the gate too)

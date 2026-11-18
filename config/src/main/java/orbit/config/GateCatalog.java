@@ -186,6 +186,38 @@ public final class GateCatalog {
                     List.of(494, 495, 496, 497, 498, 499, 500, 501, 502, 503, 504, 505, 506, 507, 508), 304, false, "⦓",
                     trinity(), Set.of()));
 
+    /**
+     * The Mimesis escort's maps (docs/MIMESIS.md; DarkBot's StarManager «Mimesis escort maps», maps.json group
+     * PayloadEscort): VRU 430–432, 1439–1445; MMO 433–435, 1446–1452; EIC 436–438, 1453–1459. In December and January
+     * 430–445 are the Frozen Labyrinth's (DarkBot) — the escort runs in other months.
+     */
+    public static final List<Integer> ESCORT_MAPS = escortMaps();
+    /** The escort's entry on x-1 and x-8: portal type 54 at (10 500, 6 500) (DarkBot {@code accessOnlyBy(54, 10500, 6500)}). */
+    public static final int ESCORT_PORTAL = 54;
+    public static final int ESCORT_PORTAL_X = 10_500;
+    public static final int ESCORT_PORTAL_Y = 6_500;
+
+    private static List<Integer> escortMaps() {
+        List<Integer> m = new java.util.ArrayList<>(List.of(430, 431, 432, 433, 434, 435, 436, 437, 438));
+        for (int id = 1439; id <= 1459; id++) {
+            m.add(id);
+        }
+        return List.copyOf(m);
+    }
+
+    /** A Mimesis escort map. */
+    public static boolean escort(int mapId) {
+        return ESCORT_MAPS.contains(mapId);
+    }
+
+    /**
+     * A map of an instance the bot treats as a gate (DarkBot's {@code addGG}): a galaxy gate or a Mimesis escort map —
+     * no shelter in it but its own portals, no logging out amid it, its portals not learned.
+     */
+    public static boolean instanced(int mapId) {
+        return byMap(mapId) != null || escort(mapId);
+    }
+
     /** The portal back home inside a gate ({@code designId} 1, as on the normal maps). */
     public static final int HOME_PORTAL = 1;
 

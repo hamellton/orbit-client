@@ -90,7 +90,7 @@ public final class Threats {
         this.map = ctx.maps().info(h.mapId());
         // a galaxy gate: DarkBot's canMove — only off the map is no place (its NPCs end in the corners: live 2026-11-15 on
         // gb2, GG β, Sibelonits in a corner, the ship held 800 off behind the 500 margin and never shot)
-        this.margin = orbit.config.GateCatalog.byMap(h.mapId()) != null ? 1 : MARGIN;
+        this.margin = orbit.config.GateCatalog.instanced(h.mapId()) ? 1 : MARGIN;
         BotConfig.Zones z = c.zones().get(h.mapId());
         this.preferred = z == null || z.preferred() == null || z.preferred().isEmpty() ? null : z.preferred();
         this.avoided = z == null || z.avoided() == null || z.avoided().isEmpty() ? null : z.avoided();

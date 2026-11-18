@@ -383,6 +383,8 @@ public record BotConfig(
         BEHEMOTH("behemoth"),
         /** The LoW group gate (docs/LOW.md): the group of own accounts, the relays, the Century Falcon ({@code modules.low}). */
         LOW("low"),
+        /** The Mimesis Mutiny escort (docs/MIMESIS.md): the EM Freighter, the keys farmed between ({@code modules.mimesis}). */
+        MIMESIS("mimesis"),
         /** Imported from DarkBot, no counterpart yet; the source class is in {@code extra.darkbot.module}. */
         UNSUPPORTED("unsupported");
 

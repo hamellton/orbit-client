@@ -641,7 +641,7 @@ public final class BotRunner {
         // the service visit (modules.enrich.visit): at a calm moment onto the service ship — the Skylab's ore and the
         // enrichment there — and back; never in a gate (no logging out there) or under fire
         boolean calm = !module.busy() && module.freeFor(SERVICE_FREE_MS)
-                && orbit.config.GateCatalog.byMap(h.mapId()) == null && h.attackers().isEmpty();
+                && !orbit.config.GateCatalog.instanced(h.mapId()) && h.attackers().isEmpty();
         // the two-ship palladium changes ships itself: the visit rides on its «sold — back to collecting»
         boolean ownShipChanges = moduleKind == orbit.config.BotConfig.Module.PALLADIUM && ctx.ships().palladiumCollect() > 0;
         ServiceVisit.Step visit = service.tick(activeHangar, calm, !ownShipChanges);
@@ -1030,7 +1030,7 @@ public final class BotRunner {
         safety.healOnly();
         // on a Blacklight map no logging out at its portal (NPCs reach it): through it first, out on the other side
         // (the user, 2026-11-13)
-        if (!logoutHere && orbit.config.GateCatalog.byMap(h.mapId()) == null && orbit.bot.nav.Router.blacklight(h.mapId())) {
+        if (!logoutHere && !orbit.config.GateCatalog.instanced(h.mapId()) && orbit.bot.nav.Router.blacklight(h.mapId())) {
             SafePlaces.Place out = wayHome(h);
             if (out == null) {
                 out = SafePlaces.outOfBlacklight(w, ctx.maps(), ctx.stats().closedPortals);
@@ -1057,7 +1057,7 @@ public final class BotRunner {
         }
         // in a galaxy gate the game lets nobody log out (the user, 2026-11-15: «во вратах выйти нельзя — прыгнуть в портал
         // на x-1 и выйти там, на базе»): through the gate's home portal (type 1), out on x-1; the gate is kept
-        boolean inGate = orbit.config.GateCatalog.byMap(h.mapId()) != null;
+        boolean inGate = orbit.config.GateCatalog.instanced(h.mapId());
         if (inGate) {
             WorldSnapshot.Portal home = w.portals().values().stream()
                     .filter(g -> g.designId() == orbit.config.GateCatalog.HOME_PORTAL)

@@ -307,6 +307,18 @@ public final class World {
                     ebgBoosters(p.boosterInfoCommand, nanos);
                 }
             }
+            case orbit.protocol.gen.PayloadEscortInfoCommand p -> {
+                escort = escort.withSession(p.isInSession, p.totalScore, nanos);
+                if (p.keyInfoCommand != null) {
+                    escort = escort.withKeys(p.keyInfoCommand.keyCount, nanos);
+                }
+                if (p.timeInfoCommand != null) {
+                    escortTimes(p.timeInfoCommand, nanos);
+                }
+            }
+            case orbit.protocol.gen.PayloadEscortKeyInfoCommand p -> escort = escort.withKeys(p.keyCount, nanos);
+            case orbit.protocol.gen.PayloadEscortTimeInfoCommand p -> escortTimes(p, nanos);
+            case orbit.protocol.gen.PayloadEscortScoreCommand p -> escort = escort.withScore(p.totalScore, p.runScore, nanos);
             case orbit.protocol.gen.EternalBlacklightWaveInfoCommand p -> ebgWave(p, nanos);
             case orbit.protocol.gen.EternalBlacklightCpuInfoCommand p -> ebgCpus(p.cpuCount, nanos);
             case orbit.protocol.gen.EternalBlacklightBoosterInfoCommand p -> ebgBoosters(p, nanos);
@@ -709,7 +721,13 @@ public final class World {
                 new WorldSnapshot.Damage(Map.copyOf(dealt), Map.copyOf(received), Map.copyOf(taken)),
                 new WorldSnapshot.Gates(Map.copyOf(gates), gateMoney, gateSamples, gateEnergyCost, gateSpinAmounts,
                         gateSpinSelected, gateInfoNanos, gateSetup, gateSetupError, gateSetupNanos, gateSpinError,
-                        gateSpinNanos, trinity, eternal, low));
+                        gateSpinNanos, trinity, eternal, low, escort));
+    }
+
+    private WorldSnapshot.Escort escort = WorldSnapshot.Escort.NONE;
+
+    private void escortTimes(orbit.protocol.gen.PayloadEscortTimeInfoCommand p, long nanos) {
+        escort = escort.withTimes(p.timeToNextSpawn, p.timeToGateClose, p.timeToSessionEnd, nanos);
     }
 
     private WorldSnapshot.Eternal eternal = WorldSnapshot.Eternal.NONE;

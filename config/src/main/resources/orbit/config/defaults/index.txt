@@ -12,3 +12,6 @@ Blacklight Invoke Train 2-BL
 Blacklight Invoke Train 3-BL
 Blacklight Impulse
 EBG
+Mimesis EIC 2-4
+Mimesis MMO 1-4
+Mimesis VRU 3-4

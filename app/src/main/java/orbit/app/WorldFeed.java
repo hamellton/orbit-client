@@ -297,7 +297,7 @@ public final class WorldFeed {
                 jumpedFrom = 0;
                 // not in or out of a galaxy gate: its portals differ by gate and stage, and the stage's portal stands
                 // by the arrival (live 2026-11-15 on gb2: GG β's way on was learned as «to 3-1»)
-                boolean gate = orbit.config.GateCatalog.byMap(si.mapId) != null || orbit.config.GateCatalog.byMap(from) != null;
+                boolean gate = orbit.config.GateCatalog.instanced(si.mapId) || orbit.config.GateCatalog.instanced(from);
                 backPortal = !gate && from > 0 && from != si.mapId && maps.portals(si.mapId).stream().noneMatch(pt -> pt.toId() == from)
                         ? new int[] {si.mapId, si.x, si.y, from} : null;
                 if (!mode.startsWith("бот")) {
@@ -310,7 +310,7 @@ public final class WorldFeed {
                 WorldSnapshot ws = world.snapshot(now());
                 WorldSnapshot.Hero hh = ws.hero();
                 jumpedFrom = hh.mapId();
-                if (orbit.config.GateCatalog.byMap(hh.mapId()) != null || orbit.config.GateCatalog.byMap(j.mapId) != null) {
+                if (orbit.config.GateCatalog.instanced(hh.mapId()) || orbit.config.GateCatalog.instanced(j.mapId)) {
                     break; // a gate's portals are placed anew each time: nothing to learn
                 }
                 ws.portals().values().stream()
