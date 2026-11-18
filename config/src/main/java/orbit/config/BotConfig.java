@@ -381,6 +381,8 @@ public record BotConfig(
         QUESTS("quests"),
         /** Mindfire Behemoth on the BL maps, as AstraBot's module ({@code modules.behemoth}). */
         BEHEMOTH("behemoth"),
+        /** The LoW group gate (docs/LOW.md): the group of own accounts, the relays, the Century Falcon ({@code modules.low}). */
+        LOW("low"),
         /** Imported from DarkBot, no counterpart yet; the source class is in {@code extra.darkbot.module}. */
         UNSUPPORTED("unsupported");
 

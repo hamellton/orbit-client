@@ -36,7 +36,7 @@ VoTPlugin. Код большинства закрыт или обфусциро�
 | Инвоки (Invoke XVI) | `CARNAGE/configs/{invokes,Invokes-optimoth-Berti}.json`, `one/configs/invokes.json`, `AstraBot*/configs/MAP - Invoke XVI.json` |
 | BL-мобы (Impulse, Attend, Abide, Steadfast, Strokelight, Seeker Rocket) | таблицы `NPC_INFOS` в BL-профилях CARNAGE; `npcList` в профилях AstraBot (там же номера NPC: Impulse 175, Attend 176, Invoke 177, Strokelight 266, Abide 268, Seeker Rocket 159) |
 | Квесты | `DarkOrbit BOTS/CARNAGE/configs/quests.json` (DailyOps), профили AstraBot `QUESTS`, `MAP - Quest` |
-| Врата (ABG, EBG, LoW, GoP, Hades, VoT, Astral, QZ, Labyrinth) | одноимённые профили CARNAGE и AstraBot; раздел ETERNAL_BLACKLIGHT в AstraBot |
+| Врата (ABG, EBG, LoW, GoP, Hades, VoT, Astral, QZ, Labyrinth) | одноимённые профили CARNAGE и AstraBot; раздел ETERNAL_BLACKLIGHT в AstraBot; LoW целиком разобран в `docs/LOW.md` (SharedPlugin `LowGate`, Kekka `LoWModule`, AstraBot `LOW`, логи заходов) |
 | Кубикон | `AstraBot*/configs/cubi 2-6.json`, раздел CUBIKON |
 | Настройки AstraBot целиком | любой `AstraBot*/configs/*.json` (разделы GENERAL, KILL, COLLECTOR, PET, BEHEMOTH, STROKELIGHT, ETERNAL_BLACKLIGHT, CUBIKON, QUEST_MODULE, GALAXY_GATES, ZONES…); дополняет `reference/astra-config.json` |
 

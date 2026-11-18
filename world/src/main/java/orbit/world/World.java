@@ -378,10 +378,26 @@ public final class World {
                 gates.put((int) p.gateId, gate(p.gateId).completed(p.currPart, nanos));
                 log.info("Врата {} пройдены (часть {})", p.gateId, p.currPart);
             }
-            case AssetCreateCommand p -> assets.put(p.assetId, new Asset(p.assetId,
-                    p.type != null ? p.type.typeValue : -1, p.userName, p.posX, p.posY, p.factionId, p.clanId,
-                    p.clanTag, p.invisible, p.clanRelation != null ? p.clanRelation.type : 0));
-            case AssetRemoveCommand p -> assets.remove(p.uid);
+            case AssetCreateCommand p -> {
+                int type = p.type != null ? p.type.typeValue : -1;
+                assets.put(p.assetId, new Asset(p.assetId, type, p.userName, p.posX, p.posY, p.factionId, p.clanId,
+                        p.clanTag, p.invisible, p.clanRelation != null ? p.clanRelation.type : 0));
+                if (type == RELAY_STATION) {
+                    relay(p.assetId, p.posX, p.posY, nanos);
+                }
+            }
+            case AssetRemoveCommand p -> {
+                Asset gone = assets.remove(p.uid);
+                if (gone != null && gone.type() == RELAY_STATION) {
+                    ships.remove(p.uid);
+                }
+            }
+            case orbit.protocol.gen.PlayerQueueRegistrationCommand p -> {
+                low = low.queued(p.gateId, p.positionInQueue, nanos);
+                log.info("Очередь во врата {}: место {}", p.gateId, p.positionInQueue);
+            }
+            case orbit.protocol.gen.PlayerQueueAlreadyRegisteredCommand p -> low = low.queued(p.gateId,
+                    low.queueGate() == p.gateId ? low.queuePosition() : 0, nanos);
             case MapAddPOICommand p -> zones.put(p.poiId, new Zone(p.poiId, p.poiType != null ? p.poiType.typeValue : -1,
                     p.shape, List.copyOf(p.shapeCoordinates), p.inverted, p.active));
             case MapRemovePOICommand p -> zones.remove(p.poiId);
@@ -693,7 +709,7 @@ public final class World {
                 new WorldSnapshot.Damage(Map.copyOf(dealt), Map.copyOf(received), Map.copyOf(taken)),
                 new WorldSnapshot.Gates(Map.copyOf(gates), gateMoney, gateSamples, gateEnergyCost, gateSpinAmounts,
                         gateSpinSelected, gateInfoNanos, gateSetup, gateSetupError, gateSetupNanos, gateSpinError,
-                        gateSpinNanos, trinity, eternal));
+                        gateSpinNanos, trinity, eternal, low));
     }
 
     private WorldSnapshot.Eternal eternal = WorldSnapshot.Eternal.NONE;
@@ -1000,6 +1016,47 @@ public final class World {
         ships.put(s.id, s);
     }
 
+    /** {@code AssetTypeModule.ASSETTYPE_RELAY_STATION}: the LoW gate's relay stations (docs/LOW.md). */
+    public static final int RELAY_STATION = 31;
+    /** The relay stations' name as a target (no NPC name comes with the asset; the config's rule is looked up by it). */
+    public static final String RELAY_NAME = "-=[ Relay ]=-";
+
+    /**
+     * A LoW relay station is selected and shot like a ship (the client's {@code TryToSelectMapAssetCommand} sends a
+     * {@code ShipSelectRequest} with the asset's id), so it stands among the ships as an NPC that does not move; its
+     * health is not told.
+     */
+    private void relay(int id, int x, int y, long nanos) {
+        ShipState s = ships.get(id);
+        if (s == null) {
+            s = new ShipState(id, ShipKind.NPC, Motion.at(x, y, nanos));
+            ships.put(id, s);
+        }
+        s.name = RELAY_NAME;
+        s.typeId = "relay";
+    }
+
+    private WorldSnapshot.Low low = WorldSnapshot.Low.NONE;
+
+    /** The LoW gate's plain texts (the client's {@code groupgate_*} strings of 2026; docs/LOW.md). */
+    private void lowText(String text, long nanos) {
+        if (text.contains("LoW Gate has been brought online")) {
+            low = low.online(nanos);
+        } else if (text.contains("Relay station activated")) {
+            low = low.relay(nanos);
+        } else if (text.contains("completed the LoW Gate")) {
+            low = low.completed(nanos);
+        } else if (text.contains("Century Falcon sighted")) {
+            low = low.boss(nanos);
+        } else if (text.contains("Century Falcon called reinforcements")) {
+            low = low.swarm(nanos);
+        } else if (text.contains("Mission failed")) {
+            low = low.failed(nanos);
+        } else if (text.contains("instance canceled") || text.contains("required group size in time")) {
+            low = low.cancelled(nanos);
+        }
+    }
+
     private void activatePet(int petId, int ownerId, String name, int factionId, int clanId, String clanTag,
                              int relation, int x, int y, long nanos) {
         ShipState s = new ShipState(petId, ShipKind.PET, Motion.at(x, y, nanos));
@@ -1283,6 +1340,7 @@ public final class World {
                         String text = String.join("|", java.util.Arrays.copyOfRange(a, 3, a.length)).strip();
                         log.info("Сервер: «{}»", text);
                         note(new GameNote(nanos, null, 0, text));
+                        lowText(text, nanos);
                     }
                     default -> {
                         if (key.startsWith("BK")) {
@@ -1450,10 +1508,12 @@ public final class World {
             LocationModule loc = m.location;
             HealthModule hp = m.health;
             orbit.protocol.gen.TargetModule t = m.target;
+            orbit.protocol.gen.RaidGateGameStageModule raid = m.raidGateGameStage;
             members.add(new Member(m.id, m.name, m.level, m.faction != null ? m.faction.faction : 0,
                     loc != null ? loc.mapId : 0, loc != null ? loc.x : 0, loc != null ? loc.y : 0,
                     hp != null ? health(hp) : Health.UNKNOWN, m.loggedOut, m.cloaked,
-                    t == null || t.name == null ? "" : t.name, t == null || t.health == null ? Health.UNKNOWN : health(t.health)));
+                    t == null || t.name == null ? "" : t.name, t == null || t.health == null ? Health.UNKNOWN : health(t.health),
+                    raid != null && raid.isInGate, raid != null ? raid.gameStage : 0));
         }
         group = new Group(p.id, p.leaderId, List.copyOf(members));
         invitations.removeIf(WorldSnapshot.Invitation::incoming); // in a group: the invitations to us are over
@@ -1533,6 +1593,7 @@ public final class World {
                     case CloakDeviceActivityModule c -> m.cloak(c.active);
                     case orbit.protocol.gen.TargetModule t -> m.withTarget(t.name == null ? "" : t.name,
                             t.health == null ? Health.UNKNOWN : health(t.health));
+                    case orbit.protocol.gen.RaidGateGameStageModule r -> m.raid(r.isInGate, r.gameStage);
                     default -> m;
                 };
             }

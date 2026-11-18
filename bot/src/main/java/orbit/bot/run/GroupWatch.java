@@ -16,7 +16,7 @@ import org.slf4j.LoggerFactory;
  * hand the lead over, set who may invite. Every action waits a few seconds like a player reading the
  * window, and nothing is repeated more often than a player would.
  */
-final class GroupWatch {
+public final class GroupWatch {
 
     private static final Logger log = LoggerFactory.getLogger(GroupWatch.class);
 
@@ -33,11 +33,11 @@ final class GroupWatch {
     private int modeSetFor;
     private int leadGivenIn;
 
-    GroupWatch(BotContext ctx) {
+    public GroupWatch(BotContext ctx) {
         this.ctx = ctx;
     }
 
-    void tick() {
+    public void tick() {
         BotConfig.GroupRules g = ctx.config().get().group();
         WorldSnapshot w = ctx.world().get();
         WorldSnapshot.Hero h = w.hero();

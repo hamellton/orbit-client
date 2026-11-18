@@ -84,6 +84,7 @@ public final class ConfigWindow {
         sections.add(new QuestsSection());
         sections.add(new GateSection());
         sections.add(new EbgSection());
+        sections.add(new LowSection());
         sections.add(new EnrichSection());
         sections.add(new BuySection());
         sections.add(new GroupSection());

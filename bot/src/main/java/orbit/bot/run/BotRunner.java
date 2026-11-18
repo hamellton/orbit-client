@@ -358,6 +358,13 @@ public final class BotRunner {
         return finished;
     }
 
+    private volatile BotModule.Rest rest;
+
+    /** The module's rest ({@link BotModule#restRequest}): out of the game till it is over, then the same plan again. */
+    public BotModule.Rest restRequest() {
+        return rest;
+    }
+
     /** True when orders are taken now (in game, not logging out). */
     public boolean takesOrders() {
         return state != State.STOPPING && state != State.STOPPED && state != State.FAILED;
@@ -545,6 +552,11 @@ public final class BotRunner {
             if (done != null) {
                 finished = true;
                 stopWhenFree(done); // to a portal and out, as the stop button does once the fight is over
+            }
+            BotModule.Rest r = state != State.STOPPING && rest == null ? module.restRequest() : null;
+            if (r != null) {
+                rest = r;
+                stopWhenFree(r.reason()); // out once the fight is over; the app logs in again when the rest is over
             }
         }
         buy.tick();

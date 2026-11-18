@@ -75,10 +75,17 @@ public record WorldSnapshot(long nanos, Hero hero, Map<Integer, Ship> ships, Map
      */
     public record Gates(Map<Integer, Gate> gates, double money, double samples, int energyCost, List<Integer> spinAmounts,
                         int spinSelected, long infoNanos, int setupGate, int setupError, long setupNanos, int spinError,
-                        long spinNanos, Trinity trinity, Eternal eternal) {
+                        long spinNanos, Trinity trinity, Eternal eternal, Low low) {
 
         public static final Gates NONE = new Gates(Map.of(), -1, -1, 0, List.of(), 0, 0, 0, 0, 0, 0, 0, Trinity.NONE,
-                Eternal.NONE);
+                Eternal.NONE, Low.NONE);
+
+        public Gates(Map<Integer, Gate> gates, double money, double samples, int energyCost, List<Integer> spinAmounts,
+                     int spinSelected, long infoNanos, int setupGate, int setupError, long setupNanos, int spinError,
+                     long spinNanos, Trinity trinity, Eternal eternal) {
+            this(gates, money, samples, energyCost, spinAmounts, spinSelected, infoNanos, setupGate, setupError, setupNanos,
+                    spinError, spinNanos, trinity, eternal, Low.NONE);
+        }
 
         public Gates(Map<Integer, Gate> gates, double money, double samples, int energyCost, List<Integer> spinAmounts,
                      int spinSelected, long infoNanos, int setupGate, int setupError, long setupNanos, int spinError,
@@ -90,6 +97,57 @@ public record WorldSnapshot(long nanos, Hero hero, Map<Integer, Ship> ships, Map
         /** The gate by its builder number, {@code null} when not told. */
         public Gate gate(int id) {
             return gates.get(id);
+        }
+    }
+
+    /**
+     * The LoW group gate (docs/LOW.md) as the server tells it: the queue for its instance ({@code PlayerQueueRegistrationCommand}
+     * after the jump into its portal: the gate and the place in the queue, when), and its plain texts (the client's
+     * {@code groupgate_*} strings, 2026): «The LoW Gate has been brought online!», «Relay station activated», «Century Falcon
+     * sighted», «Century Falcon called reinforcements», «You've completed the LoW Gate. Great job!», «Mission failed…»,
+     * the instance cancelled («Not enough players on the map…», «You did not reach this Gate's required group size in
+     * time!»): when each last came ({@code 0} never), how many relays and reinforcements since the login.
+     */
+    public record Low(int queueGate, int queuePosition, long queueNanos, long onlineNanos, long relayNanos, int relays,
+                      long completedNanos, long bossNanos, int swarms, long failedNanos, long cancelledNanos) {
+
+        public static final Low NONE = new Low(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+
+        public Low(int queueGate, int queuePosition, long queueNanos, long onlineNanos, long relayNanos, int relays,
+                   long completedNanos) {
+            this(queueGate, queuePosition, queueNanos, onlineNanos, relayNanos, relays, completedNanos, 0, 0, 0, 0);
+        }
+
+        public Low queued(int gate, int position, long nanos) {
+            return new Low(gate, position, nanos, onlineNanos, relayNanos, relays, completedNanos, bossNanos, swarms, failedNanos, cancelledNanos);
+        }
+
+        public Low online(long nanos) {
+            return new Low(queueGate, queuePosition, queueNanos, nanos, relayNanos, relays, completedNanos, bossNanos, swarms, failedNanos, cancelledNanos);
+        }
+
+        public Low relay(long nanos) {
+            return new Low(queueGate, queuePosition, queueNanos, onlineNanos, nanos, relays + 1, completedNanos, bossNanos, swarms, failedNanos, cancelledNanos);
+        }
+
+        public Low completed(long nanos) {
+            return new Low(queueGate, queuePosition, queueNanos, onlineNanos, relayNanos, relays, nanos, bossNanos, swarms, failedNanos, cancelledNanos);
+        }
+
+        public Low boss(long nanos) {
+            return new Low(queueGate, queuePosition, queueNanos, onlineNanos, relayNanos, relays, completedNanos, nanos, swarms, failedNanos, cancelledNanos);
+        }
+
+        public Low swarm(long nanos) {
+            return new Low(queueGate, queuePosition, queueNanos, onlineNanos, relayNanos, relays, completedNanos, bossNanos, swarms + 1, failedNanos, cancelledNanos);
+        }
+
+        public Low failed(long nanos) {
+            return new Low(queueGate, queuePosition, queueNanos, onlineNanos, relayNanos, relays, completedNanos, bossNanos, swarms, nanos, cancelledNanos);
+        }
+
+        public Low cancelled(long nanos) {
+            return new Low(queueGate, queuePosition, queueNanos, onlineNanos, relayNanos, relays, completedNanos, bossNanos, swarms, failedNanos, nanos);
         }
     }
 
@@ -617,38 +675,51 @@ public record WorldSnapshot(long nanos, Hero hero, Map<Integer, Ship> ships, Map
 
     /**
      * A group member as the group packets tell him; {@code targetName}/{@code targetHealth} — what he has selected
-     * ({@code TargetModule}: the client shows it in the group window), "" and {@link Health#UNKNOWN} when nothing.
+     * ({@code TargetModule}: the client shows it in the group window), "" and {@link Health#UNKNOWN} when nothing;
+     * {@code inGate}/{@code gateStage} — the raid gate as the server tells it per player ({@code RaidGateGameStageModule}): the
+     * client's tooltips (2026) name it the <b>Hades Gate</b> stage («You and this player are at the same Hades Gate stage»),
+     * so it says nothing about LoW.
      */
     public record Member(int id, String name, int level, int factionId, int mapId, int x, int y, Health health,
-                         boolean loggedOut, boolean cloaked, String targetName, Health targetHealth) {
+                         boolean loggedOut, boolean cloaked, String targetName, Health targetHealth, boolean inGate,
+                         int gateStage) {
+
+        public Member(int id, String name, int level, int factionId, int mapId, int x, int y, Health health,
+                      boolean loggedOut, boolean cloaked, String targetName, Health targetHealth) {
+            this(id, name, level, factionId, mapId, x, y, health, loggedOut, cloaked, targetName, targetHealth, false, 0);
+        }
 
         public Member(int id, String name, int level, int factionId, int mapId, int x, int y, Health health,
                       boolean loggedOut, boolean cloaked) {
-            this(id, name, level, factionId, mapId, x, y, health, loggedOut, cloaked, "", Health.UNKNOWN);
+            this(id, name, level, factionId, mapId, x, y, health, loggedOut, cloaked, "", Health.UNKNOWN, false, 0);
         }
 
         Member with(Health h) {
-            return new Member(id, name, level, factionId, mapId, x, y, h, loggedOut, cloaked, targetName, targetHealth);
+            return new Member(id, name, level, factionId, mapId, x, y, h, loggedOut, cloaked, targetName, targetHealth, inGate, gateStage);
         }
 
         Member withTarget(String n, Health h) {
-            return new Member(id, name, level, factionId, mapId, x, y, health, loggedOut, cloaked, n, h);
+            return new Member(id, name, level, factionId, mapId, x, y, health, loggedOut, cloaked, n, h, inGate, gateStage);
         }
 
         Member at(int map, int nx, int ny) {
-            return new Member(id, name, level, factionId, map, nx, ny, health, loggedOut, cloaked, targetName, targetHealth);
+            return new Member(id, name, level, factionId, map, nx, ny, health, loggedOut, cloaked, targetName, targetHealth, inGate, gateStage);
         }
 
         Member level(int l) {
-            return new Member(id, name, l, factionId, mapId, x, y, health, loggedOut, cloaked, targetName, targetHealth);
+            return new Member(id, name, l, factionId, mapId, x, y, health, loggedOut, cloaked, targetName, targetHealth, inGate, gateStage);
         }
 
         Member out(boolean o) {
-            return new Member(id, name, level, factionId, mapId, x, y, health, o, cloaked, targetName, targetHealth);
+            return new Member(id, name, level, factionId, mapId, x, y, health, o, cloaked, targetName, targetHealth, inGate, gateStage);
         }
 
         Member cloak(boolean c) {
-            return new Member(id, name, level, factionId, mapId, x, y, health, loggedOut, c, targetName, targetHealth);
+            return new Member(id, name, level, factionId, mapId, x, y, health, loggedOut, c, targetName, targetHealth, inGate, gateStage);
+        }
+
+        Member raid(boolean in, int stage) {
+            return new Member(id, name, level, factionId, mapId, x, y, health, loggedOut, cloaked, targetName, targetHealth, in, stage);
         }
     }
 

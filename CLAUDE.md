@@ -56,6 +56,9 @@ Status: Stage 2 done; stage 3 in progress (login, game connection, vault, client
   `GateModule` galaxy gates as DarkBot's SharedPlugin (`docs/GALAXY-GATES.md`); `Enricher`, `SkylabCare`, `ServiceVisit`
   lab enrichment and Skylab ore, also by a visit to the account's service ship (`docs/SKYLAB.md`).
   `EternalGate` the Eternal Blacklight gate (EBG) as SharedPlugin: CPU on a BL map, runs, brake, boosters (`docs/EBG.md`).
+  `LowModule` the LoW group gate (map 200, docs/LOW.md): the leader gathers own accounts on x-3 and jumps first, the relays
+  in SharedPlugin's order, Kekka's targeting at the Century Falcon leaving 3 Vagrants, the helpers out after the start
+  (`LowBoard` = the accounts' word to each other in one program; `BotModule.restRequest` = out of the game till woken).
 - `app` — the bot application `orbit`; without arguments the account manager (`ManagerWindow`: master
   password in `VaultDialog`, accounts add/edit/remove with proxy check, start/stop each or all through
   `AccountRunner`, a tab per started account). Otherwise modes (FlatLaf window that fits any size: per account a header with a

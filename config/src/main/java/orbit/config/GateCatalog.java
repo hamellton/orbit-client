@@ -137,6 +137,29 @@ public final class GateCatalog {
         return m;
     }
 
+    /** LoW's NPCs (docs/LOW.md): the VPS profiles' radii (CARNAGE, AstraBot: all 540; SharedPlugin: Century Falcon 580). */
+    static Map<String, Integer> low() {
+        Map<String, Integer> m = new java.util.LinkedHashMap<>();
+        for (String n : List.of("vagrant", "marauder", "outcast", "corsair", "hooligan", "ravager", "convict")) {
+            m.put(n, 540);
+        }
+        m.put("century falcon", 580);
+        m.put("relay", LOW_RELAY_RADIUS);
+        return m;
+    }
+
+    /** SharedPlugin's LowGate: the relay stations are shot from 400. */
+    public static final int LOW_RELAY_RADIUS = 400;
+    /** The map of the LoW gate and the type of its portal on x-3 (DarkBot's StarManager: {@code addGG(200, "LoW")}, 34). */
+    public static final int LOW_MAP = 200;
+    public static final int LOW_PORTAL = 34;
+    /**
+     * The relay stations' asset ids and SharedPlugin's order of attack ({@code RELAY_IDS}: «in specific spawn order»);
+     * the relay's number is the id less {@link #LOW_RELAY_BASE}.
+     */
+    public static final int LOW_RELAY_BASE = 100_000_100;
+    public static final List<Integer> LOW_RELAY_ORDER = List.of(100_000_104, 100_000_102, 100_000_103, 100_000_101);
+
     public static final List<Gate> ALL = List.of(
             new Gate("alpha", "α Alpha", 1, 34, 40, List.of(51), 2, false, "α", abg(),
                     Set.of("kristallin", "saimon", "sibelonit")),
@@ -157,6 +180,8 @@ public final class GateCatalog {
             // its maps are instances 460–465, its waves a cycle of 51 with no end (one life)
             new Gate("eternal", "∞ Eternal Blacklight", -4, 0, EBG_CYCLE, List.of(460, 461, 462, 463, 464, 465), 54,
                     false, "EBG", eternal(), Set.of()),
+            // LoW (docs/LOW.md): no builder, the group gate's instance behind portal 34 on x-3; four relays, the Century Falcon
+            new Gate("low", "LoW", 0, 0, 0, List.of(LOW_MAP), LOW_PORTAL, false, "", low(), Set.of()),
             new Gate("trinity", "Trinity Trials", 0, 0, 20,
                     List.of(494, 495, 496, 497, 498, 499, 500, 501, 502, 503, 504, 505, 506, 507, 508), 304, false, "⦓",
                     trinity(), Set.of()));
@@ -217,6 +242,9 @@ public final class GateCatalog {
      * {@code null} when the name is no gate NPC of {@code gate}. Its pet's kamikaze flag as SharedPlugin has it.
      */
     public static BotConfig.NpcRule defaultRule(Gate gate, String name) {
+        if (gate != null && "low".equals(gate.key())) {
+            return lowRule(gate, name);
+        }
         String bare = gateNpc(name);
         if (gate == null || bare == null) {
             return null;
@@ -233,5 +261,37 @@ public final class GateCatalog {
                 ? Set.of(BotConfig.NpcFlag.KAMIKAZE.name(), BotConfig.NpcFlag.HOLD_TARGET.name())
                 : Set.of(BotConfig.NpcFlag.HOLD_TARGET.name());
         return new BotConfig.NpcRule(radius != null ? radius : 560, 0, true, flags, Set.copyOf(gate.maps()), null);
+    }
+
+    /**
+     * LoW's NPCs carry no wave number ({@code -=[ Vagrant ]=-}): the rule by the bare name — SharedPlugin's LowGate: all
+     * followed aggressively at 540, the Century Falcon at 580 without circling (priority 50), the Vagrant last (100);
+     * the relay at 400, after everything else; {@code null} for a name the gate does not know.
+     */
+    static BotConfig.NpcRule lowRule(Gate gate, String name) {
+        String bare = name == null ? null : BotConfig.bare(name);
+        Integer radius = bare == null ? null : gate.npcs().get(bare);
+        if (radius == null) {
+            return null;
+        }
+        Set<String> flags = new java.util.TreeSet<>(Set.of(BotConfig.NpcFlag.HOLD_TARGET.name()));
+        int priority = 0;
+        switch (bare) {
+            case "century falcon" -> {
+                flags.add(BotConfig.NpcFlag.NO_CIRCLE.name());
+                flags.add(BotConfig.NpcFlag.HP_LINK.name());
+                priority = 50;
+            }
+            case "relay" -> {
+                flags.add(BotConfig.NpcFlag.NO_CIRCLE.name());
+                priority = 1_000;
+            }
+            case "vagrant" -> {
+                flags.add(BotConfig.NpcFlag.AGGRESSIVE_FOLLOW.name());
+                priority = 100;
+            }
+            default -> flags.add(BotConfig.NpcFlag.AGGRESSIVE_FOLLOW.name());
+        }
+        return new BotConfig.NpcRule(radius, priority, true, flags, Set.copyOf(gate.maps()), null);
     }
 }

@@ -27,6 +27,19 @@ public interface BotModule {
         return null;
     }
 
+    /**
+     * A rest the module asks for (LoW's helpers: out of the game till the leader gathers the group again): the account logs
+     * out once the fight is over and logs in again when {@code wake} says so or {@code maxMs} have passed; {@code null}
+     * while the module works on.
+     */
+    default Rest restRequest() {
+        return null;
+    }
+
+    /** @param wake true when the rest is over (checked every second while out of the game) */
+    record Rest(String reason, java.util.function.BooleanSupplier wake, long maxMs) {
+    }
+
     default void observe() {
     }
 

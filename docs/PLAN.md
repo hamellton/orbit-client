@@ -982,3 +982,9 @@ Abide I 268, Barrage Seeker Rocket 159) — в клиентской таблиц
 вопросы по неочевидным разделам.
 Кандидаты: GALAXY_GATES, LOW, HADES, QZ, TRINITY, события, REFINE, CRAFT, DISPATCH, QUEST_MODULE,
 FOLLOW, INIVITATION, SHIP_KILLER и др.
+
+- [~] 7.1 LoW (групповые врата) — `docs/LOW.md`: разбор DarkBot (SharedPlugin `LowGate`, Kekka `LoWModule`), AstraBot и
+      логов друга сделан 2026-11-18; модуль `LowModule` (лидер + помощники из своих аккаунтов, реле по порядку DarkBot,
+      3 Vagrant у босса, помощники выходят после запуска) написан по пакетам клиента, без живой проверки.
+      *Дальше:* живая проверка по плану `docs/LOW.md` п. 10 (основная + две новые учётки): запись снифером одного захода,
+      правка по записи, затем весь LoW и каждая функция по списку.

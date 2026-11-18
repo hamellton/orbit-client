@@ -782,6 +782,15 @@ public final class OrbitMain {
                         log.info("Работа модуля окончена — аккаунт остановлен");
                         break;
                     }
+                    orbit.bot.run.BotModule.Rest rest = run.runner().restRequest();
+                    if (rest != null) {
+                        // the module's rest (LoW's helpers till the leader gathers the group again): out, in again when it
+                        // is over, the same plan
+                        restUntil(feed, closed, stopFile, earlier(java.time.LocalDateTime.now().plus(
+                                java.time.Duration.ofMillis(Math.max(60_000, rest.maxMs()))), limit), rest.reason(), rest.wake());
+                        rested = true;
+                        continue;
+                    }
                     int honorBreak = run.runner().honorBreak();
                     if (honorBreak > 0) {
                         // honor lost for a kill: out for a while, then the same plan again (a new session)
@@ -1200,12 +1209,19 @@ public final class OrbitMain {
     /** Offline until a moment (or a stop): the window shows why and until when. */
     private static void restUntil(WorldFeed feed, java.util.concurrent.atomic.AtomicBoolean closed, Path stopFile,
                                   java.time.LocalDateTime until, String why) throws InterruptedException {
+        restUntil(feed, closed, stopFile, until, why, null);
+    }
+
+    /** The same, over as soon as {@code wake} says so (checked every second), when given. */
+    private static void restUntil(WorldFeed feed, java.util.concurrent.atomic.AtomicBoolean closed, Path stopFile,
+                                  java.time.LocalDateTime until, String why, java.util.function.BooleanSupplier wake)
+            throws InterruptedException {
         java.time.LocalDateTime end = until == null ? java.time.LocalDateTime.now().plusMinutes(1) : until;
-        String text = why + " до " + end.toLocalTime().withNano(0);
+        String text = why + (wake != null ? ", не дольше чем" : "") + " до " + end.toLocalTime().withNano(0);
         log.info("Не в игре: {}", text);
         feed.setState(text);
         feed.setAction(null);
-        while (!closed.get() && java.time.LocalDateTime.now().isBefore(end)) {
+        while (!closed.get() && java.time.LocalDateTime.now().isBefore(end) && (wake == null || !wake.getAsBoolean())) {
             if (Files.exists(stopFile)) {
                 try {
                     Files.deleteIfExists(stopFile);

@@ -30,7 +30,7 @@ public final class ConfigCheck {
     public static List<Problem> check(BotConfig c, MapCatalog maps) {
         List<Problem> out = new ArrayList<>();
         MapCatalog.MapInfo map = maps.info(c.general().workingMap());
-        boolean gate = c.module() == BotConfig.Module.GALAXY_GATE;
+        boolean gate = c.module() == BotConfig.Module.GALAXY_GATE || c.module() == BotConfig.Module.LOW;
         if (!map.known() && !gate) {
             out.add(error("рабочая карта " + c.general().workingMap() + " неизвестна"));
         }
@@ -64,6 +64,17 @@ public final class ConfigCheck {
             case GALAXY_GATE -> {
                 if (!c.modules().containsKey(BotConfig.Module.GALAXY_GATE.key())) {
                     out.add(error("не указаны врата"));
+                }
+            }
+            case LOW -> {
+                com.fasterxml.jackson.databind.JsonNode ls = c.modules().get(BotConfig.Module.LOW.key());
+                String leader = ls == null ? "" : ls.path("leader").asText("").strip();
+                if (leader.isEmpty()) {
+                    out.add(error("LoW: не указан лидер группы (вкладка «LoW»)"));
+                }
+                int members = ls == null || !ls.path("members").isArray() ? 0 : ls.path("members").size();
+                if (members + (leader.isEmpty() ? 0 : 1) < 3) {
+                    out.add(warning("LoW: во врата пускают группу от 3 человек, а в списке " + (members + (leader.isEmpty() ? 0 : 1))));
                 }
             }
             default -> {

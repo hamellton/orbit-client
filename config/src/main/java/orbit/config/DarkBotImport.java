@@ -156,6 +156,9 @@ public final class DarkBotImport {
         if (c.contains("cubi")) {
             return BotConfig.Module.CUBIKON;
         }
+        if (c.endsWith("lowmodule")) {
+            return BotConfig.Module.LOW; // KekkaReloaded's LoW module (docs/LOW.md)
+        }
         if (c.contains("galaxygate") || c.contains("genericgate") || c.contains("simple_galaxy_gate")) {
             return BotConfig.Module.GALAXY_GATE;
         }

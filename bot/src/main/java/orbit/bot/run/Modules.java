@@ -16,6 +16,7 @@ public final class Modules {
             case KILL_COLLECT -> new KillModule(ctx, true, true);
             case PALLADIUM -> new orbit.bot.mod.PalladiumModule(ctx);
             case GALAXY_GATE -> new orbit.bot.mod.GateModule(ctx);
+            case LOW -> new orbit.bot.mod.LowModule(ctx);
             case QUESTS -> new orbit.bot.mod.QuestModule(ctx);
             case KILL -> new KillModule(ctx, true, false);
             case COLLECT -> new KillModule(ctx, false, true);

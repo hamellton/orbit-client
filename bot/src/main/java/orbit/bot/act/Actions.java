@@ -321,6 +321,14 @@ public final class Actions {
     }
 
     /**
+     * One click straight at a point, no way round anything (a player clicking into a danger zone on purpose: LoW's helpers
+     * into the radiation). The navigator is not asked: it keeps the ship out of such zones.
+     */
+    public void flyStraight(int x, int y) {
+        flyToCheckBox(x, y);
+    }
+
+    /**
      * Stops the ship where it is: a click on its own position, as a player stops (the server has no stop request).
      * Nothing is sent when the ship stands still.
      */

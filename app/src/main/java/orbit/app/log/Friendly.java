@@ -389,6 +389,7 @@ public final class Friendly {
             case "CUBIKON" -> "кубы";
             case "PALLADIUM" -> "палладий";
             case "GALAXY_GATE" -> "Врата";
+            case "LOW" -> "LoW";
             case "BEHEMOTH" -> "бегемот";
             case "KILL_COLLECT" -> "NPC и ящики";
             case "QUESTS" -> "квесты";
