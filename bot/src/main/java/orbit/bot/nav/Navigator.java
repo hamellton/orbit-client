@@ -397,7 +397,12 @@ public final class Navigator {
         double[] next = route.getFirst();
         if (turn && route.size() > 1 && Math.hypot(next[0] - clickX, next[1] - clickY) < ahead) {
             // the way planned from here starts at the corner the ship is about to reach: on to the one after it,
-            // else the same corner was clicked again and the ship stood at it (the test of 2026-11-18: 0.9 s)
+            // else the same corner was clicked again and the ship stood at it (the test of 2026-11-18: 0.9 s) —
+            // only when the straight line there is clear: from short of the corner it may cut through the wall
+            // (live 2026-11-18: «углы срезает и через стену в углах проходит»); then the corner is flown to first
+            if (!paths.clear(h.x(), h.y(), route.get(1)[0], route.get(1)[1])) {
+                return;
+            }
             route = route.subList(1, route.size());
             next = route.getFirst();
         }

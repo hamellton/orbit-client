@@ -110,6 +110,32 @@ class NavigatorTest {
     }
 
     @Test
+    void aSquareWallsCornerIsNotCut() {
+        // live 2026-11-18: with the next corner clicked half a second ahead the ship cut a corner through the wall
+        Navigator nav = navigator(9, 3000, 3000);
+        orbit.protocol.gen.AttributeShipSpeedUpdateCommand fast = new orbit.protocol.gen.AttributeShipSpeedUpdateCommand();
+        fast.newSpeed = 700; // half a second ahead is then 350, well over the old 150
+        world.apply(fast, now);
+        MapAddPOICommand poi = new MapAddPOICommand();
+        poi.poiId = "block";
+        poi.poiType = new POITypeModule();
+        poi.poiType.typeValue = (short) POITypeModule.POITYPE_NO_ACCESS;
+        poi.shape = (short) MapAddPOICommand.SHAPETYPE_RECTANGLE;
+        poi.shapeCoordinates = List.of(5000, 1000, 9000, 9000);
+        poi.active = true;
+        world.apply(poi, now);
+        WorldSnapshot.Zone zone = world.snapshot(now).zones().get("block");
+        nav.moveTo(11000, 3000, false);
+        for (long t = 0; t < 120_000 && !nav.idle(); t += 100) {
+            nav.tick();
+            now += 100 * MS;
+            WorldSnapshot.Hero h = world.snapshot(now).hero();
+            assertTrue(!ZoneGeometry.contains(zone, h.x(), h.y()), "through the wall at " + h.x() + "," + h.y());
+        }
+        assertTrue(nav.idle(), "arrived");
+    }
+
+    @Test
     void fliesAroundANoAccessZone() {
         Navigator nav = navigator(9, 3000, 6500);
         MapAddPOICommand poi = new MapAddPOICommand();
