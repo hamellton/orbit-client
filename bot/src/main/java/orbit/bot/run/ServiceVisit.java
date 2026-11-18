@@ -369,6 +369,11 @@ public final class ServiceVisit {
             log.info("Обслуживание: привезённое в лаборатории, нужно ещё {} — снова со Скайлаба", lacking);
         }
         long waitMs = Math.max(1, s.path("visitWaitMinutes").asLong(15)) * 60_000;
+        if (!ordered && !orderStarted && now < nextOrderAt) {
+            // the site takes no new quick transport a moment after the last one (live 2026-11-19 on int1: every order
+            // sent 1–4 s after a delivery refused)
+            return busy(now, s, "пауза между рейсами Скайлаба");
+        }
         if (!ordered) {
             SkylabAccess a = skylab;
             if (a == null) {
@@ -434,6 +439,7 @@ public final class ServiceVisit {
                                 send.putAll(went);
                             }
                             trips++;
+                            nextOrderAt = ctx.now() + TRIP_GAP_MS * 1_000_000;
                             send.forEach((k, v) -> brought.merge(k, v, Long::sum));
                             log.info("Обслуживание: рейс {} — со Скайлаба в трюм {}{}", trips, send,
                                     fast ? " (быстро)" : "");
@@ -468,39 +474,62 @@ public final class ServiceVisit {
         return busy(now, s, arrived ? "обогащаю" : "жду руду со Скайлаба");
     }
 
+    /** The next order no sooner than this after a trip (the site refused quick ones sent 1–4 s after the last). */
+    static final long TRIP_GAP_MS = 15_000;
+    /** A refused transport: the same again after this, at most {@link #TRANSPORT_TRIES} sends. */
+    static final long REFUSED_WAIT_MS = 25_000;
+    static final int TRANSPORT_TRIES = 3;
+    private volatile long nextOrderAt = Long.MIN_VALUE / 2;
+    /** For tests: the wait after a refusal. */
+    long refusedWaitMs = REFUSED_WAIT_MS;
+
     /**
-     * The transport, tried again when the site refuses: half the amounts, then (a quick one) the normal transport — the
-     * site's own words in the log (live 2026-11-16 and 2026-11-18 on gb2: refused, the visit went back with nothing).
+     * The transport, tried again when the site refuses: the same amounts and the same kind after
+     * {@link #REFUSED_WAIT_MS} — not half (the amount was never the cause), never the normal one in place of a quick one
+     * (the user, 2026-11-19: «автопереключение на не платный транспорт убрать»; live on int1: the slow one held the
+     * visit for minutes); each refusal's page is kept in {@code local/debug} for its reason, which the site sends only
+     * by a later ajax call.
      *
      * @return what was sent at last
      */
     private Map<String, Long> transportTrying(SkylabAccess a, Map<String, Long> send, boolean fast) throws java.io.IOException {
-        Map<String, Long> now = send;
-        boolean quick = fast;
         for (int attempt = 1; ; attempt++) {
             try {
-                a.transport(now, quick);
-                return now;
+                a.transport(send, fast);
+                return send;
             } catch (java.io.IOException e) {
-                if (attempt >= 3 || !String.valueOf(e.getMessage()).contains("не принял")) {
+                keepRefusal(e);
+                if (attempt >= TRANSPORT_TRIES || !String.valueOf(e.getMessage()).contains("не принял")) {
                     throw e;
                 }
-                Map<String, Long> half = new LinkedHashMap<>();
-                now.forEach((k, v) -> {
-                    if (v / 2 > 0) {
-                        half.put(k, v / 2);
-                    }
-                });
-                if (half.isEmpty()) {
+                log.warn("Обслуживание: {} — через {} с снова то же{}", e.getMessage(), refusedWaitMs / 1000,
+                        fast ? " (быстро)" : "");
+                try {
+                    Thread.sleep(refusedWaitMs);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
                     throw e;
-                }
-                boolean slow = quick && attempt == 2;
-                log.warn("Обслуживание: {} — пробую {}{}", e.getMessage(), half, slow ? " обычным транспортом" : "");
-                now = half;
-                if (slow) {
-                    quick = false;
                 }
             }
+        }
+    }
+
+    /** The site's page of a refused transport, its tokens cut out, into {@code local/debug} (when the site sent one). */
+    private void keepRefusal(java.io.IOException e) {
+        if (!(e instanceof SkylabAccess.Refused r) || r.page() == null || ctx.dataDir() == null) {
+            return;
+        }
+        try {
+            java.nio.file.Path dir = java.nio.file.Path.of("local", "debug");
+            java.nio.file.Files.createDirectories(dir);
+            String clean = r.page().replaceAll("(?i)(dosid|sid|sessionid|session|reloadtoken|token|auth)([\"'=:\\s]+)[A-Za-z0-9%._\\-]{6,}",
+                    "$1$2…");
+            java.nio.file.Path f = dir.resolve("skylab-refused-" + java.time.LocalDateTime.now().format(
+                    java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss")) + ".html");
+            java.nio.file.Files.writeString(f, clean);
+            log.info("Обслуживание: ответ сайта на отказ сохранён в {}", f);
+        } catch (java.io.IOException | RuntimeException x) {
+            // kept for nothing: the log has the refusal
         }
     }
 

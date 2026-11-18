@@ -117,10 +117,24 @@ public final class Skylab {
                 && after.ore(e.getKey()) != null && after.ore(e.getKey()).amount() < before.ore(e.getKey()).amount());
         if (!after.transporting() && !left) {
             String why = siteMessage(sent.body());
-            throw new IOException("Skylab: после отправки транспорт не в пути — сайт не принял (" + amounts + ")"
-                    + (why.isEmpty() ? "" : "; сайт: «" + why + "»"));
+            throw new Refused("Skylab: после отправки транспорт не в пути — сайт не принял (" + amounts + ")"
+                    + (why.isEmpty() ? "" : "; сайт: «" + why + "»"), sent.body());
         }
         return after;
+    }
+
+    /** A transport the site did not take; {@code page} its answer to the request. */
+    public static final class Refused extends IOException {
+        private final transient String page;
+
+        public Refused(String message, String page) {
+            super(message);
+            this.page = page;
+        }
+
+        public String page() {
+            return page;
+        }
     }
 
     private static final Pattern MESSAGE = Pattern.compile(

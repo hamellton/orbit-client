@@ -15,4 +15,18 @@ public interface SkylabAccess {
 
     /** Starts the transport module with these amounts by ore name ({@code fast}: the quick paid one). */
     void transport(Map<String, Long> amounts, boolean fast) throws IOException;
+
+    /** The site refused a transport; {@code page} its answer (for its reason), {@code null} when none. */
+    final class Refused extends IOException {
+        private final transient String page;
+
+        public Refused(String message, String page) {
+            super(message);
+            this.page = page;
+        }
+
+        public String page() {
+            return page;
+        }
+    }
 }

@@ -39,6 +39,7 @@ class ServiceVisitTest {
         Sim sim = sim();
         EnricherTest.lab(sim, new int[] {0, 6, 20_000});
         ServiceVisit v = new ServiceVisit(sim.ctx);
+        v.refusedWaitMs = 0;
         assertEquals(0, v.tick(WORK, false).switchTo(), "not calm: no visit");
         ServiceVisit.Step s = v.tick(WORK, true);
         assertEquals(CITADEL, s.switchTo());
@@ -58,6 +59,7 @@ class ServiceVisitTest {
         Sim sim = sim();
         EnricherTest.lab(sim, new int[] {0, 6, 20_000});
         ServiceVisit v = new ServiceVisit(sim.ctx);
+        v.refusedWaitMs = 0;
         java.util.List<Map<String, Long>> sent = new java.util.concurrent.CopyOnWriteArrayList<>();
         v.setSkylab(new SkylabAccess() {
             @Override
@@ -102,6 +104,7 @@ class ServiceVisitTest {
         Sim sim = sim();
         EnricherTest.lab(sim, new int[] {0, 6, 20_000});
         ServiceVisit v = new ServiceVisit(sim.ctx);
+        v.refusedWaitMs = 0;
         v.tick(WORK, true);
         sim.now += 60_000_000_000L;
         v.tick(CITADEL, true);
@@ -117,6 +120,7 @@ class ServiceVisitTest {
         Sim sim = sim();
         EnricherTest.lab(sim, new int[] {0, 6, 20_000});
         ServiceVisit v = new ServiceVisit(sim.ctx);
+        v.refusedWaitMs = 0;
         int sell = 33;
         int collect = 44;
         assertEquals(CITADEL, v.divert(sell, collect), "a visit is due: the citadel first");
@@ -162,10 +166,11 @@ class ServiceVisitTest {
     }
 
     @Test
-    void aRefusedTransportIsTriedAgainWithHalf() throws Exception {
+    void aRefusedTransportIsTriedAgainWithTheSameAmount() throws Exception {
         Sim sim = sim();
         EnricherTest.lab(sim, new int[] {0, 6, 20_000});
         ServiceVisit v = new ServiceVisit(sim.ctx);
+        v.refusedWaitMs = 0;
         java.util.List<Map<String, Long>> sent = new java.util.concurrent.CopyOnWriteArrayList<>();
         v.setSkylab(new SkylabAccess() {
             @Override
@@ -191,9 +196,57 @@ class ServiceVisitTest {
             Thread.sleep(5);
         }
         assertEquals(2, sent.size(), "tried again");
-        assertEquals(sent.get(0).get("promerium") / 2, sent.get(1).get("promerium"), "with half");
+        assertEquals(sent.get(0).get("promerium"), sent.get(1).get("promerium"), "the same: the amount was not the cause");
         v.tick(CITADEL, true);
         assertEquals(ServiceVisit.Phase.SERVICE, v.phase(), "the visit goes on, not back with nothing");
+    }
+
+    @Test
+    void aRefusedQuickTransportIsNeverSentAsTheSlowOne() throws Exception {
+        // the user, 2026-11-19: no switch to the free, slow transport (live on int1: it held the visit for minutes)
+        Sim sim = new Sim(EnricherTest.config(VISIT.replace("\"visit\":true", "\"visit\":true,\"visitFast\":true"), null),
+                1, 1_000, 1_000);
+        sim.now = 1_000_000_000L;
+        sim.ctx.ships().setServiceShip(CITADEL);
+        orbit.protocol.gen.ShipInitializationCommand si = new orbit.protocol.gen.ShipInitializationCommand();
+        si.userId = 1;
+        si.mapId = 1;
+        si.x = 1_000;
+        si.y = 1_000;
+        si.hitPoints = 100;
+        si.hitMax = 100;
+        si.cargoSpace = 100_000;
+        si.cargoSpaceMax = 100_000;
+        sim.world.apply(si, sim.now);
+        EnricherTest.lab(sim, new int[] {0, 6, 20_000});
+        ServiceVisit v = new ServiceVisit(sim.ctx);
+        v.refusedWaitMs = 0;
+        java.util.List<Boolean> kinds = new java.util.concurrent.CopyOnWriteArrayList<>();
+        v.setSkylab(new SkylabAccess() {
+            @Override
+            public Stock stock() {
+                return new Stock(false, Map.of("promerium", 1_000_000L));
+            }
+
+            @Override
+            public void transport(Map<String, Long> amounts, boolean fast) throws java.io.IOException {
+                kinds.add(fast);
+                if (kinds.size() <= 2) {
+                    throw new java.io.IOException("Skylab: после отправки транспорт не в пути — сайт не принял (" + amounts + ")");
+                }
+            }
+        });
+        v.tick(WORK, true);
+        sim.now += 60_000_000_000L;
+        v.tick(CITADEL, true);
+        EnricherTest.lab(sim, new int[] {0, 6, 19_990});
+        EnricherTest.hold(sim, new int[] {6, 0});
+        for (int i = 0; i < 100 && kinds.size() < 3; i++) {
+            v.tick(CITADEL, true);
+            Thread.sleep(5);
+        }
+        assertEquals(3, kinds.size(), "tried again twice");
+        assertTrue(kinds.stream().allMatch(Boolean::booleanValue), "always the quick one: " + kinds);
     }
 
     @Test
@@ -212,6 +265,7 @@ class ServiceVisitTest {
         sim.world.apply(si, sim.now);
         EnricherTest.lab(sim, new int[] {0, 6, 20_000});
         ServiceVisit v = new ServiceVisit(sim.ctx);
+        v.refusedWaitMs = 0;
         java.util.List<Map<String, Long>> sent = new java.util.concurrent.CopyOnWriteArrayList<>();
         v.setSkylab(new SkylabAccess() {
             @Override
@@ -251,6 +305,59 @@ class ServiceVisitTest {
         assertEquals(ServiceVisit.Phase.SERVICE, v.phase(), "still at it");
     }
     @Test
+    void theNextTripWaitsAMomentAfterTheLastOne() throws Exception {
+        // live 2026-11-19 on int1: every quick order sent 1–4 s after a delivery was refused
+        Sim sim = sim();
+        orbit.protocol.gen.ShipInitializationCommand si = new orbit.protocol.gen.ShipInitializationCommand();
+        si.userId = 1;
+        si.mapId = 1;
+        si.x = 1_000;
+        si.y = 1_000;
+        si.hitPoints = 100;
+        si.hitMax = 100;
+        si.cargoSpace = 3_000;
+        si.cargoSpaceMax = 3_000;
+        sim.world.apply(si, sim.now);
+        EnricherTest.lab(sim, new int[] {0, 6, 20_000});
+        ServiceVisit v = new ServiceVisit(sim.ctx);
+        java.util.List<Long> at = new java.util.concurrent.CopyOnWriteArrayList<>();
+        v.setSkylab(new SkylabAccess() {
+            @Override
+            public Stock stock() {
+                return new Stock(false, Map.of("promerium", 1_000_000L));
+            }
+
+            @Override
+            public void transport(Map<String, Long> amounts, boolean fast) {
+                at.add(sim.now);
+            }
+        });
+        v.tick(WORK, true);
+        sim.now += 60_000_000_000L;
+        v.tick(CITADEL, true);
+        EnricherTest.lab(sim, new int[] {0, 6, 19_990});
+        EnricherTest.hold(sim, new int[] {6, 0});
+        for (int i = 0; i < 100 && at.isEmpty(); i++) {
+            v.tick(CITADEL, true);
+            sim.now += 100_000_000L;
+            Thread.sleep(5);
+        }
+        assertEquals(1, at.size(), "the first trip");
+        EnricherTest.hold(sim, new int[] {6, 3_000}); // landed at once (quick)
+        v.tick(CITADEL, true);
+        EnricherTest.lab(sim, new int[] {0, 6, 49_990});
+        EnricherTest.hold(sim, new int[] {6, 0});
+        for (int i = 0; i < 200 && at.size() < 2; i++) {
+            v.tick(CITADEL, true);
+            sim.now += 100_000_000L;
+            Thread.sleep(2);
+        }
+        assertEquals(2, at.size(), "the second trip");
+        assertTrue(at.get(1) - at.get(0) >= ServiceVisit.TRIP_GAP_MS * 1_000_000L,
+                "not sooner than the gap: " + (at.get(1) - at.get(0)) / 1_000_000 + " ms");
+    }
+
+    @Test
     void aQuickTransportSpentBeforeItsOrderIsDoneStillLeadsToTheNextTrip() throws Exception {
         // live 2026-11-16 on gb2: the ore landed and went into the lab while the site's page was read again
         Sim sim = sim();
@@ -266,6 +373,7 @@ class ServiceVisitTest {
         sim.world.apply(si, sim.now);
         EnricherTest.lab(sim, new int[] {0, 6, 20_000});
         ServiceVisit v = new ServiceVisit(sim.ctx);
+        v.refusedWaitMs = 0;
         java.util.List<Map<String, Long>> sent = new java.util.concurrent.CopyOnWriteArrayList<>();
         java.util.concurrent.CountDownLatch landed = new java.util.concurrent.CountDownLatch(1);
         java.util.concurrent.CountDownLatch spent = new java.util.concurrent.CountDownLatch(1);

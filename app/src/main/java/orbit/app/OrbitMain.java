@@ -937,7 +937,11 @@ public final class OrbitMain {
 
             @Override
             public void transport(java.util.Map<String, Long> amounts, boolean fast) throws java.io.IOException {
-                feed.setSkylab(site().transport(amounts, fast));
+                try {
+                    feed.setSkylab(site().transport(amounts, fast));
+                } catch (orbit.auth.Skylab.Refused r) {
+                    throw new orbit.bot.run.SkylabAccess.Refused(r.getMessage(), r.page());
+                }
             }
         };
     }
