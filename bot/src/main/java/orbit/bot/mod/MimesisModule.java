@@ -127,7 +127,7 @@ public final class MimesisModule implements BotModule {
                 ctx.random(), ctx.clock(), ctx.repair(), ctx.ship(), ctx.dataDir(), ctx.stats(), ctx.ships());
         this.attacker = new Attacker(mctx);
         this.boxes = new BoxPicker(mctx);
-        this.farm = new KillModule(mctx, true, true);
+        this.farm = new KillModule(mctx, true, true).keepTarget(true); // DarkBot keeps its target
         this.passes = new PassCare(ctx);
     }
 
@@ -292,6 +292,12 @@ public final class MimesisModule implements BotModule {
                     r = new BotConfig.NpcRule(r.radius(), r.priority(), r.kill(), Set.copyOf(f), r.maps(), r.ammo(), r.sab(),
                             r.rocket(), r.launcher(), r.move(), r.formation());
                 }
+                if (mimesis(n) && r.kill() && (r.move() == null || r.move().isBlank())
+                        && !r.has(BotConfig.NpcFlag.NO_CIRCLE)) {
+                    // DarkBot's LootModule: always round the target (no keeping the distance from a slow one)
+                    r = new BotConfig.NpcRule(r.radius(), r.priority(), r.kill(), r.flags(), r.maps(), r.ammo(), r.sab(),
+                            r.rocket(), r.launcher(), BotConfig.FightMove.CIRCLE.name(), r.formation());
+                }
                 if (emaa && mimesis(n) && r.kill()) {
                     r = new BotConfig.NpcRule(r.radius(), r.priority(), r.kill(), r.flags(), r.maps(), EMAA, r.sab(),
                             r.rocket(), r.launcher(), r.move(), r.formation());
@@ -404,6 +410,12 @@ public final class MimesisModule implements BotModule {
         }
         WorldSnapshot.Ship t = ctx.world().get().ships().get(attacker.targetId());
         return t != null && t.health().known() ? t.health().hpPercent() : -1;
+    }
+
+    /** DarkBot's SafetyFinder: the repair only below the config's threshold, never early for a fast loss. */
+    @Override
+    public boolean earlyRepair() {
+        return false;
     }
 
     /** In the escort the players about are the company's own: nothing to keep off. */

@@ -24,6 +24,18 @@ public final class KillModule implements BotModule {
     private long roamUntil;
     private String status = "";
 
+    /**
+     * The target kept while it lives and can be fought, as DarkBot's LootModule: no switching to one of a higher
+     * priority that comes in sight (the Mimesis' keys farm — live 2026-11-18 on 3-4: Hexor at 37 % left for a Reflector,
+     * Raging at 93 % for a Hexor, the small passive ones dropped all the time).
+     */
+    private boolean keepTarget;
+
+    public KillModule keepTarget(boolean keep) {
+        this.keepTarget = keep;
+        return this;
+    }
+
     public KillModule(BotContext ctx, boolean kill, boolean collect) {
         this.ctx = ctx;
         this.kill = kill;
@@ -108,7 +120,7 @@ public final class KillModule implements BotModule {
         if (c.moduleSettings("kill").path("useCloak").asBoolean(false)) {
             cloaker.tick(attacker.targetId() != 0);
         }
-        if (kill && attacker.targetId() != 0) {
+        if (kill && attacker.targetId() != 0 && !keepTarget) {
             // one of a higher priority came in sight (an invoke while an Impulse is fought): to it at once, unless the
             // one fought is nearly dead or shoots the ship (the user, 2026-11-13) — with «бросать всё» in any case
             WorldSnapshot.Ship now = w.ships().get(attacker.targetId());

@@ -176,6 +176,30 @@ class MimesisModuleTest {
     }
 
     @Test
+    void onTheFarmTheTargetIsKeptWhenAMoreImportantOneComes() throws Exception {
+        Sim sim = new Sim(config("{}"), FARM, 10_000, 6_000);
+        times(sim, 1200, 0, 0);
+        sim.npc(20, "-=[ Cloned Mim3sis ]=-", 10_400, 6_000);
+        MimesisModule m = new MimesisModule(sim.ctx);
+        run(sim, m, 2_000);
+        assertEquals(20, m.fightTarget(), "the Cloned taken");
+        sim.npc(21, "-=[ Hexor M1mesis ]=-", 10_600, 6_200); // priority 0, the Cloned 3
+        run(sim, m, 3_000);
+        assertEquals(20, m.fightTarget(), "kept, as DarkBot");
+    }
+
+    @Test
+    void asDarkBotTheMimesisAreCircledAndNoEarlyRepair() throws Exception {
+        Sim sim = new Sim(config("{}"), FARM, 10_000, 6_000);
+        sim.npc(30, "-=[ Reflector Mimesi5 ]=-", 10_500, 6_000);
+        MimesisModule m = new MimesisModule(sim.ctx);
+        assertFalse(m.earlyRepair(), "DarkBot's SafetyFinder: only below the threshold");
+        BotConfig.NpcRule r = m.config().npc("-=[ Reflector Mimesi5 ]=-");
+        assertEquals("CIRCLE", r.move(), "DarkBot's LootModule circles");
+        assertEquals(-50, r.priority());
+    }
+
+    @Test
     void theEmaaCraftRuleWhenOn() throws Exception {
         assertNull(MimesisModule.craftRule(config("{}")));
         BotConfig.CraftRule r = MimesisModule.craftRule(config("{\"craftEmaa\":{\"on\":true,\"below\":20000}}"));

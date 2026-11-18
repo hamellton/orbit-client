@@ -43,7 +43,7 @@
     ],
     "launcher": "ammunition_rocketlauncher_eco-10",
     "fireLauncher": false,
-    "move": "AUTO",
+    "move": "CIRCLE",
     "runCircle": true,
     "smartCircle": 5,
     "options": {
@@ -271,9 +271,9 @@
     "buyFuel": false
   },
   "safety": {
-    "repairHpMin": 0.35,
-    "repairHpMax": 0.7,
-    "repairHpNoNpc": 0.0,
+    "repairHpMin": 0.3,
+    "repairHpMax": 0.6,
+    "repairHpNoNpc": 0.25,
     "repairToShield": 0.0,
     "repairMode": {
       "config": 2,

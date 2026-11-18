@@ -136,6 +136,7 @@ public final class BotRunner {
         this.statusSink = statusSink;
         this.safety = new Safety(ctx);
         safety.gateRepair(() -> module != null && module.repairTick());
+        safety.earlyRepair(() -> module == null || module.earlyRepair());
         safety.gateTargetHp(() -> module != null ? module.targetHp() : -1);
         this.revive = new Revive(ctx);
         this.buy = new BuyWatch(ctx);

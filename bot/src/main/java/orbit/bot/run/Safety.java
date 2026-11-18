@@ -100,6 +100,13 @@ public final class Safety {
         this.gateTargetHp = hp;
     }
 
+    private java.util.function.BooleanSupplier earlyRepair = () -> true;
+
+    /** The module's word on leaving early for a fast loss of hull ({@link BotModule#earlyRepair}). */
+    public void earlyRepair(java.util.function.BooleanSupplier early) {
+        this.earlyRepair = early;
+    }
+
     /** The module's own repair in a galaxy gate ({@link BotModule#repairTick}). */
     public void gateRepair(java.util.function.BooleanSupplier r) {
         this.gateRepair = r;
@@ -153,7 +160,7 @@ public final class Safety {
             // 7 s way to it, killed)
             // a repair at 0 % is «fight to the end» (the behemoth's train configs): nothing early either (live 2026-11-14
             // on the VPS: alive at the behemoth's death, off to the portal at 26 % — killed, its box left)
-            double early = attacked && !almostDead && limit > 0
+            double early = attacked && !almostDead && limit > 0 && earlyRepair.getAsBoolean()
                     ? Math.min(EARLY_MAX, hpLossPerSecond(now) * EARLY_SECONDS) : 0;
             if (early > 0.02 && hp >= limit && hp < limit + early) {
                 log.info("Теряю {}% HP в секунду — ухожу на ремонт раньше", pct(hpLossPerSecond(now)));

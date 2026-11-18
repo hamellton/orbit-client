@@ -49,6 +49,15 @@ public interface BotModule {
         return -1;
     }
 
+    /**
+     * Whether a fast loss of hull sends the ship to the repair before the config's threshold (ours, live 2026-11-13);
+     * false — DarkBot's way, only below the threshold (the Mimesis: a Reflector's cloud takes 4 % a second through the
+     * shield, the fights were broken off every 15–20 s).
+     */
+    default boolean earlyRepair() {
+        return true;
+    }
+
     /** The repair is the module's own this tick (a galaxy gate: round the target); false — {@link Safety}'s way. */
     default boolean repairTick() {
         return false;
