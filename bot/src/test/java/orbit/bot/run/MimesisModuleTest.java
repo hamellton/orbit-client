@@ -16,6 +16,7 @@ import orbit.protocol.gen.PayloadEscortKeyInfoCommand;
 import orbit.protocol.gen.PayloadEscortTimeInfoCommand;
 import orbit.world.WorldSnapshot;
 import orbit.world.maps.MapCatalog;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 
 /** The user, 2026-11-18: the Mimesis escort — the behaviour DarkBot's (DonorPlugin, SharedPlugin), the automation AstraBot's. */
@@ -152,6 +153,26 @@ class MimesisModuleTest {
         MimesisModule m = new MimesisModule(sim.ctx);
         run(sim, m, 15_000);
         assertTrue(sim.sent.stream().anyMatch(p -> p instanceof JumpRequest), "out");
+    }
+
+    @Test
+    void theBattlePassRewardsAreCollectedButNoSeasonRerollOrDiminishingQuest() throws Exception {
+        Sim sim = new Sim(config("{}"), FARM, 10_000, 6_000);
+        times(sim, 1200, 0, 0);
+        orbit.protocol.gen.BattlePassUpdateStatusCommand bp = new orbit.protocol.gen.BattlePassUpdateStatusCommand();
+        bp.purchased = true;
+        bp.questsToCollectReward = List.of(500456);
+        sim.world.apply(bp, sim.now);
+        orbit.protocol.gen.DiminishingQuestInitializationCommand di = new orbit.protocol.gen.DiminishingQuestInitializationCommand();
+        di.quest = QuestGiverVisitTest.Giver.definition(122001);
+        di.acceptabilityStatus = new orbit.protocol.gen.QuestAcceptabilityStatusModule();
+        di.acceptabilityStatus.type = 1;
+        sim.world.apply(di, sim.now);
+        MimesisModule m = new MimesisModule(sim.ctx);
+        run(sim, m, 10_000);
+        assertTrue(sim.sent.stream().anyMatch(p -> p instanceof orbit.protocol.gen.BattlePassCollectRequest), "collected");
+        assertTrue(sim.sent.stream().noneMatch(p -> p instanceof orbit.protocol.gen.DiminishingQuestAcceptQuestRequest),
+                "the quest module's work");
     }
 
     @Test

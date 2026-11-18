@@ -99,6 +99,8 @@ public final class MimesisModule implements BotModule {
     private final BoxPicker boxes;
     /** AstraBot: Kill &amp; Collect on the working map between the runs (the keys drop there). */
     private final KillModule farm;
+    /** The passes' free buttons (Season Pass «Забрать всё», Battle Pass «Забрать»): the event's Battle Pass is done here. */
+    private final PassCare passes;
     private String status = "";
     private String told = "";
 
@@ -126,6 +128,21 @@ public final class MimesisModule implements BotModule {
         this.attacker = new Attacker(mctx);
         this.boxes = new BoxPicker(mctx);
         this.farm = new KillModule(mctx, true, true);
+        this.passes = new PassCare(ctx);
+    }
+
+    /**
+     * The quest tab's switches for the passes ({@code modules.quests}: {@code season}, {@code battlepass}, {@code trek},
+     * on by default); no rerolls of season missions and no diminishing quest taken — that is the quest module's work.
+     */
+    private com.fasterxml.jackson.databind.node.ObjectNode passSettings() {
+        JsonNode q = ctx.config().get().modules().get(BotConfig.Module.QUESTS.key());
+        com.fasterxml.jackson.databind.node.ObjectNode s = q != null && q.isObject()
+                ? ((com.fasterxml.jackson.databind.node.ObjectNode) q).deepCopy()
+                : com.fasterxml.jackson.databind.node.JsonNodeFactory.instance.objectNode();
+        s.put("seasonReroll", false);
+        s.put("diminishing", false);
+        return s;
     }
 
     // ---- the NPCs ----
@@ -545,6 +562,9 @@ public final class MimesisModule implements BotModule {
         if (w.jumpingTo() != 0) {
             status = "Прыжок";
             return;
+        }
+        if (!busy()) {
+            passes.tick(w, passSettings(), q -> true); // not in the middle of a fight
         }
         if (GateCatalog.escort(h.mapId())) {
             escort(w);
