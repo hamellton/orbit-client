@@ -116,9 +116,29 @@ public final class Skylab {
         boolean left = amounts.entrySet().stream().anyMatch(e -> e.getValue() > 0 && before.ore(e.getKey()) != null
                 && after.ore(e.getKey()) != null && after.ore(e.getKey()).amount() < before.ore(e.getKey()).amount());
         if (!after.transporting() && !left) {
-            throw new IOException("Skylab: после отправки транспорт не в пути — сайт не принял (" + amounts + ")");
+            String why = siteMessage(sent.body());
+            throw new IOException("Skylab: после отправки транспорт не в пути — сайт не принял (" + amounts + ")"
+                    + (why.isEmpty() ? "" : "; сайт: «" + why + "»"));
         }
         return after;
+    }
+
+    private static final Pattern MESSAGE = Pattern.compile(
+            "(?is)class=\"[^\"]*(?:error|failure|warning|alert|message|notice)[^\"]*\"[^>]*>(.*?)</(?:div|span|p|td|li)>");
+
+    /** The site's word on a refused request (its error or notice box), plain text, short; empty when none is found. */
+    static String siteMessage(String body) {
+        if (body == null) {
+            return "";
+        }
+        Matcher m = MESSAGE.matcher(body);
+        while (m.find()) {
+            String text = m.group(1).replaceAll("(?s)<[^>]+>", " ").replace("&nbsp;", " ").replaceAll("\\s+", " ").trim();
+            if (!text.isEmpty()) {
+                return text.length() > 200 ? text.substring(0, 200) + "…" : text;
+            }
+        }
+        return "";
     }
 
     /** The page's modules, ores, transport and robots; whatever is missing is left out. */

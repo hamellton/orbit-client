@@ -38,6 +38,13 @@ public final class ServiceVisit {
 
     private final BotContext ctx;
     private volatile SkylabAccess skylab;
+    /** The service ship's hangar of the visit (its hold's capacity is remembered by it). */
+    private int serviceHangar;
+    /** Hold capacities by hangar, as the game told them at a login on that ship ({@code local/hangar-holds.json}). */
+    private final Map<Integer, Long> holds = new java.util.concurrent.ConcurrentHashMap<>();
+    private boolean holdsRead;
+    /** A hold this old after the ship came in, the ores still not listed: ordered by the login's free room. */
+    static final long HOLD_WAIT_MS = 15_000;
     private Phase phase = Phase.IDLE;
     private int returnTo;
     private long nextAt;
@@ -163,6 +170,7 @@ public final class ServiceVisit {
             }
             case GOING -> {
                 if (activeHangar == service) {
+                    serviceHangar = service;
                     phase = Phase.SERVICE;
                     serviceSince = now;
                     return service(s, w, now);
@@ -350,11 +358,22 @@ public final class ServiceVisit {
                 return back(null);
             }
             if (!orderStarted) {
+                // the hold of this ship, not the last one's: its ores listed since the login, or a moment for them
+                // (live 2026-11-18 on gb2: ordered 7 s in, the quest ship's numbers — 14 192 into a hold of 8 000)
+                if (!w.inventory().oresSinceLogin() && ms(now - serviceSince) < HOLD_WAIT_MS) {
+                    return busy(now, s, "жду данные о трюме");
+                }
+                long told = w.cargoFree();
+                long cap = holdCap(w);
+                if (cap >= 0 && (told < 0 || cap < told)) {
+                    log.info("Обслуживание: свободно в трюме по игре {}, по вместимости ангара {} — заказываю не больше {}",
+                            told, cap, cap);
+                }
+                long room = cap >= 0 && (told < 0 || cap < told) ? cap : told;
                 orderStarted = true;
                 ordering = true;
                 orderError = null;
                 boolean fast = s.path("visitFast").asBoolean(false);
-                long room = w.cargoFree();
                 holdAtOrder = Map.copyOf(w.inventory().ores().entrySet().stream().collect(java.util.stream.Collectors
                         .toMap(Map.Entry::getKey, x -> Math.round(x.getValue()))));
                 java.util.Map<String, String> mdc = org.slf4j.MDC.getCopyOfContextMap();
@@ -391,7 +410,11 @@ public final class ServiceVisit {
                         } else if (st.transporting()) {
                             orderError = "транспорт Скайлаба уже в пути";
                         } else {
-                            a.transport(send, fast);
+                            Map<String, Long> went = transportTrying(a, send, fast);
+                            if (went != send) { // a smaller one went: that is what is counted as brought
+                                send.clear();
+                                send.putAll(went);
+                            }
                             trips++;
                             send.forEach((k, v) -> brought.merge(k, v, Long::sum));
                             log.info("Обслуживание: рейс {} — со Скайлаба в трюм {}{}", trips, send,
@@ -425,6 +448,83 @@ public final class ServiceVisit {
             return back(null);
         }
         return busy(now, s, arrived ? "обогащаю" : "жду руду со Скайлаба");
+    }
+
+    /**
+     * The transport, tried again when the site refuses: half the amounts, then (a quick one) the normal transport — the
+     * site's own words in the log (live 2026-11-16 and 2026-11-18 on gb2: refused, the visit went back with nothing).
+     *
+     * @return what was sent at last
+     */
+    private Map<String, Long> transportTrying(SkylabAccess a, Map<String, Long> send, boolean fast) throws java.io.IOException {
+        Map<String, Long> now = send;
+        boolean quick = fast;
+        for (int attempt = 1; ; attempt++) {
+            try {
+                a.transport(now, quick);
+                return now;
+            } catch (java.io.IOException e) {
+                if (attempt >= 3 || !String.valueOf(e.getMessage()).contains("не принял")) {
+                    throw e;
+                }
+                Map<String, Long> half = new LinkedHashMap<>();
+                now.forEach((k, v) -> {
+                    if (v / 2 > 0) {
+                        half.put(k, v / 2);
+                    }
+                });
+                if (half.isEmpty()) {
+                    throw e;
+                }
+                boolean slow = quick && attempt == 2;
+                log.warn("Обслуживание: {} — пробую {}{}", e.getMessage(), half, slow ? " обычным транспортом" : "");
+                now = half;
+                if (slow) {
+                    quick = false;
+                }
+            }
+        }
+    }
+
+    /**
+     * The service ship's hold: its capacity as remembered by its hangar less the ore in it now ({@code -1} when the
+     * capacity is not known yet); the game's capacity of this login is remembered for the next visits.
+     */
+    private long holdCap(WorldSnapshot w) {
+        java.nio.file.Path file = ctx.dataDir() == null ? null : ctx.dataDir().resolve("hangar-holds.json");
+        if (!holdsRead) {
+            holdsRead = true;
+            if (file != null && java.nio.file.Files.isRegularFile(file)) {
+                try {
+                    orbit.config.Json.MAPPER.readTree(file.toFile()).fields().forEachRemaining(
+                            e -> holds.put(Integer.parseInt(e.getKey()), e.getValue().asLong()));
+                } catch (java.io.IOException | RuntimeException e) {
+                    log.debug("Обслуживание: вместимость ангаров не прочитана: {}", e.getMessage());
+                }
+            }
+        }
+        WorldSnapshot.Hero h = w.hero();
+        if (serviceHangar != 0 && h.cargoMax() > 0 && w.inventory().oresSinceLogin()
+                && !Long.valueOf(h.cargoMax()).equals(holds.get(serviceHangar))) {
+            holds.put(serviceHangar, (long) h.cargoMax());
+            if (file != null) {
+                try {
+                    com.fasterxml.jackson.databind.node.ObjectNode o = orbit.config.Json.MAPPER.createObjectNode();
+                    holds.forEach((k, v) -> o.put(String.valueOf(k), v));
+                    java.nio.file.Files.createDirectories(file.getParent());
+                    orbit.config.Json.MAPPER.writerWithDefaultPrettyPrinter().writeValue(file.toFile(), o);
+                } catch (java.io.IOException e) {
+                    log.debug("Обслуживание: вместимость ангаров не записана: {}", e.getMessage());
+                }
+            }
+        }
+        Long capacity = holds.get(serviceHangar);
+        if (capacity == null || capacity <= 0) {
+            return -1;
+        }
+        long used = w.inventory().oresSinceLogin() ? w.inventory().cargoUsed()
+                : h.cargoMax() > 0 && h.cargoFree() >= 0 ? Math.max(0, h.cargoMax() - h.cargoFree()) : 0;
+        return Math.max(0, capacity - used);
     }
 
     private java.nio.file.Path returnFile() {

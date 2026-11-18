@@ -75,6 +75,7 @@ class ServiceVisitTest {
         assertTrue(v.tick(CITADEL, true).busy());
         assertTrue(sim.sent.stream().anyMatch(p -> p instanceof orbit.protocol.gen.LabUpdateRequest), "the lab asked");
         EnricherTest.lab(sim, new int[] {0, 6, 19_990}); // the same enrichment: the account's
+        EnricherTest.hold(sim, new int[] {6, 0}); // the hold of this ship, listed after the login
         for (int i = 0; i < 50 && sent.isEmpty(); i++) {
             v.tick(CITADEL, true);
             Thread.sleep(10);
@@ -133,6 +134,69 @@ class ServiceVisitTest {
         assertEquals(44, new ServiceVisit(sim.ctx).divert(33, 44));
     }
     @Test
+    void theHoldOfTheShipComeInCountsNotTheLastShipsOres() throws Exception {
+        // live 2026-11-18 on gb2: the quest ship's 20 000 seprom and the Skylab ship's capacity — 14 192 ordered into a
+        // hold of 8 000, refused
+        Sim sim = sim();
+        orbit.protocol.gen.ShipInitializationCommand quest = new orbit.protocol.gen.ShipInitializationCommand();
+        quest.userId = 1;
+        quest.mapId = 1;
+        quest.hitPoints = 100;
+        quest.hitMax = 100;
+        quest.cargoSpace = 20_000;
+        quest.cargoSpaceMax = 40_000;
+        sim.world.apply(quest, sim.now);
+        EnricherTest.hold(sim, new int[] {7, 20_000}); // seprom
+        sim.now += 1_000_000_000L;
+        orbit.protocol.gen.ShipInitializationCommand skylab = new orbit.protocol.gen.ShipInitializationCommand();
+        skylab.userId = 1;
+        skylab.mapId = 1;
+        skylab.hitPoints = 100;
+        skylab.hitMax = 100;
+        skylab.cargoSpace = 7_997;
+        skylab.cargoSpaceMax = 8_000;
+        sim.world.apply(skylab, sim.now);
+        assertEquals(7_997, sim.world.snapshot(sim.now).cargoFree(), "this ship's free room, not 8 000 − 20 000");
+        EnricherTest.hold(sim, new int[] {8, 3}); // its own hold listed
+        assertEquals(7_997, sim.world.snapshot(sim.now).cargoFree());
+    }
+
+    @Test
+    void aRefusedTransportIsTriedAgainWithHalf() throws Exception {
+        Sim sim = sim();
+        EnricherTest.lab(sim, new int[] {0, 6, 20_000});
+        ServiceVisit v = new ServiceVisit(sim.ctx);
+        java.util.List<Map<String, Long>> sent = new java.util.concurrent.CopyOnWriteArrayList<>();
+        v.setSkylab(new SkylabAccess() {
+            @Override
+            public Stock stock() {
+                return new Stock(false, Map.of("promerium", 1_000_000L));
+            }
+
+            @Override
+            public void transport(Map<String, Long> amounts, boolean fast) throws java.io.IOException {
+                sent.add(Map.copyOf(amounts));
+                if (sent.size() == 1) {
+                    throw new java.io.IOException("Skylab: после отправки транспорт не в пути — сайт не принял (" + amounts + ")");
+                }
+            }
+        });
+        v.tick(WORK, true);
+        sim.now += 60_000_000_000L;
+        v.tick(CITADEL, true);
+        EnricherTest.lab(sim, new int[] {0, 6, 19_990});
+        EnricherTest.hold(sim, new int[] {6, 0});
+        for (int i = 0; i < 100 && sent.size() < 2; i++) {
+            v.tick(CITADEL, true);
+            Thread.sleep(5);
+        }
+        assertEquals(2, sent.size(), "tried again");
+        assertEquals(sent.get(0).get("promerium") / 2, sent.get(1).get("promerium"), "with half");
+        v.tick(CITADEL, true);
+        assertEquals(ServiceVisit.Phase.SERVICE, v.phase(), "the visit goes on, not back with nothing");
+    }
+
+    @Test
     void aSmallHoldGetsTheOreInSeveralTripsOfOneVisit() throws Exception {
         // live 2026-11-16 on gb2: 14 000 promerium wanted, an 8 000 hold with 5 000 in it — one trip of 2 997, back
         Sim sim = sim();
@@ -165,6 +229,7 @@ class ServiceVisitTest {
         v.tick(CITADEL, true);
         int left = 19_990;
         EnricherTest.lab(sim, new int[] {0, 6, left});
+        EnricherTest.hold(sim, new int[] {6, 0}); // the hold of this ship, listed after the login
         for (int trip = 1; trip <= 3; trip++) {
             for (int i = 0; i < 100 && sent.size() < trip; i++) {
                 v.tick(CITADEL, true);
@@ -227,6 +292,7 @@ class ServiceVisitTest {
         sim.now += 60_000_000_000L;
         v.tick(CITADEL, true);
         EnricherTest.lab(sim, new int[] {0, 6, 19_990});
+        EnricherTest.hold(sim, new int[] {6, 0}); // the hold of this ship, listed after the login
         for (int i = 0; i < 100 && landed.getCount() > 0; i++) {
             v.tick(CITADEL, true);
             Thread.sleep(5);

@@ -398,9 +398,24 @@ public record WorldSnapshot(long nanos, Hero hero, Map<Integer, Ship> ships, Map
      * @param tradeNanos  when it came (0 never)
      * @param petTradeNanos when the pet's trade pod opened the trade window ({@code PetTradeWindowShowCommand})
      */
+    /**
+     * @param oresNanos  when the server last listed the hold's ores; {@code loginNanos} when the ship came into the game
+     *                   (its {@code ShipInitializationCommand}): ores listed before it may be another ship's
+     */
     public record Inventory(Map<Integer, Double> ores, Map<String, Double> resources, Map<String, Integer> bootyKeys,
                             Map<Integer, Integer> tradePrices, long tradeNanos, long petTradeNanos,
-                            Map<String, Recipe> recipes, Lab lab) {
+                            Map<String, Recipe> recipes, Lab lab, long oresNanos, long loginNanos) {
+
+        public Inventory(Map<Integer, Double> ores, Map<String, Double> resources, Map<String, Integer> bootyKeys,
+                         Map<Integer, Integer> tradePrices, long tradeNanos, long petTradeNanos,
+                         Map<String, Recipe> recipes, Lab lab) {
+            this(ores, resources, bootyKeys, tradePrices, tradeNanos, petTradeNanos, recipes, lab, 0, 0);
+        }
+
+        /** The ores listed are this ship's: listed since it came into the game. */
+        public boolean oresSinceLogin() {
+            return oresNanos >= loginNanos;
+        }
 
         public Inventory(Map<Integer, Double> ores, Map<String, Double> resources, Map<String, Integer> bootyKeys,
                          Map<Integer, Integer> tradePrices, long tradeNanos, long petTradeNanos) {
@@ -446,9 +461,14 @@ public record WorldSnapshot(long nanos, Hero hero, Map<Integer, Ship> ships, Map
         public static final int PER_ORE = 10;
     }
 
-    /** Free room in the hold now: the capacity less the ore in it (-1 before the game said). */
+    /**
+     * Free room in the hold now: the capacity less the ore in it (-1 before the game said). Ores listed before the ship
+     * came into the game are another ship's (a ship change: the quest ship's 20 000 seprom with the Skylab ship's
+     * capacity, live 2026-11-18 on gb2 — 14 192 ordered into a hold of 8 000): then the free room the login told.
+     */
     public long cargoFree() {
-        return hero.cargoMax() < 0 || inventory.ores().isEmpty() ? hero.cargoFree() : hero.cargoMax() - inventory.cargoUsed();
+        return hero.cargoMax() < 0 || inventory.ores().isEmpty() || !inventory.oresSinceLogin() ? hero.cargoFree()
+                : hero.cargoMax() - inventory.cargoUsed();
     }
 
     /**

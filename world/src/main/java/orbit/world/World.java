@@ -181,6 +181,8 @@ public final class World {
     /** Items placed on the slot bars (keys 1–0 and the extra bars). */
     private final java.util.Set<String> slotItems = new java.util.LinkedHashSet<>();
     private final Map<Integer, Double> ores = new LinkedHashMap<>();
+    private long oresNanos;
+    private long loginNanos;
     /** The lab's enrichment (kept over map changes: the ship's). */
     private WorldSnapshot.Lab lab = WorldSnapshot.Lab.NONE;
     /** The trade window's prices (the ores it buys) and when they came; the pet trade pod's window. */
@@ -536,6 +538,7 @@ public final class World {
             }
             case AttributeOreCountUpdateCommand p -> {
                 ores.clear();
+                oresNanos = nanos;
                 for (OreCountModule o : p.oreCountList) {
                     ores.put(o.oreType != null ? (int) o.oreType.typeValue : -1, o.count);
                 }
@@ -676,7 +679,8 @@ public final class World {
         return new WorldSnapshot(nanos, h, Map.copyOf(shipViews), Map.copyOf(collectables), Map.copyOf(portals),
                 Map.copyOf(assets), Map.copyOf(zones), group, Map.copyOf(items),
                 new WorldSnapshot.Inventory(Map.copyOf(ores), Map.copyOf(resources), Map.copyOf(bootyKeys),
-                        Map.copyOf(tradePrices), tradeNanos, petTradeNanos, Map.copyOf(recipes), lab), pet,
+                        Map.copyOf(tradePrices), tradeNanos, petTradeNanos, Map.copyOf(recipes), lab, oresNanos,
+                        loginNanos), pet,
                 Map.copyOf(activatable), jumpingTo, death, java.util.Set.copyOf(slotItems), recentKills(nanos),
                 new WorldSnapshot.Rewards(gainedCredits, gainedUridium, gainedHonor, gainedExperience, Map.copyOf(loot),
                         spentCredits, spentUridium),
@@ -932,6 +936,7 @@ public final class World {
         // cargoSpace is the free space: it grows by exactly the amount of ore sold (recordings)
         hero.cargoFree = p.cargoSpace;
         hero.cargoMax = p.cargoSpaceMax;
+        loginNanos = nanos; // the hold's ores listed before are maybe another ship's (WorldSnapshot.cargoFree)
         hero.premium = p.premium;
         hero.cloaked = p.cloaked;
         hero.alive = true;
