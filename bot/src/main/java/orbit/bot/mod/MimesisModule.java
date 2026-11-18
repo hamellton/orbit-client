@@ -223,6 +223,26 @@ public final class MimesisModule implements BotModule {
         return Map.copyOf(m);
     }
 
+    /**
+     * The Mimesis EMAA-20 goes on with {@code emaa.mode = heavy} (the default; AstraBot's {@code mimesis.json}: EMAA-20 on
+     * Terror, Reflector, Cloning, Medic, Inspirit, Hardy, UCB-100 on the small ones) — and the escort's heavy ones
+     * AstraBot does not fight (Obscured, Mirror, Marker, Piercing, Hounding, Sniper); {@code all} — on every Mimesis.
+     */
+    static final Set<String> EMAA_HEAVY = Set.of("terror mimesis", "reflector mimesis", "cloning mimesis", "medic mimesis",
+            "inspirit mimesis", "hardy mimesis", "obscured mimesis", "mirror mimesis", "marker mimesis", "piercing mimesis",
+            "hounding mimesis", "sniper mimesis");
+
+    static boolean emaaOn(String name, boolean all) {
+        if (!mimesis(name)) {
+            return false;
+        }
+        if (all) {
+            return true;
+        }
+        String p = plain(name);
+        return EMAA_HEAVY.stream().anyMatch(p::contains);
+    }
+
     /** The table's entry of a name: the exact one, else one the name holds (SharedPlugin matches by {@code contains}). */
     static Def tableRule(String name, boolean escortMap) {
         String p = plain(name);
@@ -257,6 +277,8 @@ public final class MimesisModule implements BotModule {
         JsonNode em = s.path("emaa");
         WorldSnapshot.Item stock = w.items().get(EMAA);
         boolean emaa = on(em, "on", true) && stock != null && stock.counter() >= em.path("min").asInt(1_000);
+        boolean emaaAll = "all".equalsIgnoreCase(em.path("mode").asText("heavy"));
+        emaaSeen(emaa, stock, em);
         java.util.TreeMap<String, Boolean> names = new java.util.TreeMap<>();
         int hero = w.hero().id();
         for (WorldSnapshot.Ship sh : w.ships().values()) {
@@ -268,7 +290,7 @@ public final class MimesisModule implements BotModule {
         // SharedPlugin's isStickToTarget: a Mirror under 3 000 000 of max HP is a clone — not held as the target
         WorldSnapshot.Ship cur = w.ships().get(attacker.targetId());
         String clone = cur != null && clone(cur) ? cur.name() : "";
-        String key = map + "|" + emaa + "|" + clone + "|" + names;
+        String key = map + "|" + emaa + emaaAll + "|" + clone + "|" + names;
         synchronized (this) {
             if (base == cachedBase && key.equals(cachedKey)) {
                 return cached;
@@ -286,6 +308,15 @@ public final class MimesisModule implements BotModule {
                     r = new BotConfig.NpcRule(d.radius(), d.priority(), d.kill(), d.flags(),
                             escortMap ? Set.copyOf(GateCatalog.ESCORT_MAPS) : Set.of(), null);
                 }
+                if (escortMap && r.kill() && !r.has(BotConfig.NpcFlag.IGNORE_OWNERSHIP)) {
+                    // DonorPlugin's shouldKill asks no owner: on the escort the reward goes by the damage, and the server
+                    // greys an NPC for whoever hit it first (live 2026-11-19 on Escort VRU 1: «чужая — бросаю» every 0.1 s,
+                    // a Hounding left at 7 %, an Inspirit at 13 %)
+                    Set<String> f = new java.util.TreeSet<>(r.flags());
+                    f.add(BotConfig.NpcFlag.IGNORE_OWNERSHIP.name());
+                    r = new BotConfig.NpcRule(r.radius(), r.priority(), r.kill(), Set.copyOf(f), r.maps(), r.ammo(), r.sab(),
+                            r.rocket(), r.launcher(), r.move(), r.formation());
+                }
                 if (n.equals(clone) && r.has(BotConfig.NpcFlag.HOLD_TARGET)) {
                     Set<String> f = new java.util.TreeSet<>(r.flags());
                     f.remove(BotConfig.NpcFlag.HOLD_TARGET.name());
@@ -298,7 +329,7 @@ public final class MimesisModule implements BotModule {
                     r = new BotConfig.NpcRule(r.radius(), r.priority(), r.kill(), r.flags(), r.maps(), r.ammo(), r.sab(),
                             r.rocket(), r.launcher(), BotConfig.FightMove.CIRCLE.name(), r.formation());
                 }
-                if (emaa && mimesis(n) && r.kill()) {
+                if (emaa && emaaOn(n, emaaAll) && r.kill()) {
                     r = new BotConfig.NpcRule(r.radius(), r.priority(), r.kill(), r.flags(), r.maps(), EMAA, r.sab(),
                             r.rocket(), r.launcher(), r.move(), r.formation());
                 }
@@ -323,6 +354,24 @@ public final class MimesisModule implements BotModule {
 
     static boolean clone(WorldSnapshot.Ship s) {
         return plain(s.name()).contains("mirror") && s.health().hpMax() > 0 && s.health().hpMax() < MIRROR_REAL_HP;
+    }
+
+    private Boolean emaaWas;
+
+    /** EMAA-20 there or not (none bought, run out): told once each time it changes. */
+    private void emaaSeen(boolean emaa, WorldSnapshot.Item stock, JsonNode em) {
+        if (!on(em, "on", true) || emaaWas != null && emaaWas == emaa) {
+            return;
+        }
+        boolean first = emaaWas == null;
+        emaaWas = emaa;
+        if (emaa) {
+            log.info("Мимесис: EMAA-20 есть ({}) — бью им {}", (long) stock.counter(),
+                    "all".equalsIgnoreCase(em.path("mode").asText("heavy")) ? "всех Мимесисов" : "тяжёлых Мимесисов");
+        } else if (!first || stock != null) {
+            log.info("Мимесис: EMAA-20 {} — бью патронами конфига", stock == null ? "нет" : "меньше "
+                    + em.path("min").asInt(1_000) + " (" + (long) stock.counter() + ")");
+        }
     }
 
     /** The key the config lists a name under (its own spelling, matched by the bare name). */
@@ -722,7 +771,7 @@ public final class MimesisModule implements BotModule {
             fight(w, t);
             return;
         }
-        if (box && !on(after, "ignoreBoxes", false) && boxes.tickAnyType(h.x(), h.y(), -1)) {
+        if (box && !on(after, "ignoreBoxes", false) && boxes.tickAnywhere()) {
             status = "Мимесис: подбираю " + boxes.currentName();
             return;
         }
@@ -828,7 +877,7 @@ public final class MimesisModule implements BotModule {
             fight(w, t);
             return;
         }
-        if (boxes.tickAnyType(fr.x(), fr.y(), BOX_RANGE)) {
+        if (boxes.tick(fr.x(), fr.y(), BOX_RANGE)) {
             status = "Мимесис: подбираю " + boxes.currentName() + score(w);
             return;
         }
@@ -850,8 +899,10 @@ public final class MimesisModule implements BotModule {
     private void fight(WorldSnapshot w, WorldSnapshot.Ship t) {
         WorldSnapshot.Hero h = w.hero();
         attacker.target(t);
-        if (boxes.busy() || boxNearShip(w)) {
-            if (boxes.tickNearInFight(h.x(), h.y(), GateModule.FIGHT_BOX_RADIUS)) {
+        // DarkBot's LootCollector in a fight: the list's boxes within the config's collect radius of the ship
+        double radius = ctx.config().get().collect().radius();
+        if (boxes.busy() || boxes.available(h.x(), h.y(), radius)) {
+            if (boxes.tickNearInFight(h.x(), h.y(), radius)) {
                 attacker.tick(false);
                 status = "Мимесис: бой, подбираю " + boxes.currentName() + score(w);
                 return;
@@ -862,21 +913,17 @@ public final class MimesisModule implements BotModule {
         status = "Мимесис: бой — " + t.name() + score(w);
     }
 
-    private static boolean boxNearShip(WorldSnapshot w) {
-        WorldSnapshot.Hero h = w.hero();
-        return w.collectables().values().stream()
-                .anyMatch(b -> Math.hypot(b.x() - h.x(), b.y() - h.y()) <= GateModule.FIGHT_BOX_RADIUS);
-    }
-
     private static String score(WorldSnapshot w) {
         WorldSnapshot.Escort e = w.gates().escort();
         return e.scoreNanos() != 0 ? " · очки " + e.runScore() : "";
     }
 
-    /** A box within 2 500 of the living freighter, or anywhere in sight after it. */
-    private static boolean boxNear(WorldSnapshot w, WorldSnapshot.Ship fr) {
-        return w.collectables().values().stream().filter(b -> b.kind() == WorldSnapshot.CollectableKind.BOX)
-                .anyMatch(b -> fr == null || Math.hypot(b.x() - fr.x(), b.y() - fr.y()) <= BOX_RANGE);
+    /**
+     * A box of the config's list (MimesisCollectorModule: DarkBot's collector — its types, not one another player flies
+     * to) within 2 500 of the living freighter, or anywhere in sight after it.
+     */
+    private boolean boxNear(WorldSnapshot w, WorldSnapshot.Ship fr) {
+        return fr != null ? boxes.available(fr.x(), fr.y(), BOX_RANGE) : boxes.available(0, 0, -1);
     }
 
     /**

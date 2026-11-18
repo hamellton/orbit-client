@@ -200,6 +200,20 @@ class MimesisModuleTest {
     }
 
     @Test
+    void emaaOnTheHeavyOnesAsAstraBotAndNoneWithoutIt() throws Exception {
+        Sim sim = new Sim(config("{}"), FARM, 10_000, 6_000);
+        sim.npc(40, "-=[ Terror Mime5is ]=-", 10_500, 6_000);
+        sim.npc(41, "-=[ Hexor M1mesis ]=-", 10_600, 6_000);
+        MimesisModule m = new MimesisModule(sim.ctx);
+        assertNull(m.config().npc("-=[ Terror Mime5is ]=-").ammo(), "no EMAA-20 on board: the config's ammunition");
+        sim.lasers("ammunition_laser_ucb-100", MimesisModule.EMAA);
+        assertEquals(MimesisModule.EMAA, m.config().npc("-=[ Terror Mime5is ]=-").ammo());
+        assertNull(m.config().npc("-=[ Hexor M1mesis ]=-").ammo(), "the small one: UCB-100 as AstraBot");
+        sim.config = config("{\"emaa\":{\"mode\":\"all\"}}");
+        assertEquals(MimesisModule.EMAA, m.config().npc("-=[ Hexor M1mesis ]=-").ammo());
+    }
+
+    @Test
     void theEmaaCraftRuleWhenOn() throws Exception {
         assertNull(MimesisModule.craftRule(config("{}")));
         BotConfig.CraftRule r = MimesisModule.craftRule(config("{\"craftEmaa\":{\"on\":true,\"below\":20000}}"));

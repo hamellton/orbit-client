@@ -200,7 +200,7 @@ public final class BoxPicker {
             current = key(box);
             nearAt = 0;
             if (anyType) {
-                log.info("Ящик у места бегемота: тип {} у {}/{}", current, box.x() / 100, box.y() / 100);
+                log.info("Ящик (любой тип): {} у {}/{}", current, box.x() / 100, box.y() / 100);
             }
             startedAt = now;
             collectAt = 0;
@@ -245,6 +245,29 @@ public final class BoxPicker {
             }
         }
         return true;
+    }
+
+    /**
+     * A box the config's list would have taken within {@code within} of (ax, ay) — its types, «contested» and the rest —
+     * none chosen ({@code within} &le; 0: anywhere in sight).
+     */
+    public boolean available(double ax, double ay, double within) {
+        double x = anchorX;
+        double y = anchorY;
+        double r = this.within;
+        anchorX = within > 0 ? ax : Double.NaN;
+        anchorY = within > 0 ? ay : Double.NaN;
+        this.within = within;
+        boolean any = within <= 0;
+        anywhere = any;
+        try {
+            return find(ctx.config().get(), ctx.world().get(), ctx.now()) != null;
+        } finally {
+            anywhere = false;
+            anchorX = x;
+            anchorY = y;
+            this.within = r;
+        }
     }
 
     private WorldSnapshot.Collectable find(BotConfig c, WorldSnapshot w, long now) {

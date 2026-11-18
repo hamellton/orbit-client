@@ -1,20 +1,20 @@
 {
   "schema": 3,
-  "description": "[Default] Мимесис VRU 3-4 — эскорт EM Freighter (событие Mimesis Mutiny, docs/MIMESIS.md): рейс как DarkBot DonorPlugin (кружит у фрейтера, бьёт NPC в 2 000 от него, таблица целей SharedPlugin: Medic, Obscured, Mirror, Marker первыми), между рейсами фарм ключей на рабочей карте как AstraBot, вход за 3 мин до часа по таймеру сервера; EMP < 50 %, ISH < 45 %, пиявка < 30 %, Solace < 60 %, способность при 5 NPC рядом, HP Link, EMAA-20 по Мимесисам. Воскрешение на месте. Фарм ключей на 3-4 (VRU), вход с 3-1. Ящики Мимесисов (MIMESIS_AI_*, как AstraBot) собираются. Копию — под свой корабль (крафт EMAA-20, NPC рабочей карты).",
+  "description": "[Default] Мимесис VRU 3-4 — эскорт EM Freighter (событие Mimesis Mutiny, docs/MIMESIS.md): рейс как DarkBot DonorPlugin (кружит у фрейтера, бьёт NPC в 2 000 от него, таблица целей SharedPlugin: Medic, Obscured, Mirror, Marker первыми), между рейсами фарм ключей на рабочей карте как AstraBot, вход за 3 мин до часа по таймеру сервера; EMP < 50 %, ISH < 45 %, пиявка < 30 %, Solace < 60 %, способность при 5 NPC рядом, HP Link, EMAA-20 по тяжёлым Мимесисам (как AstraBot), по мелким — UCB-100. Воскрешение на месте. Формации как AstraBot: бой — Drill, полёт и бегство — Wheel, ремонт — конфигурация 2 + Ring. Фарм ключей на 3-4 (VRU), вход с 3-1. Ящики Мимесисов (MIMESIS_AI_*, как AstraBot) собираются. Копию — под свой корабль (крафт EMAA-20, NPC рабочей карты).",
   "module": "MIMESIS",
   "general": {
     "workingMap": 12,
     "offensive": {
       "config": 1,
-      "formation": "drone_formation_f-09-mo"
+      "formation": "drone_formation_f-3d-dr"
     },
     "roam": {
       "config": 1,
-      "formation": "drone_formation_f-09-mo"
+      "formation": "drone_formation_f-3d-wl"
     },
     "run": {
       "config": 1,
-      "formation": "drone_formation_f-09-mo"
+      "formation": "drone_formation_f-3d-wl"
     },
     "runFromEnemies": true,
     "runFromEnemiesInSight": false,
@@ -55,6 +55,11 @@
   },
   "collect": {
     "boxes": {
+      "AGATUS_BOX": {
+        "collect": true,
+        "waitMs": 0,
+        "priority": 0
+      },
       "ASTRAL_BOOTY_BOX": {
         "collect": false,
         "waitMs": 0,
@@ -225,6 +230,11 @@
         "waitMs": 0,
         "priority": 0
       },
+      "TREASURE": {
+        "collect": true,
+        "waitMs": 1000,
+        "priority": -10000
+      },
       "UNSTABLE_BLACKLIGHT_CACHE": {
         "collect": false,
         "waitMs": 0,
@@ -241,7 +251,7 @@
         "priority": 0
       }
     },
-    "radius": 400,
+    "radius": 1000,
     "stayAwayFromEnemies": false,
     "ignoreContested": true,
     "cargo": "BASE",
@@ -1635,7 +1645,8 @@
       },
       "emaa": {
         "on": true,
-        "min": 1000
+        "min": 1000,
+        "mode": "heavy"
       },
       "craftEmaa": {
         "on": false,
@@ -1719,6 +1730,11 @@
         "item": "ammunition_rocket_plt-2026",
         "below": 10000,
         "amount": 10000
+      },
+      {
+        "item": "ammunition_specialammo_emp-01",
+        "below": 10,
+        "amount": 10
       }
     ],
     "keepCredits": 0.0,

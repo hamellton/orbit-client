@@ -27,7 +27,9 @@ final class MimesisSection implements Section {
     private final JSpinner stayHp = Form.number(0, 100, 5);
     private final JCheckBox ignoreNpc = new JCheckBox("Не бить NPC после фрейтера");
     private final JCheckBox ignoreBoxes = new JCheckBox("Не собирать ящики после фрейтера");
-    private final JCheckBox emaa = new JCheckBox("EMAA-20 по всем Мимесисам (×7 урона), пока есть");
+    private final JCheckBox emaa = new JCheckBox("EMAA-20 по Мимесисам (×7 урона), пока есть");
+    static final String[] EMAA_MODES = {"только по тяжёлым (как AstraBot)", "по всем Мимесисам"};
+    private final JComboBox<String> emaaMode = new JComboBox<>(EMAA_MODES);
     private final JSpinner emaaMin = Form.number(0, 1_000_000, 500);
     private final JCheckBox craft = new JCheckBox("Крафтить EMAA-20 из Byte Remnant (10 000 за 1 500 Byte и 15 000 уридия)");
     private final JSpinner craftBelow = Form.number(1, 1_000_000, 1_000);
@@ -63,6 +65,10 @@ final class MimesisSection implements Section {
                 .row("", ignoreBoxes)
                 .section("Патроны")
                 .row("", Form.inline(emaa, new JLabel("не меньше"), emaaMin))
+                .row("По кому", emaaMode)
+                .note("Тяжёлые: Terror, Reflector, Cloning, Medic, Inspirit, Hardy, Obscured, Mirror, Marker, Piercing,"
+                        + " Hounding, Sniper; остальным — патроны конфига (вкладка «Атака»). Нет EMAA-20 или меньше порога —"
+                        + " бьёт патронами конфига.")
                 .row("", Form.inline(craft, new JLabel("держать не меньше"), craftBelow))
                 .section("Способности в рейсе (как AstraBot)")
                 .row("", Form.inline(emp, empBelow))
@@ -103,6 +109,7 @@ final class MimesisSection implements Section {
         ignoreBoxes.setSelected(b(a, "ignoreBoxes", false));
         emaa.setSelected(b(s.path("emaa"), "on", true));
         Form.set(emaaMin, s.path("emaa").path("min").asInt(1_000));
+        emaaMode.setSelectedIndex("all".equalsIgnoreCase(s.path("emaa").path("mode").asText("heavy")) ? 1 : 0);
         craft.setSelected(b(s.path("craftEmaa"), "on", false));
         Form.set(craftBelow, s.path("craftEmaa").path("below").asInt(10_000));
         emp.setSelected(b(s.path("emp"), "on", true));
@@ -136,6 +143,7 @@ final class MimesisSection implements Section {
         ObjectNode e = s.putObject("emaa");
         e.put("on", emaa.isSelected());
         e.put("min", Form.intOf(emaaMin));
+        e.put("mode", emaaMode.getSelectedIndex() == 1 ? "all" : "heavy");
         ObjectNode cr = s.putObject("craftEmaa");
         cr.put("on", craft.isSelected());
         cr.put("below", Form.intOf(craftBelow));
