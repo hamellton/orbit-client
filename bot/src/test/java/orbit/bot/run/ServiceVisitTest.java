@@ -323,9 +323,24 @@ class ServiceVisitTest {
         EnricherTest.lab(sim, new int[] {0, 6, 20_000});
         ServiceVisit v = new ServiceVisit(disk);
         assertEquals(CITADEL, v.tick(WORK, true).switchTo());
-        // the app closed here; a new start logs in on the citadel
+        // the app closed here; a new start logs in on the citadel: the visit finished there first
         ServiceVisit again = new ServiceVisit(disk);
-        assertEquals(WORK, again.tick(CITADEL, true).switchTo(), "back to its own ship first");
+        again.setSkylab(new SkylabAccess() {
+            @Override
+            public Stock stock() {
+                return new Stock(false, Map.of("promerium", 1_000_000L));
+            }
+
+            @Override
+            public void transport(Map<String, Long> amounts, boolean fast) {
+            }
+        });
+        sim.now += 1_000_000_000L;
+        assertEquals(0, again.tick(CITADEL, true).switchTo(), "the lab of this ship asked, no ship change");
+        assertEquals(ServiceVisit.Phase.SERVICE, again.phase());
+        sim.now += 1_000_000_000L;
+        EnricherTest.lab(sim, new int[] {0, 6, 900_000}); // all enriched up to its level
+        assertEquals(WORK, again.tick(CITADEL, true).switchTo(), "nothing more to do: back to its own ship");
         assertEquals(ServiceVisit.Phase.RETURNING, again.phase());
         assertEquals(ServiceVisit.Step.NONE, again.tick(WORK, true));
         assertEquals(ServiceVisit.Phase.IDLE, again.phase());

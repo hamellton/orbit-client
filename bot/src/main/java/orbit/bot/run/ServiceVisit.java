@@ -128,8 +128,26 @@ public final class ServiceVisit {
                     int back = savedReturn(service);
                     if (back > 0 && back != service && activeHangar == service) {
                         // stopped on the service ship mid-visit (the user, 2026-11-16: started again on the Citadel,
-                        // it flew off to the cubes on it): back to the ship it came from first
+                        // it flew off to the cubes on it): never work on it — the visit finished first when the
+                        // enrichment is on (the user, 2026-11-18: stopped mid-visit, it went back and waited 3 h with
+                        // the lasers running low), the service phase going back by itself when nothing is needed
                         returnTo = back;
+                        if (!disabled && s.path("enabled").asBoolean(false) && s.path("visit").asBoolean(false)) {
+                            serviceHangar = service;
+                            labBefore = WorldSnapshot.Lab.NONE;
+                            compared = false;
+                            ordered = false;
+                            orderStarted = false;
+                            landed = false;
+                            trips = 0;
+                            brought.clear();
+                            levelAtStart.clear();
+                            phase = Phase.SERVICE;
+                            serviceSince = now;
+                            log.info("Обслуживание: вошёл на корабле для Скайлаба после прерванного визита — довожу визит,"
+                                    + " потом обратно на {}", back);
+                            return service(s, w, now);
+                        }
                         phase = Phase.RETURNING;
                         log.info("Обслуживание: вошёл на корабле для Скайлаба после прерванного визита — обратно на {}",
                                 back);
