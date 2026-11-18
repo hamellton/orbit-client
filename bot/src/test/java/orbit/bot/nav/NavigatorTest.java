@@ -123,15 +123,20 @@ class NavigatorTest {
         WorldSnapshot.Zone zone = world.snapshot(now).zones().get("wall");
 
         nav.moveTo(18000, 6500, false);
+        int stood = 0;
         for (long t = 0; t < 120_000 && !nav.idle(); t += 100) {
             nav.tick();
             now += 100 * MS;
             WorldSnapshot.Hero h = world.snapshot(now).hero();
+            if (!h.moving() && !nav.idle()) {
+                stood++;
+            }
             assertTrue(Math.hypot(h.x() - 10500, h.y() - 6500) > 2500 + 20, "inside the zone at " + h.x() + "," + h.y());
             assertTrue(!ZoneGeometry.contains(zone, h.x(), h.y()));
         }
         assertTrue(nav.idle(), "arrived");
         assertTrue(sent.size() >= 3, "a turn at each corner: " + sent.size());
+        assertTrue(stood <= 2, "no stop at a corner (live 2026-11-18: ~0.8 s at each): stood " + stood + " ticks");
         for (int i = 1; i < sentAt.size(); i++) {
             assertTrue(sentAt.get(i) - sentAt.get(i - 1) >= Navigator.MIN_INTERVAL_MS * MS);
         }

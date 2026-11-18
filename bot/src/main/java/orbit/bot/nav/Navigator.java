@@ -44,6 +44,10 @@ public final class Navigator {
     static final long RETRY_MAX_MS = 900;
     /** Next corner of a way around is clicked this far before the current one. */
     static final double TURN_AHEAD = 150;
+    /** The next corner is clicked this many seconds of flight before the one flown to. */
+    static final double TURN_AHEAD_S = 0.5;
+    /** A turn back is told only for a click at least this far: the fight's small steps round a target are no news. */
+    static final double FLIP_MIN = 800;
 
     // ---- a stop on the way, told in the log (the user, 2026-11-18: the ship stops for a second in an offender's
     // circle while going round obstacles — what made it stop is to be seen, not guessed) ----
@@ -338,7 +342,10 @@ public final class Navigator {
         boolean refine = flyingToClick && d.precise() && clicks > 0 && dist <= FAR && !viaWaypoint
                 && Math.hypot(clickX - d.x(), clickY - d.y()) > CLICK_SPREAD * 2;
         // around a zone: click the next corner shortly before reaching this one, like a player steering
-        boolean turn = flyingToClick && viaWaypoint && Math.hypot(clickX - h.x(), clickY - h.y()) < TURN_AHEAD;
+        // half a second of flight ahead, at least TURN_AHEAD: at 450–700 the ship reached the corner and stood ~0.8 s
+        // before the next one was clicked (live 2026-11-18 on the VPS, the navigator's own stop lines)
+        double ahead = Math.max(TURN_AHEAD, h.speed() * TURN_AHEAD_S);
+        boolean turn = flyingToClick && viaWaypoint && Math.hypot(clickX - h.x(), clickY - h.y()) < ahead;
         boolean mineAhead = flyingToClick && (mineOnCourse(w, h, clickX, clickY) || baseOnCourse(w, h, clickX, clickY, d)
                 || playerOnCourse(h, clickX, clickY, d) || newZoneOnCourse(w, h));
         // the speed changed since the click (a config switch in flight): click again — live 2026-11-16 on gb2 the
@@ -388,6 +395,12 @@ public final class Navigator {
             return;
         }
         double[] next = route.getFirst();
+        if (turn && route.size() > 1 && Math.hypot(next[0] - clickX, next[1] - clickY) < ahead) {
+            // the way planned from here starts at the corner the ship is about to reach: on to the one after it,
+            // else the same corner was clicked again and the ship stood at it (the test of 2026-11-18: 0.9 s)
+            route = route.subList(1, route.size());
+            next = route.getFirst();
+        }
         noteFlip(h, next, why, d, now);
         clickWhy = why + (route.size() > 1 ? ", обход: " + (route.size() - 1) + " угл." : "");
         viaWaypoint = route.size() > 1;
@@ -478,7 +491,8 @@ public final class Navigator {
         double dx = next[0] - h.x();
         double dy = next[1] - h.y();
         double len = Math.hypot(dx, dy);
-        if (len < 50) {
+        if (len < FLIP_MIN) {
+            lastDirNanos = 0; // a small step: no direction to compare the next click with
             return;
         }
         dx /= len;
