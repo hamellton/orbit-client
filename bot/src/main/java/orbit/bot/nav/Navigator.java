@@ -45,6 +45,22 @@ public final class Navigator {
     /** Next corner of a way around is clicked this far before the current one. */
     static final double TURN_AHEAD = 150;
 
+    // ---- a stop on the way, told in the log (the user, 2026-11-18: the ship stops for a second in an offender's
+    // circle while going round obstacles — what made it stop is to be seen, not guessed) ----
+    /** Standing this long with somewhere to go is a stop worth a line. */
+    static final long STALL_MS = 700;
+    /** A new click this far round from the last one within {@link #FLIP_MS} is a turn back worth a line. */
+    static final double FLIP_ANGLE = Math.toRadians(120);
+    static final long FLIP_MS = 3_000;
+    private long stillSince;
+    private boolean stallTold;
+    /** Why the last click was sent (a new destination, a turn at a corner, a zone or player on course…). */
+    private String clickWhy = "";
+    private double lastDirX;
+    private double lastDirY;
+    private long lastDirNanos;
+    private long flipToldNanos;
+
     private final Supplier<WorldSnapshot> world;
     private final Consumer<Packet> sender;
     private final MapCatalog catalog;
@@ -314,8 +330,10 @@ public final class Navigator {
         if (dist <= arriveRadius(h, d) && !h.moving()) {
             log.debug("Прибыл в {}/{}", (int) d.x() / 100, (int) d.y() / 100);
             destination = null;
+            stillSince = 0;
             return;
         }
+        noteStall(w, h, d, dist, now);
         boolean flyingToClick = h.moving() && h.targetX() == clickX && h.targetY() == clickY;
         boolean refine = flyingToClick && d.precise() && clicks > 0 && dist <= FAR && !viaWaypoint
                 && Math.hypot(clickX - d.x(), clickY - d.y()) > CLICK_SPREAD * 2;
@@ -329,6 +347,10 @@ public final class Navigator {
         if (flyingToClick && !refine && !turn && !mineAhead && !newSpeed) {
             return; // on course
         }
+        String why = !flyingToClick ? (clicks == 0 ? "новая цель" : "корабль не летит к клику")
+                : turn ? "угол обхода" : refine ? "уточнение" : newSpeed ? "сменилась скорость"
+                : mineOnCourse(w, h, clickX, clickY) ? "мина на курсе" : baseOnCourse(w, h, clickX, clickY, d)
+                ? "база на курсе" : playerOnCourse(h, clickX, clickY, d) ? "круг игрока на курсе" : "новая зона сервера";
         if (now - lastSendNanos < MIN_INTERVAL_MS * 1_000_000 || (now < retryAtNanos && !turn && !mineAhead && !newSpeed)) {
             return;
         }
@@ -366,6 +388,8 @@ public final class Navigator {
             return;
         }
         double[] next = route.getFirst();
+        noteFlip(h, next, why, d, now);
+        clickWhy = why + (route.size() > 1 ? ", обход: " + (route.size() - 1) + " угл." : "");
         viaWaypoint = route.size() > 1;
         click(w, paths, next[0], next[1], Math.hypot(next[0] - h.x(), next[1] - h.y()), viaWaypoint);
         lastSendNanos = now;
@@ -425,6 +449,62 @@ public final class Navigator {
     /** Minimap pixel in map units: {@code 10 × zoom × map scale}. */
     static double minimapGrid(WorldSnapshot.Hero h, MapCatalog.MapInfo map) {
         return 10.0 * Math.max(1, h.minimapScale()) * map.scale();
+    }
+
+    /** The ship stands though it has somewhere to go: one line a stop, with where it stands and the last click's why. */
+    private void noteStall(WorldSnapshot w, WorldSnapshot.Hero h, Destination d, double dist, long now) {
+        if (h.moving()) {
+            stillSince = 0;
+            stallTold = false;
+            return;
+        }
+        if (stillSince == 0) {
+            stillSince = now;
+            return;
+        }
+        long ms = (now - stillSince) / 1_000_000;
+        if (stallTold || ms < STALL_MS) {
+            return;
+        }
+        stallTold = true;
+        String in = circleAt(h.x(), h.y());
+        log.info("Навигатор: стою {} мс у {}/{}{}, цель {}/{} в {} — последний клик: {}", ms, (int) h.x() / 100,
+                (int) h.y() / 100, in == null ? "" : " (в круге " + in + ")", (int) d.x() / 100, (int) d.y() / 100,
+                (int) dist, clickWhy.isEmpty() ? "не было" : clickWhy);
+    }
+
+    /** A click that turns the ship back within a few seconds of the last: told with both reasons. */
+    private void noteFlip(WorldSnapshot.Hero h, double[] next, String why, Destination d, long now) {
+        double dx = next[0] - h.x();
+        double dy = next[1] - h.y();
+        double len = Math.hypot(dx, dy);
+        if (len < 50) {
+            return;
+        }
+        dx /= len;
+        dy /= len;
+        if (lastDirNanos != 0 && now - lastDirNanos < FLIP_MS * 1_000_000
+                && Math.acos(Math.max(-1, Math.min(1, dx * lastDirX + dy * lastDirY))) > FLIP_ANGLE
+                && now - flipToldNanos > FLIP_MS * 1_000_000) {
+            flipToldNanos = now;
+            String in = circleAt(h.x(), h.y());
+            log.info("Навигатор: разворот у {}/{}{} к {}/{} (цель {}/{}) — {}, прошлый клик: {}", (int) h.x() / 100,
+                    (int) h.y() / 100, in == null ? "" : " (в круге " + in + ")", (int) next[0] / 100, (int) next[1] / 100,
+                    (int) d.x() / 100, (int) d.y() / 100, why, clickWhy);
+        }
+        lastDirX = dx;
+        lastDirY = dy;
+        lastDirNanos = now;
+    }
+
+    /** The player circle the point lies in, as «r 1 500 у x/y», or {@code null}. */
+    private String circleAt(double x, double y) {
+        for (double[] p : players.get()) {
+            if (Math.hypot(p[0] - x, p[1] - y) <= p[2]) {
+                return "r " + (int) p[2] + " у " + (int) p[0] / 100 + "/" + (int) p[1] / 100;
+            }
+        }
+        return null;
     }
 
     /** A precise destination must be reached closely; otherwise one minimap pixel is enough. */
