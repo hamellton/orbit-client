@@ -69,7 +69,10 @@ def download(dest_dir: Path) -> str:
     dest_dir.mkdir(parents=True, exist_ok=True)
     date = None
     for name in SWF_FILES:
-        req = urllib.request.Request(SWF_BASE + name, headers={"User-Agent": "Mozilla/5.0"})
+        # the CDN keeps an old copy a while after a patch (2026-11-18: main.swf of 10.11 served as a cache HIT while
+        # the servers wanted the build of 18.11) — a query of its own each time skips it, as the client's ?__cv= does
+        url = SWF_BASE + name + "?__cv=" + str(int(__import__("time").time()))
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0", "Cache-Control": "no-cache"})
         with urllib.request.urlopen(req, timeout=120) as resp:
             data = resp.read()
             if name == "main.swf":
