@@ -1,0 +1,9 @@
+{
+ "clientVersion": "10.0",
+ "build": "81367938",
+ "versionHash": "0b64b1b04d103c9ec4b4f121acb7de36",
+ "compression": "do-lz4-block-v3",
+ "mainSwfSha256": "01ea9f2f4fcc8183f39a72b9323fd7882a73ebdf57e30b89bd611a8ed3505f12",
+ "mainSwfLastModified": "2026-11-10",
+ "packets": "packets-2026-11-10.json"
+}
