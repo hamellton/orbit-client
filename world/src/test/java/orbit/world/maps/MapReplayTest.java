@@ -43,8 +43,10 @@ class MapReplayTest {
         for (Path f : files) {
             World w = new World();
             boolean repairing = false;
-            for (PacketRecord r : Recording.readPackets(f)) {
-                Packet p = PacketCodec.decode(r.bytes());
+            java.util.List<orbit.net.Recording.PacketRecord> recorded1 = Recording.readPackets(f);
+            java.util.function.Function<byte[], Packet> decode1 = orbit.protocol.Recorded.decoder(recorded1);
+            for (PacketRecord r : recorded1) {
+                Packet p = decode1.apply(r.bytes());
                 if (r.up()) {
                     repairing |= p instanceof KillScreenRepairRequest;
                     w.applyOutgoing(p, r.nanos());

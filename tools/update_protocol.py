@@ -11,7 +11,7 @@ Steps:
   5. run ProjectOpenOrbit's netcode parser and validate the result
   6. write reference/protocol/packets-<tag>.json and meta-<tag>.json
   7. print which packets were added, removed or changed
-  8. ./gradlew build (regenerates classes and runs all tests, incl. recorded traffic)
+  8. ./gradlew build (regenerates classes, the earlier builds' protocols for the tests, runs all tests incl. recorded traffic)
 
 Environment:
   FFDEC_JAR   path to ffdec.jar (default ~/tools/ffdec-26.4.0/ffdec.jar)

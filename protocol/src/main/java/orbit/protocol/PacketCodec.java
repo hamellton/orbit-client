@@ -14,7 +14,12 @@ public final class PacketCodec {
      * @throws ProtocolException for unknown ids, truncated input or trailing bytes
      */
     public static Packet decode(byte[] packet) {
-        PacketInput in = new PacketInput(packet);
+        return decode(packet, null);
+    }
+
+    /** The same by another protocol (a recording of an earlier client build); {@code null} = the current one. */
+    public static Packet decode(byte[] packet, Registry registry) {
+        PacketInput in = new PacketInput(packet, 0, packet.length, registry);
         Packet p = in.readModule(Packet.class);
         if (p == null) {
             throw new ProtocolException("packet id 0");

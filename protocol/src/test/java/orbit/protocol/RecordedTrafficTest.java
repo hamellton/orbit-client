@@ -17,8 +17,8 @@ import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
 /**
- * Decodes every packet of the local session recordings with the generated classes, encodes it
- * again and requires identical bytes. Recordings stay out of git (they contain account data),
+ * Decodes every packet of the local session recordings with the generated classes of the client build each was made
+ * with ({@link Recorded}), encodes it again and requires identical bytes. Recordings stay out of git (they contain account data),
  * so the test is skipped when the directory is empty.
  */
 class RecordedTrafficTest {
@@ -38,11 +38,15 @@ class RecordedTrafficTest {
         Map<String, Integer> failures = new TreeMap<>();
         List<String> examples = new ArrayList<>();
         for (Path f : files) {
-            for (Recording.PacketRecord r : Recording.readPackets(f)) {
+            List<Recording.PacketRecord> packets = Recording.readPackets(f);
+            // each recording by the protocol of its own client build (a patch changes ids and field order)
+            Registry registry = Recorded.registryOf(packets);
+            for (Recording.PacketRecord r : packets) {
                 total++;
                 String name = String.valueOf(Packets.name(r.id()));
                 try {
-                    Packet p = PacketCodec.decode(r.bytes());
+                    Packet p = PacketCodec.decode(r.bytes(), registry);
+                    name = p.getClass().getSimpleName();
                     byte[] again = PacketCodec.encode(p);
                     if (!Arrays.equals(r.bytes(), again)) {
                         failures.merge(name, 1, Integer::sum);

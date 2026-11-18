@@ -43,11 +43,13 @@ class LiveFactsReplayTest {
         List<String> wrong = new ArrayList<>();
         for (Path f : recordings()) {
             started.clear();
-            for (PacketRecord r : Recording.readPackets(f)) {
+            java.util.List<orbit.net.Recording.PacketRecord> recorded1 = Recording.readPackets(f);
+            java.util.function.Function<byte[], Packet> decode1 = orbit.protocol.Recorded.decoder(recorded1);
+            for (PacketRecord r : recorded1) {
                 if (r.up()) {
                     continue;
                 }
-                Packet p = PacketCodec.decode(r.bytes());
+                Packet p = decode1.apply(r.bytes());
                 String key;
                 TimerStateModule state;
                 double time;
@@ -99,7 +101,9 @@ class LiveFactsReplayTest {
         for (Path f : recordings()) {
             World w = new World();
             long pendingBatch = -1;
-            for (PacketRecord r : Recording.readPackets(f)) {
+            java.util.List<orbit.net.Recording.PacketRecord> recorded2 = Recording.readPackets(f);
+            java.util.function.Function<byte[], Packet> decode2 = orbit.protocol.Recorded.decoder(recorded2);
+            for (PacketRecord r : recorded2) {
                 if (pendingBatch >= 0 && r.nanos() > pendingBatch + 50_000_000L) {
                     Health h = w.snapshot(pendingBatch).hero().health();
                     if (h.hp() < 0 || h.hp() > h.hpMax() || h.shield() < 0 || (h.shieldMax() > 0 && h.shield() > h.shieldMax())) {
@@ -107,7 +111,7 @@ class LiveFactsReplayTest {
                     }
                     pendingBatch = -1;
                 }
-                Packet p = PacketCodec.decode(r.bytes());
+                Packet p = decode2.apply(r.bytes());
                 if (r.up()) {
                     w.applyOutgoing(p, r.nanos());
                     continue;
@@ -141,8 +145,10 @@ class LiveFactsReplayTest {
         int hitsWithoutAttacker = 0;
         for (Path f : recordings()) {
             World w = new World();
-            for (PacketRecord r : Recording.readPackets(f)) {
-                Packet p = PacketCodec.decode(r.bytes());
+            java.util.List<orbit.net.Recording.PacketRecord> recorded3 = Recording.readPackets(f);
+            java.util.function.Function<byte[], Packet> decode3 = orbit.protocol.Recorded.decoder(recorded3);
+            for (PacketRecord r : recorded3) {
+                Packet p = decode3.apply(r.bytes());
                 if (r.up()) {
                     w.applyOutgoing(p, r.nanos());
                     continue;
@@ -172,8 +178,10 @@ class LiveFactsReplayTest {
         List<String> wrong = new ArrayList<>();
         for (Path f : recordings()) {
             World w = new World();
-            for (PacketRecord r : Recording.readPackets(f)) {
-                Packet p = PacketCodec.decode(r.bytes());
+            java.util.List<orbit.net.Recording.PacketRecord> recorded4 = Recording.readPackets(f);
+            java.util.function.Function<byte[], Packet> decode4 = orbit.protocol.Recorded.decoder(recorded4);
+            for (PacketRecord r : recorded4) {
+                Packet p = decode4.apply(r.bytes());
                 if (r.up()) {
                     continue;
                 }
@@ -204,11 +212,13 @@ class LiveFactsReplayTest {
         int seen = 0;
         for (Path f : recordings()) {
             World w = new World();
-            for (PacketRecord r : Recording.readPackets(f)) {
+            java.util.List<orbit.net.Recording.PacketRecord> recorded5 = Recording.readPackets(f);
+            java.util.function.Function<byte[], Packet> decode5 = orbit.protocol.Recorded.decoder(recorded5);
+            for (PacketRecord r : recorded5) {
                 if (r.up()) {
                     continue;
                 }
-                Packet p = PacketCodec.decode(r.bytes());
+                Packet p = decode5.apply(r.bytes());
                 w.apply(p, r.nanos());
                 if (p instanceof GroupMemberUpdateCommand u
                         && u.updates.stream().anyMatch(m -> m instanceof orbit.protocol.gen.TargetModule t
@@ -243,11 +253,13 @@ class LiveFactsReplayTest {
         int windows = 0;
         for (Path f : recordings()) {
             World w = new World();
-            for (PacketRecord r : Recording.readPackets(f)) {
+            java.util.List<orbit.net.Recording.PacketRecord> recorded6 = Recording.readPackets(f);
+            java.util.function.Function<byte[], Packet> decode6 = orbit.protocol.Recorded.decoder(recorded6);
+            for (PacketRecord r : recorded6) {
                 if (r.up()) {
                     continue;
                 }
-                Packet p = PacketCodec.decode(r.bytes());
+                Packet p = decode6.apply(r.bytes());
                 w.apply(p, r.nanos());
                 if (p instanceof orbit.protocol.gen.OreTradeInfoCommand o) {
                     windows++;

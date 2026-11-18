@@ -20,10 +20,18 @@ public final class PacketInput {
     }
 
     public PacketInput(byte[] buf, int off, int len) {
+        this(buf, off, len, null);
+    }
+
+    /** @param registry the protocol to read modules by; {@code null} = the current client's */
+    public PacketInput(byte[] buf, int off, int len, Registry registry) {
         this.buf = buf;
         this.pos = off;
         this.end = off + len;
+        this.registry = registry;
     }
+
+    private final Registry registry;
 
     public int remaining() {
         return end - pos;
@@ -120,7 +128,7 @@ public final class PacketInput {
             throw new ProtocolException("modules nested too deep");
         }
         try {
-            Packet p = Packets.readBody(id, this);
+            Packet p = registry != null ? registry.readBody(id, this) : Packets.readBody(id, this);
             if (!type.isInstance(p)) {
                 throw new ProtocolException("module " + p.getClass().getSimpleName() + " is not a " + type.getSimpleName());
             }

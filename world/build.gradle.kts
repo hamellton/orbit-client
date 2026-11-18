@@ -4,6 +4,7 @@ dependencies {
     api(project(":protocol"))
     implementation(libs.slf4j.api)
     implementation(libs.jackson.databind)
+    testImplementation(testFixtures(project(":protocol")))
     testImplementation(platform(libs.junit.bom))
     testImplementation(libs.junit.jupiter)
     testRuntimeOnly(libs.junit.launcher)

@@ -31,6 +31,8 @@ Status: Stage 2 done; stage 3 in progress (login, game connection, vault, client
 - `protocol` — runtime (`PacketInput/Output`, rotations, `PacketCodec`, `ProtocolOutdatedException`) +
   generated `orbit.protocol.gen.*` (build output, not in git). Generated classes mirror client
   inheritance; field codecs are static `writeFields/readFields` to replay `super.write`.
+  Test fixtures: every earlier wire (`versionHash`) generated into `orbit.protocol.old.b<build>` (`Legacy`);
+  `Recorded` reads a recording by its own build and turns packets into the current classes by field names.
 - `secrets` — encrypted account vault `local/vault.bin` (AES-GCM, PBKDF2 master password,
   `ORBIT_MASTER_PASSWORD` for headless), `SecretMask` + logback converters, `vault` CLI.
 - `auth` — website login (`AuthClient`), `AccountLogin` (per server: its saved dosid, else another server's

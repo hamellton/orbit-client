@@ -71,6 +71,7 @@ class StartupSequenceTest {
         List<String> violations = new ArrayList<>();
         for (Path f : files) {
             List<PacketRecord> packets = Recording.readPackets(f);
+            dec = orbit.protocol.Recorded.decoder(packets); // the recording's own client build
             boolean cold = packets.stream().filter(PacketRecord::up).map(StartupSequenceTest::name)
                     .takeWhile(n -> !n.equals("ReadyRequest")).anyMatch(n -> n.equals("HangarListRequest"));
             // starts: after LoginResponse, and after every further ShipInitializationCommand (portal jump on the same server)
@@ -82,7 +83,7 @@ class StartupSequenceTest {
                 if (r.up()) {
                     continue;
                 }
-                Packet p = PacketCodec.decode(r.bytes());
+                Packet p = dec.apply(r.bytes());
                 if (p instanceof LoginResponse && anchors.isEmpty()) {
                     anchors.add(i);
                     contexts.add(new StartupSequence.Context(cold, settings(packets, i)));
@@ -142,11 +143,16 @@ class StartupSequenceTest {
     private record Timed(String name, long gapMs, Packet packet) {
     }
 
+    /** The recording at hand's decoding (its client build's protocol, into the current classes). */
+    private static java.util.function.Function<byte[], Packet> dec = PacketCodec::decode;
+
     /** The client's view in the session's first {@code ReadyRequest}: 2D unless it says 3D. */
     static boolean twoD(Path f) {
         try {
-            for (PacketRecord r : Recording.readPackets(f)) {
-                if (r.up() && PacketCodec.decode(r.bytes()) instanceof orbit.protocol.gen.ReadyRequest rr && rr.readyTypeStr != null) {
+            List<PacketRecord> packets = Recording.readPackets(f);
+            java.util.function.Function<byte[], Packet> own = orbit.protocol.Recorded.decoder(packets);
+            for (PacketRecord r : packets) {
+                if (r.up() && own.apply(r.bytes()) instanceof orbit.protocol.gen.ReadyRequest rr && rr.readyTypeStr != null) {
                     return !rr.readyTypeStr.startsWith("3D");
                 }
             }
@@ -169,7 +175,7 @@ class StartupSequenceTest {
             if (!r.up()) {
                 continue;
             }
-            Packet p = PacketCodec.decode(r.bytes());
+            Packet p = dec.apply(r.bytes());
             String n = p.getClass().getSimpleName();
             if (!kinds.contains(n) || (p instanceof LegacyModule lm && !lm.message.equals("LF|w"))) {
                 continue;
@@ -185,7 +191,7 @@ class StartupSequenceTest {
         UserSettingsCommand last = null;
         for (int i = 0; i < index; i++) {
             PacketRecord r = packets.get(i);
-            if (!r.up() && PacketCodec.decode(r.bytes()) instanceof UserSettingsCommand us) {
+            if (!r.up() && dec.apply(r.bytes()) instanceof UserSettingsCommand us) {
                 last = us;
             }
         }
@@ -198,7 +204,7 @@ class StartupSequenceTest {
 
     private static String name(PacketRecord r) {
         try {
-            return PacketCodec.decode(r.bytes()).getClass().getSimpleName();
+            return dec.apply(r.bytes()).getClass().getSimpleName();
         } catch (RuntimeException e) {
             return "?";
         }

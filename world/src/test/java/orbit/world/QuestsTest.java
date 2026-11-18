@@ -131,9 +131,11 @@ class QuestsTest {
         Assumptions.assumeTrue(Files.exists(f), "запись ru1 2026-11-11 не найдена");
         World w = new World();
         long last = 0;
-        for (Recording.PacketRecord r : Recording.readPackets(f)) {
+        java.util.List<orbit.net.Recording.PacketRecord> recorded1 = Recording.readPackets(f);
+        java.util.function.Function<byte[], Packet> decode1 = orbit.protocol.Recorded.decoder(recorded1);
+        for (Recording.PacketRecord r : recorded1) {
             if (!r.up()) {
-                Packet p = PacketCodec.decode(r.bytes());
+                Packet p = decode1.apply(r.bytes());
                 w.apply(p, r.nanos());
                 last = r.nanos();
             }
@@ -161,9 +163,11 @@ class QuestsTest {
         Assumptions.assumeTrue(Files.exists(f), "запись ru1 2026-11-11 19:06 не найдена");
         World w = new World();
         long last = 0;
-        for (Recording.PacketRecord r : Recording.readPackets(f)) {
+        java.util.List<orbit.net.Recording.PacketRecord> recorded2 = Recording.readPackets(f);
+        java.util.function.Function<byte[], Packet> decode2 = orbit.protocol.Recorded.decoder(recorded2);
+        for (Recording.PacketRecord r : recorded2) {
             if (!r.up()) {
-                w.apply(PacketCodec.decode(r.bytes()), r.nanos());
+                w.apply(decode2.apply(r.bytes()), r.nanos());
                 last = r.nanos();
             }
         }
