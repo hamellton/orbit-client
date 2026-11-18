@@ -70,6 +70,7 @@ public final class ManagerWindow {
     ManagerWindow(Vault vault, Function<String, ManagedAccount> factory) {
         this.vault = vault;
         this.factory = factory;
+        orbit.app.gui.config.AccountNames.source(() -> new ArrayList<>(vault.accounts().keySet()));
         model.onPick = this::savePicks;
         pane.putClientProperty("JTabbedPane.tabType", "card");
         pane.putClientProperty("JTabbedPane.scrollButtonsPolicy", "asNeeded");
@@ -231,6 +232,8 @@ public final class ManagerWindow {
         bar.add(button("Конфиги…", () -> orbit.app.gui.config.ConfigWindow.open(
                 orbit.config.ConfigStore.openDefault(), AccountSettings.DEFAULT_FILE, null),
                 "Конфиги и расписание"));
+        bar.add(button("Группа LoW…", () -> LowGroupDialog.show(frame, new ArrayList<>(vault.accounts().keySet()),
+                selected()), "Лидер LoW и аккаунты-помощники, которых он запускает сам"));
 
         hint.setForeground(Hud.DIM);
         hint.setBorder(BorderFactory.createEmptyBorder(6, 10, 8, 10));
@@ -385,6 +388,14 @@ public final class ManagerWindow {
     /** @return {@code null} when it started, otherwise why not */
     String startOne(String n, long delayMs, boolean tell) {
         ManagedAccount a = account(n);
+        if (a.heldBy() != null) {
+            String why = "Занят: помощник LoW для «" + a.heldBy() + "». Он остановится вместе с лидером.";
+            if (tell) {
+                JOptionPane.showMessageDialog(frame, Theme.wrapped(why, 420), "«" + n + "» уже в работе",
+                        JOptionPane.INFORMATION_MESSAGE);
+            }
+            return why;
+        }
         if (a.phase() != ManagedAccount.Phase.STOPPED) {
             return "Уже запущен";
         }
@@ -585,6 +596,9 @@ public final class ManagerWindow {
         }
         for (String n : names) {
             alertIfNew(account(n));
+            if (account(n).heldBy() != null) {
+                ensureTab(account(n)); // a LoW helper started by its leader gets its tab too
+            }
         }
         boolean sameNames = names.equals(model.names);
         model.names = names;
@@ -720,6 +734,12 @@ public final class ManagerWindow {
     }
 
     private static String stateText(ManagedAccount a) {
+        String held = a.heldBy();
+        String text = stateOnly(a);
+        return held == null ? text : "LoW для «" + held + "»: " + text;
+    }
+
+    private static String stateOnly(ManagedAccount a) {
         return switch (a.phase()) {
             case STOPPED -> a.problem() != null ? "Остановлен — " + a.problem() : "Остановлен";
             case STOPPING -> a.feed().state();

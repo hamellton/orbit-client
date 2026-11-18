@@ -58,7 +58,8 @@ Status: Stage 2 done; stage 3 in progress (login, game connection, vault, client
   `EternalGate` the Eternal Blacklight gate (EBG) as SharedPlugin: CPU on a BL map, runs, brake, boosters (`docs/EBG.md`).
   `LowModule` the LoW group gate (map 200, docs/LOW.md): the leader gathers own accounts on x-3 and jumps first, the relays
   in SharedPlugin's order, Kekka's targeting at the Century Falcon leaving 3 Vagrants, the helpers out after the start
-  (`LowBoard` = the accounts' word to each other in one program; `BotModule.restRequest` = out of the game till woken).
+  (`LowBoard` = the accounts' word to each other in one program; `BotModule.restRequest` = out of the game till woken;
+  the leader's config lists helper accounts he starts himself through `AccountRunner` = `LowBoard.Crew`, docs/LOW.md §11).
 - `app` — the bot application `orbit`; without arguments the account manager (`ManagerWindow`: master
   password in `VaultDialog`, accounts add/edit/remove with proxy check, start/stop each or all through
   `AccountRunner`, a tab per started account). Otherwise modes (FlatLaf window that fits any size: per account a header with a

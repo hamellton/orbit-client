@@ -37,7 +37,14 @@ import org.slf4j.LoggerFactory;
  * {@code minGroup} (3), {@code gatherMinutes} (10), {@code waitForAll} (true), {@code waitAtRelay} (0 = none),
  * {@code leaveVagrants} (3), {@code chaseMax} (1 500), {@code followLeaderTarget} (true), {@code boxRadius} (1 500),
  * {@code lifeSaver} {@code {emp, empBelow, ish, ishBelow, ability}} on the Century Falcon, {@code mines}
- * {@code {on, item, minNpcs}}, {@code helpersExit} {@code radiation|npc|stay}, {@code restMinutes} (60).
+ * {@code {on, item, minNpcs}}, {@code helpersExit} {@code radiation|npc|stay}, {@code between} {@code base|logout} (where a
+ * helper waits for the next run; {@code base} by default), {@code restMinutes} (60).
+ *
+ * <p>The crew (docs/LOW.md §11, the user, 2026-11-18): instead of {@code leader} and {@code members} the leader's config
+ * lists {@code helpers} — own accounts ({@code name@server}) the leader starts himself when they are not at work, his keys
+ * to the gate. The program writes {@code account} (who runs the config) into the settings, and for a helper
+ * {@code role = helper} and {@code crew} (the leader's account) into its own config: a helper plays the leader's LoW
+ * settings from {@link LowBoard} and its own config for the rest (repair, buying, pet, revive).
  */
 public final class LowModule implements BotModule {
 
@@ -69,6 +76,8 @@ public final class LowModule implements BotModule {
     static final long REENTER_MS = 3 * 60_000L;
     /** Queued for an instance: the jump is not pressed again this long (the server beams the group in itself). */
     static final long QUEUE_MS = 5 * 60_000L;
+    /** A crew helper not taken (at work, a failed start) is asked again this often. */
+    static final long TAKE_RETRY_MS = 5 * 60_000L;
 
     enum Role { LEADER, MEMBER, HELPER }
 
@@ -101,9 +110,14 @@ public final class LowModule implements BotModule {
     private int runs;
     private volatile Rest rest;
     private boolean gateLeftByDeath;
+    /** A helper out of this run (waiting at the base): it does not follow the leader again till he gathers anew. */
+    private boolean sittingOut;
+    private final Map<String, Long> takeTried = new java.util.HashMap<>();
+    private final Map<String, String> takeTold = new java.util.HashMap<>();
 
     private BotConfig cachedBase;
     private Set<String> cachedNames = Set.of();
+    private Set<String> cachedPlayers = Set.of();
     private int cachedMap;
     private BotConfig cached;
 
@@ -118,17 +132,85 @@ public final class LowModule implements BotModule {
 
     // ---- settings ----
 
-    JsonNode settings() {
+    /** The config's own LoW settings (a crew helper's: only who it is and whose). */
+    JsonNode own() {
         JsonNode s = ctx.config().get().modules().get(BotConfig.Module.LOW.key());
         return s != null ? s : com.fasterxml.jackson.databind.node.MissingNode.getInstance();
     }
 
+    /** The settings played by: a crew helper's are the leader's from the board (its own till he is in). */
+    public JsonNode settings() {
+        if (crewHelper()) {
+            JsonNode l = board().settings();
+            if (l != null) {
+                return l;
+            }
+        }
+        return own();
+    }
+
+    /** The account running this config ({@code name@server}), written by the program; empty in tests and old configs. */
+    String account() {
+        return own().path("account").asText("").strip();
+    }
+
+    /** A crew helper: started by the leader's account {@link #crewOf()}. */
+    boolean crewHelper() {
+        return "helper".equalsIgnoreCase(own().path("role").asText("")) && !crewOf().isEmpty();
+    }
+
+    String crewOf() {
+        return own().path("crew").asText("").strip();
+    }
+
+    /** The crew leader's helper accounts ({@code helpers}), the leader's own account left out. */
+    List<String> helperAccounts() {
+        List<String> out = new ArrayList<>();
+        for (JsonNode n : own().path("helpers")) {
+            String x = n.asText("").strip();
+            if (!x.isEmpty() && !x.equalsIgnoreCase(account())) {
+                out.add(x);
+            }
+        }
+        return out;
+    }
+
+    /** A crew leader: his config lists helper accounts. */
+    boolean crewLeader() {
+        return !crewHelper() && !helperAccounts().isEmpty();
+    }
+
     String leader() {
+        if (crewHelper()) {
+            return board().leaderName();
+        }
+        if (crewLeader()) {
+            String me = ctx.world().get().hero().name();
+            return me == null ? "" : me;
+        }
         return settings().path("leader").asText("").strip();
     }
 
     List<String> members() {
         List<String> out = new ArrayList<>();
+        if (crewHelper() || crewLeader()) {
+            Map<String, String> nicks = board().nicks();
+            if (crewLeader()) {
+                for (String a : helperAccounts()) {
+                    String n = nicks.get(a.toLowerCase(Locale.ROOT));
+                    if (n != null && held(a)) {
+                        out.add(n);
+                    }
+                }
+            } else {
+                for (String n : nicks.values()) {
+                    if (!n.equalsIgnoreCase(leader())) {
+                        out.add(n);
+                    }
+                }
+            }
+            return out;
+        }
         for (JsonNode n : settings().path("members")) {
             String x = n.asText("").strip();
             if (!x.isEmpty() && !x.equalsIgnoreCase(leader())) {
@@ -136,6 +218,61 @@ public final class LowModule implements BotModule {
             }
         }
         return out;
+    }
+
+    /** A crew leader's helper runs for him now (always so without the program's crew: tests). */
+    boolean held(String helper) {
+        LowBoard.Crew c = LowBoard.crew();
+        return c == null || c.holds(account(), helper);
+    }
+
+    /** How many members the leader waits for at the portal: a crew leader's helpers at work for him. */
+    int expectedMembers() {
+        if (!crewLeader()) {
+            return members().size();
+        }
+        int n = 0;
+        for (String a : helperAccounts()) {
+            if (held(a)) {
+                n++;
+            }
+        }
+        return n;
+    }
+
+    /**
+     * The program's view of a config for an account (docs/LOW.md §11): a LoW config learns who runs it; a crew helper's
+     * own config becomes a LoW one with {@code role = helper} and the leader's account. Same input, same output object,
+     * so the module's caches hold.
+     */
+    public static java.util.function.UnaryOperator<BotConfig> override(String account, String crewLeader) {
+        String key = BotConfig.Module.LOW.key();
+        return new java.util.function.UnaryOperator<>() {
+            private BotConfig in;
+            private BotConfig out;
+
+            @Override
+            public synchronized BotConfig apply(BotConfig c) {
+                if (c == null || c == in) {
+                    return c == null ? null : out;
+                }
+                BotConfig r = c;
+                if (crewLeader != null || c.module() == BotConfig.Module.LOW) {
+                    com.fasterxml.jackson.databind.node.ObjectNode s = c.moduleSettings(key);
+                    s.put("account", account);
+                    if (crewLeader != null) {
+                        s.put("role", "helper");
+                        s.put("crew", crewLeader);
+                        s.remove("helpers");
+                        r = c.withModule(BotConfig.Module.LOW);
+                    }
+                    r = r.withModuleSettings(key, s);
+                }
+                in = c;
+                out = r;
+                return r;
+            }
+        };
     }
 
     Mode mode() {
@@ -147,6 +284,12 @@ public final class LowModule implements BotModule {
     }
 
     Role role(WorldSnapshot w) {
+        if (crewLeader()) {
+            return Role.LEADER;
+        }
+        if (crewHelper()) {
+            return mode() == Mode.TOGETHER ? Role.MEMBER : Role.HELPER;
+        }
         String me = w.hero().name();
         if (me != null && me.equalsIgnoreCase(leader())) {
             return Role.LEADER;
@@ -155,7 +298,13 @@ public final class LowModule implements BotModule {
     }
 
     LowBoard board() {
-        return LowBoard.of(leader());
+        if (crewHelper()) {
+            return LowBoard.of(crewOf());
+        }
+        if (crewLeader()) {
+            return LowBoard.of(account().isEmpty() ? "crew" : account());
+        }
+        return LowBoard.of(settings().path("leader").asText("").strip());
     }
 
     static boolean on(JsonNode s, String key, boolean def) {
@@ -195,6 +344,9 @@ public final class LowModule implements BotModule {
         }
         if (rest != null) {
             return 0; // leaving the game: where the ship is
+        }
+        if (sittingOut && board().phase() != LowBoard.Phase.GATHER) {
+            return 0; // out of this run: waits at the base
         }
         if (role(w) != Role.LEADER && !board().gathering() && !(board().gateActive(wall()) && w.group().exists())) {
             return 0; // nothing to do till the leader gathers: stay
@@ -292,8 +444,12 @@ public final class LowModule implements BotModule {
                 }
             }
         }
+        Set<String> players = new java.util.TreeSet<>(members());
+        if (!leader().isEmpty()) {
+            players.add(leader());
+        }
         synchronized (this) {
-            if (base == cachedBase && map == cachedMap && names.equals(cachedNames)) {
+            if (base == cachedBase && map == cachedMap && names.equals(cachedNames) && players.equals(cachedPlayers)) {
                 return cached;
             }
             JsonNode s = base.modules().getOrDefault(BotConfig.Module.LOW.key(),
@@ -311,12 +467,8 @@ public final class LowModule implements BotModule {
                 npcs.put(n, r);
             }
             BotConfig c = base.withNpcs(npcs);
-            Set<String> players = new java.util.TreeSet<>(members());
-            if (!leader().isEmpty()) {
-                players.add(leader());
-            }
             String me = w.hero().name() == null ? "" : w.hero().name();
-            boolean lead = me.equalsIgnoreCase(leader());
+            boolean lead = crewLeader() || !crewHelper() && me.equalsIgnoreCase(leader());
             c = c.withGroup(new BotConfig.GroupRules(BotConfig.Accept.LIST, false, true, players, false, false,
                     lead ? "" : leader(), Boolean.TRUE));
             if (map == GateCatalog.LOW_MAP) {
@@ -330,6 +482,7 @@ public final class LowModule implements BotModule {
             cachedBase = base;
             cachedMap = map;
             cachedNames = names;
+            cachedPlayers = players;
             return cached;
         }
     }
@@ -342,8 +495,9 @@ public final class LowModule implements BotModule {
             status = "Прыжок";
             return;
         }
+        crewWord(w);
         if (leader().isEmpty()) {
-            show("LoW: в настройках не указан лидер группы");
+            show(crewHelper() ? "LoW: жду, пока лидер войдёт в игру" : "LoW: в настройках не указан лидер группы");
             ctx.nav().tick();
             return;
         }
@@ -356,6 +510,46 @@ public final class LowModule implements BotModule {
 
     private long wall() {
         return System.currentTimeMillis();
+    }
+
+    /**
+     * The crew's word on the board: the leader his name and settings, and his helpers asked to work when they are free
+     * (taken ones are not asked; a busy one again every {@link #TAKE_RETRY_MS}); a helper its name.
+     */
+    private void crewWord(WorldSnapshot w) {
+        String me = w.hero().name();
+        if (crewHelper()) {
+            board().nick(account(), me);
+            return;
+        }
+        if (!crewLeader()) {
+            return;
+        }
+        board().publish(me, own());
+        LowBoard.Crew c = LowBoard.crew();
+        if (c == null) {
+            return;
+        }
+        long t = wall();
+        for (String a : helperAccounts()) {
+            if (c.holds(account(), a)) {
+                takeTold.remove(a);
+                continue;
+            }
+            Long last = takeTried.get(a);
+            if (last != null && t - last < TAKE_RETRY_MS) {
+                continue;
+            }
+            takeTried.put(a, t);
+            String why = c.take(account(), a);
+            if (why == null) {
+                takeTold.remove(a);
+                log.info("LoW: запускаю помощника «{}»", a);
+            } else if (!why.equals(takeTold.get(a))) {
+                takeTold.put(a, why);
+                log.warn("LoW: помощника «{}» не взять — {}", a, why);
+            }
+        }
     }
 
     // ---- out of the gate ----
@@ -383,7 +577,21 @@ public final class LowModule implements BotModule {
                 || !active || !w.group().exists())) {
             // out by death on purpose (the gate on without us): the rest till the leader gathers again
             gateLeftByDeath = false;
-            askRest(b);
+            if ("logout".equalsIgnoreCase(settings().path("between").asText("base"))) {
+                askRest(b);
+                return;
+            }
+            sittingOut = true;
+            log.info("LoW: врата идут без меня — жду следующего захода на базе");
+        }
+        if (sittingOut && b.phase() == LowBoard.Phase.GATHER) {
+            sittingOut = false; // the leader gathers anew
+        }
+        if (sittingOut) {
+            group.tick();
+            b.helper(h.name(), "ждёт на базе");
+            ctx.nav().tick();
+            show("LoW: врата идут без меня — жду следующего захода на базе");
             return;
         }
         if (active && w.group().exists() && gateLeftByDeath) {
@@ -494,7 +702,8 @@ public final class LowModule implements BotModule {
             }
         }
         int size = g.exists() ? g.members().size() : 1;
-        boolean all = inGroup == wanted.size() && present == wanted.size();
+        int expected = Math.max(wanted.size(), expectedMembers());
+        boolean all = inGroup == expected && present == expected;
         boolean timeout = now - gatherSince > gatherMs * 1_000_000;
         boolean ready = g.exists() && size >= minGroup && (all || timeout);
         if (ready) {

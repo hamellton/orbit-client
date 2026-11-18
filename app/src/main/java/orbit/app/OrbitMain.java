@@ -605,6 +605,17 @@ public final class OrbitMain {
 
     static Sessions sessions(Options o, String accountName, Rig rig, ClientProfile profile, long startDelayMs,
                                      Runnable endedByItself) throws java.io.IOException {
+        return sessions(o, accountName, rig, profile, startDelayMs, endedByItself, null, null);
+    }
+
+    /**
+     * @param crewLeader a LoW crew leader's account this one runs for as his helper (docs/LOW.md §11): no timetable, no
+     *                   work/break, the config {@code crewConfig} with the helper's role; {@code null} = its own plan
+     */
+    static Sessions sessions(Options o, String accountName, Rig rig, ClientProfile profile, long startDelayMs,
+                                     Runnable endedByItself, String crewLeader, String crewConfig) throws java.io.IOException {
+        java.util.function.UnaryOperator<orbit.config.BotConfig> override = orbit.bot.mod.LowModule.override(accountName,
+                crewLeader);
         WorldFeed feed = rig.feed();
         AuthClient auth = rig.auth();
         SessionSource source = rig.source();
@@ -614,7 +625,7 @@ public final class OrbitMain {
         Path stopFile = Path.of("local", "stop-" + accountName);
         java.util.Map<String, String> logContext = org.slf4j.MDC.getCopyOfContextMap();
         java.util.concurrent.atomic.AtomicReference<String> playing = new java.util.concurrent.atomic.AtomicReference<>(
-                o.config != null ? o.config : account.config());
+                crewLeader != null ? crewConfig : o.config != null ? o.config : account.config());
         long testEnd = o.minutes > 0 ? System.currentTimeMillis() + o.minutes * 60_000L : Long.MAX_VALUE;
         java.util.concurrent.atomic.AtomicBoolean closed = new java.util.concurrent.atomic.AtomicBoolean();
         java.util.concurrent.atomic.AtomicReference<ModuleRun> current = new java.util.concurrent.atomic.AtomicReference<>();
@@ -663,13 +674,16 @@ public final class OrbitMain {
                 orbit.bot.run.BotRunner afterShipChange = null; // the session a ship change continues
                 while (!closed.get() && System.currentTimeMillis() < testEnd) {
                     java.time.LocalDateTime now = java.time.LocalDateTime.now();
-                    var plan = planner.next(now, name -> {
-                        try {
-                            return orbit.config.ConfigStore.openDefault().load(name).session();
-                        } catch (java.io.IOException e) {
-                            return null;
-                        }
-                    });
+                    var plan = crewLeader != null
+                            ? new orbit.config.SessionPlanner.Plan(crewConfig, null, java.time.Duration.ZERO,
+                                    "помощник LoW для «" + crewLeader + "»")
+                            : planner.next(now, name -> {
+                                try {
+                                    return orbit.config.ConfigStore.openDefault().load(name).session();
+                                } catch (java.io.IOException e) {
+                                    return null;
+                                }
+                            });
                     java.time.LocalDateTime limit = testEnd == Long.MAX_VALUE ? null
                             : java.time.LocalDateTime.ofInstant(java.time.Instant.ofEpochMilli(testEnd),
                                     java.time.ZoneId.systemDefault());
@@ -720,7 +734,7 @@ public final class OrbitMain {
                     });
                     orbit.bot.run.AccountShips ships = accountShips(accountName);
                     ModuleRun run = startModule(feed, conn, cfgName, cfg, end, why, profile, stopFile,
-                            shopFor(auth, conn), () -> !game.isAlive(), ships, previous);
+                            shopFor(auth, conn), () -> !game.isAlive(), ships, previous, override);
                     current.set(run);
                     run.runner().setClickHold(clickHold(accountName));
                     run.runner().setHangar(hangarFor(auth, conn));
@@ -1268,7 +1282,8 @@ public final class OrbitMain {
                                          orbit.config.BotConfig config, long untilMillis, String untilReason,
                                          ClientProfile profile, Path stopFile, orbit.bot.run.ShopAccess shop,
                                          java.util.function.BooleanSupplier connectionOver, orbit.bot.run.AccountShips ships,
-                                         orbit.bot.run.BotRunner previous) {
+                                         orbit.bot.run.BotRunner previous,
+                                         java.util.function.UnaryOperator<orbit.config.BotConfig> override) {
         orbit.world.maps.MapCatalog catalog = orbit.world.maps.MapCatalog.bundled();
         java.util.Random random = new java.util.Random();
         orbit.bot.nav.Navigator nav = new orbit.bot.nav.Navigator(feed::snapshot, conn::send, catalog, random, System::nanoTime);
@@ -1283,7 +1298,7 @@ public final class OrbitMain {
         orbit.bot.run.Stats stats = previous != null && feed.stats() != null ? feed.stats() : new orbit.bot.run.Stats();
         feed.setStats(stats);
         orbit.bot.run.ConfigWatch watch = new orbit.bot.run.ConfigWatch(orbit.config.ConfigStore.openDefault(), configName,
-                config, catalog);
+                config, catalog, override);
         nav.setAvoidMines(() -> watch.current().general().avoidMines());
         nav.setAvoidBases(() -> watch.current().general().baseRadius());
         nav.setAvoidedZones(map -> {

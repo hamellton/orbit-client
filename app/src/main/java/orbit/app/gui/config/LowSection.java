@@ -8,12 +8,11 @@ import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JSpinner;
-import javax.swing.JTextField;
 import orbit.config.BotConfig;
 
 /**
- * «LoW»: the group gate's settings (docs/LOW.md; the user, 2026-11-18) — the leader and the group's accounts (names in the
- * game), how the gate is passed (the leader alone, the helpers out; the anchor; all together), the start, the relays,
+ * «LoW»: the group gate's settings (docs/LOW.md; the user, 2026-11-18) — the leader's helper accounts (§11: the one running
+ * the config leads and starts them himself), how the gate is passed (the leader alone, the helpers out; the anchor; all together), the start, the relays,
  * the Vagrants of the Falcon, the chase, the life saver on the Falcon, the mines. Writes {@code modules.low}.
  */
 final class LowSection implements Section {
@@ -35,8 +34,13 @@ final class LowSection implements Section {
     static final String[] MINES_RU = {"DDM-01 (урон)", "ACM-01", "EMPM-01 (ЭМИ)", "SABM-01 (щит)", "SLM-01 (замедление)",
         "SMB-01"};
 
-    private final JTextField leader = new JTextField(20);
-    private final JTextField members = new JTextField(40);
+    static final String[] BETWEEN = {"Ждать на базе, в игре", "Выйти из игры и войти, когда лидер соберёт группу"};
+    static final String[] BETWEEN_KEYS = {"base", "logout"};
+
+    private final javax.swing.JPanel helpers = new javax.swing.JPanel(new orbit.app.gui.WrapLayout(
+            java.awt.FlowLayout.LEFT, 10, 2));
+    private final java.util.List<JCheckBox> helperBoxes = new java.util.ArrayList<>();
+    private final JComboBox<String> between = new JComboBox<>(BETWEEN);
     private final JComboBox<String> mode = new JComboBox<>(MODES);
     private final JComboBox<String> exit = new JComboBox<>(EXITS);
     private final JSpinner restMinutes = Form.number(5, 600, 5);
@@ -62,13 +66,15 @@ final class LowSection implements Section {
         Form f = new Form()
                 .section("Группа")
                 .note("Работает с модулем «LoW (групповые врата)» (вкладка «Общее»). Во врата пускают группу от трёх:"
-                        + " лидер прыгает первым на x-3 в портал, остальные — за ним, не позже 5 минут. Один и тот же"
-                        + " конфиг ставится всем аккаунтам группы: кто лидер — решает имя.")
-                .row("Лидер (имя в игре)", leader)
-                .row("Участники (имена в игре через запятую)", members)
+                        + " лидер прыгает первым на x-3 в портал, помощники — за ним. Этот конфиг ставится только лидеру,"
+                        + " запускать нужно только его: помощников он запускает сам, если они не в работе. У помощника"
+                        + " остаются свой конфиг (ремонт, покупки, питомец) и свой прокси. Остановили лидера — помощники"
+                        + " тоже остановятся.")
+                .row("Помощники (аккаунты)", helpers)
                 .row("Как проходить", mode)
                 .row("Помощники после запуска", exit)
-                .row("Помощник не в игре не дольше, мин", restMinutes)
+                .row("Между заходами помощники", between)
+                .row("Вне игры не дольше, мин", restMinutes)
                 .row("Прыгать, когда в группе не меньше", minGroup)
                 .row("Ждать участников у портала не дольше, мин", gatherMinutes)
                 .section("Во вратах")
@@ -115,10 +121,26 @@ final class LowSection implements Section {
     @Override
     public void load(BotConfig c) {
         ObjectNode s = c.moduleSettings(KEY);
-        leader.setText(s.path("leader").asText(""));
-        java.util.List<String> list = new java.util.ArrayList<>();
-        s.path("members").forEach(x -> list.add(x.asText()));
-        members.setText(String.join(", ", list));
+        java.util.Set<String> chosen = new java.util.LinkedHashSet<>();
+        s.path("helpers").forEach(x -> chosen.add(x.asText()));
+        java.util.List<String> all = AccountNames.all();
+        for (String x : chosen) {
+            if (all.stream().noneMatch(x::equalsIgnoreCase)) {
+                all.add(x); // a helper not in the program (any more) stays listed, to be unticked
+            }
+        }
+        helpers.removeAll();
+        helperBoxes.clear();
+        for (String a : all) {
+            JCheckBox box = new JCheckBox(a, chosen.stream().anyMatch(a::equalsIgnoreCase));
+            helperBoxes.add(box);
+            helpers.add(box);
+        }
+        if (all.isEmpty()) {
+            helpers.add(new JLabel("Аккаунтов нет — добавьте их в окне аккаунтов"));
+        }
+        helpers.revalidate();
+        between.setSelectedIndex(index(BETWEEN_KEYS, s.path("between").asText("base"), 0));
         mode.setSelectedIndex(index(MODE_KEYS, s.path("mode").asText("solo"), 0));
         String ex = s.path("helpersExit").asText("radiation");
         exit.setSelectedIndex(index(EXIT_KEYS, "exit".equalsIgnoreCase(ex) ? "radiation" : ex, 0));
@@ -146,13 +168,13 @@ final class LowSection implements Section {
     @Override
     public BotConfig apply(BotConfig c) {
         ObjectNode s = c.moduleSettings(KEY);
-        s.put("leader", leader.getText().strip());
-        ArrayNode a = s.putArray("members");
-        for (String x : members.getText().split(",")) {
-            if (!x.isBlank()) {
-                a.add(x.strip());
+        ArrayNode a = s.putArray("helpers");
+        for (JCheckBox box : helperBoxes) {
+            if (box.isSelected()) {
+                a.add(box.getText());
             }
         }
+        s.put("between", BETWEEN_KEYS[between.getSelectedIndex()]);
         s.put("mode", MODE_KEYS[mode.getSelectedIndex()]);
         s.put("helpersExit", EXIT_KEYS[exit.getSelectedIndex()]);
         s.put("restMinutes", Form.intOf(restMinutes));

@@ -39,4 +39,9 @@ public interface ManagedAccount {
 
     /** Runs another config from now on (when running) and keeps it as the account's config. */
     void switchConfig(String name);
+
+    /** The LoW crew leader this account works for now (docs/LOW.md §11); {@code null} = its own work or stopped. */
+    default String heldBy() {
+        return null;
+    }
 }

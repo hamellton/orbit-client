@@ -69,12 +69,20 @@ public final class ConfigCheck {
             case LOW -> {
                 com.fasterxml.jackson.databind.JsonNode ls = c.modules().get(BotConfig.Module.LOW.key());
                 String leader = ls == null ? "" : ls.path("leader").asText("").strip();
-                if (leader.isEmpty()) {
-                    out.add(error("LoW: не указан лидер группы (вкладка «LoW»)"));
-                }
-                int members = ls == null || !ls.path("members").isArray() ? 0 : ls.path("members").size();
-                if (members + (leader.isEmpty() ? 0 : 1) < 3) {
-                    out.add(warning("LoW: во врата пускают группу от 3 человек, а в списке " + (members + (leader.isEmpty() ? 0 : 1))));
+                int helpers = ls == null || !ls.path("helpers").isArray() ? 0 : ls.path("helpers").size();
+                if (helpers > 0) {
+                    // the leader's crew (docs/LOW.md §11): the one running the config leads, the helpers are accounts
+                    if (helpers + 1 < 3) {
+                        out.add(warning("LoW: во врата пускают группу от 3 человек, а с помощниками " + (helpers + 1)));
+                    }
+                } else {
+                    if (leader.isEmpty()) {
+                        out.add(error("LoW: не выбраны помощники (вкладка «LoW»)"));
+                    }
+                    int members = ls == null || !ls.path("members").isArray() ? 0 : ls.path("members").size();
+                    if (!leader.isEmpty() && members + 1 < 3) {
+                        out.add(warning("LoW: во врата пускают группу от 3 человек, а в списке " + (members + 1)));
+                    }
                 }
             }
             default -> {

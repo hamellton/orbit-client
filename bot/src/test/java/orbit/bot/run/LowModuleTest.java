@@ -246,7 +246,7 @@ class LowModuleTest {
 
     @Test
     void aHelperLeavesTheGroupOnceTheGateIsOnThenGetsOutAndRests() throws Exception {
-        Sim sim = sim(config("{\"leader\":\"Lead\",\"members\":[\"A\",\"B\"],\"mode\":\"solo\"}"), "A",
+        Sim sim = sim(config("{\"leader\":\"Lead\",\"members\":[\"A\",\"B\"],\"mode\":\"solo\",\"between\":\"logout\"}"), "A",
                 GateCatalog.LOW_MAP, 1_000, 12_000);
         group(sim, new Object[] {5, "Lead", GateCatalog.LOW_MAP, 1_100, 12_000}, new Object[] {1, "A", GateCatalog.LOW_MAP, 1_000, 12_000},
                 new Object[] {6, "B", GateCatalog.LOW_MAP, 900, 12_000});
@@ -334,5 +334,115 @@ class LowModuleTest {
         assertEquals(GateCatalog.LOW_RELAY_RADIUS, relay.radius());
         assertNull(GateCatalog.defaultRule(low, "-=[ Streuner ]=-"));
         assertEquals(List.of(100_000_104, 100_000_102, 100_000_103, 100_000_101), GateCatalog.LOW_RELAY_ORDER);
+    }
+
+    /** A helper out of the run by death and revived at the base (3-1). */
+    static void revivedAtBase(Sim sim, LowModule m, String name) {
+        sim.ctx.stats().deaths.incrementAndGet();
+        ShipInitializationCommand si = new ShipInitializationCommand();
+        si.userId = 1;
+        si.userName = name;
+        si.mapId = MapCatalog.bundled().byName("3-1").id();
+        si.factionId = 3;
+        si.x = 1_000;
+        si.y = 1_000;
+        si.speed = 400;
+        si.hitPoints = 100_000;
+        si.hitMax = 100_000;
+        sim.world.apply(si, sim.now);
+    }
+
+    @Test
+    void byDefaultAHelperWaitsAtTheBaseForTheNextRun() throws Exception {
+        Sim sim = sim(config("{\"leader\":\"Lead\",\"members\":[\"A\",\"B\"],\"mode\":\"solo\"}"), "A",
+                GateCatalog.LOW_MAP, 1_000, 12_000);
+        group(sim, new Object[] {5, "Lead", GateCatalog.LOW_MAP, 1_100, 12_000}, new Object[] {1, "A", GateCatalog.LOW_MAP, 1_000, 12_000},
+                new Object[] {6, "B", GateCatalog.LOW_MAP, 900, 12_000});
+        LowModule m = new LowModule(sim.ctx);
+        run(sim, m, 1_000);
+        text(sim, "The LoW Gate has been brought online!");
+        run(sim, m, 15_000);
+        sim.world.apply(new orbit.protocol.gen.GroupCloseCommand(), sim.now);
+        run(sim, m, 2_000);
+        revivedAtBase(sim, m, "A");
+        setPhase("Lead", LowBoard.Phase.STARTED);
+        run(sim, m, 2_000);
+        assertNull(m.restRequest(), "stays in the game");
+        assertTrue(m.status().contains("жду следующего захода на базе"), m.status());
+        assertEquals(0, m.workingMap(), "stays at the base");
+        setPhase("Lead", LowBoard.Phase.GATHER);
+        run(sim, m, 1_000);
+        assertFalse(m.status().contains("на базе"), "the leader gathers: off to the portal — " + m.status());
+        assertEquals(X3, m.workingMap());
+    }
+
+    @Test
+    void theOverrideMakesAHelpersOwnConfigALowOneAndKeepsItsObject() throws Exception {
+        BotConfig own = BotConfig.empty().withModule(BotConfig.Module.KILL);
+        var helper = LowModule.override("alt1@ru1", "main@ru1");
+        BotConfig c = helper.apply(own);
+        assertEquals(BotConfig.Module.LOW, c.module());
+        var s = c.moduleSettings(BotConfig.Module.LOW.key());
+        assertEquals("helper", s.path("role").asText());
+        assertEquals("main@ru1", s.path("crew").asText());
+        assertEquals("alt1@ru1", s.path("account").asText());
+        assertTrue(c == helper.apply(own), "the same object for the same config (the module's caches)");
+        assertTrue(own == LowModule.override("x@ru1", null).apply(own), "a non-LoW config of a free account is as it is");
+        BotConfig lead = LowModule.override("main@ru1", null).apply(config("{\"helpers\":[\"alt1@ru1\"]}"));
+        assertEquals("main@ru1", lead.moduleSettings(BotConfig.Module.LOW.key()).path("account").asText());
+    }
+
+    @Test
+    void aCrewLeaderTakesHisFreeHelpersAndToldWhyNotTheBusyOnes() throws Exception {
+        java.util.List<String> asked = new java.util.ArrayList<>();
+        java.util.Set<String> held = new java.util.HashSet<>();
+        LowBoard.crew(new LowBoard.Crew() {
+            @Override
+            public String take(String leader, String helper) {
+                asked.add(leader + ">" + helper);
+                if (helper.equals("alt2@ru1")) {
+                    return "уже в работе";
+                }
+                held.add(helper);
+                return null;
+            }
+
+            @Override
+            public boolean holds(String leader, String helper) {
+                return held.contains(helper);
+            }
+        });
+        BotConfig c = LowModule.override("main@ru1", null).apply(
+                config("{\"helpers\":[\"alt1@ru1\",\"alt2@ru1\"],\"gatherMinutes\":1}"));
+        Sim sim = sim(c, "Lead", X3, 5_000, 5_000);
+        LowModule m = new LowModule(sim.ctx);
+        run(sim, m, 3_000);
+        assertEquals(List.of("main@ru1>alt1@ru1", "main@ru1>alt2@ru1"), asked, "each asked once, the busy one not again at once");
+        LowBoard b = LowBoard.of("main@ru1");
+        assertEquals("Lead", b.leaderName());
+        assertEquals(1, b.settings().path("gatherMinutes").asInt());
+        assertEquals(LowBoard.Phase.GATHER, b.phase());
+        // the helper in game: its name on the board, the leader invites it
+        b.nick("alt1@ru1", "A");
+        assertEquals(java.util.Set.of("A", "Lead"), m.config().group().players());
+        assertEquals("", m.config().group().leader(), "the leader leads");
+    }
+
+    @Test
+    void aCrewHelperPlaysTheLeadersSettingsAndAcceptsHim() throws Exception {
+        LowBoard b = LowBoard.of("main@ru1");
+        b.publish("Lead", Json.MAPPER.readTree("{\"helpers\":[\"alt1@ru1\"],\"leaveVagrants\":5,\"mode\":\"solo\"}"));
+        BotConfig c = LowModule.override("alt1@ru1", "main@ru1").apply(BotConfig.empty().withModule(BotConfig.Module.KILL));
+        Sim sim = sim(c, "A", MapCatalog.bundled().byName("3-1").id(), 1_000, 1_000);
+        LowModule m = new LowModule(sim.ctx);
+        run(sim, m, 1_000);
+        assertEquals("A", b.nicks().get("alt1@ru1"), "its name on the leader's board");
+        assertEquals(5, m.settings().path("leaveVagrants").asInt(), "the leader's settings");
+        assertEquals("Lead", m.config().group().leader(), "the lead goes to the leader");
+        assertTrue(m.config().group().players().contains("Lead"));
+        assertTrue(m.status().contains("жду лидера"), m.status());
+        setPhase("main@ru1", LowBoard.Phase.GATHER);
+        run(sim, m, 1_000);
+        assertEquals(X3, m.workingMap(), "the leader gathers: to the portal");
     }
 }

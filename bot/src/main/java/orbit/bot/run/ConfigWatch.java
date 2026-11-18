@@ -21,13 +21,27 @@ public final class ConfigWatch {
     private volatile String pending;
     private final MapCatalog maps;
     private volatile BotConfig current;
+    /** The file's config as read (the override's input). */
+    private volatile BotConfig raw;
+    private final java.util.function.UnaryOperator<BotConfig> override;
     private long modified;
 
     public ConfigWatch(ConfigStore store, String name, BotConfig initial, MapCatalog maps) {
+        this(store, name, initial, maps, java.util.function.UnaryOperator.identity());
+    }
+
+    /**
+     * @param override what the program adds to every config the account runs (LoW: who runs it, a crew helper's role;
+     *                 docs/LOW.md §11)
+     */
+    public ConfigWatch(ConfigStore store, String name, BotConfig initial, MapCatalog maps,
+                       java.util.function.UnaryOperator<BotConfig> override) {
         this.store = store;
         this.name = name;
         this.maps = maps;
-        this.current = initial;
+        this.override = override;
+        this.raw = initial;
+        this.current = override.apply(initial);
         this.modified = store.modified(name);
     }
 
@@ -65,7 +79,7 @@ public final class ConfigWatch {
             log.warn("Конфиг «{}» изменён, но не читается: {} — работаю по прежнему", name, e.getMessage());
             return false;
         }
-        if (c.equals(current)) {
+        if (c.equals(raw)) {
             return false;
         }
         List<ConfigCheck.Problem> problems = ConfigCheck.check(c, maps);
@@ -74,7 +88,8 @@ public final class ConfigWatch {
             log.warn("Изменения конфига «{}» с ошибками — работаю по прежнему", name);
             return false;
         }
-        current = c;
+        raw = c;
+        current = override.apply(c);
         log.info("Конфиг «{}» обновлён", name);
         return true;
     }
@@ -96,7 +111,8 @@ public final class ConfigWatch {
         log.info("Конфиг сменён: «{}» → «{}»", name, other);
         name = other;
         modified = store.modified(other);
-        current = c;
+        raw = c;
+        current = override.apply(c);
         return true;
     }
 }
