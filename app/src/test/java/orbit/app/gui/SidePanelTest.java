@@ -22,13 +22,16 @@ class SidePanelTest {
     }
 
     @Test
-    void theRightColumnHasTheFightThenTheResultsSkylabAndEnrichment() {
-        // the user, 2026-11-19: «итоги, скайлаб и обогащение — в правой колонке, под целями и атакующими»
-        java.util.List<ViewSettings.Block> right = java.util.Arrays.stream(ViewSettings.Block.values())
-                .filter(b -> b.rightColumn() >= 0)
-                .sorted(java.util.Comparator.comparingInt(ViewSettings.Block::rightColumn)).toList();
-        org.junit.jupiter.api.Assertions.assertEquals(java.util.List.of(ViewSettings.Block.TARGET,
-                ViewSettings.Block.ATTACKERS, ViewSettings.Block.STATS, ViewSettings.Block.SKYLAB, ViewSettings.Block.LAB,
-                ViewSettings.Block.BOOSTERS, ViewSettings.Block.GROUP), right);
+    void theShipLeftTheFightAndTheDeedsRight() {
+        // the user, 2026-11-19: left the ship; right target, attackers, group, the results right under the group, quests,
+        // gates
+        java.util.List<ViewSettings.Block> order = java.util.Arrays.stream(ViewSettings.Block.values())
+                .sorted(java.util.Comparator.comparingInt(ViewSettings.Block::splitOrder)).toList();
+        org.junit.jupiter.api.Assertions.assertEquals(java.util.List.of(ViewSettings.Block.STATUS, ViewSettings.Block.SHIP,
+                ViewSettings.Block.PET, ViewSettings.Block.BOOSTERS, ViewSettings.Block.LAB, ViewSettings.Block.SKYLAB,
+                ViewSettings.Block.TARGET, ViewSettings.Block.ATTACKERS, ViewSettings.Block.GROUP, ViewSettings.Block.STATS,
+                ViewSettings.Block.QUESTS, ViewSettings.Block.GATES), order);
+        java.util.Arrays.stream(ViewSettings.Block.values()).forEach(b -> org.junit.jupiter.api.Assertions.assertTrue(
+                (b.leftColumn() >= 0) != (b.rightColumn() >= 0), b + " in one side exactly"));
     }
 }

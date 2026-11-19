@@ -146,12 +146,12 @@ final class SidePanel extends JPanel implements Scrollable {
         }
         int[] col = new int[n];
         List<Placed> out = new java.util.ArrayList<>();
-        // SPLIT: the live cards (the fight's, the group) and the results, Skylab and enrichment under them in the last
-        // column of their own when there are two or more, else under the others (the user, 2026-11-19)
+        // SPLIT: the ship's cards left, the fight and the deeds in the last column of their own when there are two or
+        // more, else under the ship's (the user, 2026-11-19)
         boolean split = ViewSettings.shared().cardLayout() == ViewSettings.CardLayout.SPLIT;
         List<ViewSettings.Block> order = new java.util.ArrayList<>(List.of(ViewSettings.Block.values()));
         if (split) {
-            order.sort(java.util.Comparator.comparingInt(ViewSettings.Block::rightColumn));
+            order.sort(java.util.Comparator.comparingInt(ViewSettings.Block::splitOrder));
         }
         for (ViewSettings.Block b : order) {
             Hud.Card c = here.get(b);

@@ -40,22 +40,38 @@ public final class ViewSettings {
         }
 
         /**
-         * With {@link CardLayout#SPLIT}: the card's place in the right column of its own, top to bottom, -1 for the
-         * other columns — the fight's and the group's cards that grow and shrink all the time (the user, 2026-11-19:
-         * «карточки прыгают»), and under the target and the attackers the results, the Skylab and the enrichment (the
-         * user, 2026-11-19).
+         * With {@link CardLayout#SPLIT}: the card's place in the right column of its own, top to bottom, -1 for the left
+         * columns (the user, 2026-11-19): the fight and the deeds right — target, attackers, group, the results right
+         * under the group, quests, gates; the ship left ({@link #leftColumn}).
          */
         int rightColumn() {
             return switch (this) {
                 case TARGET -> 0;
                 case ATTACKERS -> 1;
-                case STATS -> 2;
-                case SKYLAB -> 3;
-                case LAB -> 4;
-                case BOOSTERS -> 5;
-                case GROUP -> 6;
+                case GROUP -> 2;
+                case STATS -> 3;
+                case QUESTS -> 4;
+                case GATES -> 5;
                 default -> -1;
             };
+        }
+
+        /** With {@link CardLayout#SPLIT}: the order in the left columns — the ship: state, ship, pet, boosters, lab, Skylab. */
+        int leftColumn() {
+            return switch (this) {
+                case STATUS -> 0;
+                case SHIP -> 1;
+                case PET -> 2;
+                case BOOSTERS -> 3;
+                case LAB -> 4;
+                case SKYLAB -> 5;
+                default -> -1;
+            };
+        }
+
+        /** The order of the cards with {@link CardLayout#SPLIT}: the left ones, then the right column's. */
+        int splitOrder() {
+            return rightColumn() >= 0 ? 100 + rightColumn() : leftColumn();
         }
 
         /** The column on the map: the fight and the results right, the ship and its state left. */
@@ -147,7 +163,7 @@ public final class ViewSettings {
 
     /** How the side panel lays its cards out (the user, 2026-11-19: to be tried, and undone with one click). */
     public enum CardLayout {
-        SPLIT("Справа отдельно — бой, итоги, Скайлаб, обогащение, бустеры, группа"),
+        SPLIT("Слева корабль, справа бой и дела"),
         MASONRY("Как раньше — по самой короткой колонке");
 
         public final String label;
