@@ -1327,52 +1327,195 @@ final class Hud {
     }
 
     private Card stats(WorldSnapshot w, WorldFeed feed) {
-        List<String> lines = orbit.app.SessionSummary.lines(feed.sessionRewards(), feed.sessionStats(), feed.sessionHours());
-        // today over all runs (the user, 2026-11-13: the session starts from nothing at each start)
-        List<String> today = orbit.app.DailyTotals.of(feed.account()).lines();
-        Font textFont = font(Font.PLAIN, 12f);
+        // a table (the user, 2026-11-19: «итоги сессии удобной таблицей»): the session, per hour, today over all runs
+        WorldSnapshot.Rewards r = feed.sessionRewards();
+        orbit.bot.run.Stats st = feed.sessionStats();
+        double hours = feed.sessionHours();
+        orbit.app.HourlyReport.Totals day = orbit.app.DailyTotals.of(feed.account()).today();
+        boolean rates = hours >= 1.0 / 60;
+        List<StatRow> rows = new ArrayList<>();
+        rows.add(StatRow.group("Доход"));
+        rows.add(new StatRow("Уридий", r.uridium(), day.uridium(), true));
+        rows.add(new StatRow("Кредиты", r.credits(), day.credits(), true));
+        rows.add(new StatRow("Опыт", r.experience(), day.experience(), true));
+        rows.add(new StatRow("Честь", r.honor(), day.honor(), true));
+        rows.add(StatRow.group("Дела"));
+        int picked = st == null ? 0 : st.pickedSoFar().values().stream().mapToInt(Integer::intValue).sum();
+        int pickedDay = day.picked().values().stream().mapToInt(Integer::intValue).sum();
+        rows.add(new StatRow("Убито NPC", st == null ? 0 : st.kills.get(), day.kills(), true));
+        if (st != null && st.cubesFought() > 0 || day.cubes() > 0) {
+            rows.add(new StatRow("Кубиконов", st == null ? 0 : st.cubesKilled.get(), day.cubes(), true));
+        }
+        rows.add(new StatRow("Подобрано", picked, pickedDay, true));
+        rows.add(new StatRow("Ремонтов", st == null ? 0 : st.repairs.get(), day.repairs(), false));
+        rows.add(new StatRow("Смертей", st == null ? 0 : st.deaths.get(), day.deaths(), false));
+        if (r.spentUridium() > 0 || day.spentUridium() > 0) {
+            rows.add(new StatRow("Потрачено уридия", r.spentUridium(), day.spentUridium(), false));
+        }
+        if (r.spentCredits() > 0 || day.spentCredits() > 0) {
+            rows.add(new StatRow("Потрачено кредитов", r.spentCredits(), day.spentCredits(), false));
+        }
+        // the loot by item, the biggest first (the session's, else today's)
+        java.util.Set<String> ids = new java.util.LinkedHashSet<>(r.items().keySet());
+        ids.addAll(day.items().keySet());
+        List<String> loot = ids.stream().sorted(java.util.Comparator.<String>comparingDouble(
+                id -> -r.items().getOrDefault(id, 0.0)).thenComparingDouble(id -> -day.items().getOrDefault(id, 0.0)))
+                .toList();
+        if (!loot.isEmpty()) {
+            rows.add(StatRow.group("Добыча"));
+            int shown = Math.min(loot.size(), STAT_LOOT_ROWS);
+            for (String id : loot.subList(0, shown)) {
+                rows.add(new StatRow(orbit.app.SessionSummary.displayName(id), r.items().getOrDefault(id, 0.0),
+                        day.items().getOrDefault(id, 0.0), true));
+            }
+            if (loot.size() > shown) {
+                rows.add(StatRow.group("ещё " + (loot.size() - shown)));
+            }
+        }
+        Font labelFont = font(Font.PLAIN, 11f);
+        Font numFont = font(Font.PLAIN, 11f);
+        Font headFont = font(Font.BOLD, 10f);
+        String clock = feed.sessionStartNanos() == 0 ? "" : "сессия " + clock(java.time.Duration.ofNanos(feed.sessionNanos()));
+        int rowH = line;
         return new Card() {
             @Override
             public int height(int width) {
-                int rows = 0;
-                for (String text : lines) {
-                    rows += wrap(measure(textFont), text, width - 2 * pad).size();
-                }
-                int todayRows = 0;
-                for (String text : today) {
-                    todayRows += wrap(measure(textFont), text, width - 2 * pad).size();
-                }
-                return pad + head + rows * (line - 1) + 6 + line + todayRows * (line - 1) + pad - 4;
+                return pad + head + rowH + rows.size() * rowH + pad - 2;
             }
 
             @Override
             public void paint(Graphics2D g, int x, int y, int width) {
                 frame(g, x, y, width, height(width), new Color(0xa78bfa));
-                heading(g, x, y, width, "Итоги сессии", "");
-                g.setFont(textFont);
-                int ty = y + pad + head + 11;
-                for (int i = 0; i < lines.size(); i++) {
-                    g.setColor(i < 4 ? TEXT : DIM);
-                    for (String part : wrap(g.getFontMetrics(), lines.get(i), width - 2 * pad)) {
-                        g.drawString(part, x + pad, ty);
-                        ty += line - 1;
+                heading(g, x, y, width, "Итоги", clock);
+                FontMetrics nm = g.getFontMetrics(numFont);
+                // the number columns as wide as their widest cell (the heading too), the name takes the rest
+                String[] heads = rates ? new String[] {"сессия", "в час", "сегодня"} : new String[] {"сессия", "сегодня"};
+                int cols = heads.length;
+                int[] colW = new int[cols];
+                FontMetrics hm = g.getFontMetrics(headFont);
+                for (int c = 0; c < cols; c++) {
+                    colW[c] = hm.stringWidth(heads[c]);
+                }
+                for (StatRow row : rows) {
+                    if (row.group) {
+                        continue;
+                    }
+                    String[] cells = row.cells(hours, rates);
+                    for (int c = 0; c < cols; c++) {
+                        colW[c] = Math.max(colW[c], nm.stringWidth(cells[c]));
                     }
                 }
-                ty += 6;
-                g.setFont(font(Font.PLAIN, 11f));
+                int gap = 12;
+                int[] right = new int[cols];
+                int edge = x + width - pad;
+                for (int c = cols - 1; c >= 0; c--) {
+                    right[c] = edge;
+                    edge -= colW[c] + gap;
+                }
+                int labelW = edge - (x + pad) + gap - 6;
+                int ry = y + pad + head;
+                g.setFont(headFont);
                 g.setColor(DIM);
-                g.drawString("За сегодня", x + pad, ty);
-                ty += line;
-                g.setFont(textFont);
-                for (int i = 0; i < today.size(); i++) {
-                    g.setColor(i < 2 ? TEXT : DIM);
-                    for (String part : wrap(g.getFontMetrics(), today.get(i), width - 2 * pad)) {
-                        g.drawString(part, x + pad, ty);
-                        ty += line - 1;
+                for (int c = 0; c < cols; c++) {
+                    g.drawString(heads[c], right[c] - hm.stringWidth(heads[c]), ry + 10);
+                }
+                int tableTop = ry;
+                ry += rowH;
+                // the heading's rule
+                g.setColor(CARD_EDGE);
+                g.drawLine(x + pad - 4, ry - 2, x + width - pad + 4, ry - 2);
+                int stripe = 0;
+                for (StatRow row : rows) {
+                    if (row.group) {
+                        g.setFont(headFont);
+                        g.setColor(row.label.startsWith("ещё") ? DIM : new Color(0xa78bfa));
+                        g.drawString(row.label, x + pad, ry + 11);
+                        g.setColor(CARD_EDGE);
+                        if (!row.label.startsWith("ещё")) {
+                            int lx = x + pad + hm.stringWidth(row.label) + 6;
+                            g.drawLine(lx, ry + 7, x + width - pad, ry + 7);
+                        }
+                        ry += rowH;
+                        stripe = 0;
+                        continue;
                     }
+                    if (stripe++ % 2 == 1) {
+                        g.setColor(new Color(255, 255, 255, 10));
+                        g.fillRect(x + pad - 4, ry, width - 2 * pad + 8, rowH);
+                    }
+                    g.setFont(labelFont);
+                    g.setColor(DIM);
+                    g.drawString(clip(g, row.label, Math.max(20, labelW)), x + pad, ry + 11);
+                    g.setFont(numFont);
+                    String[] cells = row.cells(hours, rates);
+                    for (int c = 0; c < cols; c++) {
+                        boolean none = "—".equals(cells[c]);
+                        g.setColor(none ? DIM : c == 0 ? TEXT : new Color(0xc4cbd8));
+                        g.drawString(cells[c], right[c] - nm.stringWidth(cells[c]), ry + 11);
+                    }
+                    ry += rowH;
+                }
+                // the columns' rules: between the name and the numbers and between the numbers
+                g.setColor(CARD_EDGE);
+                for (int c = 0; c < cols; c++) {
+                    int lx = right[c] - colW[c] - gap / 2;
+                    g.drawLine(lx, tableTop + 1, lx, ry - 2);
                 }
             }
         };
+    }
+
+    /** At most this many loot rows in «Итоги»; the rest as «ещё N». */
+    static final int STAT_LOOT_ROWS = 8;
+
+    /** One row of «Итоги»: a name with the session's and today's value, or a group's heading. */
+    static final class StatRow {
+        final String label;
+        final double session;
+        final double today;
+        final boolean perHour;
+        final boolean group;
+
+        StatRow(String label, double session, double today, boolean perHour) {
+            this(label, session, today, perHour, false);
+        }
+
+        private StatRow(String label, double session, double today, boolean perHour, boolean group) {
+            this.label = label;
+            this.session = session;
+            this.today = today;
+            this.perHour = perHour;
+            this.group = group;
+        }
+
+        static StatRow group(String label) {
+            return new StatRow(label, 0, 0, false, true);
+        }
+
+        String[] cells(double hours, boolean rates) {
+            String s = compact(session);
+            String d = compact(today);
+            if (!rates) {
+                return new String[] {s, d};
+            }
+            String h = perHour && session != 0 && hours > 0 ? compact(session / hours) : "—";
+            return new String[] {s, h, d};
+        }
+
+        /** 23 244, 53,2 млн, 1,25 млрд; 0 — a dash. */
+        static String compact(double v) {
+            if (Math.abs(v) < 0.5) {
+                return "—";
+            }
+            double a = Math.abs(v);
+            if (a >= 1e9) {
+                return String.format("%.2f млрд", v / 1e9).replace('.', ',');
+            }
+            if (a >= 1e6) {
+                return String.format("%.1f млн", v / 1e6).replace('.', ',');
+            }
+            return orbit.app.SessionSummary.number(v);
+        }
     }
 
     // ---- the overview ----
