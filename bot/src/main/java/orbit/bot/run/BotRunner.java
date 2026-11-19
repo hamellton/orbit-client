@@ -993,6 +993,20 @@ public final class BotRunner {
     /** Shot at by an NPC this long while logging out at a portal: jump through it. */
     static final long FIRED_AT_JUMP_NS = 3_000_000_000L;
     private long firedAtSince;
+    /** A player shot the ship this recently: no logout pressed (the server cancels it under fire). */
+    private long playerFireAt = Long.MIN_VALUE / 2;
+    static final long PLAYER_QUIET_NS = 10_000_000_000L;
+
+    /** A player (not an NPC) shoots the ship now. */
+    private static boolean underPlayerFire(WorldSnapshot w) {
+        for (int id : w.hero().attackers()) {
+            WorldSnapshot.Ship s = w.ships().get(id);
+            if (s != null && s.kind() == WorldSnapshot.ShipKind.PLAYER) {
+                return true;
+            }
+        }
+        return false;
+    }
     private long stopJumpAt = Long.MIN_VALUE / 2;
 
     /** Fighting back before a logout: this long at least before the fight may count as over. */
@@ -1096,6 +1110,42 @@ public final class BotRunner {
             logoutAt = 0;
             return false;
         }
+        // DarkBot's DisconnectModule: the logout only once the escape is over — a player shooting the ship (a battle map:
+        // the server cancels the logout under fire, the user 2026-11-19) — away from him, through a portal when at one,
+        // and the logout only after PLAYER_QUIET_NS without a shot (it used to stand still at the portal pressing it)
+        if (underPlayerFire(w)) {
+            playerFireAt = now;
+        }
+        if (now - playerFireAt < PLAYER_QUIET_NS) {
+            logoutAt = 0;
+            logoutPressedAt = Long.MIN_VALUE / 2;
+            if (flee.tick()) {
+                show("Выход из игры: бегу от " + flee.threat());
+                return true;
+            }
+            SafePlaces.Place place = SafePlaces.nearest(w, ctx.maps(), ctx.stats().closedPortals,
+                    ctx.config().get().safety().oneWayJumps());
+            if (place != null && place.portal() != null && place.jumpable() && place.distance(h) <= place.reach()) {
+                if (w.jumpingTo() == 0 && now - stopJumpAt > 10_000_000_000L) {
+                    log.warn("Выхожу из игры, но по мне стреляет игрок — прыгаю на {}, выйду там", place.portal().toName());
+                    ctx.nav().stop();
+                    ctx.actions().jump();
+                    stopJumpAt = now;
+                }
+                show("Выход из игры: по мне стреляет игрок — прыгаю");
+                return true;
+            }
+            if (place != null && place.portal() != null) {
+                if (ctx.nav().idle() || ctx.nav().destination().x() != place.x()) {
+                    ctx.nav().moveTo(place.x(), place.y(), true);
+                }
+                ctx.nav().tick();
+                show("Выход из игры: по мне стреляет игрок — к порталу на " + place.portal().toName());
+                return true;
+            }
+            show("Выход из игры: по мне стреляет игрок — жду, пока перестанут");
+            return true;
+        }
         int[] p = logoutHere || inGate ? null : logoutPortal(w);
         if (p != null && Math.hypot(p[0] - h.x(), p[1] - h.y()) > Safety.AT_PORTAL) {
             if (ctx.nav().idle() || ctx.nav().destination().x() != p[0]) {
@@ -1147,7 +1197,9 @@ public final class BotRunner {
         if (logoutAt == 0) {
             logoutAt = now + ctx.react(1_000, 3_000);
         }
-        if (now >= logoutAt && !h.moving() && now - logoutPressedAt > 30_000_000_000L) {
+        // pressed again once its countdown is over and the ship is still in (the server cancels it under fire or when
+        // the ship moves; DarkBot waits 25 s) — not 30 s every time
+        if (now >= logoutAt && !h.moving() && now - logoutPressedAt > (logoutSeconds + 8) * 1_000_000_000L) {
             // the game's countdown: 20 s, 5 s with premium (the user, 2026-11-17)
             logoutSeconds = h.premium() ? 5 : 20;
             log.info("Выход из игры ({} с)", logoutSeconds);

@@ -175,6 +175,32 @@ class BotRunnerTest {
     }
 
     @Test
+    void aPlayerShootingTheShipHoldsTheLogoutTillHeStops() throws Exception {
+        // the user, 2026-11-19: on a battle map the server cancels the logout under a player's fire — DarkBot logs out
+        // only once the escape is over; it used to stand still at the portal pressing it
+        Sim sim = new Sim(CubikonModuleTest.config(90, false), 26, 10_000, 6_000);
+        BotRunner r = new BotRunner(sim.ctx, () -> false, s -> { });
+        sim.run(r::tick, 2_000);
+        FleeTest.player(sim, 700, "Hunter", "BAD", 1, 10_400, 6_000);
+        r.stop("тест");
+        for (long t = 0; t < 60_000; t += 100) {
+            if (t % 1_000 == 0) {
+                FleeTest.shoots(sim, 700); // he keeps shooting for a minute
+            }
+            r.tick();
+            sim.now += 100 * Sim.MS;
+        }
+        assertTrue(sim.sent.stream().noneMatch(p -> p instanceof UIButtonTriggerRequest u && "logout".equals(u.itemId)),
+                "no logout pressed under his fire");
+        orbit.protocol.gen.ShipRemoveCommand gone = new orbit.protocol.gen.ShipRemoveCommand();
+        gone.userId = 700;
+        sim.world.apply(gone, sim.now);
+        sim.run(r::tick, 60_000);
+        assertTrue(sim.sent.stream().anyMatch(p -> p instanceof UIButtonTriggerRequest u && "logout".equals(u.itemId)),
+                "out once nobody shoots");
+    }
+
+    @Test
     void logsOutByTheNearestPortalOfAnyFaction() throws Exception {
         // live 2026-11-11 on 5-3: the own faction's portal far left, another faction's close by
         Sim sim = new Sim(CubikonModuleTest.config(90, false), 93, 30_000, 15_000);
