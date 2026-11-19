@@ -75,7 +75,10 @@ public final class QuestModule implements BotModule {
             "scrap", Set.of("saimon", "mordon", "bosssaimon", "bossmordon"),
             "mucosum", Set.of("lordakia", "lordakium", "sibelonit", "bosslordakia", "bosslordakium", "bosssibelonit"),
             "plasmid", Set.of("sibelon", "devolarium", "bosssibelon", "bossdevolarium"),
-            "hybrid", Set.of("blightedgygerthrall"));
+            "hybrid", Set.of("blightedgygerthrall"),
+            // the Mimesis event's Byte Remnant (darkorbitwiki «Mimesis Mutiny»: Hexor 5, Raging 10, Cloning 25, Terror
+            // 35, Reflector 50 a kill; Cloned and Kamikaze none) — the game writes the names with digits
+            "byte", Set.of("hexorm1mesis", "ragingmimes1s", "cloningmim3sis", "terrormime5is", "reflectormimesi5"));
 
     /**
      * Refined ore from raw ore in the hold ({@code OreTypeModule}: ore → {ingredient → per unit}), DarkBot's AutoRefine:
@@ -908,6 +911,9 @@ public final class QuestModule implements BotModule {
         Integer best = null;
         int bestHops = Integer.MAX_VALUE;
         for (int m : maps) {
+            if (orbit.config.GateCatalog.instanced(m)) {
+                continue; // a gate's or the Mimesis escort's map: no way there but its own portal (Medic, Hardy… live there)
+            }
             int hops;
             if (m == h.mapId()) {
                 hops = 0;

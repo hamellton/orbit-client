@@ -467,6 +467,23 @@ class QuestModuleTest {
         assertTrue(m.status().contains("hybrid-alloy 0/1200"), m.status());
     }
 
+    @Test
+    void byteRemnantIsCollectedFromTheMimesisNeverOnAnEscortMap() {
+        // the user, 2026-11-19: «Коллекция байтов» (500461) when the damage quests are done — the Mimesis that drop
+        // Byte Remnant, where they were seen; never the escort maps, where only the escort's own NPCs live
+        Sim sim = new Sim(BotConfig.empty(), MapCatalog.bundled().byName("3-1").id(), 10_000, 6_000);
+        take(sim, 500461, 2, 67, 15_000, "resource_collectable_byte-remnant");
+        NpcMaps maps = NpcMaps.inMemory();
+        maps.learn(430, "-=[ Hexor M1mesis ]=-"); // an escort map: no way there
+        maps.learn(MapCatalog.bundled().byName("3-4").id(), "-=[ Reflector Mimesi5 ]=-");
+        maps.learn(MapCatalog.bundled().byName("3-5").id(), "-=[ Kamikaze Mime5is ]=-"); // drops none
+        QuestModule m = new QuestModule(sim.ctx, maps, orbit.world.maps.OreMaps.inMemory());
+        m.visited(sim.now);
+        m.tick();
+        assertEquals("3-4", MapCatalog.bundled().info(m.workingMap()).name(), m.status());
+        assertTrue(m.status().contains("byte-remnant 0/15000"), m.status());
+    }
+
     /** 122011 «Теория преобразования»: Blighted Kristallon (160), Blighted Gygerthrall (155), Hybrid Alloy. */
     static void conversionTheory(Sim sim, double kristallon, double gygerthrall) {
         QuestDefinitionModule d = QuestGiverVisitTest.Giver.definition(122011);
