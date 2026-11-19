@@ -9,7 +9,8 @@ import javax.imageio.ImageIO;
 /**
  * Draws the BL maps (1-, 2-, 3-BL) for docs/BLACKLIGHT.md «Точки у бегемота»: the walls the server sends
  * (reference/maps/bl-walls.json), the behemoth's spawn, the trains' routes portal → spawn found round the walls (A* on a
- * 100 grid, walls kept 300 off, then straightened), the wait point now and the side / retreat points the user chose
+ * 100 grid, walls kept 150 off, then straightened; none from
+ * the x-8 portals, on 3-BL the one from 2BL by the base — the user, 2026-11-20), the wait point now and the side / retreat points the user chose
  * (2026-11-20), with their distance from the routes printed.
  *
  * <p>Run from the repo root after {@code ./gradlew :app:installDist}, with the game's minimaps in {@code <dir>/img}
@@ -34,6 +35,12 @@ public class BlMap {
             {{1545, 12210}, {19400, 11854}, {14027, 3181}}};
         String[][] pnames = {{"1-8", "2BL", "3BL"}, {"1BL", "2-8", "3BL"}, {"1BL", "2BL", "3-8"}};
         String[] names = {"1-BL", "2-BL", "3-BL"};
+        // what the user sees in the game (2026-11-20): the trains go only between the BL maps — none from the x-8 portals
+        // (1-8, 2-8, 3-8); on 3-BL the train from 2BL flies along the bottom by the base (118/120), not over the top wall
+        boolean[][] noTrain = {{true, false, false}, {false, true, false}, {false, false, true}};
+        // 3-BL from the base: under the long vertical wall's end (62..72 down to 110) and up to the spawn
+        int[][][][] via = {{null, null, null}, {null, null, null},
+            {null, {{11800, 11300}, {6700, 11300}}, {{11800, 11300}, {6700, 11300}}}};
         int[] ids = {306, 307, 308};
         int ph = (int) (H * K);
         BufferedImage out = new BufferedImage(1400, 3 * (ph + 40) + 150, BufferedImage.TYPE_INT_RGB);
@@ -81,7 +88,26 @@ public class BlMap {
             List<List<double[]>> routes = new ArrayList<>();
             for (int p = 0; p < 3; p++) {
                 int[] q = portals[m][p];
-                List<double[]> r = route(q[0], q[1], s[0], s[1]);
+                if (noTrain[m][p]) {
+                    dot(g, q[0], q[1], oy, new Color(0xff5aa0), 9);
+                    label(g, q[0], q[1], oy, "П " + pnames[m][p] + " (поезда не ходят)", new Color(0xff8cc0));
+                    continue;
+                }
+                List<double[]> r;
+                if (via[m][p] != null) {
+                    r = new ArrayList<>();
+                    double[] from = {q[0], q[1]};
+                    List<double[]> stops = new ArrayList<>();
+                    for (int[] v : via[m][p]) stops.add(new double[] {v[0], v[1]});
+                    stops.add(new double[] {s[0], s[1]});
+                    for (double[] to : stops) {
+                        List<double[]> leg = route(from[0], from[1], to[0], to[1]);
+                        r.addAll(r.isEmpty() ? leg : leg.subList(1, leg.size()));
+                        from = to;
+                    }
+                } else {
+                    r = route(q[0], q[1], s[0], s[1]);
+                }
                 routes.add(r);
                 Path2D path = new Path2D.Double();
                 for (int i = 0; i < r.size(); i++) {
@@ -236,13 +262,16 @@ public class BlMap {
         return best;
     }
 
-    /** Free for a ship: inside the map, 300+ off every wall. */
+    /** The trains' routes keep this off the walls (they fly through the narrow gaps too: 3-BL under its long wall). */
+    static final double ROUTE_MARGIN = 150;
+
+    /** Free for a ship: inside the map, {@link #ROUTE_MARGIN}+ off every wall. */
     static boolean freeCell(int cx, int cy) {
         double x = cx * CELL + CELL / 2.0, y = cy * CELL + CELL / 2.0;
         if (x < 150 || y < 150 || x > W - 150 || y > H - 150) return false;
         for (double[] w : walls) {
-            if (w[3] < 0 ? Math.hypot(x - w[0], y - w[1]) < w[2] + 300
-                    : x > w[0] - 300 && x < w[2] + 300 && y > w[1] - 300 && y < w[3] + 300) return false;
+            if (w[3] < 0 ? Math.hypot(x - w[0], y - w[1]) < w[2] + ROUTE_MARGIN
+                    : x > w[0] - ROUTE_MARGIN && x < w[2] + ROUTE_MARGIN && y > w[1] - ROUTE_MARGIN && y < w[3] + ROUTE_MARGIN) return false;
         }
         return true;
     }
