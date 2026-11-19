@@ -25,12 +25,13 @@ public final class ViewSettings {
         ATTACKERS("Атакующие"),
         BOOSTERS("Бустеры"),
         PET("Питомец"),
+        // the results right under the pet (the user, 2026-11-19): the cards stand in this order
+        STATS("Итоги сессии"),
         GROUP("Группа"),
         QUESTS("Квесты"),
         GATES("Врата"),
         SKYLAB("Скайлаб"),
-        LAB("Обогащение"),
-        STATS("Итоги сессии");
+        LAB("Обогащение");
 
         public final String label;
 
