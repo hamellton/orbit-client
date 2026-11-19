@@ -28,6 +28,7 @@ public class BlMap {
         boolean v2 = a.length > 1 && a[1].equals("v2"); // the points near a route replaced (the user, 2026-11-20)
         boolean v3 = a.length > 1 && a[1].equals("v3"); // all points chosen anew by the corrected routes
         boolean v4 = a.length > 1 && a[1].equals("v4"); // the wait out of a train's circles (radius 1 200) at the spawn
+        boolean v5 = a.length > 1 && a[1].equals("v5"); // avoided zones leading the ship along the radiation / walls
         var json = new com.fasterxml.jackson.databind.ObjectMapper().readTree(new File("reference/maps/bl-walls.json"));
         int[][] spawn = {{19400, 5800}, {6900, 5000}, {4700, 3900}};
         int[][] waitCfg = {{18900, 6550}, {5150, 5000}, {2650, 2350}};
@@ -146,6 +147,48 @@ public class BlMap {
             String[] fl = {"A1 сбоку", "A2 сбоку", "B у стены", "C край (радиация)"};
             Color[] fc = {new Color(0x3ce07a), new Color(0x3ce07a), new Color(0xf0e040), new Color(0xb070ff)};
             Color[] lc = {new Color(0x7af0a8), new Color(0x7af0a8), new Color(0xf6ec80), new Color(0xc9a0ff)};
+            if (v5) {
+                // the user (2026-11-20): on 1-BL along the radiation on the right, on 3-BL along it on the left — no
+                // train goes there; the config's avoided zones (rectangles here) close the middle
+                // only the approach inside the pocket (the user, 2026-11-20): 1-BL and 3-BL — right by the radiation, at the
+                // screen's edge (a strip of ~600 left open); 2-BL — the pocket closed but the strip under its top bar and
+                // the one along its left wall: to the bottom-left corner along the wall, not across
+                double[][][] zones = {
+                    {{18650, 1450, 20400, 7000}},
+                    {{5500, 2600, 8573, 6133}},
+                    {{600, 3500, 6200, 9000}}};
+                int[][][] from = {{{20072, 11732}, {7589, 1456}}, {{9893, 862}, {20377, 7996}, {593, 5884}},
+                    {{1545, 12210}, {19400, 11854}}};
+                int[][] wait = {{19400, 7700}, {5150, 5850}, {2650, 2350}};
+                g.setColor(new Color(170, 90, 255, 70));
+                for (double[] z : zones[m]) g.fill(new Rectangle2D.Double(z[0] * K, oy + z[1] * K, (z[2] - z[0]) * K, (z[3] - z[1]) * K));
+                g.setColor(new Color(200, 140, 255, 200));
+                g.setStroke(new BasicStroke(2));
+                for (double[] z : zones[m]) g.draw(new Rectangle2D.Double(z[0] * K, oy + z[1] * K, (z[2] - z[0]) * K, (z[3] - z[1]) * K));
+                int[] wp = wait[m];
+                for (int[] f : from[m]) {
+                    extraBlocked = zones[m];
+                    List<double[]> r = route(f[0], f[1], wp[0], wp[1]);
+                    extraBlocked = new double[0][];
+                    Path2D path = new Path2D.Double();
+                    for (int i = 0; i < r.size(); i++) {
+                        if (i == 0) path.moveTo(r.get(i)[0] * K, oy + r.get(i)[1] * K); else path.lineTo(r.get(i)[0] * K, oy + r.get(i)[1] * K);
+                    }
+                    g.setColor(new Color(60, 200, 255, 230));
+                    g.setStroke(new BasicStroke(3, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+                    g.draw(path);
+                    double dmin = 1e9;
+                    for (double[] q : sample(r)) {
+                        if (Math.hypot(q[0] - wp[0], q[1] - wp[1]) < 800 || Math.hypot(q[0] - f[0], q[1] - f[1]) < 800) continue;
+                        dmin = Math.min(dmin, toRoutes(routes, q[0], q[1]));
+                    }
+                    System.out.printf("%s путь бота от %d/%d к %d/%d: ближе всего к маршруту поезда %d%n", names[m], f[0] / 100,
+                            f[1] / 100, wp[0] / 100, wp[1] / 100, (int) dmin);
+                }
+                g.setColor(new Color(0x2f7fff));
+                g.fill(new Ellipse2D.Double(wp[0] * K - 9, oy + wp[1] * K - 9, 18, 18));
+                label(g, wp[0], wp[1], oy, "W ждать", new Color(0x9cc8ff));
+            }
             if (v4) {
                 // where a train standing at the spawn (its players ~600 round it) and the trains on their way reach with
                 // the offenders' radius: shaded; the wait point out of it, the nearest to the spawn; its step-aside circle
@@ -179,7 +222,7 @@ public class BlMap {
                             (int) Math.hypot(pt[0] - s[0], pt[1] - s[1]));
                 }
             }
-            for (int i = 0; i < 4 && !v3 && !v4; i++) {
+            for (int i = 0; i < 4 && !v3 && !v4 && !v5; i++) {
                 double[] pt = fixedPts[m][i];
                 double dmin = toRoutes(routes, pt[0], pt[1]);
                 double[] np = null;
@@ -240,7 +283,11 @@ public class BlMap {
             g.setColor(new Color(0xdfe6ee));
             g.drawString("Вариант 4 (радиус обидчиков 1 200): оранжевое — куда достаёт поезд, стоящий у бегемота; W — ждать вне этого и 1 500+ от маршрутов; синий пунктир — куда можно отойти (2 500)", 10, ly + 4 * 24);
         }
-        ImageIO.write(out, "png", new File(dir + (v4 ? "/bl-maps-v4.png" : v3 ? "/bl-maps-v3.png" : v2 ? "/bl-maps-v2.png" : "/bl-maps.png")));
+        if (v5) {
+            g.setColor(new Color(0xdfe6ee));
+            g.drawString("Вариант 5: фиолетовое — запретные зоны конфига; голубое — путь бота от порталов (и воскрешения) до точки ожидания W в обход стен и зон", 10, ly + 4 * 24);
+        }
+        ImageIO.write(out, "png", new File(dir + (v5 ? "/bl-maps-v5.png" : v4 ? "/bl-maps-v4.png" : v3 ? "/bl-maps-v3.png" : v2 ? "/bl-maps-v2.png" : "/bl-maps.png")));
         System.exit(0);
     }
 
@@ -367,8 +414,23 @@ public class BlMap {
     static final double ROUTE_MARGIN = 150;
 
     /** Free for a ship: inside the map, {@link #ROUTE_MARGIN}+ off every wall. */
+    /** More cells kept closed (the config's avoided zones), rectangles x1,y1,x2,y2. */
+    static double[][] extraBlocked = new double[0][];
+
+    /** Points along a polyline every 200. */
+    static List<double[]> sample(List<double[]> r) {
+        List<double[]> out = new ArrayList<>();
+        for (int i = 1; i < r.size(); i++) {
+            double[] a0 = r.get(i - 1), b0 = r.get(i);
+            int n = Math.max(1, (int) (Math.hypot(b0[0] - a0[0], b0[1] - a0[1]) / 200));
+            for (int k = 0; k <= n; k++) out.add(new double[] {a0[0] + (b0[0] - a0[0]) * k / n, a0[1] + (b0[1] - a0[1]) * k / n});
+        }
+        return out;
+    }
+
     static boolean freeCell(int cx, int cy) {
         double x = cx * CELL + CELL / 2.0, y = cy * CELL + CELL / 2.0;
+        for (double[] z : extraBlocked) if (x >= z[0] && x <= z[2] && y >= z[1] && y <= z[3]) return false;
         if (x < 150 || y < 150 || x > W - 150 || y > H - 150) return false;
         for (double[] w : walls) {
             if (w[3] < 0 ? Math.hypot(x - w[0], y - w[1]) < w[2] + ROUTE_MARGIN
