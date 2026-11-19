@@ -24,6 +24,7 @@ public class BlMap {
 
     public static void main(String[] a) throws Exception {
         String dir = a[0];
+        boolean v2 = a.length > 1 && a[1].equals("v2"); // the points near a route replaced (the user, 2026-11-20)
         var json = new com.fasterxml.jackson.databind.ObjectMapper().readTree(new File("reference/maps/bl-walls.json"));
         int[][] spawn = {{19400, 5800}, {6900, 5000}, {4700, 3900}};
         int[][] waitCfg = {{18900, 6550}, {5150, 5000}, {2650, 2350}};
@@ -119,12 +120,27 @@ public class BlMap {
             Color[] lc = {new Color(0x7af0a8), new Color(0x7af0a8), new Color(0xf6ec80), new Color(0xc9a0ff)};
             for (int i = 0; i < 4; i++) {
                 double[] pt = fixedPts[m][i];
-                dot(g, pt[0], pt[1], oy, fc[i], 12);
-                label(g, pt[0], pt[1], oy, fl[i], lc[i]);
-                double dmin = 1e9;
-                for (List<double[]> r : routes) for (int k = 1; k < r.size(); k++)
-                    dmin = Math.min(dmin, lineDist(new double[] {r.get(k - 1)[0], r.get(k - 1)[1], r.get(k)[0], r.get(k)[1]}, pt[0], pt[1]));
-                System.out.printf("%s %s %d/%d — до маршрута поезда %d%n", names[m], fl[i].split(" ")[0], (int) pt[0] / 100, (int) pt[1] / 100, (int) dmin);
+                double dmin = toRoutes(routes, pt[0], pt[1]);
+                double[] np = null;
+                if (v2 && dmin < NEAR_ROUTE) {
+                    np = i <= 1 ? sideOff(s, routes, fixedPts[m][1 - i]) : i == 2 ? wallOff(s, routes) : edgeOff(s, routes);
+                }
+                if (np != null) {
+                    // the old one grey, an arrow to the new one
+                    dot(g, pt[0], pt[1], oy, new Color(0x6b7280), 10);
+                    g.setColor(new Color(255, 255, 255, 170));
+                    g.setStroke(new BasicStroke(2, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND, 1, new float[] {4, 4}, 0));
+                    g.draw(new Line2D.Double(pt[0] * K, oy + pt[1] * K, np[0] * K, oy + np[1] * K));
+                    dot(g, np[0], np[1], oy, fc[i], 14);
+                    label(g, np[0], np[1], oy, fl[i].split(" ")[0] + "* " + fl[i].substring(fl[i].indexOf(' ') + 1) + " (новая)", lc[i]);
+                    System.out.printf("%s %s %d/%d (%d от маршрута) -> %d/%d (%d от маршрута, %d от бегемота)%n", names[m],
+                            fl[i].split(" ")[0], (int) pt[0] / 100, (int) pt[1] / 100, (int) dmin, (int) np[0] / 100,
+                            (int) np[1] / 100, (int) toRoutes(routes, np[0], np[1]), (int) Math.hypot(np[0] - s[0], np[1] - s[1]));
+                } else {
+                    dot(g, pt[0], pt[1], oy, fc[i], 12);
+                    label(g, pt[0], pt[1], oy, fl[i], lc[i]);
+                    System.out.printf("%s %s %d/%d — до маршрута поезда %d%n", names[m], fl[i].split(" ")[0], (int) pt[0] / 100, (int) pt[1] / 100, (int) dmin);
+                }
             }
             // nearest portal
             int best = 0;
@@ -151,11 +167,74 @@ public class BlMap {
             "серое — стены сервера (туда нельзя), зелёная рамка — край карты (дальше радиация)"};
         g.setColor(new Color(0xdfe6ee));
         for (int i = 0; i < leg.length; i++) g.drawString(leg[i], 10, ly + i * 24);
-        ImageIO.write(out, "png", new File(dir + "/bl-maps.png"));
+        if (v2) {
+            g.setColor(new Color(0xdfe6ee));
+            g.drawString("A1*/B*/C* — новые точки вместо тех, что были ближе 500 к маршруту поезда (серые, стрелка «было → стало»)", 10, ly + 4 * 24);
+        }
+        ImageIO.write(out, "png", new File(dir + (v2 ? "/bl-maps-v2.png" : "/bl-maps.png")));
         System.exit(0);
     }
 
     static final int CELL = 100;
+    /** A point closer than this to a train's route is replaced in v2. */
+    static final double NEAR_ROUTE = 500;
+
+    static double toRoutes(List<List<double[]>> routes, double x, double y) {
+        double d = 1e9;
+        for (List<double[]> r : routes) for (int k = 1; k < r.size(); k++)
+            d = Math.min(d, lineDist(new double[] {r.get(k - 1)[0], r.get(k - 1)[1], r.get(k)[0], r.get(k)[1]}, x, y));
+        return d;
+    }
+
+    /** Side: a ring 1 500–2 200 round the spawn, 1 000+ off the routes, 60°+ from the other side point; the nearest. */
+    static double[] sideOff(int[] s, List<List<double[]>> routes, double[] other) {
+        double oa = Math.atan2(other[1] - s[1], other[0] - s[0]);
+        double[] best = null;
+        double bestKey = 1e18;
+        for (int r = 1500; r <= 2200; r += 100) {
+            for (int a = 0; a < 72; a++) {
+                double ang = a * Math.PI / 36;
+                double x = s[0] + r * Math.cos(ang), y = s[1] + r * Math.sin(ang);
+                if (blocked(x, y) || Math.abs(Math.atan2(Math.sin(ang - oa), Math.cos(ang - oa))) < Math.PI / 3) continue;
+                double off = toRoutes(routes, x, y);
+                if (off < 1000) continue;
+                double key = r * 10 - off; // nearest ring first, then the farthest from the routes
+                if (key < bestKey) { bestKey = key; best = new double[] {x, y}; }
+            }
+        }
+        return best;
+    }
+
+    /** By a wall: 1 500–4 000 from the spawn, 1 200+ off the routes; the nearest to the spawn. */
+    static double[] wallOff(int[] s, List<List<double[]>> routes) {
+        double[] best = null;
+        double bestD = 1e18;
+        for (int x = 500; x < W; x += 100) {
+            for (int y = 500; y < H; y += 100) {
+                double d = Math.hypot(x - s[0], y - s[1]);
+                if (d < 1500 || d > 4000 || d >= bestD || blocked(x, y) || !nearWall(x, y) || toRoutes(routes, x, y) < 1200) continue;
+                bestD = d;
+                best = new double[] {x, y};
+            }
+        }
+        return best;
+    }
+
+    /** By the map's edge (600 in): 1 200+ off the routes; the nearest to the spawn. */
+    static double[] edgeOff(int[] s, List<List<double[]>> routes) {
+        double[] best = null;
+        double bestD = 1e18;
+        for (int t = 0; t < 4; t++) {
+            for (int v = 600; v < (t < 2 ? W : H) - 600; v += 100) {
+                double x = t < 2 ? v : t == 2 ? 600 : W - 600;
+                double y = t == 0 ? 600 : t == 1 ? H - 600 : v;
+                if (blocked(x, y) || toRoutes(routes, x, y) < 1200) continue;
+                double d = Math.hypot(x - s[0], y - s[1]);
+                if (d < bestD) { bestD = d; best = new double[] {x, y}; }
+            }
+        }
+        return best;
+    }
 
     /** Free for a ship: inside the map, 300+ off every wall. */
     static boolean freeCell(int cx, int cy) {
