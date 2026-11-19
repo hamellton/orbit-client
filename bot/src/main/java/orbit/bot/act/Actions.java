@@ -223,6 +223,34 @@ public final class Actions {
     }
 
     /** The lab's state ({@code LabUpdateRequest}): the answer is each item's enrichment and the hold's ores. */
+    /** The dispatch's retrievers: {@code statusType} 0 available, 1 in progress ({@code DispatchGetRetrieverListRequest}). */
+    public void dispatchList(int statusType) {
+        orbit.protocol.gen.DispatchGetRetrieverListRequest r = new orbit.protocol.gen.DispatchGetRetrieverListRequest();
+        r.statusType = (short) statusType;
+        sender.accept(r);
+    }
+
+    /** A finished retriever collected from its slot 1–5 ({@code DispatchCollectRetrieverRequest}). */
+    public void dispatchCollect(int slotId) {
+        orbit.protocol.gen.DispatchCollectRetrieverRequest r = new orbit.protocol.gen.DispatchCollectRetrieverRequest();
+        r.slotId = (short) slotId;
+        sender.accept(r);
+    }
+
+    /** A retriever sent (R-01 = 13 …; {@code DispatchSendRetrieverRequest}). */
+    public void dispatchSend(int dispatchId) {
+        orbit.protocol.gen.DispatchSendRetrieverRequest r = new orbit.protocol.gen.DispatchSendRetrieverRequest();
+        r.dispatchId = dispatchId;
+        sender.accept(r);
+    }
+
+    /** A retriever in progress finished at once for a quick coupon ({@code DispatchInstantCompleteRequest}). */
+    public void dispatchInstant(int slotId) {
+        orbit.protocol.gen.DispatchInstantCompleteRequest r = new orbit.protocol.gen.DispatchInstantCompleteRequest();
+        r.slotId = (short) slotId;
+        sender.accept(r);
+    }
+
     public void labInfo() {
         sender.accept(new orbit.protocol.gen.LabUpdateRequest());
     }

@@ -86,6 +86,7 @@ public final class ConfigWindow {
         sections.add(new EbgSection());
         sections.add(new LowSection());
         sections.add(new MimesisSection());
+        sections.add(new DispatchSection());
         sections.add(new EnrichSection());
         sections.add(new BuySection());
         sections.add(new GroupSection());

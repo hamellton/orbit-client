@@ -1,0 +1,27 @@
+# Диспетчер (сборщики, окно `dispatch`)
+
+Разбор 2026-11-19 и как сделано у нас (`orbit.bot.run.DispatchCare`, вкладка «Диспетчер», `modules.dispatch`).
+
+## Игра
+- Сборщики по данным клиента (`DispatchRetrieverDefinition`, сборка 2026-11-04): A-01…A-06 (1–6, патроны),
+  B-01…B-06 (7–12), R-01…R-06 (13–18, ресурсы), H-03…H-05 (19–21, Hitac). Цена по уровню: 1 — 200 000 кредитов,
+  2 — 2 000 уридия, 3 — 2 000 + Permit, 4 — 5 000 + Permit, 5 — 10 000 + Permit, 6 — 10 000 + Permit+ (H-03/04/05 —
+  5/10/15 тыс. + Permit). Время: 3, 6, 6, 9, 12, 12 ч (H: 5, 7, 9 ч). Мгновенно — 1 Quick Coupon. Слотов до 5.
+- Пакеты: `DispatchGetRetrieverListRequest{statusType}` (0 доступные, 1 в работе) → `DispatchGetRetrieverListCommand`
+  (`DispatchModule{id, slotId, duration}`), `DispatchSlotInfoCommand{availableSlotCount, currentMaxSlotCount}`;
+  `DispatchCollectRetrieverRequest{slotId}`, `DispatchSendRetrieverRequest{dispatchId}`, `DispatchInstantCompleteRequest`;
+  ответ `DispatchMessageCommand` (0 отправлен, 4 нет слота, 5 нет ресурсов, 8 ошибка отправки…).
+
+## Другие боты
+- DarkBot: в ядре только чтение окна из памяти и клики; автоматизация — PikaPika `DispatchNew` (раз в 30 с: забрать
+  готовых, мгновенно по флагу, отправить отмеченных до `amount`, проверка цены; слоты не покупает). В профилях друга —
+  R-02 ×5 в 35 профилях, мгновенного нет, врата нет.
+- AstraBot: пакетами, без окна, раз в ~5 с; `DISPATCH {enable, instant, freeSlots, dispatchName, alpha…kuiper}`;
+  основной конфиг R-04, профили R-02/R-01/R-04; по логам R-02 — 2 007 отправок, цикл ~6 ч.
+
+## У нас
+- Пакетами, раз в минуту оба списка, одно действие не чаще 4 с: готовый (время 0) — забрать; свободный слот сверх
+  `freeSlots` и таких в работе меньше `count` — отправить `retriever`, если хватает кредитов/уридия и Permit (если игра
+  их считает). Отказ сервера — пауза 30 мин. Во вратах и на эскорте — ничего.
+- По умолчанию выключен; сборщик R-01 (решение пользователя 2026-11-19), «Mimesis GB2» — R-04 как основной конфиг AstraBot.
+- Не сделано: отправка за частями врат (`DispatchSendGateRequest`), покупка слотов.

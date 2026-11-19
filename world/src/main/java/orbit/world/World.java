@@ -328,6 +328,17 @@ public final class World {
                 }
             }
             case orbit.protocol.gen.PayloadEscortKeyInfoCommand p -> escort = escort.withKeys(p.keyCount, nanos);
+            case orbit.protocol.gen.DispatchGetRetrieverListCommand p -> dispatchList(p, nanos);
+            case orbit.protocol.gen.DispatchSlotInfoCommand p -> {
+                WorldSnapshot.Dispatch d = dispatch;
+                dispatch = new WorldSnapshot.Dispatch(d.available(), d.inProgress(), d.availableNanos(), d.inProgressNanos(),
+                        p.availableSlotCount, p.currentMaxSlotCount, nanos, d.message(), d.messageNanos());
+            }
+            case orbit.protocol.gen.DispatchMessageCommand p -> {
+                WorldSnapshot.Dispatch d = dispatch;
+                dispatch = new WorldSnapshot.Dispatch(d.available(), d.inProgress(), d.availableNanos(), d.inProgressNanos(),
+                        d.freeSlots(), d.maxSlots(), d.slotsNanos(), p.messageType, nanos);
+            }
             case orbit.protocol.gen.PayloadEscortTimeInfoCommand p -> escortTimes(p, nanos);
             case orbit.protocol.gen.PayloadEscortScoreCommand p -> escort = escort.withScore(p.totalScore, p.runScore, nanos);
             case orbit.protocol.gen.EternalBlacklightWaveInfoCommand p -> ebgWave(p, nanos);
@@ -732,10 +743,24 @@ public final class World {
                 new WorldSnapshot.Damage(Map.copyOf(dealt), Map.copyOf(received), Map.copyOf(taken)),
                 new WorldSnapshot.Gates(Map.copyOf(gates), gateMoney, gateSamples, gateEnergyCost, gateSpinAmounts,
                         gateSpinSelected, gateInfoNanos, gateSetup, gateSetupError, gateSetupNanos, gateSpinError,
-                        gateSpinNanos, trinity, eternal, low, escort));
+                        gateSpinNanos, trinity, eternal, low, escort, dispatch));
     }
 
     private WorldSnapshot.Escort escort = WorldSnapshot.Escort.NONE;
+    private WorldSnapshot.Dispatch dispatch = WorldSnapshot.Dispatch.NONE;
+
+    private void dispatchList(orbit.protocol.gen.DispatchGetRetrieverListCommand p, long nanos) {
+        List<WorldSnapshot.Retriever> list = new ArrayList<>();
+        for (orbit.protocol.gen.DispatchModule m : p.retrieverList) {
+            list.add(new WorldSnapshot.Retriever(m.id, m.slotId, m.duration));
+        }
+        WorldSnapshot.Dispatch d = dispatch;
+        dispatch = p.statusType == orbit.protocol.gen.DispatchGetRetrieverListCommand.STATUSTYPE_IN_PROGRESS
+                ? new WorldSnapshot.Dispatch(d.available(), List.copyOf(list), d.availableNanos(), nanos, d.freeSlots(),
+                        d.maxSlots(), d.slotsNanos(), d.message(), d.messageNanos())
+                : new WorldSnapshot.Dispatch(List.copyOf(list), d.inProgress(), nanos, d.inProgressNanos(), d.freeSlots(),
+                        d.maxSlots(), d.slotsNanos(), d.message(), d.messageNanos());
+    }
     /** The HP Link working ({@code VisualModifierCommand} 86), its gear's cooldown end ({@code PetBuffCommand} 9). */
     private boolean hpLink;
     private long hpLinkReadyNanos;

@@ -85,6 +85,7 @@ public final class BotRunner {
     private final Revive revive;
     private final BuyWatch buy;
     private final CraftWatch craft;
+    private final DispatchCare dispatch;
     private final CloakCare cloak;
     private final Flee flee;
     private final GroupWatch groupWatch;
@@ -141,6 +142,7 @@ public final class BotRunner {
         this.revive = new Revive(ctx);
         this.buy = new BuyWatch(ctx);
         this.craft = new CraftWatch(ctx);
+        this.dispatch = new DispatchCare(ctx);
         this.cloak = new CloakCare(ctx);
         this.flee = new Flee(ctx);
         this.groupWatch = new GroupWatch(ctx);
@@ -563,6 +565,7 @@ public final class BotRunner {
         }
         buy.tick();
         craft.tick();
+        dispatch.tick(); // the dispatch's retrievers (modules.dispatch)
         groupWatch.tick();
         pet.tick();
         if (state != State.STOPPING && service.phase() == ServiceVisit.Phase.IDLE) {

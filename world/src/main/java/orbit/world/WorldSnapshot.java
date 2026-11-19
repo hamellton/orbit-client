@@ -75,10 +75,17 @@ public record WorldSnapshot(long nanos, Hero hero, Map<Integer, Ship> ships, Map
      */
     public record Gates(Map<Integer, Gate> gates, double money, double samples, int energyCost, List<Integer> spinAmounts,
                         int spinSelected, long infoNanos, int setupGate, int setupError, long setupNanos, int spinError,
-                        long spinNanos, Trinity trinity, Eternal eternal, Low low, Escort escort) {
+                        long spinNanos, Trinity trinity, Eternal eternal, Low low, Escort escort, Dispatch dispatch) {
 
         public static final Gates NONE = new Gates(Map.of(), -1, -1, 0, List.of(), 0, 0, 0, 0, 0, 0, 0, Trinity.NONE,
-                Eternal.NONE, Low.NONE, Escort.NONE);
+                Eternal.NONE, Low.NONE, Escort.NONE, Dispatch.NONE);
+
+        public Gates(Map<Integer, Gate> gates, double money, double samples, int energyCost, List<Integer> spinAmounts,
+                     int spinSelected, long infoNanos, int setupGate, int setupError, long setupNanos, int spinError,
+                     long spinNanos, Trinity trinity, Eternal eternal, Low low, Escort escort) {
+            this(gates, money, samples, energyCost, spinAmounts, spinSelected, infoNanos, setupGate, setupError, setupNanos,
+                    spinError, spinNanos, trinity, eternal, low, escort, Dispatch.NONE);
+        }
 
         public Gates(Map<Integer, Gate> gates, double money, double samples, int energyCost, List<Integer> spinAmounts,
                      int spinSelected, long infoNanos, int setupGate, int setupError, long setupNanos, int spinError,
@@ -171,6 +178,25 @@ public record WorldSnapshot(long nanos, Hero hero, Map<Integer, Ship> ships, Map
         public boolean known() {
             return nanos != 0;
         }
+    }
+
+    /**
+     * The dispatch window's retrievers ({@code DispatchGetRetrieverListCommand}: {@code statusType} 0 available, 1 in
+     * progress; {@code DispatchSlotInfoCommand}), its last message ({@code DispatchMessageCommand}: 0 sent, 5 no resource,
+     * 4 no slot, 8 send error…) and when each came ({@code 0} never).
+     */
+    public record Dispatch(List<Retriever> available, List<Retriever> inProgress, long availableNanos,
+                           long inProgressNanos, int freeSlots, int maxSlots, long slotsNanos, int message,
+                           long messageNanos) {
+
+        public static final Dispatch NONE = new Dispatch(List.of(), List.of(), 0, 0, -1, -1, 0, -1, 0);
+    }
+
+    /**
+     * A retriever: its number (R-01 = 13 … the client's DispatchRetrieverDefinition), its slot (0 available, 1–5 in
+     * progress) and its duration in seconds (the time left for one in progress, as of when the list came).
+     */
+    public record Retriever(int id, int slotId, double duration) {
     }
 
     /**
