@@ -340,4 +340,90 @@ class PetCareTest {
         sim.run(pet::tick, 5_000);
         assertEquals(1, launches(sim));
     }
+
+    // ---- HP Link as DarkBot (Optimoth / OrbitHelper PetStuff; the user, 2026-11-19) ----
+
+    /** Launched with HP Link (16) and the pet repair (9) among its modes, its hull full. */
+    static void launchedWithLink(Sim sim) {
+        launched(sim);
+        for (int g : new int[] {9, 16}) {
+            orbit.protocol.gen.PetGearAddCommand add = new orbit.protocol.gen.PetGearAddCommand();
+            add.gearType = new PetGearTypeModule();
+            add.gearType.typeValue = (short) g;
+            add.enabled = true;
+            sim.world.apply(add, sim.now);
+        }
+        petHull(sim, 100);
+    }
+
+    static void petHull(Sim sim, int percent) {
+        orbit.protocol.gen.PetHitpointsUpdateCommand u = new orbit.protocol.gen.PetHitpointsUpdateCommand();
+        u.hitpointsNow = percent * 1_000;
+        u.hitpointsMax = 100_000;
+        sim.world.apply(u, sim.now);
+    }
+
+    static PetCare fighting(Sim sim) {
+        PetCare pet = new PetCare(sim.ctx);
+        pet.setModuleFight(() -> 77); // an NPC fought
+        return pet;
+    }
+
+    @Test
+    void inAFightBelowTheShareTheLinkIsTaken() {
+        Sim sim = new Sim(config("GUARD", 0), 26, 10_000, 6_000);
+        owned(sim);
+        launchedWithLink(sim);
+        HealingTest.hp(sim, 60_000); // 60 %: below 0.8, the default
+        PetCare pet = fighting(sim);
+        sim.run(pet::tick, 5_000);
+        assertTrue(gears(sim).stream().anyMatch(g -> g.gearTypeToActivate.typeValue == PetGearTypeModule.PETGEARTYPE_HP_LINK),
+                "HP Link: " + gears(sim));
+    }
+
+    @Test
+    void thePetIsRepairedFirstBelowNinetySevenAndAHalf() {
+        Sim sim = new Sim(config("GUARD", 0), 26, 10_000, 6_000);
+        owned(sim);
+        launchedWithLink(sim);
+        petHull(sim, 90);
+        HealingTest.hp(sim, 60_000); // 60 %: below 0.8, the default
+        PetCare pet = fighting(sim);
+        sim.run(pet::tick, 5_000);
+        assertEquals(PetGearTypeModule.PETGEARTYPE_REPAIR_PET, gears(sim).getLast().gearTypeToActivate.typeValue,
+                "the pet's repair before the link: " + gears(sim));
+    }
+
+    @Test
+    void onItsCooldownTheLinkIsNotAskedForNorARunningOneBrokenOff() {
+        Sim sim = new Sim(config("GUARD", 0), 26, 10_000, 6_000);
+        owned(sim);
+        launchedWithLink(sim);
+        HealingTest.hp(sim, 60_000); // 60 %: below 0.8, the default
+        orbit.protocol.gen.PetBuffCommand cd = new orbit.protocol.gen.PetBuffCommand();
+        cd.effectAction = 0;
+        cd.effectId = 9; // PET_HP_LINK_GEAR: 60 s
+        cd.addingParameters = List.of(60);
+        sim.world.apply(cd, sim.now);
+        PetCare pet = fighting(sim);
+        pet.setModuleGear(() -> PetGearTypeModule.PETGEARTYPE_HP_LINK); // an NPC's flag asks too
+        sim.run(pet::tick, 5_000);
+        assertTrue(gears(sim).stream().noneMatch(g -> g.gearTypeToActivate.typeValue == PetGearTypeModule.PETGEARTYPE_HP_LINK),
+                "on its cooldown: " + gears(sim));
+        // a link running (the server's visual modifier) is kept though the hull is full and no fight goes on
+        Sim run = new Sim(config("GUARD", 0), 26, 10_000, 6_000);
+        owned(run);
+        launchedWithLink(run);
+        orbit.protocol.gen.VisualModifierCommand vm = new orbit.protocol.gen.VisualModifierCommand();
+        vm.userId = 500;
+        vm.attribute = 1;
+        vm.modifier = (short) orbit.protocol.gen.VisualModifierCommand.VISUALMODIFIER_HP_LINK;
+        vm.activated = true;
+        run.world.apply(vm, run.now);
+        assertTrue(run.world.snapshot(run.now).pet().hpLink());
+        PetCare kept = new PetCare(run.ctx);
+        run.run(kept::tick, 5_000);
+        assertEquals(PetGearTypeModule.PETGEARTYPE_HP_LINK, gears(run).getLast().gearTypeToActivate.typeValue,
+                "kept, not the config's Guard: " + gears(run));
+    }
 }

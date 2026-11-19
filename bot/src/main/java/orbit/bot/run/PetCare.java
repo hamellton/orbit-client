@@ -321,11 +321,53 @@ public final class PetCare {
     /** A fight mode's name for the log. */
     static String fightName(int gear) {
         return gear == PetGearTypeModule.PETGEARTYPE_HP_LINK ? "«HP Link»"
+                : gear == PetGearTypeModule.PETGEARTYPE_REPAIR_PET ? "«Ремонт питомца»"
                 : gear == PetGearTypeModule.PETGEARTYPE_COMBAT_BEACON ? "«Боевой маяк»" : "№" + gear;
     }
 
     public void setModuleGear(java.util.function.IntSupplier gear) {
         moduleGear = gear;
+    }
+
+    /** The NPC the module fights now (0 none): DarkBot's HP Link is used in a fight only. */
+    private volatile java.util.function.IntSupplier moduleFight = () -> 0;
+
+    public void setModuleFight(java.util.function.IntSupplier fight) {
+        moduleFight = fight;
+    }
+
+    /** DarkBot's pet repair before a link: below this share of the pet's HP (Optimoth {@code PetStuff}). */
+    static final double LINK_PET_REPAIR_BELOW = 0.975;
+
+    /**
+     * DarkBot's HP Link (Optimoth / OrbitHelper {@code PetStuff}, the CARNAGE behemoth profiles; the user, 2026-11-19:
+     * «HP Link как в DarkBot во всех модулях»), over the module's word: a link running ({@code VisualModifierCommand} 86)
+     * is kept, never broken off; else, in a fight with the rule on, the pet repaired first below 97.5 % of its HP; else the
+     * link in a fight when the hull is below the config's share (or the module asks for it: an NPC's flag) and its gear is
+     * not on its cooldown; a link asked for on its cooldown — not asked (the config's mode meanwhile). {@code -1}: none.
+     */
+    int linkGear(BotConfig.Pet cfg, WorldSnapshot.Pet pet, int asked, long now) {
+        int link = PetGearTypeModule.PETGEARTYPE_HP_LINK;
+        boolean has = pet.gears().isEmpty() || pet.gears().contains(link);
+        if (!has) {
+            return asked;
+        }
+        if (pet.hpLink()) {
+            return link; // running: kept till it ends (SharedPlugin's PetGearHelper never breaks a restricted gear)
+        }
+        boolean fighting = moduleFight.getAsInt() != 0;
+        double below = cfg.hpLinkShare();
+        double petHp = pet.health().known() ? pet.health().hpPercent() : 1;
+        int repair = PetGearTypeModule.PETGEARTYPE_REPAIR_PET;
+        if (fighting && below > 0 && petHp < LINK_PET_REPAIR_BELOW && pet.gears().contains(repair)) {
+            return repair;
+        }
+        double hero = ctx.world().get().hero().health().hpPercent();
+        boolean wanted = asked == link || fighting && below > 0 && hero >= 0 && hero < below;
+        if (wanted && fighting && pet.hpLinkReady(now)) {
+            return link;
+        }
+        return asked == link ? -1 : asked; // on its cooldown, or out of a fight: not asked
     }
 
     private void gear(BotConfig.Pet cfg, WorldSnapshot.Pet pet, long now) {
@@ -336,7 +378,7 @@ public final class PetCare {
             noLocatorTold = true;
             log.warn("Питомец: у него нет «Пеленгатора врагов» — цель модуля (NPC № {}) ищу без него", quest);
         }
-        int fightGear = trade || kamikazeOn ? -1 : moduleGear.getAsInt();
+        int fightGear = trade || kamikazeOn ? -1 : linkGear(cfg, pet, moduleGear.getAsInt(), now);
         boolean byFight = fightGear >= 0 && (pet.gears().isEmpty() || pet.gears().contains(fightGear));
         if (fightGear >= 0 && !byFight && missingFightGear != fightGear) {
             missingFightGear = fightGear; // once: the NPC's flag asks for a mode the pet does not have

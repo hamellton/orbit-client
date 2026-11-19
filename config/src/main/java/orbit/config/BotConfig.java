@@ -850,7 +850,22 @@ public record BotConfig(
      */
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public record Pet(boolean enabled, String gear, int locatorTarget, boolean noRepair, double comboRepairBelow,
-                      Kamikaze kamikaze, Boolean buyFuel) {
+                      Kamikaze kamikaze, Boolean buyFuel, Double hpLinkBelow) {
+
+        /**
+         * DarkBot's HP Link (Optimoth / OrbitHelper {@code petLinkHp}; CARNAGE's BEHE SPEARHEAD 0.8): in a fight the
+         * pet's HP Link when the hull is below this share — 0 = this rule off (an NPC's {@code HP_LINK} flag still asks).
+         */
+        public static final double DEFAULT_HP_LINK_BELOW = 0.8;
+
+        public double hpLinkShare() {
+            return hpLinkBelow == null ? DEFAULT_HP_LINK_BELOW : Math.max(0, Math.min(1, hpLinkBelow));
+        }
+
+        public Pet(boolean enabled, String gear, int locatorTarget, boolean noRepair, double comboRepairBelow,
+                   Kamikaze kamikaze, Boolean buyFuel) {
+            this(enabled, gear, locatorTarget, noRepair, comboRepairBelow, kamikaze, buyFuel, null);
+        }
 
         /** The locator's NPC number when none is set: Cubikon (matched by the locator's points, 2026-11-11). */
         public static final int CUBIKON_LOCATOR = 13;
@@ -866,6 +881,10 @@ public record BotConfig(
             locatorTarget = locatorTarget <= 0 ? CUBIKON_LOCATOR : locatorTarget;
             kamikaze = kamikaze == null ? Kamikaze.OFF : kamikaze;
             buyFuel = buyFuel != null && buyFuel;
+        }
+
+        public Pet withHpLinkBelow(double share) {
+            return new Pet(enabled, gear, locatorTarget, noRepair, comboRepairBelow, kamikaze, buyFuel, share);
         }
 
         public Pet(boolean enabled, String gear, int locatorTarget, boolean noRepair, double comboRepairBelow,

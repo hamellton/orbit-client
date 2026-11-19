@@ -602,15 +602,41 @@ public record WorldSnapshot(long nanos, Hero hero, Map<Integer, Ship> ships, Map
      *                       this map yet
      * @param locatorNoneNanos when the locator last said «nothing» (its point in the map's corner, -1/-1): its target is
      *                         not on this map now; 0 never
+     * @param hpLink   the HP Link is working now ({@code VisualModifierCommand} HP_LINK 86 on the pet or the hero — DarkBot's
+     *                 «effect 326»)
+     * @param hpLinkReadyNanos the HP Link gear's cooldown ends then ({@code PetBuffCommand} buff 9 PET_HP_LINK_GEAR with
+     *                         its seconds; removed — ready), 0 ready
      */
     public record Pet(boolean owned, boolean alive, boolean hasFuel, boolean active, int id, String name, int level,
                       Health health, int fuel, int fuelMax, double heat, double heatMax, int gear, long gearNanos,
                       java.util.Set<Integer> gears, int repairCost, boolean comboRepair, int locatorX, int locatorY,
                       long locatorNanos, long locatorNoneNanos, java.util.List<Integer> locatorTargets,
-                      long locatorTargetsNanos) {
+                      long locatorTargetsNanos, boolean hpLink, long hpLinkReadyNanos) {
 
         static final Pet NONE = new Pet(false, false, false, false, 0, "", 0, Health.UNKNOWN, -1, -1, -1, -1, -1, 0,
                 java.util.Set.of(), -1, false, 0, 0, 0, 0, java.util.List.of(), 0);
+
+        public Pet(boolean owned, boolean alive, boolean hasFuel, boolean active, int id, String name, int level,
+                   Health health, int fuel, int fuelMax, double heat, double heatMax, int gear, long gearNanos,
+                   java.util.Set<Integer> gears, int repairCost, boolean comboRepair, int locatorX, int locatorY,
+                   long locatorNanos, long locatorNoneNanos, java.util.List<Integer> locatorTargets,
+                   long locatorTargetsNanos) {
+            this(owned, alive, hasFuel, active, id, name, level, health, fuel, fuelMax, heat, heatMax, gear, gearNanos, gears,
+                    repairCost, comboRepair, locatorX, locatorY, locatorNanos, locatorNoneNanos, locatorTargets,
+                    locatorTargetsNanos, false, 0);
+        }
+
+        /** The same with the HP Link's state. */
+        public Pet withHpLink(boolean on, long readyNanos) {
+            return new Pet(owned, alive, hasFuel, active, id, name, level, health, fuel, fuelMax, heat, heatMax, gear,
+                    gearNanos, gears, repairCost, comboRepair, locatorX, locatorY, locatorNanos, locatorNoneNanos,
+                    locatorTargets, locatorTargetsNanos, on, readyNanos);
+        }
+
+        /** The HP Link gear may be used at {@code nowNanos}: not on its cooldown. */
+        public boolean hpLinkReady(long nowNanos) {
+            return hpLinkReadyNanos == 0 || nowNanos >= hpLinkReadyNanos;
+        }
 
         /** The locator's point is this fresh (ms) or newer. */
         public boolean locatorWithin(long nowNanos, long ms) {

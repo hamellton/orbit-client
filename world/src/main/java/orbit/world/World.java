@@ -198,7 +198,10 @@ public final class World {
             return;
         }
         switch (packet) {
-            case ShipInitializationCommand p -> initHero(p, nanos);
+            case ShipInitializationCommand p -> {
+                hpLink = false; // a new map or login: the link's end may have been sent to the old one
+                initHero(p, nanos);
+            }
             case orbit.protocol.gen.CPUInitializationCommand p -> jumpCpuEquipped = p.advancedJumpCPUEquipped;
             case orbit.protocol.gen.DroneFormationChangeCommand p when p.uid == hero.id && hero.id != 0 -> {
                 hero.formation = p.selectedFormationId;
@@ -211,6 +214,7 @@ public final class World {
             case ShipRemoveCommand p -> removeShip(p.userId);
             case ShipDestroyedCommand p -> destroyed(p.destroyedUserId, nanos);
             case PetHeroActivationCommand p -> {
+                hpLink = false; // a pet launched anew: no link running (its end may have come while it was in)
                 activatePet(p.petId, p.ownerId, p.petName, p.factionId, p.clanId, p.clanTag, 0, p.x, p.y, nanos);
                 pet = pet(true, pet.alive() || pet.id() == 0, pet.hasFuel(), true, p.petId, p.petName, p.petLevel,
                         pet.health(), pet.fuel(), pet.fuelMax(), pet.heat(), pet.heatMax(), pet.gear());
@@ -276,6 +280,13 @@ public final class World {
             }
             case orbit.protocol.gen.PetBuffCommand p when p.effectId == 6 -> pet = petWith(pet.gearNanos(), pet.gears(),
                     pet.repairCost(), p.effectAction == 0);
+            // the HP Link gear's cooldown (the client's PetAssembly: buff PET_HP_LINK_GEAR 9, its seconds the parameter)
+            case orbit.protocol.gen.PetBuffCommand p when p.effectId == 9 -> hpLinkReadyNanos = p.effectAction == 0
+                    && !p.addingParameters.isEmpty() ? nanos + p.addingParameters.getFirst() * 1_000_000_000L : 0;
+            // the HP Link working (the client: VISUALMODIFIER_HP_LINK on the pet or the hero, the other end its attribute)
+            case orbit.protocol.gen.VisualModifierCommand p
+                    when p.modifier == orbit.protocol.gen.VisualModifierCommand.VISUALMODIFIER_HP_LINK
+                    && (p.userId == pet.id() || p.userId == hero.id || p.attribute == hero.id) -> hpLink = p.activated;
             case PetLevelUpdateCommand p -> pet = pet(pet.owned(), pet.alive(), pet.hasFuel(), pet.active(), pet.id(),
                     pet.name(), p.petLevel, pet.health(), pet.fuel(), pet.fuelMax(), pet.heat(), pet.heatMax(), pet.gear());
             case PetStatusCommand p -> petStatus(p);
@@ -708,7 +719,7 @@ public final class World {
                 Map.copyOf(assets), Map.copyOf(zones), group, Map.copyOf(items),
                 new WorldSnapshot.Inventory(Map.copyOf(ores), Map.copyOf(resources), Map.copyOf(bootyKeys),
                         Map.copyOf(tradePrices), tradeNanos, petTradeNanos, Map.copyOf(recipes), lab, oresNanos,
-                        loginNanos), pet,
+                        loginNanos), pet.withHpLink(hpLink && pet.active(), hpLinkReadyNanos),
                 Map.copyOf(activatable), jumpingTo, death, java.util.Set.copyOf(slotItems), recentKills(nanos),
                 new WorldSnapshot.Rewards(gainedCredits, gainedUridium, gainedHonor, gainedExperience, Map.copyOf(loot),
                         spentCredits, spentUridium),
@@ -725,6 +736,9 @@ public final class World {
     }
 
     private WorldSnapshot.Escort escort = WorldSnapshot.Escort.NONE;
+    /** The HP Link working ({@code VisualModifierCommand} 86), its gear's cooldown end ({@code PetBuffCommand} 9). */
+    private boolean hpLink;
+    private long hpLinkReadyNanos;
 
     private void escortTimes(orbit.protocol.gen.PayloadEscortTimeInfoCommand p, long nanos) {
         escort = escort.withTimes(p.timeToNextSpawn, p.timeToGateClose, p.timeToSessionEnd, nanos);

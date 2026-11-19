@@ -29,6 +29,8 @@ final class PetSection implements Section {
     private final JCheckBox buyFuel = new JCheckBox("Покупать топливо, когда кончилось");
     private final JCheckBox combo = new JCheckBox("Комбо-ремонт при HP ниже");
     private final JSpinner comboBelow = Form.percent();
+    private final javax.swing.JCheckBox hpLink = new javax.swing.JCheckBox("HP Link в бою, когда HP корабля ниже");
+    private final JSpinner hpLinkBelow = Form.percent();
     private final JCheckBox kamikaze = new JCheckBox("Камикадзе, когда рядом враги");
     private final JSpinner kamikazeNpcs = Form.number(0, 100, 1);
     private final JCheckBox kamikazeFlagged = new JCheckBox("NPC с флагом KAMIKAZE (список NPC)");
@@ -64,6 +66,9 @@ final class PetSection implements Section {
                 .row("", repair)
                 .row("", buyFuel)
                 .row("", Form.inline(combo, comboBelow, new javax.swing.JLabel("%")))
+                .row("", Form.inline(hpLink, hpLinkBelow, new javax.swing.JLabel("%")))
+                .note("HP Link как в DarkBot: идущий не прерывается, на перезарядке не просится; сначала чинится питомец,"
+                        + " если у него меньше 97,5 % HP. Флаг HP_LINK у NPC просит его и без порога.")
                 .note("Комбо-ремонт — когда по кораблю ~11 с не стреляли.")
                 .section("Камикадзе")
                 .row("", kamikaze)
@@ -112,6 +117,8 @@ final class PetSection implements Section {
         locator.setText(shown + " ▾");
         repair.setSelected(!p.noRepair());
         buyFuel.setSelected(p.buyFuel());
+        hpLink.setSelected(p.hpLinkShare() > 0);
+        Form.setFraction(hpLinkBelow, p.hpLinkShare() > 0 ? p.hpLinkShare() : BotConfig.Pet.DEFAULT_HP_LINK_BELOW);
         combo.setSelected(p.comboRepairBelow() > 0);
         Form.setFraction(comboBelow, p.comboRepairBelow() > 0 ? p.comboRepairBelow() : 0.5);
         BotConfig.Kamikaze k = p.kamikaze();
@@ -136,6 +143,13 @@ final class PetSection implements Section {
             throw new IllegalArgumentException("Питомец: для камикадзе задайте число NPC или флаг KAMIKAZE");
         }
         return c.withPet(new BotConfig.Pet(enabled.isSelected(), gear.get(), Integer.parseInt(m.group(1)),
-                !repair.isSelected(), combo.isSelected() ? Form.fraction(comboBelow) : 0, k, buyFuel.isSelected()));
+                !repair.isSelected(), combo.isSelected() ? Form.fraction(comboBelow) : 0, k, buyFuel.isSelected(),
+                linkShare(c)));
+    }
+
+    /** The HP Link share set; an older config's unset one stays unset while it is the default. */
+    private Double linkShare(BotConfig c) {
+        double v = hpLink.isSelected() ? Form.fraction(hpLinkBelow) : 0.0;
+        return c.pet().hpLinkBelow() == null && Math.abs(v - BotConfig.Pet.DEFAULT_HP_LINK_BELOW) < 1e-6 ? null : v;
     }
 }
