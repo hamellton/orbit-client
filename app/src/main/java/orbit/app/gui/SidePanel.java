@@ -29,6 +29,8 @@ final class SidePanel extends JPanel implements Scrollable {
 
     /** Where each card was drawn last, for the right-click menu. */
     private volatile java.util.Map<java.awt.Rectangle, ViewSettings.Block> cardsAt = java.util.Map.of();
+    /** The cards as last painted, by their place: what a click inside one does («Итоги»: «ещё N»). */
+    private volatile java.util.Map<java.awt.Rectangle, Hud.Card> cardObjects = java.util.Map.of();
 
     SidePanel(WorldFeed feed, Supplier<String> config) {
         this.feed = feed;
@@ -50,6 +52,21 @@ final class SidePanel extends JPanel implements Scrollable {
             @Override
             public void mouseClicked(java.awt.event.MouseEvent e) {
                 java.awt.Rectangle r = hoverCard;
+                if (javax.swing.SwingUtilities.isLeftMouseButton(e) && r != null && !menuButton(r).contains(e.getPoint())) {
+                    Hud.Card card = cardObjects.get(r);
+                    if (card != null && card.click(e.getPoint())) {
+                        ViewSettings.Block b = blockAt(cardsAt, e.getPoint());
+                        synchronized (SidePanel.this) {
+                            Slot sl = b == null ? null : slots.get(b);
+                            if (sl != null) {
+                                sl.height = 0; // folded: its room back at once, not after the steady hold
+                            }
+                        }
+                        revalidate();
+                        repaint();
+                        return;
+                    }
+                }
                 if (javax.swing.SwingUtilities.isLeftMouseButton(e) && r != null && menuButton(r).contains(e.getPoint())) {
                     ViewSettings.Block b = blockAt(cardsAt, e.getPoint());
                     if (b != null) {
@@ -198,12 +215,15 @@ final class SidePanel extends JPanel implements Scrollable {
             int n = columns(width);
             int cw = (width - (n - 1) * GAP) / n;
             java.util.Map<java.awt.Rectangle, ViewSettings.Block> placed = new java.util.LinkedHashMap<>();
+            java.util.Map<java.awt.Rectangle, Hud.Card> objects = new java.util.HashMap<>();
             int max = 0;
             for (Placed p : layout(width, System.currentTimeMillis())) {
                 int x = p.column() * (cw + GAP);
                 if (p.card() != null) {
                     p.card().paint(g, x, p.y(), cw);
-                    placed.put(new java.awt.Rectangle(x, p.y(), cw, p.card().height(cw)), p.block());
+                    java.awt.Rectangle at = new java.awt.Rectangle(x, p.y(), cw, p.card().height(cw));
+                    placed.put(at, p.block());
+                    objects.put(at, p.card());
                 }
                 max = Math.max(max, p.y() + p.height() + GAP);
             }
@@ -212,6 +232,7 @@ final class SidePanel extends JPanel implements Scrollable {
                 paintLiveHint(g, (n - 1) * (cw + GAP), cw);
             }
             cardsAt = placed;
+            cardObjects = objects;
             java.awt.Rectangle hc = hoverCard;
             for (java.awt.Rectangle r : placed.keySet()) {
                 paintMenu(g, r, r.equals(hc));
@@ -257,11 +278,13 @@ final class SidePanel extends JPanel implements Scrollable {
             }
         }
         boolean onButton = card != null && menuButton(card).contains(p);
+        Hud.Card obj = card == null ? null : cardObjects.get(card);
+        boolean link = obj != null && obj.clickable(p); // «ещё N» in «Итоги»
+        setCursor(onButton || link ? java.awt.Cursor.getPredefinedCursor(java.awt.Cursor.HAND_CURSOR)
+                : java.awt.Cursor.getDefaultCursor());
         if (!java.util.Objects.equals(card, hoverCard) || onButton != hoverButton) {
             hoverCard = card;
             hoverButton = onButton;
-            setCursor(onButton ? java.awt.Cursor.getPredefinedCursor(java.awt.Cursor.HAND_CURSOR)
-                    : java.awt.Cursor.getDefaultCursor());
             repaint();
         }
     }

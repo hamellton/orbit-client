@@ -51,7 +51,23 @@ final class Hud {
         int height(int width);
 
         void paint(Graphics2D g, int x, int y, int width);
+
+        /** A point of the card (as last painted) that does something when clicked. */
+        default boolean clickable(java.awt.Point p) {
+            return false;
+        }
+
+        /** A click at a point of the card (as last painted); true when it did something. */
+        default boolean click(java.awt.Point p) {
+            return false;
+        }
     }
+
+    /**
+     * «Итоги» shows all the loot, not the first {@link #STAT_LOOT_ROWS} and «ещё N» (the user, 2026-11-19: «по нажатию
+     * на ещё открывать все»); clicked again («свернуть») — short again.
+     */
+    boolean allLoot;
 
     private final Font base;
 
@@ -1369,13 +1385,17 @@ final class Hud {
                 .toList();
         if (!loot.isEmpty()) {
             rows.add(StatRow.group("Добыча"));
-            int shown = Math.min(loot.size(), STAT_LOOT_ROWS);
+            // more than the short list and one row over: «ещё N» opens them all, «свернуть» closes them again
+            boolean all = allLoot || loot.size() <= STAT_LOOT_ROWS + 1;
+            int shown = all ? loot.size() : STAT_LOOT_ROWS;
             for (String id : loot.subList(0, shown)) {
                 rows.add(new StatRow(orbit.app.SessionSummary.displayName(id), r.items().getOrDefault(id, 0.0),
                         day.items().getOrDefault(id, 0.0), true));
             }
             if (loot.size() > shown) {
-                rows.add(StatRow.group("ещё " + (loot.size() - shown)));
+                rows.add(StatRow.group(MORE + (loot.size() - shown) + " — показать все"));
+            } else if (allLoot && loot.size() > STAT_LOOT_ROWS + 1) {
+                rows.add(StatRow.group(LESS));
             }
         }
         Font labelFont = font(Font.PLAIN, 11f);
@@ -1384,15 +1404,33 @@ final class Hud {
         String clock = feed.sessionStartNanos() == 0 ? "" : "сессия " + clock(java.time.Duration.ofNanos(feed.sessionNanos()));
         int rowH = line;
         return new Card() {
+            /** Where the «ещё N» / «свернуть» row was painted last. */
+            private java.awt.Rectangle toggle;
+
             @Override
             public int height(int width) {
                 return pad + head + rowH + rows.size() * rowH + pad - 2;
             }
 
             @Override
+            public boolean clickable(java.awt.Point p) {
+                return toggle != null && toggle.contains(p);
+            }
+
+            @Override
+            public boolean click(java.awt.Point p) {
+                if (!clickable(p)) {
+                    return false;
+                }
+                allLoot = !allLoot;
+                return true;
+            }
+
+            @Override
             public void paint(Graphics2D g, int x, int y, int width) {
                 frame(g, x, y, width, height(width), new Color(0xa78bfa));
                 heading(g, x, y, width, "Итоги", clock);
+                toggle = null;
                 FontMetrics nm = g.getFontMetrics(numFont);
                 // the number columns as wide as their widest cell (the heading too), the name takes the rest
                 String[] heads = rates ? new String[] {"сессия", "в час", "сегодня"} : new String[] {"сессия", "сегодня"};
@@ -1433,11 +1471,17 @@ final class Hud {
                 int stripe = 0;
                 for (StatRow row : rows) {
                     if (row.group) {
+                        boolean link = row.label.startsWith(MORE) || row.label.equals(LESS);
                         g.setFont(headFont);
-                        g.setColor(row.label.startsWith("ещё") ? DIM : new Color(0xa78bfa));
+                        g.setColor(link ? ACCENT_LINK : new Color(0xa78bfa));
                         g.drawString(row.label, x + pad, ry + 11);
+                        if (link) {
+                            int w2 = hm.stringWidth(row.label);
+                            g.drawLine(x + pad, ry + 13, x + pad + w2, ry + 13);
+                            toggle = new java.awt.Rectangle(x + pad - 4, ry, w2 + 8, rowH);
+                        }
                         g.setColor(CARD_EDGE);
-                        if (!row.label.startsWith("ещё")) {
+                        if (!link) {
                             int lx = x + pad + hm.stringWidth(row.label) + 6;
                             g.drawLine(lx, ry + 7, x + width - pad, ry + 7);
                         }
@@ -1471,8 +1515,11 @@ final class Hud {
         };
     }
 
-    /** At most this many loot rows in «Итоги»; the rest as «ещё N». */
+    /** At most this many loot rows in «Итоги»; the rest as «ещё N», a click opens them all ({@link #allLoot}). */
     static final int STAT_LOOT_ROWS = 8;
+    static final String MORE = "ещё ";
+    static final String LESS = "свернуть";
+    static final Color ACCENT_LINK = new Color(0x7aa7d6);
 
     /** One row of «Итоги»: a name with the session's and today's value, or a group's heading. */
     static final class StatRow {
