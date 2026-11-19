@@ -1745,7 +1745,7 @@
     "jitterMinutes": 0
   },
   "flee": {
-    "mode": "ATTACKERS",
+    "mode": "OFF",
     "sight": 2000,
     "rememberSec": 60,
     "jump": true,
