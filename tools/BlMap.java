@@ -151,12 +151,12 @@ public class BlMap {
                 // the user (2026-11-20): on 1-BL along the radiation on the right, on 3-BL along it on the left — no
                 // train goes there; the config's avoided zones (rectangles here) close the middle
                 // only the approach inside the pocket (the user, 2026-11-20): 1-BL and 3-BL — right by the radiation, at the
-                // screen's edge (a strip of ~600 left open); 2-BL — the pocket closed but the strip under its top bar and
+                // screen's very edge (a strip of ~250 left open: the navigator keeps 80 off a zone, none off the edge); 2-BL — the pocket closed but the strip under its top bar and
                 // the one along its left wall: to the bottom-left corner along the wall, not across
                 double[][][] zones = {
-                    {{18650, 1450, 20400, 7000}},
+                    {{18650, 1450, 20750, 7000}},
                     {{5500, 2600, 8573, 6133}},
-                    {{600, 3500, 6200, 9000}}};
+                    {{250, 3500, 6200, 9000}}};
                 int[][][] from = {{{20072, 11732}, {7589, 1456}}, {{9893, 862}, {20377, 7996}, {593, 5884}},
                     {{1545, 12210}, {19400, 11854}}};
                 int[][] wait = {{19400, 7700}, {5150, 5850}, {2650, 2350}};
@@ -431,7 +431,7 @@ public class BlMap {
     static boolean freeCell(int cx, int cy) {
         double x = cx * CELL + CELL / 2.0, y = cy * CELL + CELL / 2.0;
         for (double[] z : extraBlocked) if (x >= z[0] && x <= z[2] && y >= z[1] && y <= z[3]) return false;
-        if (x < 150 || y < 150 || x > W - 150 || y > H - 150) return false;
+        if (x < 50 || y < 50 || x > W - 50 || y > H - 50) return false; // the bot's navigator keeps no room off the edge
         for (double[] w : walls) {
             if (w[3] < 0 ? Math.hypot(x - w[0], y - w[1]) < w[2] + ROUTE_MARGIN
                     : x > w[0] - ROUTE_MARGIN && x < w[2] + ROUTE_MARGIN && y > w[1] - ROUTE_MARGIN && y < w[3] + ROUTE_MARGIN) return false;
