@@ -129,7 +129,14 @@ final class SidePanel extends JPanel implements Scrollable {
         }
         int[] col = new int[n];
         List<Placed> out = new java.util.ArrayList<>();
-        for (ViewSettings.Block b : ViewSettings.Block.values()) {
+        // SPLIT: the live cards (the fight's, the group) in the last column of their own when there are two or more,
+        // else under the steady ones — their growing and shrinking moves nothing else (the user, 2026-11-19)
+        boolean split = ViewSettings.shared().cardLayout() == ViewSettings.CardLayout.SPLIT;
+        List<ViewSettings.Block> order = new java.util.ArrayList<>(List.of(ViewSettings.Block.values()));
+        if (split) {
+            order.sort(java.util.Comparator.comparingInt(b -> b.live() ? 1 : 0));
+        }
+        for (ViewSettings.Block b : order) {
             Hud.Card c = here.get(b);
             Slot sl = slots.get(b);
             if (c == null) {
@@ -151,7 +158,13 @@ final class SidePanel extends JPanel implements Scrollable {
                 sl.goneSince = 0;
                 steady(sl, c.height(cw), now);
             }
-            if (sl.column < 0 || sl.column >= n) {
+            if (split && n >= 2) {
+                if (b.live()) {
+                    sl.column = n - 1;
+                } else if (sl.column < 0 || sl.column >= n - 1) {
+                    sl.column = shortest(java.util.Arrays.copyOf(col, n - 1));
+                }
+            } else if (sl.column < 0 || sl.column >= n) {
                 sl.column = shortest(col);
             }
             int i = sl.column;
@@ -194,6 +207,10 @@ final class SidePanel extends JPanel implements Scrollable {
                 }
                 max = Math.max(max, p.y() + p.height() + GAP);
             }
+            if (ViewSettings.shared().cardLayout() == ViewSettings.CardLayout.SPLIT && n >= 2
+                    && placed.keySet().stream().noneMatch(r -> r.x >= (n - 1) * (cw + GAP))) {
+                paintLiveHint(g, (n - 1) * (cw + GAP), cw);
+            }
             cardsAt = placed;
             java.awt.Rectangle hc = hoverCard;
             for (java.awt.Rectangle r : placed.keySet()) {
@@ -206,6 +223,23 @@ final class SidePanel extends JPanel implements Scrollable {
         } finally {
             g.dispose();
         }
+    }
+
+    /** The live column with nothing in it: a quiet dashed place saying what comes there, not a gap that looks broken. */
+    private void paintLiveHint(Graphics2D g, int x, int w) {
+        java.awt.Stroke was = g.getStroke();
+        g.setColor(new java.awt.Color(0x2c3446));
+        g.setStroke(new java.awt.BasicStroke(1f, java.awt.BasicStroke.CAP_BUTT, java.awt.BasicStroke.JOIN_ROUND, 1f,
+                new float[] {4f, 4f}, 0f));
+        g.draw(new java.awt.geom.RoundRectangle2D.Double(x + 0.5, 0.5, w - 1, 52, 10, 10));
+        g.setStroke(was);
+        g.setColor(Hud.DIM);
+        g.setFont(getFont().deriveFont(12f));
+        java.awt.FontMetrics fm = g.getFontMetrics();
+        String a = "Боя нет";
+        String b = "цель, атакующие, бустеры, группа — здесь";
+        g.drawString(a, x + 12, 8 + fm.getAscent());
+        g.drawString(fm.stringWidth(b) <= w - 24 ? b : "бой — здесь", x + 12, 8 + fm.getAscent() + fm.getHeight() + 2);
     }
 
     /** The card under the mouse ({@code null} none): its frame lit and its «⋯» button shown. */

@@ -117,6 +117,16 @@ final class BlockMenu {
             ground.add(r);
         }
         out.add(ground);
+        javax.swing.JMenu cards = new javax.swing.JMenu("Карточки сбоку:  " + (v.cardLayout() == ViewSettings.CardLayout.SPLIT
+                ? "живые отдельно" : "как раньше"));
+        ButtonGroup layouts = new ButtonGroup();
+        for (ViewSettings.CardLayout l : ViewSettings.CardLayout.values()) {
+            JRadioButtonMenuItem r = new JRadioButtonMenuItem(l.label, v.cardLayout() == l);
+            r.addActionListener(e -> v.setCardLayout(l));
+            layouts.add(r);
+            cards.add(r);
+        }
+        out.add(cards);
         return out.toArray(JMenuItem[]::new);
     }
 

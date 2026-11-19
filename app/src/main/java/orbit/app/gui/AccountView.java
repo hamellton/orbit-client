@@ -85,6 +85,11 @@ final class AccountView extends JPanel {
     static final int WIDE = 980;
     /** The side column grows up to this. */
     static final int MAX_SIDE = 440;
+    /**
+     * With the live cards apart ({@link ViewSettings.CardLayout#SPLIT}) the side takes up to two columns — only the
+     * room the map leaves (the map is as big as the height allows and keeps that size).
+     */
+    static final int MAX_SPLIT_SIDE = 2 * 360 + SidePanel.GAP;
 
     private final MainWindow.Tab tab;
     private final MinimapPanel map;
@@ -190,7 +195,8 @@ final class AccountView extends JPanel {
             if (beside) {
                 // the map as big as the height allows, the cards take the rest (within limits), no dead strip
                 int mapW = (int) Math.min(w - SidePanel.MIN_COLUMN - gap, h * MainWindow.Grid.ASPECT);
-                int sideW = Math.min(MAX_SIDE, w - mapW - gap);
+                int sideW = Math.min(ViewSettings.shared().cardLayout() == ViewSettings.CardLayout.SPLIT
+                        ? MAX_SPLIT_SIDE : MAX_SIDE, w - mapW - gap);
                 int left = x + (w - mapW - gap - sideW) / 2;
                 map.setBounds(left, y, mapW, h);
                 sideScroll.setBounds(left + mapW + gap, y, sideW, h);

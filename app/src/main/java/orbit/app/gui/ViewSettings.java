@@ -38,6 +38,14 @@ public final class ViewSettings {
             this.label = label;
         }
 
+        /**
+         * A card that grows and shrinks all the time — the fight's and the group's (the user, 2026-11-19: «карточки
+         * прыгают»): with {@link CardLayout#SPLIT} in a column of their own, or under the steady ones.
+         */
+        boolean live() {
+            return this == TARGET || this == ATTACKERS || this == BOOSTERS || this == GROUP;
+        }
+
         /** The column on the map: the fight and the results right, the ship and its state left. */
         boolean right() {
             return this == TARGET || this == ATTACKERS || this == BOOSTERS || this == STATS;
@@ -124,6 +132,31 @@ public final class ViewSettings {
     }
 
     private Numbers numbers = Numbers.EXACT;
+
+    /** How the side panel lays its cards out (the user, 2026-11-19: to be tried, and undone with one click). */
+    public enum CardLayout {
+        SPLIT("Живые отдельно — цель, атакующие, бустеры, группа"),
+        MASONRY("Как раньше — по самой короткой колонке");
+
+        public final String label;
+
+        CardLayout(String label) {
+            this.label = label;
+        }
+    }
+
+    private CardLayout cardLayout = CardLayout.SPLIT;
+
+    public synchronized CardLayout cardLayout() {
+        return cardLayout;
+    }
+
+    public void setCardLayout(CardLayout l) {
+        synchronized (this) {
+            cardLayout = l;
+        }
+        changed();
+    }
     /** Under the map's marks (the user, 2026-11-16): the game's minimap picture, a dark ground, or DarkBot's slate. */
     public enum MapBackground {
         PICTURE("Картинка игры"),
@@ -186,6 +219,11 @@ public final class ViewSettings {
                     v.mapBackground = MapBackground.valueOf(p.getProperty("map.background", MapBackground.PICTURE.name()));
                 } catch (IllegalArgumentException ignored) {
                     // an old or broken value: the picture
+                }
+                try {
+                    v.cardLayout = CardLayout.valueOf(p.getProperty("cards.layout", CardLayout.SPLIT.name()));
+                } catch (IllegalArgumentException ignored) {
+                    // an old or broken value: the split
                 }
                 try {
                     v.numbers = Numbers.valueOf(p.getProperty("numbers", Numbers.EXACT.name()));
@@ -294,6 +332,7 @@ public final class ViewSettings {
         places.forEach((b, pl) -> p.setProperty("block." + b.name(), pl.name()));
         shown.forEach((s, on) -> p.setProperty("section." + s.name(), String.valueOf(on)));
         p.setProperty("numbers", numbers.name());
+        p.setProperty("cards.layout", cardLayout.name());
         p.setProperty("map.background", mapBackground.name());
         try {
             Files.createDirectories(file.getParent());
