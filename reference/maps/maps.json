@@ -570,7 +570,8 @@
    "height": 13100,
    "type": "",
    "homeFaction": 0,
-   "group": "GG"
+   "group": "GG",
+   "minimap": 57
   },
   {
    "id": 78,
@@ -580,7 +581,8 @@
    "height": 13100,
    "type": "",
    "homeFaction": 0,
-   "group": "GG"
+   "group": "GG",
+   "minimap": 57
   },
   {
    "id": 81,
@@ -590,7 +592,8 @@
    "height": 6550,
    "type": "",
    "homeFaction": 0,
-   "group": "TDM"
+   "group": "TDM",
+   "minimap": 201
   },
   {
    "id": 82,
@@ -600,7 +603,8 @@
    "height": 6550,
    "type": "",
    "homeFaction": 0,
-   "group": "TDM"
+   "group": "TDM",
+   "minimap": 201
   },
   {
    "id": 91,
@@ -660,7 +664,8 @@
    "height": 6550,
    "type": "",
    "homeFaction": 0,
-   "group": ""
+   "group": "",
+   "minimap": 101
   },
   {
    "id": 103,
@@ -670,7 +675,8 @@
    "height": 6550,
    "type": "",
    "homeFaction": 0,
-   "group": ""
+   "group": "",
+   "minimap": 101
   },
   {
    "id": 104,
@@ -680,7 +686,8 @@
    "height": 6550,
    "type": "",
    "homeFaction": 0,
-   "group": ""
+   "group": "",
+   "minimap": 101
   },
   {
    "id": 105,
@@ -690,7 +697,8 @@
    "height": 6550,
    "type": "",
    "homeFaction": 0,
-   "group": ""
+   "group": "",
+   "minimap": 101
   },
   {
    "id": 106,
@@ -700,7 +708,8 @@
    "height": 6550,
    "type": "",
    "homeFaction": 0,
-   "group": ""
+   "group": "",
+   "minimap": 101
   },
   {
    "id": 107,
@@ -710,7 +719,8 @@
    "height": 6550,
    "type": "",
    "homeFaction": 0,
-   "group": ""
+   "group": "",
+   "minimap": 101
   },
   {
    "id": 108,
@@ -720,7 +730,8 @@
    "height": 6550,
    "type": "",
    "homeFaction": 0,
-   "group": ""
+   "group": "",
+   "minimap": 101
   },
   {
    "id": 109,
@@ -730,7 +741,8 @@
    "height": 6550,
    "type": "",
    "homeFaction": 0,
-   "group": ""
+   "group": "",
+   "minimap": 101
   },
   {
    "id": 110,
@@ -740,7 +752,8 @@
    "height": 6550,
    "type": "",
    "homeFaction": 0,
-   "group": ""
+   "group": "",
+   "minimap": 101
   },
   {
    "id": 111,
@@ -750,7 +763,8 @@
    "height": 6550,
    "type": "",
    "homeFaction": 0,
-   "group": ""
+   "group": "",
+   "minimap": 101
   },
   {
    "id": 112,
@@ -770,7 +784,8 @@
    "height": 6550,
    "type": "",
    "homeFaction": 0,
-   "group": ""
+   "group": "",
+   "minimap": 112
   },
   {
    "id": 114,
@@ -780,7 +795,8 @@
    "height": 6550,
    "type": "",
    "homeFaction": 0,
-   "group": ""
+   "group": "",
+   "minimap": 112
   },
   {
    "id": 115,
@@ -790,7 +806,8 @@
    "height": 6550,
    "type": "",
    "homeFaction": 0,
-   "group": ""
+   "group": "",
+   "minimap": 112
   },
   {
    "id": 116,
@@ -800,7 +817,8 @@
    "height": 6550,
    "type": "",
    "homeFaction": 0,
-   "group": ""
+   "group": "",
+   "minimap": 112
   },
   {
    "id": 117,
@@ -810,7 +828,8 @@
    "height": 6550,
    "type": "",
    "homeFaction": 0,
-   "group": ""
+   "group": "",
+   "minimap": 112
   },
   {
    "id": 118,
@@ -820,7 +839,8 @@
    "height": 6550,
    "type": "",
    "homeFaction": 0,
-   "group": ""
+   "group": "",
+   "minimap": 112
   },
   {
    "id": 119,
@@ -830,7 +850,8 @@
    "height": 6550,
    "type": "",
    "homeFaction": 0,
-   "group": ""
+   "group": "",
+   "minimap": 112
   },
   {
    "id": 120,
@@ -840,7 +861,8 @@
    "height": 6550,
    "type": "",
    "homeFaction": 0,
-   "group": ""
+   "group": "",
+   "minimap": 112
   },
   {
    "id": 121,
@@ -850,7 +872,8 @@
    "height": 6550,
    "type": "",
    "homeFaction": 0,
-   "group": ""
+   "group": "",
+   "minimap": 112
   },
   {
    "id": 150,
@@ -880,7 +903,8 @@
    "height": 13100,
    "type": "",
    "homeFaction": 0,
-   "group": "R-Z"
+   "group": "R-Z",
+   "minimap": 151
   },
   {
    "id": 153,
@@ -890,7 +914,8 @@
    "height": 13100,
    "type": "",
    "homeFaction": 0,
-   "group": "R-Z"
+   "group": "R-Z",
+   "minimap": 151
   },
   {
    "id": 154,
@@ -900,7 +925,8 @@
    "height": 13100,
    "type": "",
    "homeFaction": 0,
-   "group": "R-Z"
+   "group": "R-Z",
+   "minimap": 151
   },
   {
    "id": 155,
@@ -910,7 +936,8 @@
    "height": 13100,
    "type": "",
    "homeFaction": 0,
-   "group": "R-Z"
+   "group": "R-Z",
+   "minimap": 151
   },
   {
    "id": 156,
@@ -920,7 +947,8 @@
    "height": 13100,
    "type": "",
    "homeFaction": 0,
-   "group": "R-Z"
+   "group": "R-Z",
+   "minimap": 151
   },
   {
    "id": 157,
@@ -930,7 +958,8 @@
    "height": 13100,
    "type": "",
    "homeFaction": 0,
-   "group": "R-Z"
+   "group": "R-Z",
+   "minimap": 151
   },
   {
    "id": 158,
@@ -940,7 +969,8 @@
    "height": 13100,
    "type": "",
    "homeFaction": 0,
-   "group": "R-Z"
+   "group": "R-Z",
+   "minimap": 151
   },
   {
    "id": 159,
@@ -950,7 +980,8 @@
    "height": 13100,
    "type": "",
    "homeFaction": 0,
-   "group": "R-Z"
+   "group": "R-Z",
+   "minimap": 151
   },
   {
    "id": 200,
@@ -980,7 +1011,8 @@
    "height": 6550,
    "type": "",
    "homeFaction": 0,
-   "group": ""
+   "group": "",
+   "minimap": 201
   },
   {
    "id": 203,
@@ -1010,7 +1042,8 @@
    "height": 13100,
    "type": "",
    "homeFaction": 0,
-   "group": "C-T"
+   "group": "C-T",
+   "minimap": 201
   },
   {
    "id": 225,
@@ -1020,7 +1053,8 @@
    "height": 13100,
    "type": "",
    "homeFaction": 0,
-   "group": "GG"
+   "group": "GG",
+   "minimap": 52
   },
   {
    "id": 226,
@@ -1030,7 +1064,8 @@
    "height": 13100,
    "type": "",
    "homeFaction": 0,
-   "group": ""
+   "group": "",
+   "minimap": 52
   },
   {
    "id": 227,
@@ -1050,7 +1085,8 @@
    "height": 13100,
    "type": "",
    "homeFaction": 0,
-   "group": "GG"
+   "group": "GG",
+   "minimap": 57
   },
   {
    "id": 229,
@@ -1330,7 +1366,8 @@
    "height": 13100,
    "type": "",
    "homeFaction": 0,
-   "group": "WG 2"
+   "group": "WG 2",
+   "minimap": 406
   },
   {
    "id": 421,
@@ -1340,7 +1377,8 @@
    "height": 13100,
    "type": "",
    "homeFaction": 0,
-   "group": "WG 1"
+   "group": "WG 1",
+   "minimap": 405
   },
   {
    "id": 422,
@@ -1350,7 +1388,8 @@
    "height": 13100,
    "type": "",
    "homeFaction": 0,
-   "group": "WG 3"
+   "group": "WG 3",
+   "minimap": 406
   },
   {
    "id": 423,
@@ -1360,7 +1399,8 @@
    "height": 13100,
    "type": "",
    "homeFaction": 0,
-   "group": "WG 4"
+   "group": "WG 4",
+   "minimap": 405
   },
   {
    "id": 424,
@@ -1370,7 +1410,8 @@
    "height": 13100,
    "type": "",
    "homeFaction": 0,
-   "group": "WG 5"
+   "group": "WG 5",
+   "minimap": 406
   },
   {
    "id": 425,
@@ -1380,7 +1421,8 @@
    "height": 13100,
    "type": "",
    "homeFaction": 0,
-   "group": "WG 6"
+   "group": "WG 6",
+   "minimap": 405
   },
   {
    "id": 430,
@@ -1400,7 +1442,8 @@
    "height": 13100,
    "type": "",
    "homeFaction": 0,
-   "group": "PayloadEscort"
+   "group": "PayloadEscort",
+   "minimap": 430
   },
   {
    "id": 432,
@@ -1410,7 +1453,8 @@
    "height": 13100,
    "type": "",
    "homeFaction": 0,
-   "group": "PayloadEscort"
+   "group": "PayloadEscort",
+   "minimap": 430
   },
   {
    "id": 433,
@@ -1420,7 +1464,8 @@
    "height": 13100,
    "type": "",
    "homeFaction": 0,
-   "group": "PayloadEscort"
+   "group": "PayloadEscort",
+   "minimap": 430
   },
   {
    "id": 434,
@@ -1430,7 +1475,8 @@
    "height": 13100,
    "type": "",
    "homeFaction": 0,
-   "group": "PayloadEscort"
+   "group": "PayloadEscort",
+   "minimap": 430
   },
   {
    "id": 435,
@@ -1440,7 +1486,8 @@
    "height": 13100,
    "type": "",
    "homeFaction": 0,
-   "group": "PayloadEscort"
+   "group": "PayloadEscort",
+   "minimap": 430
   },
   {
    "id": 436,
@@ -1450,7 +1497,8 @@
    "height": 13100,
    "type": "",
    "homeFaction": 0,
-   "group": "PayloadEscort"
+   "group": "PayloadEscort",
+   "minimap": 430
   },
   {
    "id": 437,
@@ -1460,7 +1508,8 @@
    "height": 13100,
    "type": "",
    "homeFaction": 0,
-   "group": "PayloadEscort"
+   "group": "PayloadEscort",
+   "minimap": 430
   },
   {
    "id": 438,
@@ -1470,7 +1519,8 @@
    "height": 13100,
    "type": "",
    "homeFaction": 0,
-   "group": "PayloadEscort"
+   "group": "PayloadEscort",
+   "minimap": 430
   },
   {
    "id": 439,
@@ -1480,7 +1530,8 @@
    "height": 13100,
    "type": "",
    "homeFaction": 0,
-   "group": "Eternal Gate"
+   "group": "Eternal Gate",
+   "minimap": 430
   },
   {
    "id": 440,
@@ -1490,7 +1541,8 @@
    "height": 13100,
    "type": "",
    "homeFaction": 0,
-   "group": "Eternal Gate"
+   "group": "Eternal Gate",
+   "minimap": 430
   },
   {
    "id": 441,
@@ -1500,7 +1552,8 @@
    "height": 13100,
    "type": "",
    "homeFaction": 0,
-   "group": "Eternal Gate"
+   "group": "Eternal Gate",
+   "minimap": 430
   },
   {
    "id": 442,
@@ -1510,7 +1563,8 @@
    "height": 13100,
    "type": "",
    "homeFaction": 0,
-   "group": "Eternal Gate"
+   "group": "Eternal Gate",
+   "minimap": 430
   },
   {
    "id": 443,
@@ -1520,7 +1574,8 @@
    "height": 13100,
    "type": "",
    "homeFaction": 0,
-   "group": "Eternal Gate"
+   "group": "Eternal Gate",
+   "minimap": 430
   },
   {
    "id": 444,
@@ -1530,7 +1585,8 @@
    "height": 13100,
    "type": "",
    "homeFaction": 0,
-   "group": "Eternal Gate"
+   "group": "Eternal Gate",
+   "minimap": 430
   },
   {
    "id": 445,
@@ -1540,7 +1596,8 @@
    "height": 13100,
    "type": "",
    "homeFaction": 0,
-   "group": "Eternal Gate"
+   "group": "Eternal Gate",
+   "minimap": 430
   },
   {
    "id": 450,
@@ -1610,7 +1667,8 @@
    "height": 13100,
    "type": "",
    "homeFaction": 0,
-   "group": "Eternal Blacklight"
+   "group": "Eternal Blacklight",
+   "minimap": 430
   },
   {
    "id": 461,
@@ -1620,7 +1678,8 @@
    "height": 13100,
    "type": "",
    "homeFaction": 0,
-   "group": "Eternal Blacklight"
+   "group": "Eternal Blacklight",
+   "minimap": 430
   },
   {
    "id": 462,
@@ -1630,7 +1689,8 @@
    "height": 13100,
    "type": "",
    "homeFaction": 0,
-   "group": "Eternal Blacklight"
+   "group": "Eternal Blacklight",
+   "minimap": 430
   },
   {
    "id": 463,
@@ -1640,7 +1700,8 @@
    "height": 13100,
    "type": "",
    "homeFaction": 0,
-   "group": "Eternal Blacklight"
+   "group": "Eternal Blacklight",
+   "minimap": 430
   },
   {
    "id": 464,
@@ -1650,7 +1711,8 @@
    "height": 13100,
    "type": "",
    "homeFaction": 0,
-   "group": "Eternal Blacklight"
+   "group": "Eternal Blacklight",
+   "minimap": 430
   },
   {
    "id": 465,
@@ -1660,7 +1722,8 @@
    "height": 13100,
    "type": "",
    "homeFaction": 0,
-   "group": "Eternal Blacklight"
+   "group": "Eternal Blacklight",
+   "minimap": 430
   },
   {
    "id": 466,
@@ -1680,7 +1743,8 @@
    "height": 13100,
    "type": "",
    "homeFaction": 0,
-   "group": "Rougelite"
+   "group": "Rougelite",
+   "minimap": 466
   },
   {
    "id": 468,
@@ -1690,7 +1754,8 @@
    "height": 13100,
    "type": "",
    "homeFaction": 0,
-   "group": "Rougelite"
+   "group": "Rougelite",
+   "minimap": 466
   },
   {
    "id": 469,
@@ -1730,7 +1795,8 @@
    "height": 13100,
    "type": "",
    "homeFaction": 0,
-   "group": "World Boss (N)"
+   "group": "World Boss (N)",
+   "minimap": 471
   },
   {
    "id": 473,
@@ -1760,7 +1826,8 @@
    "height": 13100,
    "type": "",
    "homeFaction": 0,
-   "group": ""
+   "group": "",
+   "minimap": 52
   },
   {
    "id": 476,
@@ -1770,7 +1837,8 @@
    "height": 13100,
    "type": "normal",
    "homeFaction": 0,
-   "group": ""
+   "group": "",
+   "minimap": 15
   },
   {
    "id": 477,
@@ -1780,7 +1848,8 @@
    "height": 13100,
    "type": "",
    "homeFaction": 0,
-   "group": ""
+   "group": "",
+   "minimap": 52
   },
   {
    "id": 478,
@@ -1790,7 +1859,8 @@
    "height": 13100,
    "type": "normal",
    "homeFaction": 0,
-   "group": ""
+   "group": "",
+   "minimap": 15
   },
   {
    "id": 479,
@@ -1800,7 +1870,8 @@
    "height": 13100,
    "type": "normal",
    "homeFaction": 0,
-   "group": ""
+   "group": "",
+   "minimap": 25
   },
   {
    "id": 480,
@@ -1810,7 +1881,8 @@
    "height": 13100,
    "type": "pirate",
    "homeFaction": 0,
-   "group": ""
+   "group": "",
+   "minimap": 93
   },
   {
    "id": 481,
@@ -1820,7 +1892,8 @@
    "height": 13100,
    "type": "pirate",
    "homeFaction": 0,
-   "group": ""
+   "group": "",
+   "minimap": 93
   },
   {
    "id": 482,
@@ -1830,7 +1903,8 @@
    "height": 13100,
    "type": "",
    "homeFaction": 0,
-   "group": "World Boss"
+   "group": "World Boss",
+   "minimap": 471
   },
   {
    "id": 483,
@@ -1850,7 +1924,8 @@
    "height": 13100,
    "type": "",
    "homeFaction": 0,
-   "group": "SAE"
+   "group": "SAE",
+   "minimap": 483
   },
   {
    "id": 485,
@@ -1860,7 +1935,8 @@
    "height": 13100,
    "type": "",
    "homeFaction": 0,
-   "group": "SAE"
+   "group": "SAE",
+   "minimap": 483
   },
   {
    "id": 486,
@@ -1870,7 +1946,8 @@
    "height": 13100,
    "type": "",
    "homeFaction": 0,
-   "group": "SAE"
+   "group": "SAE",
+   "minimap": 483
   },
   {
    "id": 487,
@@ -1880,7 +1957,8 @@
    "height": 13100,
    "type": "",
    "homeFaction": 0,
-   "group": "SAE"
+   "group": "SAE",
+   "minimap": 483
   },
   {
    "id": 488,
@@ -1890,7 +1968,8 @@
    "height": 13100,
    "type": "",
    "homeFaction": 0,
-   "group": "SAE"
+   "group": "SAE",
+   "minimap": 483
   },
   {
    "id": 489,
@@ -1900,7 +1979,8 @@
    "height": 13100,
    "type": "",
    "homeFaction": 0,
-   "group": "SAE"
+   "group": "SAE",
+   "minimap": 483
   },
   {
    "id": 490,
@@ -1910,7 +1990,8 @@
    "height": 13100,
    "type": "",
    "homeFaction": 0,
-   "group": "SAE"
+   "group": "SAE",
+   "minimap": 483
   },
   {
    "id": 491,
@@ -1920,7 +2001,8 @@
    "height": 13100,
    "type": "",
    "homeFaction": 0,
-   "group": "SAE"
+   "group": "SAE",
+   "minimap": 483
   },
   {
    "id": 492,
@@ -1930,7 +2012,8 @@
    "height": 13100,
    "type": "",
    "homeFaction": 0,
-   "group": "SAE"
+   "group": "SAE",
+   "minimap": 483
   },
   {
    "id": 493,
@@ -1940,7 +2023,8 @@
    "height": 13100,
    "type": "",
    "homeFaction": 0,
-   "group": "SAE"
+   "group": "SAE",
+   "minimap": 483
   },
   {
    "id": 494,
@@ -1950,7 +2034,8 @@
    "height": 6550,
    "type": "",
    "homeFaction": 0,
-   "group": ""
+   "group": "",
+   "minimap": 112
   },
   {
    "id": 495,
@@ -1960,7 +2045,8 @@
    "height": 6550,
    "type": "",
    "homeFaction": 0,
-   "group": ""
+   "group": "",
+   "minimap": 112
   },
   {
    "id": 496,
@@ -1970,7 +2056,8 @@
    "height": 6550,
    "type": "",
    "homeFaction": 0,
-   "group": ""
+   "group": "",
+   "minimap": 112
   },
   {
    "id": 497,
@@ -1980,7 +2067,8 @@
    "height": 6550,
    "type": "",
    "homeFaction": 0,
-   "group": ""
+   "group": "",
+   "minimap": 112
   },
   {
    "id": 498,
@@ -1990,7 +2078,8 @@
    "height": 6550,
    "type": "",
    "homeFaction": 0,
-   "group": ""
+   "group": "",
+   "minimap": 112
   },
   {
    "id": 499,
@@ -2010,7 +2099,8 @@
    "height": 13100,
    "type": "",
    "homeFaction": 0,
-   "group": ""
+   "group": "",
+   "minimap": 499
   },
   {
    "id": 501,
@@ -2020,7 +2110,8 @@
    "height": 13100,
    "type": "",
    "homeFaction": 0,
-   "group": ""
+   "group": "",
+   "minimap": 499
   },
   {
    "id": 502,
@@ -2030,7 +2121,8 @@
    "height": 13100,
    "type": "",
    "homeFaction": 0,
-   "group": ""
+   "group": "",
+   "minimap": 499
   },
   {
    "id": 503,
@@ -2040,7 +2132,8 @@
    "height": 13100,
    "type": "",
    "homeFaction": 0,
-   "group": ""
+   "group": "",
+   "minimap": 499
   },
   {
    "id": 504,
@@ -2050,7 +2143,8 @@
    "height": 13100,
    "type": "",
    "homeFaction": 0,
-   "group": ""
+   "group": "",
+   "minimap": 500
   },
   {
    "id": 505,
@@ -2060,7 +2154,8 @@
    "height": 13100,
    "type": "",
    "homeFaction": 0,
-   "group": ""
+   "group": "",
+   "minimap": 500
   },
   {
    "id": 506,
@@ -2070,7 +2165,8 @@
    "height": 13100,
    "type": "",
    "homeFaction": 0,
-   "group": ""
+   "group": "",
+   "minimap": 500
   },
   {
    "id": 507,
@@ -2080,7 +2176,8 @@
    "height": 13100,
    "type": "",
    "homeFaction": 0,
-   "group": ""
+   "group": "",
+   "minimap": 500
   },
   {
    "id": 508,
@@ -2090,7 +2187,8 @@
    "height": 13100,
    "type": "",
    "homeFaction": 0,
-   "group": ""
+   "group": "",
+   "minimap": 500
   },
   {
    "id": 509,
@@ -2120,7 +2218,8 @@
    "height": 6550,
    "type": "",
    "homeFaction": 0,
-   "group": "Kristallon Apotheosis"
+   "group": "Kristallon Apotheosis",
+   "minimap": 510
   },
   {
    "id": 512,
@@ -2130,7 +2229,8 @@
    "height": 6550,
    "type": "",
    "homeFaction": 0,
-   "group": "Kristallon Apotheosis"
+   "group": "Kristallon Apotheosis",
+   "minimap": 510
   },
   {
    "id": 513,
@@ -2140,7 +2240,8 @@
    "height": 6550,
    "type": "",
    "homeFaction": 0,
-   "group": "Kristallon Apotheosis"
+   "group": "Kristallon Apotheosis",
+   "minimap": 510
   },
   {
    "id": 514,
@@ -2150,7 +2251,8 @@
    "height": 6550,
    "type": "",
    "homeFaction": 0,
-   "group": "Kristallon Apotheosis"
+   "group": "Kristallon Apotheosis",
+   "minimap": 510
   },
   {
    "id": 515,
@@ -2160,7 +2262,8 @@
    "height": 6550,
    "type": "",
    "homeFaction": 0,
-   "group": "Kristallon Apotheosis"
+   "group": "Kristallon Apotheosis",
+   "minimap": 510
   },
   {
    "id": 516,
@@ -2170,7 +2273,8 @@
    "height": 6550,
    "type": "",
    "homeFaction": 0,
-   "group": "Kristallon Apotheosis"
+   "group": "Kristallon Apotheosis",
+   "minimap": 510
   },
   {
    "id": 517,
@@ -2180,7 +2284,8 @@
    "height": 6550,
    "type": "",
    "homeFaction": 0,
-   "group": "Kristallon Apotheosis"
+   "group": "Kristallon Apotheosis",
+   "minimap": 510
   },
   {
    "id": 518,
@@ -2190,7 +2295,8 @@
    "height": 6550,
    "type": "",
    "homeFaction": 0,
-   "group": "Kristallon Apotheosis"
+   "group": "Kristallon Apotheosis",
+   "minimap": 510
   },
   {
    "id": 519,
@@ -2200,7 +2306,8 @@
    "height": 6550,
    "type": "",
    "homeFaction": 0,
-   "group": "Kristallon Apotheosis"
+   "group": "Kristallon Apotheosis",
+   "minimap": 510
   },
   {
    "id": 666,
@@ -2220,7 +2327,8 @@
    "height": 13100,
    "type": "",
    "homeFaction": 0,
-   "group": "PayloadEscort"
+   "group": "PayloadEscort",
+   "minimap": 430
   },
   {
    "id": 1440,
@@ -2230,7 +2338,8 @@
    "height": 13100,
    "type": "",
    "homeFaction": 0,
-   "group": "PayloadEscort"
+   "group": "PayloadEscort",
+   "minimap": 430
   },
   {
    "id": 1441,
@@ -2240,7 +2349,8 @@
    "height": 13100,
    "type": "",
    "homeFaction": 0,
-   "group": "PayloadEscort"
+   "group": "PayloadEscort",
+   "minimap": 430
   },
   {
    "id": 1442,
@@ -2250,7 +2360,8 @@
    "height": 13100,
    "type": "",
    "homeFaction": 0,
-   "group": "PayloadEscort"
+   "group": "PayloadEscort",
+   "minimap": 430
   },
   {
    "id": 1443,
@@ -2260,7 +2371,8 @@
    "height": 13100,
    "type": "",
    "homeFaction": 0,
-   "group": "PayloadEscort"
+   "group": "PayloadEscort",
+   "minimap": 430
   },
   {
    "id": 1444,
@@ -2270,7 +2382,8 @@
    "height": 13100,
    "type": "",
    "homeFaction": 0,
-   "group": "PayloadEscort"
+   "group": "PayloadEscort",
+   "minimap": 430
   },
   {
    "id": 1445,
@@ -2280,7 +2393,8 @@
    "height": 13100,
    "type": "",
    "homeFaction": 0,
-   "group": "PayloadEscort"
+   "group": "PayloadEscort",
+   "minimap": 430
   },
   {
    "id": 1446,
@@ -2290,7 +2404,8 @@
    "height": 13100,
    "type": "",
    "homeFaction": 0,
-   "group": "PayloadEscort"
+   "group": "PayloadEscort",
+   "minimap": 430
   },
   {
    "id": 1447,
@@ -2300,7 +2415,8 @@
    "height": 13100,
    "type": "",
    "homeFaction": 0,
-   "group": "PayloadEscort"
+   "group": "PayloadEscort",
+   "minimap": 430
   },
   {
    "id": 1448,
@@ -2310,7 +2426,8 @@
    "height": 13100,
    "type": "",
    "homeFaction": 0,
-   "group": "PayloadEscort"
+   "group": "PayloadEscort",
+   "minimap": 430
   },
   {
    "id": 1449,
@@ -2320,7 +2437,8 @@
    "height": 13100,
    "type": "",
    "homeFaction": 0,
-   "group": "PayloadEscort"
+   "group": "PayloadEscort",
+   "minimap": 430
   },
   {
    "id": 1450,
@@ -2330,7 +2448,8 @@
    "height": 13100,
    "type": "",
    "homeFaction": 0,
-   "group": "PayloadEscort"
+   "group": "PayloadEscort",
+   "minimap": 430
   },
   {
    "id": 1451,
@@ -2340,7 +2459,8 @@
    "height": 13100,
    "type": "",
    "homeFaction": 0,
-   "group": "PayloadEscort"
+   "group": "PayloadEscort",
+   "minimap": 430
   },
   {
    "id": 1452,
@@ -2350,7 +2470,8 @@
    "height": 13100,
    "type": "",
    "homeFaction": 0,
-   "group": "PayloadEscort"
+   "group": "PayloadEscort",
+   "minimap": 430
   },
   {
    "id": 1453,
@@ -2360,7 +2481,8 @@
    "height": 13100,
    "type": "",
    "homeFaction": 0,
-   "group": "PayloadEscort"
+   "group": "PayloadEscort",
+   "minimap": 430
   },
   {
    "id": 1454,
@@ -2370,7 +2492,8 @@
    "height": 13100,
    "type": "",
    "homeFaction": 0,
-   "group": "PayloadEscort"
+   "group": "PayloadEscort",
+   "minimap": 430
   },
   {
    "id": 1455,
@@ -2380,7 +2503,8 @@
    "height": 13100,
    "type": "",
    "homeFaction": 0,
-   "group": "PayloadEscort"
+   "group": "PayloadEscort",
+   "minimap": 430
   },
   {
    "id": 1456,
@@ -2390,7 +2514,8 @@
    "height": 13100,
    "type": "",
    "homeFaction": 0,
-   "group": "PayloadEscort"
+   "group": "PayloadEscort",
+   "minimap": 430
   },
   {
    "id": 1457,
@@ -2400,7 +2525,8 @@
    "height": 13100,
    "type": "",
    "homeFaction": 0,
-   "group": "PayloadEscort"
+   "group": "PayloadEscort",
+   "minimap": 430
   },
   {
    "id": 1458,
@@ -2410,7 +2536,8 @@
    "height": 13100,
    "type": "",
    "homeFaction": 0,
-   "group": "PayloadEscort"
+   "group": "PayloadEscort",
+   "minimap": 430
   },
   {
    "id": 1459,
@@ -2420,7 +2547,8 @@
    "height": 13100,
    "type": "",
    "homeFaction": 0,
-   "group": "PayloadEscort"
+   "group": "PayloadEscort",
+   "minimap": 430
   },
   {
    "id": 11501,
@@ -2430,7 +2558,8 @@
    "height": 13100,
    "type": "",
    "homeFaction": 0,
-   "group": "E1"
+   "group": "E1",
+   "minimap": 501
   }
  ]
 }

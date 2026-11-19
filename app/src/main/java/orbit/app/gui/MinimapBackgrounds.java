@@ -69,7 +69,9 @@ public final class MinimapBackgrounds {
         return null;
     }
 
-    private static BufferedImage load(int mapId) {
+    private static BufferedImage load(int map) {
+        // the picture the client shows: another map's for some (the escort maps all 430's — 431's is a 404)
+        int mapId = orbit.world.maps.MapCatalog.bundled().minimapPicture(map);
         Path file = DIR.resolve(mapId + ".jpg");
         try {
             if (!Files.exists(file)) {

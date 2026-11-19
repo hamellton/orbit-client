@@ -79,6 +79,11 @@ def main() -> int:
             "homeFaction": int(info.get("home")) if info is not None and info.get("home") else 0,
             "group": m.get("groupSystemName", ""),
         })
+        # the minimap picture another map's (the client's MiniMapBackground: «minimap-<@minimap>-700»; the 30 escort maps
+        # all show 430's) — kept only when it is not the map's own
+        pic = m.get("minimap", "")
+        if pic.isdigit() and int(pic) != maps[-1]["id"]:
+            maps[-1]["minimap"] = int(pic)
     maps.sort(key=lambda x: x["id"])
 
     old = {}

@@ -54,6 +54,8 @@ public final class MapCatalog {
     private final Map<Integer, MapInfo> maps;
     private final Map<Integer, List<Portal>> portals;
     private final String portalSource;
+    /** Maps showing another map's minimap picture (maps-config {@code minimap}: the escort maps all 430's). */
+    private Map<Integer, Integer> minimaps = Map.of();
 
     private MapCatalog(Map<Integer, MapInfo> maps, Map<Integer, List<Portal>> portals, String portalSource) {
         this.maps = maps;
@@ -77,8 +79,12 @@ public final class MapCatalog {
 
     static MapCatalog parse(InputStream mapsJson, InputStream portalsJson) throws IOException {
         Map<Integer, MapInfo> maps = new LinkedHashMap<>();
+        Map<Integer, Integer> minimaps = new HashMap<>();
         for (JsonNode m : JSON.readTree(mapsJson).get("maps")) {
             int id = m.get("id").asInt();
+            if (m.path("minimap").isInt()) {
+                minimaps.put(id, m.get("minimap").asInt());
+            }
             maps.put(id, new MapInfo(id, m.get("name").asText(), m.get("scale").asDouble(), m.get("width").asInt(),
                     m.get("height").asInt(), m.path("type").asText(), m.path("homeFaction").asInt(), true));
         }
@@ -92,8 +98,18 @@ public final class MapCatalog {
             }
             portals.put(m.get("id").asInt(), List.copyOf(list));
         }
-        return new MapCatalog(Collections.unmodifiableMap(maps), Map.copyOf(portals),
+        MapCatalog c = new MapCatalog(Collections.unmodifiableMap(maps), Map.copyOf(portals),
                 pj.path("source").asText() + " @ " + pj.path("commit").asText());
+        c.minimaps = Map.copyOf(minimaps);
+        return c;
+    }
+
+    /**
+     * The map whose minimap picture this map shows, as the client's {@code MiniMapBackground} picks it: the
+     * maps-config's {@code minimap} when set (an escort map 431 shows 430's), else the map itself.
+     */
+    public int minimapPicture(int mapId) {
+        return minimaps.getOrDefault(mapId, mapId);
     }
 
     private static InputStream resource(String name) throws IOException {

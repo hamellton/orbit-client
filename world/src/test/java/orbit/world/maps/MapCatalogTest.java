@@ -20,6 +20,16 @@ class MapCatalogTest {
     private final MapCatalog catalog = MapCatalog.bundled();
 
     @Test
+    void theEscortMapsShowTheMinimapPictureOf430AsTheClientDoes() {
+        // the client's maps-config: minimap="430" on all 30 escort maps; minimap-431-700.jpg is a 404 (2026-11-19)
+        MapCatalog c = MapCatalog.bundled();
+        assertEquals(430, c.minimapPicture(431));
+        assertEquals(430, c.minimapPicture(1459));
+        assertEquals(430, c.minimapPicture(430));
+        assertEquals(1, c.minimapPicture(1), "a map with its own picture");
+    }
+
+    @Test
     void sizesFollowTheClientScaleFactor() {
         assertEquals(21000, catalog.info(9).width());
         assertEquals(13100, catalog.info(9).height());
