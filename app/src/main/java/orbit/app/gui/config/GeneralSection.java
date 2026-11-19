@@ -10,7 +10,11 @@ import orbit.config.BotConfig;
 import orbit.config.ItemCatalog;
 import orbit.world.maps.MapCatalog;
 
-/** «Общее»: module, working map, ship configuration and formation per situation, enemies, roaming. */
+/**
+ * «Общее»: ship configuration and formation per situation, enemies, roaming, sessions. The module and the working map
+ * are this section's fields too, but the window shows them in its header above everything ({@link #moduleBox},
+ * {@link #mapBox}): the module decides which other parts matter.
+ */
 final class GeneralSection implements Section {
 
     static final String[] MODULE_NAMES = {"Убийство и сбор", "Убийство NPC", "Сбор ящиков", "Кубиконы", "Врата (GG)",
@@ -45,9 +49,6 @@ final class GeneralSection implements Section {
         avoidBases.addActionListener(e -> baseRadius.setEnabled(avoidBases.isSelected()));
         description.setWrapStyleWord(true);
         view = new Form()
-                .section("Модуль")
-                .row("Режим", module)
-                .row("Рабочая карта", map)
                 .section("Конфиг корабля и формация")
                 .row("Атака", offensive.view())
                 .row("Полёт и сбор", roam.view())
@@ -74,6 +75,41 @@ final class GeneralSection implements Section {
                 .section("Описание")
                 .wide(new JScrollPane(description), false)
                 .build(true);
+    }
+
+    /** What each module does, one line under the header's selector. */
+    static String about(BotConfig.Module m) {
+        return switch (m) {
+            case KILL_COLLECT -> "Бьёт NPC из раздела «Атака» и собирает ящики из «Сбор» на рабочей карте.";
+            case KILL -> "Бьёт NPC из раздела «Атака» на рабочей карте, ящики не собирает.";
+            case COLLECT -> "Собирает ящики из раздела «Сбор» на рабочей карте, NPC не бьёт.";
+            case CUBIKON -> "Кубиконы по таймерам спавна. Настройки — раздел «Кубы».";
+            case GALAXY_GATE -> "Галактические врата и Вечные врата (EBG). Настройки — «Врата» и «Вечные врата».";
+            case PALLADIUM -> "Палладий на 5-3 и его продажа. Настройки — раздел «Палладий».";
+            case QUESTS -> "Берёт квесты у квестодателя и выполняет их. Настройки — раздел «Квесты».";
+            case BEHEMOTH -> "Mindfire Behemoth на BL-картах. Настройки — раздел «Бегемот».";
+            case LOW -> "Групповые врата LoW своими аккаунтами. Настройки — раздел «LoW».";
+            case MIMESIS -> "Эскорт EM Freighter, между рейсами фарм ключей на рабочей карте. Настройки — раздел «Мимесис».";
+            case UNSUPPORTED -> "Модуль из DarkBot, которого в программе нет — выберите другой.";
+        };
+    }
+
+    /** The module selector (the window's header). */
+    JComboBox<String> moduleBox() {
+        return module;
+    }
+
+    /** The working map (the window's header). */
+    JComponent mapBox() {
+        return map;
+    }
+
+    BotConfig.Module selectedModule() {
+        return BotConfig.Module.values()[Math.max(0, module.getSelectedIndex())];
+    }
+
+    void selectModule(BotConfig.Module m) {
+        module.setSelectedIndex(m.ordinal());
     }
 
     @Override

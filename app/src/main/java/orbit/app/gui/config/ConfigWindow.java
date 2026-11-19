@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.List;
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
+import javax.swing.JComponent;
 import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
@@ -26,9 +27,11 @@ import orbit.config.DarkBotImport;
 import orbit.world.maps.MapCatalog;
 
 /**
- * The config window (like AstraBot's settings): the list of configs on the left, the chosen config
- * in tabs by module on the right, the pre-start check at the bottom; a second page for accounts and
- * their timetables.
+ * The config window (like AstraBot's settings): the list of configs on the left; the chosen config on the right — its
+ * module and working map in a header above everything, under it a list of its parts in three groups (the user,
+ * 2026-11-19: «огромный список вкладок, не понятно что есть что»): the chosen module's own part only (the other modules'
+ * are hidden), the fight and flight every module uses, the extras that run beside any module with an on/off dot; the
+ * pre-start check at the bottom; a second page for accounts and their timetables.
  */
 public final class ConfigWindow {
 
@@ -54,7 +57,17 @@ public final class ConfigWindow {
         }
     }
     private final List<Section> sections = new ArrayList<>();
-    private final JTabbedPane tabs = new JTabbedPane();
+    private final GeneralSection general;
+    /** The parts' list: group headers and the parts shown for the header's module. */
+    private final javax.swing.DefaultListModel<Object> navModel = new javax.swing.DefaultListModel<>();
+    private final javax.swing.JList<Object> nav = new javax.swing.JList<>(navModel);
+    private final java.awt.CardLayout cards = new java.awt.CardLayout();
+    private final JPanel content = new JPanel(cards);
+    private final JLabel about = new JLabel(" ");
+    private JPanel header;
+    /** A module with no part of its own: what to set instead. */
+    private final JLabel noOwn = new JLabel();
+    private static final String NO_OWN = "none:own";
     private final JLabel title = new JLabel(" ");
     /** The check result; cut in a narrow window, whole in its tooltip. */
     private final JLabel check = new JLabel(" ") {
@@ -72,7 +85,8 @@ public final class ConfigWindow {
     private ConfigWindow(ConfigStore store, Path accountsFile, MapCatalog maps) {
         this.store = store;
         this.maps = maps;
-        sections.add(new GeneralSection(maps));
+        general = new GeneralSection(maps);
+        sections.add(general);
         sections.add(new KillSection(maps));
         sections.add(new CollectSection());
         sections.add(new PetSection());
@@ -86,13 +100,18 @@ public final class ConfigWindow {
         sections.add(new EbgSection());
         sections.add(new LowSection());
         sections.add(new MimesisSection());
+        sections.add(new SeasonSection(general)); // the extras: the season first (the user asked how to turn quests on)
         sections.add(new DispatchSection());
         sections.add(new EnrichSection());
         sections.add(new BuySection());
         sections.add(new GroupSection());
-        sections.forEach(s -> tabs.addTab(s.title(), s.view()));
-        tabs.setTabLayoutPolicy(JTabbedPane.SCROLL_TAB_LAYOUT); // one row of tabs: a small window keeps its height
-        tabs.putClientProperty("JTabbedPane.scrollButtonsPolicy", "asNeeded");
+        for (Section sec : sections) {
+            content.add(sec.view(), sec.title());
+        }
+        noOwn.setVerticalAlignment(javax.swing.SwingConstants.TOP);
+        noOwn.setBorder(BorderFactory.createEmptyBorder(16, 16, 16, 16));
+        content.add(noOwn, NO_OWN);
+        setupNav();
         accounts = new AccountsPanel(accountsFile, this::configNames);
 
         list.setRootVisible(false);
@@ -132,8 +151,8 @@ public final class ConfigWindow {
                 saveButton), BorderLayout.EAST);
         JPanel right = new JPanel(new BorderLayout(0, 6));
         right.setBorder(BorderFactory.createEmptyBorder(8, 0, 0, 0));
-        right.add(title, BorderLayout.NORTH);
-        right.add(tabs, BorderLayout.CENTER);
+        right.add(header(), BorderLayout.NORTH);
+        right.add(body(), BorderLayout.CENTER);
         right.add(bottom, BorderLayout.SOUTH);
 
         JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, left, right);
@@ -245,7 +264,7 @@ public final class ConfigWindow {
         if (c instanceof JTabbedPane pages) {
             pages.setSelectedIndex(Math.min(page, pages.getTabCount() - 1));
         }
-        w.tabs.setSelectedIndex(Math.min(tab, w.tabs.getTabCount() - 1));
+        w.showPart(tab);
         w.frame.setSize(width, height); // a relayout inside sizes the content to the (never shown) frame
         c.setSize(width, height);
         for (int pass = 0; pass < 2; pass++) {
@@ -269,6 +288,150 @@ public final class ConfigWindow {
             for (java.awt.Component child : k.getComponents()) {
                 layoutAll(child);
             }
+        }
+    }
+
+    /** The header: the config's name, its module and working map, what the module does. */
+    private JPanel header() {
+        header = new JPanel(new BorderLayout(0, 4));
+        header.setBorder(BorderFactory.createEmptyBorder(0, 0, 4, 8));
+        header.add(title, BorderLayout.NORTH);
+        JPanel row = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 8, 0));
+        JLabel m = new JLabel("Модуль:");
+        m.setFont(m.getFont().deriveFont(java.awt.Font.BOLD));
+        row.add(m);
+        row.add(general.moduleBox());
+        JLabel k = new JLabel("Рабочая карта:");
+        k.setFont(k.getFont().deriveFont(java.awt.Font.BOLD));
+        row.add(k);
+        row.add(general.mapBox());
+        header.add(row, BorderLayout.CENTER);
+        about.setForeground(orbit.app.gui.Theme.DIM);
+        about.setBorder(BorderFactory.createEmptyBorder(0, 8, 0, 0));
+        header.add(about, BorderLayout.SOUTH);
+        return header;
+    }
+
+    /** The parts' list on the left, the chosen part on the right. */
+    private JComponent body() {
+        JScrollPane navScroll = new JScrollPane(nav);
+        navScroll.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+        navScroll.setBorder(BorderFactory.createMatteBorder(0, 0, 0, 1, orbit.app.gui.Theme.BORDER));
+        navScroll.setMinimumSize(new Dimension(150, 0));
+        navScroll.setPreferredSize(new Dimension(210, 0));
+        JPanel b = new JPanel(new BorderLayout());
+        b.add(navScroll, BorderLayout.WEST);
+        b.add(content, BorderLayout.CENTER);
+        return b;
+    }
+
+    private void setupNav() {
+        nav.setSelectionMode(javax.swing.ListSelectionModel.SINGLE_SELECTION);
+        nav.setFixedCellHeight(-1);
+        nav.setCellRenderer(new javax.swing.DefaultListCellRenderer() {
+            @Override
+            public java.awt.Component getListCellRendererComponent(javax.swing.JList<?> l, Object v, int i,
+                                                                   boolean sel, boolean focus) {
+                if (v instanceof Section.Group g) {
+                    JLabel h = (JLabel) super.getListCellRendererComponent(l, g.label.toUpperCase(java.util.Locale.ROOT),
+                            i, false, false);
+                    h.setFont(h.getFont().deriveFont(java.awt.Font.BOLD, h.getFont().getSize() - 1f));
+                    h.setForeground(orbit.app.gui.Theme.DIM);
+                    h.setBorder(BorderFactory.createEmptyBorder(i == 0 ? 6 : 14, 10, 4, 6));
+                    if (g == Section.Group.EXTRA) {
+                        h.setText("<html>ПОПУТНО <font color='#5d6878'>· при любом модуле</font></html>");
+                    }
+                    return h;
+                }
+                String text;
+                if (v instanceof Section sec) {
+                    Boolean on = sec.on();
+                    text = on == null ? sec.title() : (on ? "<html><font color='#6ec878'>●</font>&nbsp; " : "<html>"
+                            + "<font color='#7a8794'>○</font>&nbsp; ") + escape(sec.title());
+                } else {
+                    text = "Своих настроек нет";
+                }
+                JLabel c = (JLabel) super.getListCellRendererComponent(l, text, i, sel, focus);
+                c.setBorder(BorderFactory.createEmptyBorder(4, 20, 4, 6));
+                return c;
+            }
+        });
+        nav.addListSelectionListener(e -> {
+            if (e.getValueIsAdjusting()) {
+                return;
+            }
+            Object v = nav.getSelectedValue();
+            if (v instanceof Section.Group) {
+                // a header is no part: the next row instead
+                int i = nav.getSelectedIndex();
+                nav.setSelectedIndex(Math.min(i + 1, navModel.size() - 1));
+                return;
+            }
+            if (v instanceof Section sec) {
+                cards.show(content, sec.title());
+            } else if (v != null) {
+                cards.show(content, NO_OWN);
+            }
+        });
+        general.moduleBox().addActionListener(e -> rebuildNav());
+        // the extras' dots follow their switches as they are clicked
+        new javax.swing.Timer(500, e -> {
+            if (nav.isShowing()) {
+                nav.repaint();
+            }
+        }).start();
+    }
+
+    /** The list for the header's module: its own part only, then the fight and flight, then the extras. */
+    private void rebuildNav() {
+        if (navModel.isEmpty() && sections.isEmpty()) {
+            return;
+        }
+        BotConfig.Module m = general.selectedModule();
+        about.setText(GeneralSection.about(m));
+        Object keep = nav.getSelectedValue();
+        String keepTitle = keep instanceof Section sec ? sec.title() : null;
+        navModel.clear();
+        for (Section.Group g : Section.Group.values()) {
+            navModel.addElement(g);
+            int before = navModel.size();
+            for (Section sec : sections) {
+                if (sec.group() == g && (g != Section.Group.MODULE || sec.modules().contains(m))) {
+                    navModel.addElement(sec);
+                }
+            }
+            if (g == Section.Group.MODULE && navModel.size() == before) {
+                navModel.addElement(NO_OWN);
+                noOwn.setText("<html><b>У модуля «" + GeneralSection.MODULE_NAMES[m.ordinal()] + "» своих настроек нет."
+                        + "</b><br><br>Какие NPC бить — раздел «Атака», какие ящики собирать — «Сбор», корабль,"
+                        + " формации и сессии — «Общее».</html>");
+            }
+        }
+        for (int i = 0; i < navModel.size(); i++) {
+            if (navModel.get(i) instanceof Section sec && sec.title().equals(keepTitle)) {
+                nav.setSelectedIndex(i);
+                return;
+            }
+        }
+        showPart(0);
+    }
+
+    /** The {@code n}-th part of the list (headers not counted). */
+    private void showPart(int n) {
+        int seen = 0;
+        int last = -1;
+        for (int i = 0; i < navModel.size(); i++) {
+            if (navModel.get(i) instanceof Section.Group) {
+                continue;
+            }
+            last = i;
+            if (seen++ == n) {
+                nav.setSelectedIndex(i);
+                return;
+            }
+        }
+        if (last >= 0) {
+            nav.setSelectedIndex(last);
         }
     }
 
@@ -317,7 +480,7 @@ public final class ConfigWindow {
             current = null;
             loaded = null;
             title.setText("Конфигов нет — создайте или импортируйте");
-            tabs.setEnabled(false);
+            nav.setEnabled(false);
             return;
         }
         current = null;
@@ -340,10 +503,11 @@ public final class ConfigWindow {
             return;
         }
         current = name;
-        tabs.setEnabled(true);
+        nav.setEnabled(true);
         boolean readOnly = store.isDefault(name);
         setFormEnabled(true); // first: a section's load sets its own dependent fields off again
         sections.forEach(s -> s.load(loaded));
+        rebuildNav();
         baseline = collect(loaded);
         String folder = store.folderOf(name);
         title.setText(readOnly ? "🔒 " + folder + " / " + name + " — конфиг программы, только просмотр («Копия» — чтобы менять)"
@@ -359,6 +523,8 @@ public final class ConfigWindow {
         for (Section sec : sections) {
             enableAll(sec.view(), on);
         }
+        enableAll(general.moduleBox(), on);
+        enableAll(general.mapBox(), on);
         if (saveButton != null) {
             saveButton.setEnabled(on);
         }
@@ -471,6 +637,7 @@ public final class ConfigWindow {
     private void revert() {
         if (current != null) {
             sections.forEach(s -> s.load(loaded));
+            rebuildNav();
             runCheck();
         }
     }

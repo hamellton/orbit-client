@@ -39,6 +39,16 @@ final class DispatchSection implements Section {
     }
 
     @Override
+    public Group group() {
+        return Group.EXTRA;
+    }
+
+    @Override
+    public Boolean on() {
+        return enabled.isSelected();
+    }
+
+    @Override
     public String title() {
         return "Диспетчер";
     }

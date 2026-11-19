@@ -51,7 +51,7 @@ final class MimesisSection implements Section {
     MimesisSection() {
         view = new Form()
                 .section("Мимесис — эскорт EM Freighter")
-                .note("Работает с модулем «Мимесис» (вкладка «Общее»). Рейс — как DarkBot (DonorPlugin): кружит вокруг"
+                .note("Работает с модулем «Мимесис» (выбирается в шапке). Рейс — как DarkBot (DonorPlugin): кружит вокруг"
                         + " фрейтера на 350–900, бьёт NPC не дальше 2 000 от него (сначала тех, кто бьёт фрейтер),"
                         + " ящики — не дальше 2 500; когда фрейтер довезён и вокруг пусто — выход порталом."
                         + " Каждый час вход открыт 5 минут, нужен Escort Key. Время берётся от сервера."
@@ -80,6 +80,16 @@ final class MimesisSection implements Section {
                 .note("Лимиты расхода EMP-01 и ISH-01 — на вкладке «Атака». Способность — только когда игра показывает"
                         + " её готовой.")
                 .build(true);
+    }
+
+    @Override
+    public Group group() {
+        return Group.MODULE;
+    }
+
+    @Override
+    public java.util.Set<BotConfig.Module> modules() {
+        return java.util.Set.of(BotConfig.Module.MIMESIS);
     }
 
     @Override

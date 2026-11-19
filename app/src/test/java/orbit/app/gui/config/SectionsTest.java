@@ -23,9 +23,10 @@ class SectionsTest {
 
     static List<Section> sections() {
         MapCatalog maps = MapCatalog.bundled();
-        return List.of(new GeneralSection(maps), new KillSection(maps), new CollectSection(), new PetSection(),
+        GeneralSection general = new GeneralSection(maps);
+        return List.of(general, new KillSection(maps), new CollectSection(), new PetSection(),
                 new SafetySection(), new ZonesSection(maps), new CubikonSection(), new GateSection(), new BuySection(),
-                new GroupSection(), new PalladiumSection(), new QuestsSection());
+                new GroupSection(), new PalladiumSection(), new QuestsSection(), new SeasonSection(general));
     }
 
     static BotConfig roundTrip(BotConfig c) {
@@ -139,5 +140,51 @@ class SectionsTest {
         org.junit.jupiter.api.Assertions.assertEquals("[122001]", m.path("skip").toString());
         // a config of another module gets no quests section
         org.junit.jupiter.api.Assertions.assertFalse(roundTrip(BotConfig.empty()).modules().containsKey("quests"));
+    }
+
+    @Test
+    void quests_alongside_aConfigOfAnotherModuleKeepsJustItsSwitch() throws Exception {
+        // the Mimesis configs since 2026-11-19: only «alongside» in the quests section — none of the module's keys added
+        BotConfig c = BotConfig.empty().withModule(BotConfig.Module.MIMESIS).withModuleSettings("quests",
+                Json.MAPPER.readTree("{\"alongside\": true, \"trek\": false}"));
+        assertEquals(c, roundTrip(c));
+    }
+
+    @Test
+    void theQuestsSelectorSwitchesTheModuleAndBack() {
+        MapCatalog maps = MapCatalog.bundled();
+        GeneralSection general = new GeneralSection(maps);
+        SeasonSection season = new SeasonSection(general);
+        BotConfig c = BotConfig.empty().withModule(BotConfig.Module.MIMESIS);
+        general.load(c);
+        season.load(c);
+        org.junit.jupiter.api.Assertions.assertFalse(season.on(), "off: nothing set");
+        // «Главный модуль»: the header's module becomes «Квесты»
+        click(season, "Главный модуль");
+        assertEquals(BotConfig.Module.QUESTS, general.selectedModule());
+        // «Попутно»: back to the module it was
+        click(season, "Попутно");
+        assertEquals(BotConfig.Module.MIMESIS, general.selectedModule());
+        BotConfig out = season.apply(general.apply(c));
+        org.junit.jupiter.api.Assertions.assertTrue(out.modules().get("quests").path("alongside").asBoolean());
+        // the module switched to «Квесты» in the header: the selector follows
+        general.selectModule(BotConfig.Module.QUESTS);
+        org.junit.jupiter.api.Assertions.assertTrue(season.on());
+    }
+
+    /** Clicks the selector's radio button whose text starts with {@code prefix}. */
+    static void click(SeasonSection s, String prefix) {
+        java.util.ArrayDeque<java.awt.Component> q = new java.util.ArrayDeque<>(List.of(s.view()));
+        while (!q.isEmpty()) {
+            java.awt.Component c = q.poll();
+            if (c instanceof javax.swing.JRadioButton r && r.getText().startsWith(prefix)) {
+                r.doClick();
+                return;
+            }
+            if (c instanceof java.awt.Container k) {
+                q.addAll(List.of(k.getComponents()));
+            }
+        }
+        throw new AssertionError("no " + prefix);
     }
 }

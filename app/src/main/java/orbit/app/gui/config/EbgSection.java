@@ -58,7 +58,7 @@ final class EbgSection implements Section {
         Form f = new Form()
                 .section("Вечные врата Блэклайт")
                 .row("", on)
-                .note("Работает с модулем «Галактические врата» (вкладка «Общее»). Вход: на BL-карте бот использует CPU,"
+                .note("Работает с модулем «Галактические врата» (выбирается в шапке). Вход: на BL-карте бот использует CPU,"
                         + " открывается портал, бот прыгает. Жизнь одна: смерть — забег окончен, следующий снова с 1-й"
                         + " волны. Бьёт всех NPC, кроме Abide I и Steadfast III на волне босса, как DarkBot: волна не"
                         + " кончится, пока живы её NPC.")
@@ -94,6 +94,16 @@ final class EbgSection implements Section {
                 .row("", Form.inline(leech, new JLabel("с волны"), leechWave))
                 .note("Порог HP для ISH — на вкладке «Атака». По умолчанию тяжёлые: " + HARD_NPCS + ".");
         view = f.build(true);
+    }
+
+    @Override
+    public Group group() {
+        return Group.MODULE;
+    }
+
+    @Override
+    public java.util.Set<BotConfig.Module> modules() {
+        return java.util.Set.of(BotConfig.Module.GALAXY_GATE);
     }
 
     @Override

@@ -136,6 +136,16 @@ final class EnrichSection implements Section {
     }
 
     @Override
+    public Group group() {
+        return Group.EXTRA;
+    }
+
+    @Override
+    public Boolean on() {
+        return enrich.isSelected();
+    }
+
+    @Override
     public String title() {
         return "Обогащение";
     }

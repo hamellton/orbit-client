@@ -42,6 +42,16 @@ final class GroupSection implements Section {
     }
 
     @Override
+    public Group group() {
+        return Group.EXTRA;
+    }
+
+    @Override
+    public Boolean on() {
+        return accept.getSelectedIndex() != 0 || invite.isSelected() || leave.isSelected() || kick.isSelected();
+    }
+
+    @Override
     public String title() {
         return "Группа";
     }

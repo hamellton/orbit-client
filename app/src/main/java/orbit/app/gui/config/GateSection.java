@@ -234,6 +234,16 @@ final class GateSection implements Section {
     }
 
     @Override
+    public Group group() {
+        return Group.MODULE;
+    }
+
+    @Override
+    public java.util.Set<BotConfig.Module> modules() {
+        return java.util.Set.of(BotConfig.Module.GALAXY_GATE);
+    }
+
+    @Override
     public String title() {
         return "Врата";
     }

@@ -65,7 +65,7 @@ final class LowSection implements Section {
     LowSection() {
         Form f = new Form()
                 .section("Группа")
-                .note("Работает с модулем «LoW (групповые врата)» (вкладка «Общее»). Во врата пускают группу от трёх:"
+                .note("Работает с модулем «LoW (групповые врата)» (выбирается в шапке). Во врата пускают группу от трёх:"
                         + " лидер прыгает первым на x-3 в портал, помощники — за ним. Этот конфиг ставится только лидеру,"
                         + " запускать нужно только его: помощников он запускает сам, если они не в работе. У помощника"
                         + " остаются свой конфиг (ремонт, покупки, питомец) и свой прокси. Остановили лидера — помощники"
@@ -93,6 +93,16 @@ final class LowSection implements Section {
                 .section("Мины")
                 .row("", Form.inline(mines, minesNpcs, new JLabel("мина"), mineItem));
         view = f.build(true);
+    }
+
+    @Override
+    public Group group() {
+        return Group.MODULE;
+    }
+
+    @Override
+    public java.util.Set<BotConfig.Module> modules() {
+        return java.util.Set.of(BotConfig.Module.LOW);
     }
 
     @Override
