@@ -1,0 +1,172 @@
+package orbit.bot.run;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import java.util.List;
+import orbit.bot.mod.QuestCrafts;
+import orbit.bot.mod.QuestModule;
+import orbit.bot.mod.QuestsAlongside;
+import orbit.config.BotConfig;
+import orbit.config.Json;
+import orbit.protocol.gen.AssemblyBuildRequest;
+import orbit.protocol.gen.AssemblyRecipeAvailableStatusModule;
+import orbit.protocol.gen.AssemblyRecipeContentModule;
+import orbit.protocol.gen.AssemblyRecipeModule;
+import orbit.protocol.gen.QuestDefinitionModule;
+import orbit.protocol.gen.SeasonPassRefreshRequest;
+import orbit.world.Quests;
+import orbit.world.maps.MapCatalog;
+import orbit.world.maps.NpcMaps;
+import org.junit.jupiter.api.Test;
+
+/**
+ * The user, 2026-11-19, after comparing with DmPlugin and AstraBot: no reroll of the missions that count other missions,
+ * cargo boxes, crafting for «collect built recipes», quests alongside another module.
+ */
+class QuestSeasonTest {
+
+    static final String SAB = "recipe_blueprint-sab50-1k";
+
+    static BotConfig config(BotConfig.Module module, String quests) throws Exception {
+        return BotConfig.empty().withModule(module).withModuleSettings(BotConfig.Module.QUESTS.key(),
+                (ObjectNode) Json.MAPPER.readTree(quests));
+    }
+
+    /** A running Season Pass mission with one condition; {@code questType} 3 daily, 6 weekly, 9 seasonal. */
+    static void season(Sim sim, int id, int questType, int conditionType, double target, String... matches) {
+        orbit.protocol.gen.SeasonPassMissionInfoCommand mi = new orbit.protocol.gen.SeasonPassMissionInfoCommand();
+        mi.refreshInfo = new orbit.protocol.gen.RefreshQuestInfo();
+        mi.refreshInfo.dailyLeft = 1;
+        mi.refreshInfo.weeklyLeft = 1;
+        orbit.protocol.gen.SeasonPassMissionModule mission = new orbit.protocol.gen.SeasonPassMissionModule();
+        QuestDefinitionModule d = QuestGiverVisitTest.Giver.definition(id);
+        d.types.getFirst().type = (short) questType;
+        var c = d.rootCase.modifier.getFirst().condition;
+        c.displayType = (short) conditionType;
+        c.type = c.displayType;
+        c.matches = List.of(matches);
+        c.targetValue = target;
+        mission.questDefinitionModule = d;
+        mission.missionStatus = new orbit.protocol.gen.SeasonPassMissionStatusModule();
+        mi.missionItems = List.of(mission);
+        sim.world.apply(mi, sim.now);
+    }
+
+    static void recipe(Sim sim, String id) {
+        AssemblyRecipeModule r = new AssemblyRecipeModule();
+        r.recipeLootId = id;
+        r.status = new AssemblyRecipeAvailableStatusModule();
+        AssemblyRecipeContentModule c = new AssemblyRecipeContentModule();
+        c.recipes = new java.util.ArrayList<>(List.of(r));
+        sim.world.apply(c, sim.now);
+    }
+
+    /** SAB-50's price (the client's: 6 mucosum, 2 boltrum, 1 scrapium) {@code times} over. */
+    static void sabPrice(Sim sim, double times) {
+        RecipeCostsTest.resource(sim, "resource_collectable_mucosum", 6 * times);
+        RecipeCostsTest.resource(sim, "resource_collectable_boltrum", 2 * times);
+        RecipeCostsTest.resource(sim, "resource_collectable_scrapium", times);
+    }
+
+    @Test
+    void aMissionThatCountsOtherMissionsIsNeverRerolled() throws Exception {
+        Sim sim = new Sim(config(BotConfig.Module.QUESTS, "{}"), MapCatalog.bundled().byName("3-6").id(), 10_000, 6_000);
+        season(sim, 700028, 3, Quests.COMPLETE_SEASON_PASS_QUESTS, 10, "2"); // daily, one free reroll left
+        QuestModule m = new QuestModule(sim.ctx, NpcMaps.shared(), orbit.world.maps.OreMaps.inMemory());
+        m.visited(sim.now);
+        sim.run(m::tick, 30_000);
+        assertTrue(sim.sent.stream().noneMatch(p -> p instanceof SeasonPassRefreshRequest), "it grows by itself");
+    }
+
+    @Test
+    void theMimesisObjectivesCountTheParentNotTheEventBound() {
+        Quests.Condition event = new Quests.Condition(2, Quests.DURING_EVENT, List.of("MimesisMutiny"), 0, 0, true,
+                false, false, List.of());
+        Quests.Condition objectives = new Quests.Condition(1, Quests.COMPLETED_OBJECTIVES, List.of(), 15, 0, true, false,
+                true, List.of(event));
+        Quests.Quest q = new Quests.Quest(700023, List.of(9), List.of(objectives), List.of(), 0);
+        assertEquals(List.of(objectives), q.leaves(), "during the event only bounds it");
+        assertTrue(orbit.bot.mod.QuestTargets.growing(q));
+    }
+
+    @Test
+    void cargoBoxesAreDoneByKillingAndPickingTheCargo() throws Exception {
+        Sim sim = new Sim(config(BotConfig.Module.QUESTS, "{}"), MapCatalog.bundled().byName("3-2").id(), 10_000, 6_000);
+        season(sim, 700037, 9, Quests.CARGO, 1_500);
+        QuestModule m = new QuestModule(sim.ctx, NpcMaps.shared(), orbit.world.maps.OreMaps.inMemory());
+        assertTrue(m.doable(sim.world.snapshot(sim.now).quests().active().get(700037)));
+        m.visited(sim.now);
+        m.tick();
+        int map = m.workingMap();
+        assertTrue(map > 0, m.status());
+        assertTrue(MapCatalog.bundled().info(map).name().startsWith("3-"), "the company's own maps (VRU)");
+    }
+
+    @Test
+    void aBuiltRecipeConditionCraftsTheCheapRecipeWithItsPriceAtHand() throws Exception {
+        Sim sim = new Sim(config(BotConfig.Module.QUESTS, "{}"), 26, 7_500, 3_900);
+        season(sim, 700030, 9, Quests.COLLECT_BUILT_RECIPE, 25);
+        recipe(sim, SAB);
+        QuestModule m = new QuestModule(sim.ctx, NpcMaps.shared(), orbit.world.maps.OreMaps.inMemory());
+        assertFalse(m.doable(sim.world.snapshot(sim.now).quests().active().get(700030)), "no mucosum told: no craft");
+        sabPrice(sim, 3);
+        assertTrue(m.doable(sim.world.snapshot(sim.now).quests().active().get(700030)));
+        CraftWatch w = new CraftWatch(sim.ctx);
+        CraftWatchTest.runFor(sim, w, 30_000);
+        AssemblyBuildRequest b = (AssemblyBuildRequest) sim.sent.stream().filter(AssemblyBuildRequest.class::isInstance)
+                .findFirst().orElseThrow();
+        assertEquals(SAB, b.recipeLootId);
+        assertEquals(1.0, b.amount);
+    }
+
+    @Test
+    void neverARecipeThatCostsUridiumNorWithTheCraftOff() throws Exception {
+        Sim sim = new Sim(config(BotConfig.Module.QUESTS, "{\"craftRecipes\":[\"recipe_blueprint-rsb75-blacklight\"]}"),
+                26, 7_500, 3_900);
+        season(sim, 700030, 9, Quests.COLLECT_BUILT_RECIPE, 25);
+        recipe(sim, "recipe_blueprint-rsb75-blacklight");
+        RecipeCostsTest.resource(sim, "resource_collectable_rinusk", 100_000);
+        RecipeCostsTest.resource(sim, "resource_collectable_blacklight-trace", 100_000);
+        assertNull(QuestCrafts.craftRule(sim.config, sim.world.snapshot(sim.now)));
+        Sim off = new Sim(config(BotConfig.Module.QUESTS, "{\"craft\":false}"), 26, 7_500, 3_900);
+        season(off, 700030, 9, Quests.COLLECT_BUILT_RECIPE, 25);
+        recipe(off, SAB);
+        sabPrice(off, 3);
+        assertNull(QuestCrafts.craftRule(off.config, off.world.snapshot(off.now)));
+        Sim kill = new Sim(config(BotConfig.Module.KILL_COLLECT, "{}"), 26, 7_500, 3_900);
+        season(kill, 700030, 9, Quests.COLLECT_BUILT_RECIPE, 25);
+        recipe(kill, SAB);
+        sabPrice(kill, 3);
+        assertNull(QuestCrafts.craftRule(kill.config, kill.world.snapshot(kill.now)), "another module, alongside off");
+    }
+
+    @Test
+    void alongsideAnotherModuleTheCargoIsPickedTheCraftRunsAndNothingIsRerolled() throws Exception {
+        Sim sim = new Sim(config(BotConfig.Module.KILL_COLLECT, "{\"alongside\":true}"), 26, 7_500, 3_900);
+        season(sim, 700037, 3, Quests.CARGO, 1_500);
+        QuestsAlongside a = new QuestsAlongside(sim.ctx);
+        BotConfig adjusted = a.adjust(sim.config);
+        assertTrue(adjusted.collect().boxes().get("FROM_SHIP").collect(), "the cargo of its kills");
+        assertSame(adjusted, a.adjust(sim.config), "kept while nothing changed");
+        season(sim, 700030, 9, Quests.COLLECT_BUILT_RECIPE, 25);
+        recipe(sim, SAB);
+        sabPrice(sim, 3);
+        assertNotNull(QuestCrafts.craftRule(sim.config, sim.world.snapshot(sim.now)));
+        for (long t = 0; t < 30_000; t += 100) {
+            a.tick(false);
+            sim.now += 100 * Sim.MS;
+        }
+        assertTrue(sim.sent.stream().noneMatch(p -> p instanceof SeasonPassRefreshRequest), "no rerolls alongside");
+        Sim plain = new Sim(config(BotConfig.Module.KILL_COLLECT, "{}"), 26, 7_500, 3_900);
+        season(plain, 700037, 3, Quests.CARGO, 1_500);
+        assertSame(plain.config, new QuestsAlongside(plain.ctx).adjust(plain.config), "alongside off: the config as is");
+        Sim quests = new Sim(config(BotConfig.Module.QUESTS, "{\"alongside\":true}"), 26, 7_500, 3_900);
+        assertFalse(QuestsAlongside.on(quests.config), "the quest module does it all itself");
+    }
+}

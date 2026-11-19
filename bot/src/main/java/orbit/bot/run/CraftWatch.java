@@ -66,10 +66,15 @@ public final class CraftWatch {
                 rules.add(emaa);
             }
         }
+        WorldSnapshot w = ctx.world().get();
+        // a quest's «collect built recipes» (Season Pass 700030/700031): cheap batches one after another
+        BotConfig.CraftRule quest = orbit.bot.mod.QuestCrafts.craftRule(cfg, w);
+        if (quest != null && rules.stream().noneMatch(r -> r.recipe().equals(quest.recipe()))) {
+            rules.add(quest);
+        }
         if (rules.isEmpty()) {
             return;
         }
-        WorldSnapshot w = ctx.world().get();
         if (w.hero().id() == 0 || w.death() != null) {
             return;
         }

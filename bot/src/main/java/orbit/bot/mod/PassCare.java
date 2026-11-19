@@ -15,7 +15,8 @@ import org.slf4j.LoggerFactory;
  * The passes' free buttons, as a player clicks them in their windows (plan 5б.9 step 4; the user's choices
  * 2026-11-12): Season Pass «Забрать всё» when a reached level's reward is unclaimed on a track the account has; a free
  * reroll of a season mission the bot cannot do; Battle Pass «Забрать» with the bought pass; Galaxy Trek's sector rewards;
- * the diminishing window's «Принять» for a quest the bot can do. Never: uridium (level purchases, paid rerolls), Galaxy
+ * the diminishing window's «Принять» for a quest the bot can do. Never rerolled: a mission that counts other missions
+ * or objectives ({@link QuestTargets#grows}) — it grows by itself. Never: uridium (level purchases, paid rerolls), Galaxy
  * Trek searches (they spend FTL keys — the user: never), the Battle Pass key exchange (the user chooses himself).
  * Settings ({@code modules.quests}): {@code season}, {@code seasonReroll}, {@code battlepass}, {@code trek},
  * {@code diminishing} — on by default.
@@ -40,6 +41,17 @@ final class PassCare {
 
     /** One free click at most, a human moment after the last one. */
     void tick(WorldSnapshot w, JsonNode settings, Predicate<Quests.Quest> doable) {
+        tick(w, settings, doable, true);
+    }
+
+    /**
+     * @param picks false: no rerolls and no diminishing quests (quests alongside another module: what it moves is not
+     *              known) — only the rewards are collected
+     */
+    void tick(WorldSnapshot w, JsonNode settings, Predicate<Quests.Quest> doable, boolean picks) {
+        if (settings == null) {
+            settings = com.fasterxml.jackson.databind.node.MissingNode.getInstance();
+        }
         long now = ctx.now();
         if (now < nextAt) {
             return;
@@ -52,9 +64,10 @@ final class PassCare {
             done(now);
             return;
         }
-        if (on(settings, "seasonReroll")) {
+        if (picks && on(settings, "seasonReroll")) {
             for (Quests.Quest q : w.quests().active().values()) {
-                if (!Quests.SEASON.equals(q.source()) || doable.test(q)) {
+                // «N Season Pass missions», «N objectives»: they grow as the rest is done (the user, 2026-11-19)
+                if (!Quests.SEASON.equals(q.source()) || doable.test(q) || QuestTargets.growing(q)) {
                     continue;
                 }
                 boolean daily = q.is(Quests.DAILY);
@@ -93,7 +106,7 @@ final class PassCare {
             }
         }
         Quests.Quest d = p.diminishing();
-        if (on(settings, "diminishing") && d != null && p.diminishingStatus() == Quests.ACCEPTABLE
+        if (picks && on(settings, "diminishing") && d != null && p.diminishingStatus() == Quests.ACCEPTABLE
                 && ms(now - diminishingAt.getOrDefault(d.id(), Long.MIN_VALUE / 2)) > RETRY_MS) {
             if (doable.test(d)) {
                 log.info("Убывающий квест {}: принимаю", QuestTitles.label(d.id()));

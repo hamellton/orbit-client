@@ -71,6 +71,12 @@ public final class QuestTexts {
             case Quests.LEVEL -> "достичь " + (long) c.target() + " уровня";
             case Quests.VISIT_QUEST_GIVER -> "к квестодателю";
             case Quests.FINISH_GALAXY_GATE -> "пройти врата " + map(c.match(1));
+            case Quests.CARGO -> "подобрать грузовые ящики";
+            case Quests.COLLECT_BUILT_RECIPE -> "собрать скрафченное" + (c.matches().isEmpty() ? " (любой рецепт)"
+                    : ": " + c.matches().get(0));
+            case Quests.COMPLETED_OBJECTIVES -> "выполнить задания квестов";
+            case Quests.COMPLETE_SEASON_PASS_QUESTS -> "выполнить миссии Season Pass";
+            case Quests.DURING_EVENT -> "во время события " + (c.matches().isEmpty() ? "" : c.matches().get(0));
             default -> "условие " + c.type();
         };
     }

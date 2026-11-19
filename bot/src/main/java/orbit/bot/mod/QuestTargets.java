@@ -58,6 +58,19 @@ public final class QuestTargets {
                 || c.type() == Quests.COORDINATES;
     }
 
+    /**
+     * Conditions that count other quests (N Season Pass missions, N objectives): they grow as the rest is done — no work
+     * of their own, and no reason to reroll their mission (DarkBot's DmPlugin and AstraBot leave them alone too).
+     */
+    public static boolean grows(Quests.Condition c) {
+        return c.type() == Quests.COMPLETE_SEASON_PASS_QUESTS || c.type() == Quests.COMPLETED_OBJECTIVES;
+    }
+
+    /** A quest with an open condition that {@link #grows} by itself. */
+    public static boolean growing(Quests.Quest q) {
+        return q.all().stream().anyMatch(c -> !c.completed() && grows(c));
+    }
+
     /** Limits the bot keeps by itself (time, deaths): no work of their own. */
     public static boolean passive(Quests.Condition c) {
         return switch (c.type()) {

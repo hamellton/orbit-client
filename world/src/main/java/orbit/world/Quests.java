@@ -150,10 +150,10 @@ public record Quests(Map<Integer, Quest> active, List<Offer> offers, Map<Integer
             }
         }
 
-        /** A condition that only bounds its parent: where (on a map) or how fast / how safely. */
+        /** A condition that only bounds its parent: where (on a map), when (during an event) or how fast / how safely. */
         public boolean bound() {
             return switch (type) {
-                case MAP, ON_MAP, TIMER, HASTE, COUNTDOWN, REAL_TIME_HASTE, AVOID_DEATH -> true;
+                case MAP, ON_MAP, TIMER, HASTE, COUNTDOWN, REAL_TIME_HASTE, AVOID_DEATH, DURING_EVENT -> true;
                 default -> false;
             };
         }
@@ -232,4 +232,14 @@ public record Quests(Map<Integer, Quest> active, List<Offer> offers, Map<Integer
     public static final int REFINE_ORE = 69;
     public static final int ON_MAP = 77;
     public static final int FINISH_GALAXY_GATE = 79;
+    /** Cargo boxes picked up (the client's {@code CargoCondition}, its help icon «cargo_box»; Season Pass 700037). */
+    public static final int CARGO = 51;
+    /** Built recipes collected from the assembly, {@code matches} empty = any recipe (Season Pass 700030, 700031). */
+    public static final int COLLECT_BUILT_RECIPE = 85;
+    /** Other quests' objectives completed (Season Pass 700023: 15 during the Mimesis event): grows by itself. */
+    public static final int COMPLETED_OBJECTIVES = 87;
+    /** Season Pass missions completed (700027, 700028): grows by itself. */
+    public static final int COMPLETE_SEASON_PASS_QUESTS = 95;
+    /** Only while an event runs ({@code matches} its name, «MimesisMutiny»): bounds its parent. */
+    public static final int DURING_EVENT = 97;
 }

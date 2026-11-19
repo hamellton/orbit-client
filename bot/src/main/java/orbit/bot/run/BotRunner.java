@@ -86,6 +86,7 @@ public final class BotRunner {
     private final BuyWatch buy;
     private final CraftWatch craft;
     private final DispatchCare dispatch;
+    private final orbit.bot.mod.QuestsAlongside alongside;
     private final CloakCare cloak;
     private final Flee flee;
     private final GroupWatch groupWatch;
@@ -143,6 +144,7 @@ public final class BotRunner {
         this.buy = new BuyWatch(ctx);
         this.craft = new CraftWatch(ctx);
         this.dispatch = new DispatchCare(ctx);
+        this.alongside = new orbit.bot.mod.QuestsAlongside(ctx);
         this.cloak = new CloakCare(ctx);
         this.flee = new Flee(ctx);
         this.groupWatch = new GroupWatch(ctx);
@@ -229,7 +231,10 @@ public final class BotRunner {
 
     private void loadModule() {
         moduleKind = ctx.config().get().module();
-        module = Modules.create(moduleKind, ctx);
+        // the module sees the quests' extras when quests go alongside it (cargo boxes for a cargo condition)
+        module = Modules.create(moduleKind, new BotContext(ctx.world(), () -> alongside.adjust(ctx.config().get()),
+                ctx.actions(), ctx.nav(), ctx.traveler(), ctx.maps(), ctx.random(), ctx.clock(), ctx.repair(), ctx.ship(),
+                ctx.dataDir(), ctx.stats(), ctx.ships()));
         if (module != null && refresh != null) {
             module.useRefresh(refresh);
         }
@@ -566,6 +571,7 @@ public final class BotRunner {
         buy.tick();
         craft.tick();
         dispatch.tick(); // the dispatch's retrievers (modules.dispatch)
+        alongside.tick(module != null && module.busy()); // the passes' rewards beside another module (modules.quests.alongside)
         groupWatch.tick();
         pet.tick();
         if (state != State.STOPPING && service.phase() == ServiceVisit.Phase.IDLE) {

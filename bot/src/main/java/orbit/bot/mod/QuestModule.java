@@ -30,7 +30,10 @@ import org.slf4j.LoggerFactory;
  *   <li>ore — the collector on the nearest map where that ore was seen ({@link OreMaps}), only that ore;</li>
  *   <li>sell ore — the sale ({@code CargoCare}, the config's way: base or pet) of that ore even with room in the hold;
  *       none aboard — it is collected first;</li>
- *   <li>a map or a point — a flight there.</li>
+ *   <li>a map or a point — a flight there;</li>
+ *   <li>cargo boxes ({@code CARGO}) — as the salvage: NPCs killed and their cargo picked;</li>
+ *   <li>built recipes — crafted beside the other work ({@link QuestCrafts}); conditions that count other quests grow
+ *       by themselves.</li>
  * </ul>
  * Daily quests first, then weekly, event, challenge, missions. A quest done — back to the giver for the next one (a
  * chain); quests the bot cannot do are not taken, and a taken one it cannot do waits.
@@ -590,7 +593,7 @@ public final class QuestModule implements BotModule {
                         .thenComparingInt(QuestModule::rank).thenComparingInt(Quests.Quest::id)).toList();
         for (Quests.Quest quest : quests) {
             for (Quests.Condition c : quest.leaves()) {
-                if (c.completed() || QuestTargets.passive(c)) {
+                if (c.completed() || QuestTargets.passive(c) || background(c)) {
                     continue;
                 }
                 Work wk = work(quest, c, w);
@@ -632,7 +635,9 @@ public final class QuestModule implements BotModule {
             return best == null ? null : new Work(quest.id(), c.id(), k, best, Set.copyOf(where.get(best)), Double.NaN,
                     Double.NaN, -1, want, ids.isEmpty() ? 0 : ids.getFirst());
         }
-        if (c.type() == Quests.SALVAGE && doing.contains("SALVAGE")) {
+        if ((c.type() == Quests.SALVAGE || c.type() == Quests.CARGO) && doing.contains("SALVAGE")) {
+            // «pick up cargo boxes» (Season Pass 700037, 1 500 of them) — the cargo of killed NPCs, as AstraBot's and
+            // DmPlugin's season modules do it
             return salvageWork(quest, c, w);
         }
         if (c.type() == Quests.COLLECT_BONUS_BOX && doing.contains("BOX")) {
@@ -944,6 +949,14 @@ public final class QuestModule implements BotModule {
         return company >= 1 && company <= 3 && company != faction;
     }
 
+    /**
+     * Done beside the work, not as one: conditions that grow by themselves ({@link QuestTargets#grows}) and crafting
+     * ({@link QuestCrafts}, built and collected by {@code CraftWatch} while the ship works on).
+     */
+    static boolean background(Quests.Condition c) {
+        return QuestTargets.grows(c) || c.type() == Quests.COLLECT_BUILT_RECIPE;
+    }
+
     /** A quest the bot can do: each of its open required conditions is one it does, or a limit it keeps. */
     public boolean doable(Quests.Quest quest) {
         if (left(quest.id())) {
@@ -952,7 +965,16 @@ public final class QuestModule implements BotModule {
         WorldSnapshot w = ctx.world().get();
         int work = 0;
         for (Quests.Condition c : quest.leaves()) {
-            if (c.completed() || QuestTargets.passive(c)) {
+            if (c.completed() || QuestTargets.passive(c) || QuestTargets.grows(c)) {
+                continue;
+            }
+            if (c.type() == Quests.COLLECT_BUILT_RECIPE) {
+                // crafted beside the other work (CraftWatch); none can be built now — the bot cannot do it
+                if (QuestCrafts.possible(ctx.config().get(), w, c)) {
+                    work++;
+                } else if (c.mandatory()) {
+                    return false;
+                }
                 continue;
             }
             if (work(quest, c, w) == null) {
@@ -1053,7 +1075,7 @@ public final class QuestModule implements BotModule {
             if (o.completed()) {
                 continue;
             }
-            if (o.type() == Quests.SALVAGE) {
+            if (o.type() == Quests.SALVAGE || o.type() == Quests.CARGO) {
                 out.add(CARGO);
             } else if (o.type() == Quests.COLLECT_LOOT && !o.matches().isEmpty()) {
                 String id = o.matches().getFirst().toLowerCase(java.util.Locale.ROOT);
