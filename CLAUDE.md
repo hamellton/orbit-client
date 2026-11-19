@@ -53,7 +53,9 @@ Status: Stage 2 done; stage 3 in progress (login, game connection, vault, client
   recording: `client-profile` → `local/client-profile.json`), `game-check` live tool.
 - `bot` — the bot: `BotRunner` (safety, revive, pet, buying, travel to the module's map) and the modules
   (`orbit.bot.mod`: `KillModule` kill & collect, `CubikonModule`, `BehemothModule` Mindfire Behemoth on the BL maps as
-  AstraBot's module — timers in `SpawnMemory`, `PalladiumModule`, `QuestModule`; fights by `Attacker`). Behemoth stage,
+  AstraBot's module — timers in `SpawnMemory`, `PalladiumModule`, `QuestModule` (season: cargo boxes, `QuestCrafts` cheap crafts for built-recipe
+  conditions, meta missions never rerolled; `QuestsAlongside` = `modules.quests.alongside`, passes and crafts beside
+  another module); fights by `Attacker`). Behemoth stage,
   what is not done and what comes next (farming among trains like CARNAGE, groups): `docs/BLACKLIGHT.md`, stage D.
   `GateModule` galaxy gates as DarkBot's SharedPlugin (`docs/GALAXY-GATES.md`); `Enricher`, `SkylabCare`, `ServiceVisit`
   lab enrichment and Skylab ore, also by a visit to the account's service ship (`docs/SKYLAB.md`).
