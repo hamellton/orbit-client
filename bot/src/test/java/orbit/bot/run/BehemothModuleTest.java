@@ -1095,6 +1095,50 @@ class BehemothModuleTest {
     }
 
     @Test
+    void anOffenderOfOurOwnCompanyMovesTheShipAsideToo() throws Exception {
+        // the user, 2026-11-20: «обидчиком может быть любой абсолютно» — one who attacked the ship, whatever his company
+        Sim sim = new Sim(config(300), 307, 5_200, 5_000);
+        BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
+        com.fasterxml.jackson.databind.JsonNode s = sim.ctx.config().get().moduleSettings("behemoth");
+        int[] p = {5_200, 5_000};
+        double radius = Math.max(300, sim.ctx.config().get().flee().avoidRadius());
+        orbit.protocol.gen.ShipCreateCommand c = new orbit.protocol.gen.ShipCreateCommand();
+        c.userId = 901;
+        c.userName = "Own";
+        c.factionId = 3; // ours
+        c.x = (int) (5_200 + radius - 500);
+        c.y = 5_000;
+        sim.world.apply(c, sim.now);
+        assertEquals(p[0], m.dodge(s, sim.world.snapshot(sim.now), p)[0], "our company, never shot at us: stays");
+        sim.ctx.stats().offenders.set(Set.of(901));
+        int[] to = m.dodge(s, sim.world.snapshot(sim.now), p);
+        assertTrue(Math.hypot(to[0] - c.x, to[1] - c.y) > radius, "an offender: out of his circle");
+    }
+
+    @Test
+    void theStepAsideGoesAsFarAsTheConfigLets() throws Exception {
+        // the user, 2026-11-20: «не дальше 1 200 — сделать настраиваемым», up to the corner
+        Sim sim = new Sim(with(config(300), "{\"dodgeMax\": 2400}"), 307, 5_200, 5_000);
+        BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
+        com.fasterxml.jackson.databind.JsonNode s = sim.ctx.config().get().moduleSettings("behemoth");
+        int[] p = {5_200, 5_000};
+        double radius = Math.max(300, sim.ctx.config().get().flee().avoidRadius());
+        // enemies round the point on every side but one far off: out of all their circles only beyond 1 200
+        for (int i = 0; i < 8; i++) {
+            double a = i * Math.PI / 4;
+            enemy(sim, 910 + i, "E" + i, (int) (5_200 + 600 * Math.cos(a)), (int) (5_000 + 600 * Math.sin(a)));
+        }
+        int[] to = m.dodge(s, sim.world.snapshot(sim.now), p);
+        double far = Math.hypot(to[0] - p[0], to[1] - p[1]);
+        assertTrue(far > BehemothModule.DODGE_MAX && far <= 2_400, "beyond the old 1 200, within 2 400: " + (int) far);
+        for (int i = 0; i < 8; i++) {
+            double a = i * Math.PI / 4;
+            assertTrue(Math.hypot(to[0] - (5_200 + 600 * Math.cos(a)), to[1] - (5_000 + 600 * Math.sin(a))) > radius
+                    || far >= 2_100, "out of the circles where it can");
+        }
+    }
+
+    @Test
     void enemiesByTheWaitPointMoveTheShipAsideAndBack() throws Exception {
         // the user, 2026-11-14: «отлетать не сильно от зоны, не ближе к обидчикам; как отлетят — ближе к точке»
         Sim sim = new Sim(config(300), 307, 5_200, 5_000);

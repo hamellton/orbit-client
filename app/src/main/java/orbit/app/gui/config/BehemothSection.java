@@ -77,7 +77,8 @@ final class BehemothSection implements Section {
     private final JCheckBox avoidEnemies = new JCheckBox("Облетать видимых врагов заранее (2000), рядом враги — не вылетать с точки (до 3 мин)");
     private final JCheckBox waitInZone = new JCheckBox("Ждать в предпочитаемой зоне конфига, дальше всего от поездов (как AstraBot)");
     private final JCheckBox avoidTrainPaths = new JCheckBox("Летать в обход путей поездов «портал → бегемот»");
-    private final JCheckBox dodgeEnemies = new JCheckBox("Пока ждём — отходить от врагов (не дальше 1200 от точки), ушли — назад");
+    private final JCheckBox dodgeEnemies = new JCheckBox("Пока ждём — отходить от врагов и обидчиков, ушли — сразу назад; не дальше от точки, чем");
+    private final javax.swing.JSpinner dodgeMax = Form.number(300, 6000, 100);
     private final JCheckBox learnSafeSpot = new JCheckBox("Учиться, где ходят враги, и ждать там, где их меньше всего");
     private final JCheckBox awayFromPortals = new JCheckBox("Ждать в стороне от путей «портал → бегемот», где ходят поезда");
     private final JCheckBox freeSide = new JCheckBox("Ждать со свободной стороны: чужие у точки — встать на круге от них");
@@ -232,7 +233,7 @@ final class BehemothSection implements Section {
                         + " ждёт у места появления (точки — из BeheFarm, уточняются по увиденному).")
                 .section("Где ждать")
                 .row("", waitInZone)
-                .row("", dodgeEnemies)
+                .row("", Form.inline(dodgeEnemies, dodgeMax))
                 .row("", learnSafeSpot)
                 .row("", awayFromPortals)
                 .row("", avoidTrainPaths)
@@ -460,6 +461,7 @@ final class BehemothSection implements Section {
         learnSafeSpot.setSelected(m.path("learnSafeSpot").asBoolean(false));
         waitInZone.setSelected(m.path("waitInZone").asBoolean(false));
         dodgeEnemies.setSelected(m.path("dodgeEnemies").asBoolean(true));
+        Form.set(dodgeMax, m.path("dodgeMax").asInt(1200));
         avoidTrainPaths.setSelected(m.path("avoidTrainPaths").asBoolean(false));
         trainTimer.setSelected(m.path("trainTimer").asBoolean(false));
         waitForTrain.setSelected(m.path("waitForTrain").asBoolean(false));
@@ -571,6 +573,9 @@ final class BehemothSection implements Section {
         m.put("learnSafeSpot", learnSafeSpot.isSelected());
         m.put("waitInZone", waitInZone.isSelected());
         m.put("dodgeEnemies", dodgeEnemies.isSelected());
+        if (Form.intOf(dodgeMax) != 1200 || m.has("dodgeMax")) {
+            m.put("dodgeMax", Form.intOf(dodgeMax)); // set: kept; the default not written into configs that never had it
+        }
         m.put("avoidTrainPaths", avoidTrainPaths.isSelected());
         m.put("trainTimer", trainTimer.isSelected());
         m.put("waitForTrain", waitForTrain.isSelected());

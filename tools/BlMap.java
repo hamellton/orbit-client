@@ -27,6 +27,7 @@ public class BlMap {
         String dir = a[0];
         boolean v2 = a.length > 1 && a[1].equals("v2"); // the points near a route replaced (the user, 2026-11-20)
         boolean v3 = a.length > 1 && a[1].equals("v3"); // all points chosen anew by the corrected routes
+        boolean v4 = a.length > 1 && a[1].equals("v4"); // the wait out of a train's circles (radius 1 200) at the spawn
         var json = new com.fasterxml.jackson.databind.ObjectMapper().readTree(new File("reference/maps/bl-walls.json"));
         int[][] spawn = {{19400, 5800}, {6900, 5000}, {4700, 3900}};
         int[][] waitCfg = {{18900, 6550}, {5150, 5000}, {2650, 2350}};
@@ -145,6 +146,24 @@ public class BlMap {
             String[] fl = {"A1 сбоку", "A2 сбоку", "B у стены", "C край (радиация)"};
             Color[] fc = {new Color(0x3ce07a), new Color(0x3ce07a), new Color(0xf0e040), new Color(0xb070ff)};
             Color[] lc = {new Color(0x7af0a8), new Color(0x7af0a8), new Color(0xf6ec80), new Color(0xc9a0ff)};
+            if (v4) {
+                // where a train standing at the spawn (its players ~600 round it) and the trains on their way reach with
+                // the offenders' radius: shaded; the wait point out of it, the nearest to the spawn; its step-aside circle
+                double reachSpawn = TRAIN_SPREAD + RADIUS;
+                g.setColor(new Color(255, 160, 40, 45));
+                g.fill(new Ellipse2D.Double((s[0] - reachSpawn) * K, oy + (s[1] - reachSpawn) * K, 2 * reachSpawn * K, 2 * reachSpawn * K));
+                double[] wp = waitOut(s, routes);
+                if (wp != null) {
+                    g.setColor(new Color(90, 160, 255, 170));
+                    g.setStroke(new BasicStroke(2, BasicStroke.CAP_BUTT, BasicStroke.JOIN_ROUND, 1, new float[] {6, 5}, 0));
+                    g.draw(new Ellipse2D.Double((wp[0] - DODGE) * K, oy + (wp[1] - DODGE) * K, 2 * DODGE * K, 2 * DODGE * K));
+                    g.setColor(new Color(0x2f7fff));
+                    g.fill(new Ellipse2D.Double(wp[0] * K - 9, oy + wp[1] * K - 9, 18, 18));
+                    label(g, wp[0], wp[1], oy, "W ждать (новая)", new Color(0x9cc8ff));
+                    System.out.printf("%s W %d/%d — до бегемота %d, до маршрута %d%n", names[m], (int) wp[0] / 100,
+                            (int) wp[1] / 100, (int) Math.hypot(wp[0] - s[0], wp[1] - s[1]), (int) toRoutes(routes, wp[0], wp[1]));
+                }
+            }
             if (v3) {
                 // anew: near the behemoth for the damage and its box, off the trains' routes
                 List<double[]> two = sideTwo(s, routes);
@@ -160,7 +179,7 @@ public class BlMap {
                             (int) Math.hypot(pt[0] - s[0], pt[1] - s[1]));
                 }
             }
-            for (int i = 0; i < 4 && !v3; i++) {
+            for (int i = 0; i < 4 && !v3 && !v4; i++) {
                 double[] pt = fixedPts[m][i];
                 double dmin = toRoutes(routes, pt[0], pt[1]);
                 double[] np = null;
@@ -217,7 +236,11 @@ public class BlMap {
             g.setColor(new Color(0xdfe6ee));
             g.drawString("Вариант 3: все точки заново по маршрутам — A 1 300–2 000 от бегемота и 1 000+ от поездов, B у стены 1 500–3 000, C у края; 1 200+ от поездов", 10, ly + 4 * 24);
         }
-        ImageIO.write(out, "png", new File(dir + (v3 ? "/bl-maps-v3.png" : v2 ? "/bl-maps-v2.png" : "/bl-maps.png")));
+        if (v4) {
+            g.setColor(new Color(0xdfe6ee));
+            g.drawString("Вариант 4 (радиус обидчиков 1 200): оранжевое — куда достаёт поезд, стоящий у бегемота; W — ждать вне этого и 1 500+ от маршрутов; синий пунктир — куда можно отойти (2 500)", 10, ly + 4 * 24);
+        }
+        ImageIO.write(out, "png", new File(dir + (v4 ? "/bl-maps-v4.png" : v3 ? "/bl-maps-v3.png" : v2 ? "/bl-maps-v2.png" : "/bl-maps.png")));
         System.exit(0);
     }
 
@@ -246,6 +269,27 @@ public class BlMap {
                 if (off < 1000) continue;
                 double key = r * 10 - off; // nearest ring first, then the farthest from the routes
                 if (key < bestKey) { bestKey = key; best = new double[] {x, y}; }
+            }
+        }
+        return best;
+    }
+
+    /** The offenders' radius tried (the config's «Обходить», 1 200) and a train's players about the spawn. */
+    static final double RADIUS = 1_200;
+    static final double TRAIN_SPREAD = 600;
+    /** How far the ship may step aside from the wait point ({@code dodgeMax}). */
+    static final double DODGE = 2_500;
+
+    /** The wait point: out of a spawn train's reach (+100), 1 500+ off the routes; the nearest to the spawn. */
+    static double[] waitOut(int[] s, List<List<double[]>> routes) {
+        double[] best = null;
+        double bestD = 1e18;
+        for (int x = 500; x < W; x += 100) {
+            for (int y = 500; y < H; y += 100) {
+                double d = Math.hypot(x - s[0], y - s[1]);
+                if (d < TRAIN_SPREAD + RADIUS + 100 || d >= bestD || blocked(x, y) || toRoutes(routes, x, y) < RADIUS + 300) continue;
+                bestD = d;
+                best = new double[] {x, y};
             }
         }
         return best;

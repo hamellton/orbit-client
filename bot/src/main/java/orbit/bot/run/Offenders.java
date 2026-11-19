@@ -152,6 +152,13 @@ public final class Offenders {
             }
         }
         seen.values().removeIf(s -> now - s.nanos() > LAST_SEEN_NS || s.map() != h.mapId());
+        java.util.Set<Integer> inSight = new java.util.HashSet<>();
+        for (WorldSnapshot.Ship s : w.ships().values()) {
+            if (s.kind() == WorldSnapshot.ShipKind.PLAYER && known(s)) {
+                inSight.add(s.id());
+            }
+        }
+        ctx.stats().offenders.set(java.util.Set.copyOf(inSight));
         double r = f.avoidRadius();
         stations = stations(w, f.stationRadius());
         // the window shows the players kept off (the user's own tick), not the bot's own keeping off NPCs and

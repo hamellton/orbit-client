@@ -1554,6 +1554,11 @@ public final class BehemothModule implements BotModule {
 
     /** {@code dodgeEnemies}: the wait point's neighbourhood searched this far for a point out of the enemies' reach. */
     public static final double DODGE_MAX = 1_200;
+
+    /** {@code dodgeMax}: how far from the wait point the ship may step aside (the user, 2026-11-20: up to the corner). */
+    static double dodgeMax(JsonNode s) {
+        return Math.max(300, number(s, "dodgeMax", DODGE_MAX));
+    }
     private int[] dodgePoint;
     private boolean dodging;
 
@@ -1572,11 +1577,15 @@ public final class BehemothModule implements BotModule {
         }
         WorldSnapshot.Hero h = w.hero();
         double radius = Math.max(300, ctx.config().get().flee().avoidRadius());
+        double max = dodgeMax(s);
         java.util.Set<Integer> group = PlayerFight.group(w);
         List<String> black = names(s, "blacklist");
+        // another company's players and whoever attacked the ship this session, of any company (the user, 2026-11-20)
+        java.util.Set<Integer> offenders = ctx.stats().offenders.get();
         List<WorldSnapshot.Ship> enemies = w.ships().values().stream()
-                .filter(e -> PlayerFight.enemy(e, h, group, black))
-                .filter(e -> Math.hypot(e.x() - p[0], e.y() - p[1]) <= radius + DODGE_MAX)
+                .filter(e -> PlayerFight.enemy(e, h, group, black) || offenders.contains(e.id()) && e.id() != h.id()
+                        && !group.contains(e.id()))
+                .filter(e -> Math.hypot(e.x() - p[0], e.y() - p[1]) <= radius + max)
                 .toList();
         if (enemies.stream().noneMatch(e -> Math.hypot(e.x() - p[0], e.y() - p[1]) <= radius)) {
             if (dodging) {
@@ -1587,7 +1596,7 @@ public final class BehemothModule implements BotModule {
             return p;
         }
         if (dodgePoint != null && freeness(dodgePoint, enemies) > radius
-                && Math.hypot(dodgePoint[0] - p[0], dodgePoint[1] - p[1]) <= DODGE_MAX) {
+                && Math.hypot(dodgePoint[0] - p[0], dodgePoint[1] - p[1]) <= max) {
             return dodgePoint; // the point taken still out of reach: kept
         }
         orbit.world.maps.MapCatalog.MapInfo info = ctx.maps().info(h.mapId());
@@ -1597,7 +1606,7 @@ public final class BehemothModule implements BotModule {
         double bestKey = Double.MAX_VALUE;
         int[] farthest = null;
         double farthestFree = freeness(new int[] {h.x(), h.y()}, enemies);
-        for (int ring = 300; ring <= DODGE_MAX; ring += 300) {
+        for (int ring = 300; ring <= max; ring += 300) {
             for (int a = 0; a < 16; a++) {
                 double ang = a * Math.PI / 8;
                 int x = (int) (p[0] + ring * Math.cos(ang));

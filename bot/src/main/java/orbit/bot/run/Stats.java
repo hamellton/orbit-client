@@ -58,6 +58,12 @@ public final class Stats {
     public final java.util.Set<String> closedPortals = java.util.concurrent.ConcurrentHashMap.newKeySet();
     /** Cubikons that died while the bot was shooting at them. */
     public final AtomicInteger cubesKilled = new AtomicInteger();
+    /**
+     * The players in sight who attacked or killed the ship this session (any company, {@code Offenders}): the behemoth's
+     * wait keeps off them too (the user, 2026-11-20: «обидчиком может быть любой абсолютно»).
+     */
+    public final java.util.concurrent.atomic.AtomicReference<java.util.Set<Integer>> offenders =
+            new java.util.concurrent.atomic.AtomicReference<>(java.util.Set.of());
 
     /**
      * The counters since {@code base} — a copy for the window after its statistics were reset (the bot's own counters go
