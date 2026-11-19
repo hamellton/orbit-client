@@ -1555,6 +1555,18 @@ public final class BehemothModule implements BotModule {
     /** {@code dodgeEnemies}: the wait point's neighbourhood searched this far for a point out of the enemies' reach. */
     public static final double DODGE_MAX = 1_200;
 
+    /** An enemy flying on is reckoned this much ahead (1.5 s of a ship's flight) when the ship steps aside. */
+    public static final double LEAD = 750;
+
+    /** The distance from the point to the nearest of {@code at}. */
+    private static double clearOf(int[] p, List<double[]> at) {
+        double min = Double.MAX_VALUE;
+        for (double[] e : at) {
+            min = Math.min(min, Math.hypot(e[0] - p[0], e[1] - p[1]));
+        }
+        return min;
+    }
+
     /** {@code dodgeMax}: how far from the wait point the ship may step aside (the user, 2026-11-20: up to the corner). */
     static double dodgeMax(JsonNode s) {
         return Math.max(300, number(s, "dodgeMax", DODGE_MAX));
@@ -1587,7 +1599,22 @@ public final class BehemothModule implements BotModule {
                         && !group.contains(e.id()))
                 .filter(e -> Math.hypot(e.x() - p[0], e.y() - p[1]) <= radius + max)
                 .toList();
-        if (enemies.stream().noneMatch(e -> Math.hypot(e.x() - p[0], e.y() - p[1]) <= radius)) {
+        // each enemy where he is and where he will be in LEAD_S if he flies on (the user, 2026-11-20: a train came
+        // straight at the ship — at the edge of its circle it was caught in 2 s)
+        List<double[]> at = new java.util.ArrayList<>();
+        for (WorldSnapshot.Ship e : enemies) {
+            at.add(new double[] {e.x(), e.y()});
+            if (e.moving()) {
+                double dx = e.targetX() - e.x();
+                double dy = e.targetY() - e.y();
+                double d = Math.hypot(dx, dy);
+                double go = Math.min(d, LEAD);
+                if (d > 1) {
+                    at.add(new double[] {e.x() + dx / d * go, e.y() + dy / d * go});
+                }
+            }
+        }
+        if (at.stream().noneMatch(e -> Math.hypot(e[0] - p[0], e[1] - p[1]) <= radius)) {
             if (dodging) {
                 log.info("Враги отошли — назад к точке ожидания {}/{}", p[0] / 100, p[1] / 100);
             }
@@ -1595,7 +1622,9 @@ public final class BehemothModule implements BotModule {
             dodgePoint = null;
             return p;
         }
-        if (dodgePoint != null && freeness(dodgePoint, enemies) > radius
+        // out of every circle by a little (dodgeMargin, the user: 100–200 — near the behemoth), the nearest to the point
+        double out = radius + Math.max(0, number(s, "dodgeMargin", 0));
+        if (dodgePoint != null && clearOf(dodgePoint, at) > out
                 && Math.hypot(dodgePoint[0] - p[0], dodgePoint[1] - p[1]) <= max) {
             return dodgePoint; // the point taken still out of reach: kept
         }
@@ -1605,10 +1634,10 @@ public final class BehemothModule implements BotModule {
         int[] best = null;
         double bestKey = Double.MAX_VALUE;
         int[] farthest = null;
-        double farthestFree = freeness(new int[] {h.x(), h.y()}, enemies);
-        for (int ring = 300; ring <= max; ring += 300) {
-            for (int a = 0; a < 16; a++) {
-                double ang = a * Math.PI / 8;
+        double farthestFree = clearOf(new int[] {h.x(), h.y()}, at);
+        for (int ring = 150; ring <= max; ring += 150) {
+            for (int a = 0; a < 24; a++) {
+                double ang = a * Math.PI / 12;
                 int x = (int) (p[0] + ring * Math.cos(ang));
                 int y = (int) (p[1] + ring * Math.sin(ang));
                 if (x < 300 || y < 300 || x > width - 300 || y > height - 300
@@ -1616,8 +1645,8 @@ public final class BehemothModule implements BotModule {
                     continue;
                 }
                 int[] c = {x, y};
-                double free = freeness(c, enemies);
-                if (free > radius && ring < bestKey) {
+                double free = clearOf(c, at);
+                if (free > out && ring < bestKey) {
                     bestKey = ring;
                     best = c;
                 }
@@ -2705,8 +2734,21 @@ public final class BehemothModule implements BotModule {
             out.add(new double[] {c[1], c[2], c[3]});
         }
         JsonNode s = settings();
-        if (toBehemoth || onBehemoth || closing) {
-            return List.of(); // to the behemoth or fighting it: through them, the train mode does not run (live 2026-11-14)
+        if (toBehemoth || onBehemoth || closing || behemothListed) {
+            // to the behemoth or fighting it, or the locator has found it: through them, the train mode does not run
+            // (live 2026-11-14; the user, 2026-11-20: «напролом — когда пеленгатор нашёл бегемота»)
+            return List.of();
+        }
+        if (maps(s).contains(h.mapId())) {
+            // the players who attacked the ship, any company, flown round on the way to the wait point and to the boxes
+            // (the user, 2026-11-20: «к точке подлетает — заходит в круги обидчиков»)
+            double r = Math.max(300, ctx.config().get().flee().avoidRadius());
+            java.util.Set<Integer> offenders = ctx.stats().offenders.get();
+            for (WorldSnapshot.Ship e : w.ships().values()) {
+                if (offenders.contains(e.id()) && e.id() != h.id()) {
+                    out.add(new double[] {e.x(), e.y(), r});
+                }
+            }
         }
         if (on(s, "avoidTrainPaths", false) && !onBehemoth && !beaconOn && maps(s).contains(h.mapId())) {
             out.addAll(pathCircles(h.mapId()));

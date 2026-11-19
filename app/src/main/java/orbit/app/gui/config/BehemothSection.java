@@ -79,6 +79,7 @@ final class BehemothSection implements Section {
     private final JCheckBox avoidTrainPaths = new JCheckBox("Летать в обход путей поездов «портал → бегемот»");
     private final JCheckBox dodgeEnemies = new JCheckBox("Пока ждём — отходить от врагов и обидчиков, ушли — сразу назад; не дальше от точки, чем");
     private final javax.swing.JSpinner dodgeMax = Form.number(300, 6000, 100);
+    private final javax.swing.JSpinner dodgeMargin = Form.number(0, 2000, 50);
     private final JCheckBox learnSafeSpot = new JCheckBox("Учиться, где ходят враги, и ждать там, где их меньше всего");
     private final JCheckBox awayFromPortals = new JCheckBox("Ждать в стороне от путей «портал → бегемот», где ходят поезда");
     private final JCheckBox freeSide = new JCheckBox("Ждать со свободной стороны: чужие у точки — встать на круге от них");
@@ -234,6 +235,7 @@ final class BehemothSection implements Section {
                 .section("Где ждать")
                 .row("", waitInZone)
                 .row("", Form.inline(dodgeEnemies, dodgeMax))
+                .row("Вставать за краем их круга с запасом", dodgeMargin)
                 .row("", learnSafeSpot)
                 .row("", awayFromPortals)
                 .row("", avoidTrainPaths)
@@ -462,6 +464,7 @@ final class BehemothSection implements Section {
         waitInZone.setSelected(m.path("waitInZone").asBoolean(false));
         dodgeEnemies.setSelected(m.path("dodgeEnemies").asBoolean(true));
         Form.set(dodgeMax, m.path("dodgeMax").asInt(1200));
+        Form.set(dodgeMargin, m.path("dodgeMargin").asInt(0));
         avoidTrainPaths.setSelected(m.path("avoidTrainPaths").asBoolean(false));
         trainTimer.setSelected(m.path("trainTimer").asBoolean(false));
         waitForTrain.setSelected(m.path("waitForTrain").asBoolean(false));
@@ -575,6 +578,9 @@ final class BehemothSection implements Section {
         m.put("dodgeEnemies", dodgeEnemies.isSelected());
         if (Form.intOf(dodgeMax) != 1200 || m.has("dodgeMax")) {
             m.put("dodgeMax", Form.intOf(dodgeMax)); // set: kept; the default not written into configs that never had it
+        }
+        if (Form.intOf(dodgeMargin) != 0 || m.has("dodgeMargin")) {
+            m.put("dodgeMargin", Form.intOf(dodgeMargin));
         }
         m.put("avoidTrainPaths", avoidTrainPaths.isSelected());
         m.put("trainTimer", trainTimer.isSelected());

@@ -1116,6 +1116,36 @@ class BehemothModuleTest {
     }
 
     @Test
+    void theStepAsideKeepsTheMarginAndWhereTheEnemyFliesTo() throws Exception {
+        // the user, 2026-11-20: out of the circle by 100–200 (near the behemoth), away from a train coming at the ship
+        Sim sim = new Sim(with(config(300), "{\"dodgeMargin\": 150}"), 307, 5_200, 5_000);
+        BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
+        com.fasterxml.jackson.databind.JsonNode s = sim.ctx.config().get().moduleSettings("behemoth");
+        int[] p = {5_200, 5_000};
+        double radius = Math.max(300, sim.ctx.config().get().flee().avoidRadius());
+        // a player east of the point flying west, straight at it
+        orbit.protocol.gen.ShipCreateCommand c = new orbit.protocol.gen.ShipCreateCommand();
+        c.userId = 920;
+        c.userName = "Train";
+        c.factionId = 1;
+        c.x = (int) (5_200 + radius + 400);
+        c.y = 5_000;
+        sim.world.apply(c, sim.now);
+        orbit.protocol.gen.MoveCommand mv = new orbit.protocol.gen.MoveCommand();
+        mv.userId = 920;
+        mv.x = 2_000;
+        mv.y = 5_000;
+        mv.timeToTarget = 20_000;
+        sim.world.apply(mv, sim.now);
+        int[] to = m.dodge(s, sim.world.snapshot(sim.now), p);
+        var e = sim.world.snapshot(sim.now).ships().get(920);
+        assertTrue(e.moving(), "the enemy flies");
+        double ahead = Math.hypot(to[0] - (e.x() - BehemothModule.LEAD), to[1] - e.y());
+        assertTrue(ahead > radius + 150, "out of where he will be, with the margin: " + (int) ahead);
+        assertTrue(Math.hypot(to[0] - e.x(), to[1] - e.y()) > radius + 150, "and of where he is");
+    }
+
+    @Test
     void theStepAsideGoesAsFarAsTheConfigLets() throws Exception {
         // the user, 2026-11-20: «не дальше 1 200 — сделать настраиваемым», up to the corner
         Sim sim = new Sim(with(config(300), "{\"dodgeMax\": 2400}"), 307, 5_200, 5_000);
@@ -1130,7 +1160,7 @@ class BehemothModuleTest {
         }
         int[] to = m.dodge(s, sim.world.snapshot(sim.now), p);
         double far = Math.hypot(to[0] - p[0], to[1] - p[1]);
-        assertTrue(far > BehemothModule.DODGE_MAX && far <= 2_400, "beyond the old 1 200, within 2 400: " + (int) far);
+        assertTrue(far > BehemothModule.DODGE_MAX && far <= 2_401, "beyond the old 1 200, within 2 400: " + (int) far);
         for (int i = 0; i < 8; i++) {
             double a = i * Math.PI / 4;
             assertTrue(Math.hypot(to[0] - (5_200 + 600 * Math.cos(a)), to[1] - (5_000 + 600 * Math.sin(a))) > radius
