@@ -12,7 +12,7 @@ import orbit.world.WorldSnapshot;
 
 /**
  * «Собрать N скрафченного» ({@link Quests#COLLECT_BUILT_RECIPE}, Season Pass 700030 «25», 700031 «50»; the user,
- * 2026-11-19: «крафт по рецептам, как у AstraBot» — its season module crafts SEPROM and RSB): while such a condition is
+ * 2026-11-19: «крафт по рецептам, как у AstraBot» — its season module's «Item craft»): while such a condition is
  * open the assembly builds one batch after another of a cheap recipe, and {@code CraftWatch} collects each — a collect is
  * what counts. The recipe the condition names, else the first of {@code modules.quests.craftRecipes} (default
  * {@link #DEFAULTS}) that is free in the assembly and whose price the account has. Never a recipe that costs uridium,
@@ -21,14 +21,17 @@ import orbit.world.WorldSnapshot;
  */
 public final class QuestCrafts {
 
-    /** The cheap ones, of resources the NPCs drop, in this order: recipe → the item it makes (for its name). */
+    /**
+     * In this order (the user, 2026-11-19: «лучше за кредиты или сепром или рсб»): recipe → the item it makes (for its
+     * name). The Precision Targeter is the client's only recipe for credits alone (20 000); Seprom and RSB-75 the plain
+     * ones of schism (not the Blacklight ones: those cost uridium).
+     */
     static final Map<String, String> DEFAULTS = new java.util.LinkedHashMap<>();
 
     static {
-        DEFAULTS.put("recipe_blueprint-sab50-1k", "ammunition_laser_sab-50");
-        DEFAULTS.put("recipe_blueprint-mcb-50", "ammunition_laser_mcb-50");
-        DEFAULTS.put("recipe_blueprint-ucb-100", "ammunition_laser_ucb-100");
+        DEFAULTS.put("recipe_blueprint-tech-precisiontargeter", "tech_precision-targeter");
         DEFAULTS.put("recipe_blueprint-seprom", "resource_ore_seprom");
+        DEFAULTS.put("recipe_blueprint-rsb-75", "ammunition_laser_rsb-75");
     }
 
     private QuestCrafts() {
@@ -106,7 +109,10 @@ public final class QuestCrafts {
     /** Every resource of the price counted by the game (an untold count is no proof one has it). */
     private static boolean known(WorldSnapshot w, String recipe) {
         for (RecipeCosts.Part p : RecipeCosts.of(recipe)) {
-            if (p.item().startsWith("currency_")) {
+            if ("currency_credits".equals(p.item())) {
+                if (w.hero().credits() < 0) {
+                    return false;
+                }
                 continue;
             }
             if (!w.inventory().resources().containsKey(p.item())) {

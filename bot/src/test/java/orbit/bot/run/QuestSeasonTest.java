@@ -31,7 +31,8 @@ import org.junit.jupiter.api.Test;
  */
 class QuestSeasonTest {
 
-    static final String SAB = "recipe_blueprint-sab50-1k";
+    static final String PT = "recipe_blueprint-tech-precisiontargeter";
+    static final String SEPROM = "recipe_blueprint-seprom";
 
     static BotConfig config(BotConfig.Module module, String quests) throws Exception {
         return BotConfig.empty().withModule(module).withModuleSettings(BotConfig.Module.QUESTS.key(),
@@ -58,20 +59,29 @@ class QuestSeasonTest {
         sim.world.apply(mi, sim.now);
     }
 
-    static void recipe(Sim sim, String id) {
-        AssemblyRecipeModule r = new AssemblyRecipeModule();
-        r.recipeLootId = id;
-        r.status = new AssemblyRecipeAvailableStatusModule();
+    static void recipe(Sim sim, String... ids) {
         AssemblyRecipeContentModule c = new AssemblyRecipeContentModule();
-        c.recipes = new java.util.ArrayList<>(List.of(r));
+        c.recipes = new java.util.ArrayList<>();
+        for (String id : ids) {
+            AssemblyRecipeModule r = new AssemblyRecipeModule();
+            r.recipeLootId = id;
+            r.status = new AssemblyRecipeAvailableStatusModule();
+            c.recipes.add(r);
+        }
         sim.world.apply(c, sim.now);
     }
 
-    /** SAB-50's price (the client's: 6 mucosum, 2 boltrum, 1 scrapium) {@code times} over. */
-    static void sabPrice(Sim sim, double times) {
-        RecipeCostsTest.resource(sim, "resource_collectable_mucosum", 6 * times);
-        RecipeCostsTest.resource(sim, "resource_collectable_boltrum", 2 * times);
-        RecipeCostsTest.resource(sim, "resource_collectable_scrapium", times);
+    static void credits(Sim sim, int credits) {
+        orbit.protocol.gen.AttributeCreditsUpdateCommand money = new orbit.protocol.gen.AttributeCreditsUpdateCommand();
+        money.credits = credits;
+        money.uridium = 1_000_000;
+        sim.world.apply(money, sim.now);
+    }
+
+    /** Seprom's price (the client's: 10 schism, 50 scrapium) {@code times} over. */
+    static void sepromPrice(Sim sim, double times) {
+        RecipeCostsTest.resource(sim, "resource_collectable_schism", 10 * times);
+        RecipeCostsTest.resource(sim, "resource_collectable_scrapium", 50 * times);
     }
 
     @Test
@@ -109,19 +119,23 @@ class QuestSeasonTest {
     }
 
     @Test
-    void aBuiltRecipeConditionCraftsTheCheapRecipeWithItsPriceAtHand() throws Exception {
+    void aBuiltRecipeConditionCraftsForCreditsFirstThenSeprom() throws Exception {
         Sim sim = new Sim(config(BotConfig.Module.QUESTS, "{}"), 26, 7_500, 3_900);
         season(sim, 700030, 9, Quests.COLLECT_BUILT_RECIPE, 25);
-        recipe(sim, SAB);
+        recipe(sim, PT, SEPROM);
+        credits(sim, 10_000);
         QuestModule m = new QuestModule(sim.ctx, NpcMaps.shared(), orbit.world.maps.OreMaps.inMemory());
-        assertFalse(m.doable(sim.world.snapshot(sim.now).quests().active().get(700030)), "no mucosum told: no craft");
-        sabPrice(sim, 3);
+        assertFalse(m.doable(sim.world.snapshot(sim.now).quests().active().get(700030)),
+                "10 000 credits of 20 000, no schism told: nothing to craft");
+        sepromPrice(sim, 1);
+        assertEquals(SEPROM, QuestCrafts.craftRule(sim.config, sim.world.snapshot(sim.now)).recipe());
+        credits(sim, 5_000_000);
         assertTrue(m.doable(sim.world.snapshot(sim.now).quests().active().get(700030)));
         CraftWatch w = new CraftWatch(sim.ctx);
         CraftWatchTest.runFor(sim, w, 30_000);
         AssemblyBuildRequest b = (AssemblyBuildRequest) sim.sent.stream().filter(AssemblyBuildRequest.class::isInstance)
                 .findFirst().orElseThrow();
-        assertEquals(SAB, b.recipeLootId);
+        assertEquals(PT, b.recipeLootId, "credits first");
         assertEquals(1.0, b.amount);
     }
 
@@ -136,13 +150,13 @@ class QuestSeasonTest {
         assertNull(QuestCrafts.craftRule(sim.config, sim.world.snapshot(sim.now)));
         Sim off = new Sim(config(BotConfig.Module.QUESTS, "{\"craft\":false}"), 26, 7_500, 3_900);
         season(off, 700030, 9, Quests.COLLECT_BUILT_RECIPE, 25);
-        recipe(off, SAB);
-        sabPrice(off, 3);
+        recipe(off, PT);
+        credits(off, 5_000_000);
         assertNull(QuestCrafts.craftRule(off.config, off.world.snapshot(off.now)));
         Sim kill = new Sim(config(BotConfig.Module.KILL_COLLECT, "{}"), 26, 7_500, 3_900);
         season(kill, 700030, 9, Quests.COLLECT_BUILT_RECIPE, 25);
-        recipe(kill, SAB);
-        sabPrice(kill, 3);
+        recipe(kill, PT);
+        credits(kill, 5_000_000);
         assertNull(QuestCrafts.craftRule(kill.config, kill.world.snapshot(kill.now)), "another module, alongside off");
     }
 
@@ -153,10 +167,11 @@ class QuestSeasonTest {
         QuestsAlongside a = new QuestsAlongside(sim.ctx);
         BotConfig adjusted = a.adjust(sim.config);
         assertTrue(adjusted.collect().boxes().get("FROM_SHIP").collect(), "the cargo of its kills");
+        assertTrue(adjusted.collect().boxes().get("CANDY_CARGO").collect(), "the events' cargo too");
         assertSame(adjusted, a.adjust(sim.config), "kept while nothing changed");
         season(sim, 700030, 9, Quests.COLLECT_BUILT_RECIPE, 25);
-        recipe(sim, SAB);
-        sabPrice(sim, 3);
+        recipe(sim, PT);
+        credits(sim, 5_000_000);
         assertNotNull(QuestCrafts.craftRule(sim.config, sim.world.snapshot(sim.now)));
         for (long t = 0; t < 30_000; t += 100) {
             a.tick(false);
@@ -168,5 +183,16 @@ class QuestSeasonTest {
         assertSame(plain.config, new QuestsAlongside(plain.ctx).adjust(plain.config), "alongside off: the config as is");
         Sim quests = new Sim(config(BotConfig.Module.QUESTS, "{\"alongside\":true}"), 26, 7_500, 3_900);
         assertFalse(QuestsAlongside.on(quests.config), "the quest module does it all itself");
+        // the Mimesis module: cargo on its farm map, never in the escort; its crafts too
+        Sim mim = new Sim(config(BotConfig.Module.MIMESIS, "{\"alongside\":true}"), 26, 7_500, 3_900);
+        season(mim, 700037, 3, Quests.CARGO, 1_500);
+        assertTrue(new QuestsAlongside(mim.ctx).adjust(mim.config).collect().boxes().get("FROM_SHIP").collect());
+        Sim escort = new Sim(config(BotConfig.Module.MIMESIS, "{\"alongside\":true}"), 430, 7_500, 3_900);
+        season(escort, 700037, 3, Quests.CARGO, 1_500);
+        assertSame(escort.config, new QuestsAlongside(escort.ctx).adjust(escort.config), "not in the escort");
+        season(mim, 700030, 9, Quests.COLLECT_BUILT_RECIPE, 25);
+        recipe(mim, PT);
+        credits(mim, 5_000_000);
+        assertNotNull(QuestCrafts.craftRule(mim.config, mim.world.snapshot(mim.now)));
     }
 }

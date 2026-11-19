@@ -95,6 +95,12 @@ public final class QuestModule implements BotModule {
 
     /** The cargo a killed NPC leaves ({@code FROM_SHIP}), what a «salvage» condition counts. */
     static final String CARGO = "FROM_SHIP";
+    /**
+     * Every cargo box a «pick up cargo boxes» condition may count: the plain one and the events' (DarkBot's DmPlugin picks
+     * FROM_SHIP, CANDY_CARGO, TURKEY_CARGO; DarkBot's collector counts PROSPEROUS_CARGO as cargo; the client draws these
+     * four — and a Perseus cargo whose type name was never seen). {@code FROM_SHIP_BLOCKED} is another's: not to be picked.
+     */
+    static final Set<String> CARGO_BOXES = Set.of(CARGO, "CANDY_CARGO", "TURKEY_CARGO", "PROSPEROUS_CARGO");
 
     private final BotContext ctx;
     private final NpcMaps npcMaps;
@@ -1075,7 +1081,9 @@ public final class QuestModule implements BotModule {
             if (o.completed()) {
                 continue;
             }
-            if (o.type() == Quests.SALVAGE || o.type() == Quests.CARGO) {
+            if (o.type() == Quests.CARGO) {
+                out.addAll(CARGO_BOXES);
+            } else if (o.type() == Quests.SALVAGE) {
                 out.add(CARGO);
             } else if (o.type() == Quests.COLLECT_LOOT && !o.matches().isEmpty()) {
                 String id = o.matches().getFirst().toLowerCase(java.util.Locale.ROOT);

@@ -16,10 +16,11 @@ import orbit.world.WorldSnapshot;
  *   <li>the passes' free buttons ({@link PassCare}: Season Pass levels, Battle Pass, Galaxy Trek) — no rerolls and no
  *       diminishing quests: which missions the module moves is not known;</li>
  *   <li>«collect built recipes» — the assembly builds cheap batches ({@link QuestCrafts}, through {@code CraftWatch});</li>
- *   <li>«pick up cargo boxes» ({@link Quests#CARGO}) — a killing module picks its NPCs' cargo too ({@link #adjust}).</li>
+ *   <li>«pick up cargo boxes» ({@link Quests#CARGO}) — a killing module (and the Mimesis farm between the runs, never in
+ *       the escort) picks its NPCs' cargo too, the events' cargo as well ({@link #adjust});</li>
  * </ul>
- * The kills, damage and boxes of the module count by themselves. Not with the «Квесты» module (it does all this itself)
- * nor with the Mimesis one (its own passes' care).
+ * The kills, damage and boxes of the module count by themselves. Not with the «Квесты» module (it does all this itself);
+ * with the Mimesis one the passes are its own.
  */
 public final class QuestsAlongside {
 
@@ -27,6 +28,7 @@ public final class QuestsAlongside {
     private final PassCare passes;
     private BotConfig lastIn;
     private Quests lastQuests;
+    private int lastMap;
     private BotConfig lastOut;
 
     public QuestsAlongside(BotContext ctx) {
@@ -34,9 +36,9 @@ public final class QuestsAlongside {
         this.passes = new PassCare(ctx);
     }
 
-    /** Alongside is on for this config. */
+    /** Alongside is on for this config (the Mimesis module too: its farm between the runs, its crafts). */
     public static boolean on(BotConfig c) {
-        if (c.module() == BotConfig.Module.QUESTS || c.module() == BotConfig.Module.MIMESIS) {
+        if (c.module() == BotConfig.Module.QUESTS) {
             return false;
         }
         JsonNode s = c.modules().get(BotConfig.Module.QUESTS.key());
@@ -46,8 +48,8 @@ public final class QuestsAlongside {
     /** The passes' free buttons, not in the middle of a fight. */
     public void tick(boolean busy) {
         BotConfig c = ctx.config().get();
-        if (!on(c) || busy) {
-            return;
+        if (!on(c) || busy || c.module() == BotConfig.Module.MIMESIS) {
+            return; // the Mimesis module keeps the passes itself
         }
         WorldSnapshot w = ctx.world().get();
         if (w.hero().id() == 0 || w.death() != null) {
@@ -58,29 +60,38 @@ public final class QuestsAlongside {
 
     /** The module's config with the quests' extras: cargo boxes picked while a cargo condition is open. */
     public BotConfig adjust(BotConfig c) {
-        Quests q = ctx.world().get().quests();
-        if (c == lastIn && q == lastQuests) {
+        WorldSnapshot w = ctx.world().get();
+        Quests q = w.quests();
+        int map = w.hero().mapId();
+        if (c == lastIn && q == lastQuests && map == lastMap) {
             return lastOut;
         }
         lastIn = c;
         lastQuests = q;
-        lastOut = withCargo(c, q);
+        lastMap = map;
+        // never in a gate or the Mimesis escort: the run there comes first
+        lastOut = orbit.config.GateCatalog.instanced(map) ? c : withCargo(c, q);
         return lastOut;
     }
 
     static BotConfig withCargo(BotConfig c, Quests q) {
-        if (!on(c) || !(c.module() == BotConfig.Module.KILL_COLLECT || c.module() == BotConfig.Module.KILL)
-                || !cargoOpen(q)) {
+        if (!on(c) || !(c.module() == BotConfig.Module.KILL_COLLECT || c.module() == BotConfig.Module.KILL
+                || c.module() == BotConfig.Module.MIMESIS) || !cargoOpen(q)) {
             return c;
         }
         BotConfig.Collect k = c.collect();
-        BotConfig.BoxRule own = k.boxes().get(QuestModule.CARGO);
-        if (own != null && own.collect()) {
+        Map<String, BotConfig.BoxRule> rules = new LinkedHashMap<>(k.boxes());
+        boolean added = false;
+        for (String box : QuestModule.CARGO_BOXES) {
+            BotConfig.BoxRule own = k.boxes().get(box);
+            if (own == null || !own.collect()) {
+                rules.put(box, new BotConfig.BoxRule(true, own != null ? own.waitMs() : 0, own != null ? own.priority() : 0));
+                added = true;
+            }
+        }
+        if (!added) {
             return c;
         }
-        Map<String, BotConfig.BoxRule> rules = new LinkedHashMap<>(k.boxes());
-        rules.put(QuestModule.CARGO, new BotConfig.BoxRule(true, own != null ? own.waitMs() : 0,
-                own != null ? own.priority() : 0));
         return c.withCollect(new BotConfig.Collect(rules, k.radius(), k.stayAwayFromEnemies(), k.ignoreContested(),
                 k.cargo(), k.cargoFullAt(), k.sellOres()));
     }
