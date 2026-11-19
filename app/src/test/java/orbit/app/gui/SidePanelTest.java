@@ -20,4 +20,15 @@ class SidePanelTest {
         SidePanel.steady(s, 100, 16_500);
         assertEquals(100, s.height, "smaller for longer than the hold: the room given back");
     }
+
+    @Test
+    void theRightColumnHasTheFightThenTheResultsSkylabAndEnrichment() {
+        // the user, 2026-11-19: «итоги, скайлаб и обогащение — в правой колонке, под целями и атакующими»
+        java.util.List<ViewSettings.Block> right = java.util.Arrays.stream(ViewSettings.Block.values())
+                .filter(b -> b.rightColumn() >= 0)
+                .sorted(java.util.Comparator.comparingInt(ViewSettings.Block::rightColumn)).toList();
+        org.junit.jupiter.api.Assertions.assertEquals(java.util.List.of(ViewSettings.Block.TARGET,
+                ViewSettings.Block.ATTACKERS, ViewSettings.Block.STATS, ViewSettings.Block.SKYLAB, ViewSettings.Block.LAB,
+                ViewSettings.Block.BOOSTERS, ViewSettings.Block.GROUP), right);
+    }
 }

@@ -40,11 +40,22 @@ public final class ViewSettings {
         }
 
         /**
-         * A card that grows and shrinks all the time — the fight's and the group's (the user, 2026-11-19: «карточки
-         * прыгают»): with {@link CardLayout#SPLIT} in a column of their own, or under the steady ones.
+         * With {@link CardLayout#SPLIT}: the card's place in the right column of its own, top to bottom, -1 for the
+         * other columns — the fight's and the group's cards that grow and shrink all the time (the user, 2026-11-19:
+         * «карточки прыгают»), and under the target and the attackers the results, the Skylab and the enrichment (the
+         * user, 2026-11-19).
          */
-        boolean live() {
-            return this == TARGET || this == ATTACKERS || this == BOOSTERS || this == GROUP;
+        int rightColumn() {
+            return switch (this) {
+                case TARGET -> 0;
+                case ATTACKERS -> 1;
+                case STATS -> 2;
+                case SKYLAB -> 3;
+                case LAB -> 4;
+                case BOOSTERS -> 5;
+                case GROUP -> 6;
+                default -> -1;
+            };
         }
 
         /** The column on the map: the fight and the results right, the ship and its state left. */
@@ -136,7 +147,7 @@ public final class ViewSettings {
 
     /** How the side panel lays its cards out (the user, 2026-11-19: to be tried, and undone with one click). */
     public enum CardLayout {
-        SPLIT("Живые отдельно — цель, атакующие, бустеры, группа"),
+        SPLIT("Справа отдельно — бой, итоги, Скайлаб, обогащение, бустеры, группа"),
         MASONRY("Как раньше — по самой короткой колонке");
 
         public final String label;

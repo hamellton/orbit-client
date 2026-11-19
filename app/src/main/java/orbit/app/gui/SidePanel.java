@@ -129,12 +129,12 @@ final class SidePanel extends JPanel implements Scrollable {
         }
         int[] col = new int[n];
         List<Placed> out = new java.util.ArrayList<>();
-        // SPLIT: the live cards (the fight's, the group) in the last column of their own when there are two or more,
-        // else under the steady ones — their growing and shrinking moves nothing else (the user, 2026-11-19)
+        // SPLIT: the live cards (the fight's, the group) and the results, Skylab and enrichment under them in the last
+        // column of their own when there are two or more, else under the others (the user, 2026-11-19)
         boolean split = ViewSettings.shared().cardLayout() == ViewSettings.CardLayout.SPLIT;
         List<ViewSettings.Block> order = new java.util.ArrayList<>(List.of(ViewSettings.Block.values()));
         if (split) {
-            order.sort(java.util.Comparator.comparingInt(b -> b.live() ? 1 : 0));
+            order.sort(java.util.Comparator.comparingInt(ViewSettings.Block::rightColumn));
         }
         for (ViewSettings.Block b : order) {
             Hud.Card c = here.get(b);
@@ -159,7 +159,7 @@ final class SidePanel extends JPanel implements Scrollable {
                 steady(sl, c.height(cw), now);
             }
             if (split && n >= 2) {
-                if (b.live()) {
+                if (b.rightColumn() >= 0) {
                     sl.column = n - 1;
                 } else if (sl.column < 0 || sl.column >= n - 1) {
                     sl.column = shortest(java.util.Arrays.copyOf(col, n - 1));
@@ -237,7 +237,7 @@ final class SidePanel extends JPanel implements Scrollable {
         g.setFont(getFont().deriveFont(12f));
         java.awt.FontMetrics fm = g.getFontMetrics();
         String a = "Боя нет";
-        String b = "цель, атакующие, бустеры, группа — здесь";
+        String b = "цель, атакующие, итоги — здесь";
         g.drawString(a, x + 12, 8 + fm.getAscent());
         g.drawString(fm.stringWidth(b) <= w - 24 ? b : "бой — здесь", x + 12, 8 + fm.getAscent() + fm.getHeight() + 2);
     }
