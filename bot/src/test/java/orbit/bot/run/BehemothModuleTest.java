@@ -1,6 +1,7 @@
 package orbit.bot.run;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Map;
@@ -1174,6 +1175,28 @@ class BehemothModuleTest {
         sim.world.apply(far, sim.now);
         sim.now += 2_000 * Sim.MS;
         assertEquals(point[0], m.around(s, sim.world.snapshot(sim.now), point)[0], "out of his circle: on to the point");
+    }
+
+    @Test
+    void theRollbackStyleIgnoresOffendersOfOurCompanyAndDoesNotBackAway() throws Exception {
+        // the user, 2026-11-20: both behaviours kept, «rollback» = as the restore point best-2026-11-20
+        Sim sim = new Sim(with(config(300), "{\"trainStyle\": \"rollback\", \"dodgeMargin\": 150}"), 307, 5_200, 5_000);
+        BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
+        com.fasterxml.jackson.databind.JsonNode s = sim.ctx.config().get().moduleSettings("behemoth");
+        assertFalse(BehemothModule.newStyle(s));
+        double radius = Math.max(300, sim.ctx.config().get().flee().avoidRadius());
+        orbit.protocol.gen.ShipCreateCommand c = new orbit.protocol.gen.ShipCreateCommand();
+        c.userId = 940;
+        c.userName = "Own";
+        c.factionId = 3; // ours
+        c.x = (int) (5_200 + radius - 500);
+        c.y = 5_000;
+        sim.world.apply(c, sim.now);
+        sim.ctx.stats().offenders.set(Set.of(940));
+        int[] p = {5_200, 5_000};
+        assertEquals(p[0], m.dodge(s, sim.world.snapshot(sim.now), p)[0], "an offender of our company: stays, as before");
+        int[] point = {9_000, 5_000};
+        assertEquals(point[0], m.around(s, sim.world.snapshot(sim.now), point)[0], "no backing away: on to the point");
     }
 
     @Test

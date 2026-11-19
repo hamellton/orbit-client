@@ -1566,7 +1566,7 @@ public final class BehemothModule implements BotModule {
      */
     public int[] around(JsonNode s, WorldSnapshot w, int[] p) {
         WorldSnapshot.Hero h = w.hero();
-        if (behemothListed || toBehemoth || onBehemoth || closing || !maps(s).contains(h.mapId())) {
+        if (!newStyle(s) || behemothListed || toBehemoth || onBehemoth || closing || !maps(s).contains(h.mapId())) {
             backing = false;
             return p;
         }
@@ -1606,6 +1606,17 @@ public final class BehemothModule implements BotModule {
         return new int[] {Math.max(300, Math.min(width - 300, bx)), Math.max(300, Math.min(height - 300, by))};
     }
 
+    /**
+     * {@code trainStyle} (the user, 2026-11-20: keep both behaviours of the farm among trains, switched in the config):
+     * {@code "rollback"} — as the restore point {@code best-2026-11-20} (the wait's dodge only from another company's
+     * players, where they stand, rings of 300 within 1 200, no backing out of circles on the way, the way to the behemoth
+     * through them only once flying to it); anything else — the current one (offenders of any company, their flight
+     * reckoned ahead, {@code dodgeMax}/{@code dodgeMargin}, {@link #around}, «напролом» once the locator has found it).
+     */
+    public static boolean newStyle(JsonNode s) {
+        return !"rollback".equals(s.path("trainStyle").asText(""));
+    }
+
     /** An enemy flying on is reckoned this much ahead (1.5 s of a ship's flight) when the ship steps aside. */
     public static final double LEAD = 750;
 
@@ -1640,11 +1651,12 @@ public final class BehemothModule implements BotModule {
         }
         WorldSnapshot.Hero h = w.hero();
         double radius = Math.max(300, ctx.config().get().flee().avoidRadius());
-        double max = dodgeMax(s);
+        boolean fresh = newStyle(s);
+        double max = fresh ? dodgeMax(s) : DODGE_MAX;
         java.util.Set<Integer> group = PlayerFight.group(w);
         List<String> black = names(s, "blacklist");
         // another company's players and whoever attacked the ship this session, of any company (the user, 2026-11-20)
-        java.util.Set<Integer> offenders = ctx.stats().offenders.get();
+        java.util.Set<Integer> offenders = fresh ? ctx.stats().offenders.get() : java.util.Set.of();
         List<WorldSnapshot.Ship> enemies = w.ships().values().stream()
                 .filter(e -> PlayerFight.enemy(e, h, group, black) || offenders.contains(e.id()) && e.id() != h.id()
                         && !group.contains(e.id()))
@@ -1655,7 +1667,7 @@ public final class BehemothModule implements BotModule {
         List<double[]> at = new java.util.ArrayList<>();
         for (WorldSnapshot.Ship e : enemies) {
             at.add(new double[] {e.x(), e.y()});
-            if (e.moving()) {
+            if (fresh && e.moving()) {
                 double dx = e.targetX() - e.x();
                 double dy = e.targetY() - e.y();
                 double d = Math.hypot(dx, dy);
@@ -1674,7 +1686,7 @@ public final class BehemothModule implements BotModule {
             return p;
         }
         // out of every circle by a little (dodgeMargin, the user: 100–200 — near the behemoth), the nearest to the point
-        double out = radius + Math.max(0, number(s, "dodgeMargin", 0));
+        double out = radius + (fresh ? Math.max(0, number(s, "dodgeMargin", 0)) : 0);
         if (dodgePoint != null && clearOf(dodgePoint, at) > out
                 && Math.hypot(dodgePoint[0] - p[0], dodgePoint[1] - p[1]) <= max) {
             return dodgePoint; // the point taken still out of reach: kept
@@ -1686,9 +1698,11 @@ public final class BehemothModule implements BotModule {
         double bestKey = Double.MAX_VALUE;
         int[] farthest = null;
         double farthestFree = clearOf(new int[] {h.x(), h.y()}, at);
-        for (int ring = 150; ring <= max; ring += 150) {
-            for (int a = 0; a < 24; a++) {
-                double ang = a * Math.PI / 12;
+        int step = fresh ? 150 : 300;
+        int dirs = fresh ? 24 : 16;
+        for (int ring = step; ring <= max; ring += step) {
+            for (int a = 0; a < dirs; a++) {
+                double ang = a * 2 * Math.PI / dirs;
                 int x = (int) (p[0] + ring * Math.cos(ang));
                 int y = (int) (p[1] + ring * Math.sin(ang));
                 if (x < 300 || y < 300 || x > width - 300 || y > height - 300
@@ -2786,7 +2800,7 @@ public final class BehemothModule implements BotModule {
             out.add(new double[] {c[1], c[2], c[3]});
         }
         JsonNode s = settings();
-        if (toBehemoth || onBehemoth || closing || behemothListed) {
+        if (toBehemoth || onBehemoth || closing || behemothListed && newStyle(s)) {
             // to the behemoth or fighting it, or the locator has found it: through them, the train mode does not run
             // (live 2026-11-14; the user, 2026-11-20: «напролом — когда пеленгатор нашёл бегемота»)
             return List.of();
