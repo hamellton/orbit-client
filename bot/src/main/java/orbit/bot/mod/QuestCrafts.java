@@ -15,23 +15,24 @@ import orbit.world.WorldSnapshot;
  * 2026-11-19: «крафт по рецептам, как у AstraBot» — its season module's «Item craft»): while such a condition is
  * open the assembly builds one batch after another of a cheap recipe, and {@code CraftWatch} collects each — a collect is
  * what counts. The recipe the condition names, else the first of {@code modules.quests.craftRecipes} (default
- * {@link #DEFAULTS}) that is free in the assembly and whose price the account has. Never a recipe that costs uridium,
- * never one whose price is not known. On with the «Квесты» module or with quests alongside ({@link QuestsAlongside});
+ * {@link #DEFAULTS}) that is free in the assembly and whose price the account has (uridium too: the user, 2026-11-19 —
+ * «тратить урик это нормально»); never one whose price is not known. On with the «Квесты» module or with quests alongside ({@link QuestsAlongside});
  * {@code modules.quests.craft} false turns it off.
  */
 public final class QuestCrafts {
 
     /**
      * In this order (the user, 2026-11-19: «лучше за кредиты или сепром или рсб»): recipe → the item it makes (for its
-     * name). The Precision Targeter is the client's only recipe for credits alone (20 000); Seprom and RSB-75 the plain
-     * ones of schism (not the Blacklight ones: those cost uridium).
+     * name). The Precision Targeter is the client's only recipe for credits alone (20 000); then Seprom and RSB-75 as
+     * AstraBot crafts them (the friend's VPS logs: {@code seprom-blacklight}, {@code rsb75-blacklight} — uridium, rinusk,
+     * Blacklight trace).
      */
     static final Map<String, String> DEFAULTS = new java.util.LinkedHashMap<>();
 
     static {
         DEFAULTS.put("recipe_blueprint-tech-precisiontargeter", "tech_precision-targeter");
-        DEFAULTS.put("recipe_blueprint-seprom", "resource_ore_seprom");
-        DEFAULTS.put("recipe_blueprint-rsb-75", "ammunition_laser_rsb-75");
+        DEFAULTS.put("recipe_blueprint-seprom-blacklight", "resource_ore_seprom");
+        DEFAULTS.put("recipe_blueprint-rsb75-blacklight", "ammunition_laser_rsb-75");
     }
 
     private QuestCrafts() {
@@ -100,17 +101,17 @@ public final class QuestCrafts {
         return List.copyOf(DEFAULTS.keySet());
     }
 
-    /** A price known and free of uridium. */
+    /** A price known. */
     static boolean allowed(String recipe) {
         List<RecipeCosts.Part> parts = RecipeCosts.of(recipe);
-        return !parts.isEmpty() && parts.stream().noneMatch(p -> "currency_uridium".equals(p.item()));
+        return !parts.isEmpty();
     }
 
     /** Every resource of the price counted by the game (an untold count is no proof one has it). */
     private static boolean known(WorldSnapshot w, String recipe) {
         for (RecipeCosts.Part p : RecipeCosts.of(recipe)) {
-            if ("currency_credits".equals(p.item())) {
-                if (w.hero().credits() < 0) {
+            if ("currency_credits".equals(p.item()) || "currency_uridium".equals(p.item())) {
+                if (("currency_credits".equals(p.item()) ? w.hero().credits() : w.hero().uridium()) < 0) {
                     return false;
                 }
                 continue;

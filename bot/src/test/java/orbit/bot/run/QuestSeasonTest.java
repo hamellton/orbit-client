@@ -32,7 +32,7 @@ import org.junit.jupiter.api.Test;
 class QuestSeasonTest {
 
     static final String PT = "recipe_blueprint-tech-precisiontargeter";
-    static final String SEPROM = "recipe_blueprint-seprom";
+    static final String SEPROM = "recipe_blueprint-seprom-blacklight";
 
     static BotConfig config(BotConfig.Module module, String quests) throws Exception {
         return BotConfig.empty().withModule(module).withModuleSettings(BotConfig.Module.QUESTS.key(),
@@ -78,10 +78,10 @@ class QuestSeasonTest {
         sim.world.apply(money, sim.now);
     }
 
-    /** Seprom's price (the client's: 10 schism, 50 scrapium) {@code times} over. */
+    /** Seprom BL's price besides its uridium (the client's: 1 250 rinusk, 250 Blacklight trace) {@code times} over. */
     static void sepromPrice(Sim sim, double times) {
-        RecipeCostsTest.resource(sim, "resource_collectable_schism", 10 * times);
-        RecipeCostsTest.resource(sim, "resource_collectable_scrapium", 50 * times);
+        RecipeCostsTest.resource(sim, "resource_collectable_rinusk", 1_250 * times);
+        RecipeCostsTest.resource(sim, "resource_collectable_blacklight-trace", 250 * times);
     }
 
     @Test
@@ -126,9 +126,10 @@ class QuestSeasonTest {
         credits(sim, 10_000);
         QuestModule m = new QuestModule(sim.ctx, NpcMaps.shared(), orbit.world.maps.OreMaps.inMemory());
         assertFalse(m.doable(sim.world.snapshot(sim.now).quests().active().get(700030)),
-                "10 000 credits of 20 000, no schism told: nothing to craft");
+                "10 000 credits of 20 000, no rinusk told: nothing to craft");
         sepromPrice(sim, 1);
-        assertEquals(SEPROM, QuestCrafts.craftRule(sim.config, sim.world.snapshot(sim.now)).recipe());
+        assertEquals(SEPROM, QuestCrafts.craftRule(sim.config, sim.world.snapshot(sim.now)).recipe(),
+                "uridium is fine (the user)");
         credits(sim, 5_000_000);
         assertTrue(m.doable(sim.world.snapshot(sim.now).quests().active().get(700030)));
         CraftWatch w = new CraftWatch(sim.ctx);
@@ -140,14 +141,21 @@ class QuestSeasonTest {
     }
 
     @Test
-    void neverARecipeThatCostsUridiumNorWithTheCraftOff() throws Exception {
+    void notWithoutTheUridiumNorWithTheCraftOff() throws Exception {
         Sim sim = new Sim(config(BotConfig.Module.QUESTS, "{\"craftRecipes\":[\"recipe_blueprint-rsb75-blacklight\"]}"),
                 26, 7_500, 3_900);
         season(sim, 700030, 9, Quests.COLLECT_BUILT_RECIPE, 25);
         recipe(sim, "recipe_blueprint-rsb75-blacklight");
         RecipeCostsTest.resource(sim, "resource_collectable_rinusk", 100_000);
         RecipeCostsTest.resource(sim, "resource_collectable_blacklight-trace", 100_000);
-        assertNull(QuestCrafts.craftRule(sim.config, sim.world.snapshot(sim.now)));
+        orbit.protocol.gen.AttributeCreditsUpdateCommand poor = new orbit.protocol.gen.AttributeCreditsUpdateCommand();
+        poor.credits = 1_000_000;
+        poor.uridium = 3_000;
+        sim.world.apply(poor, sim.now);
+        assertNull(QuestCrafts.craftRule(sim.config, sim.world.snapshot(sim.now)), "RSB-75 BL wants 4 000 uridium");
+        credits(sim, 1_000_000);
+        assertEquals("recipe_blueprint-rsb75-blacklight",
+                QuestCrafts.craftRule(sim.config, sim.world.snapshot(sim.now)).recipe());
         Sim off = new Sim(config(BotConfig.Module.QUESTS, "{\"craft\":false}"), 26, 7_500, 3_900);
         season(off, 700030, 9, Quests.COLLECT_BUILT_RECIPE, 25);
         recipe(off, PT);
