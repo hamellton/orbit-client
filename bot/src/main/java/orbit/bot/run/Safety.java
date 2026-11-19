@@ -52,6 +52,8 @@ public final class Safety {
     /** The map the last escape jump left: no escape jump back into it this soon. */
     private int escapedFrom;
     static final long BACK_INTO_NS = 120_000_000_000L;
+    /** A Blacklight map's portal: back through it this soon after a jump when shot on arrival (DarkBot returns at once). */
+    static final long BL_BACK_NS = 3_000_000_000L;
     private long jumpedAt = Long.MIN_VALUE / 2;
     private double lastHp = -1;
     private long hurtAt = Long.MIN_VALUE / 2;
@@ -215,13 +217,19 @@ public final class Safety {
             return true;
         }
         MapCatalog.Portal portal = place.portal();
-        // on a Blacklight map the portal is no shelter (its NPCs reach it): through it at once, the repair on the
-        // other side (the user, 2026-11-13)
-        boolean noShelter = orbit.bot.nav.Router.blacklight(h.mapId());
-        if (portal != null && (attacked && hp < s.escapeHp() || noShelter) && w.jumpingTo() == 0
-                && now - jumpedAt > 10_000_000_000L) {
-            boolean backInto = portal.toId() == escapedFrom && now - jumpedAt < BACK_INTO_NS;
-            if (!place.jumpable() || backInto) {
+        // on a Blacklight map as DarkBot's SafetyFinder: the repair at the portal, a jump through it only when shot
+        // (any hit — its NPCs and the players reach it), and back through the same portal when shot on the other side
+        // too — never on to a third map (the user, 2026-11-19: «ремонт на порту, если стреляют — прыгнуть в порт и
+        // вернуться назад, как в DarkBot и AstraBot»; live 2026-11-19 on the VPS, dr strange: «укрытия нет» jumps from
+        // BL map to BL map for 3 hours, the repair never done, 0 Invokes, 100+ deaths)
+        boolean bl = orbit.bot.nav.Router.blacklight(h.mapId());
+        boolean backInto = portal != null && portal.toId() == escapedFrom && now - jumpedAt < BACK_INTO_NS;
+        // back at once when shot again on arrival (DarkBot: HP down in the last 100 ms), else not sooner than 10 s
+        long gapNs = bl && backInto ? BL_BACK_NS : 10_000_000_000L;
+        // back only for fire here, after the arrival — not the hits before the jump still counted as «attacked»
+        boolean shot = bl && backInto ? !h.attackers().isEmpty() || hurtAt > jumpedAt + BL_BACK_NS : attacked;
+        if (portal != null && shot && (hp < s.escapeHp() || bl) && w.jumpingTo() == 0 && now - jumpedAt > gapNs) {
+            if (!place.jumpable() || backInto && !bl) {
                 // 5-2 → 5-3 has no way back but the whole loop round the pirate maps (live 2026-11-12): stay in the
                 // portal's shelter and heal here
                 if (!oneWayTold) {
@@ -234,11 +242,8 @@ public final class Safety {
             } else if (jumpAt == 0) {
                 jumpAt = now + ctx.react(200, 700);
             } else if (now >= jumpAt) {
-                if (attacked) {
-                    log.warn("На портале под огнём, HP {}% — прыгаю на {}", pct(hp), portal.toName());
-                } else {
-                    log.info("На BL-карте у портала укрытия нет — прыгаю на {}, ремонт там", portal.toName());
-                }
+                log.warn("На портале под огнём, HP {}% — прыгаю на {}{}", pct(hp), portal.toName(),
+                        bl && backInto ? " (обратно: и там стреляют)" : "");
                 ctx.actions().jump();
                 jumpedAt = now;
                 jumpAt = 0;

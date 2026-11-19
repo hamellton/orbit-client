@@ -223,8 +223,8 @@ class HealingTest {
     }
 
     @Test
-    void onABlacklightMapTheRepairJumpsThroughThePortalAtOnce() {
-        // the user, 2026-11-13: 3-BL's NPCs reach its portals — no healing there, through to 3-8 and repair there
+    void onABlacklightMapTheRepairJumpsThroughThePortalWhenShot() {
+        // 3-BL's NPCs reach its portals (the user, 2026-11-13): shot there — through it, whatever the escape threshold
         Sim sim = lowHp(308, 14_027, 3_181); // 3-BL by its 3-8 portal
         hurt(sim, 28_000, 0); // 28 %: below the repair, above the escape-under-fire threshold
         Safety s = new Safety(sim.ctx);
@@ -233,6 +233,65 @@ class HealingTest {
             sim.now += 100 * Sim.MS;
         }
         assertEquals(1, sim.sent.stream().filter(p -> p instanceof orbit.protocol.gen.JumpRequest).count());
+    }
+
+    @Test
+    void onABlacklightMapTheRepairStaysAtThePortalWhileNobodyShoots() {
+        // DarkBot's SafetyFinder (the user, 2026-11-19): no fire — no jump, the repair at the portal
+        Sim sim = lowHp(308, 19_400, 11_854); // 3-BL by its 2-BL portal
+        hp(sim, 28_000);
+        Safety s = new Safety(sim.ctx);
+        for (int t = 0; t < 200; t++) {
+            s.tick(false);
+            sim.now += 100 * Sim.MS;
+        }
+        assertTrue(sim.sent.stream().noneMatch(p -> p instanceof orbit.protocol.gen.JumpRequest));
+    }
+
+    /** On 3-BL at its 2-BL portal, shot: jumps; on 2-BL at the portal back, {@code shotThere} — fire there too. */
+    private static long blackLightPingPong(boolean shotThere) {
+        Sim sim = lowHp(308, 19_400, 11_854);
+        orbit.protocol.gen.ShipInitializationCommand at = new orbit.protocol.gen.ShipInitializationCommand();
+        at.userId = 1;
+        at.mapId = 308;
+        at.factionId = 3;
+        at.level = 24; // another company's 2-BL lets in from 24
+        at.x = 19_400;
+        at.y = 11_854;
+        at.hitPoints = 10_000;
+        at.hitMax = 100_000;
+        sim.world.apply(at, sim.now);
+        Safety s = new Safety(sim.ctx);
+        for (int t = 0; t < 30; t++) {
+            hurt(sim, 10_000, 0);
+            s.tick(true);
+            sim.now += 100 * Sim.MS;
+        }
+        orbit.protocol.gen.ShipInitializationCommand si = new orbit.protocol.gen.ShipInitializationCommand();
+        si.userId = 1;
+        si.mapId = 307;
+        si.factionId = 3;
+        si.level = 24;
+        si.x = 20_377; // 2-BL by its 3-BL portal, where the jump puts it
+        si.y = 7_996;
+        si.hitPoints = 10_000;
+        si.hitMax = 100_000;
+        sim.world.apply(si, sim.now);
+        for (int t = 0; t < 100; t++) {
+            if (shotThere && t > 40) {
+                hurt(sim, 9_000 - t, 0);
+            }
+            s.tick(true);
+            sim.now += 100 * Sim.MS;
+        }
+        return sim.sent.stream().filter(p -> p instanceof orbit.protocol.gen.JumpRequest).count();
+    }
+
+    @Test
+    void onABlacklightMapShotOnTheOtherSideTooItJumpsBackNotOnToAThirdMap() {
+        // live 2026-11-19 on the VPS (dr strange): 3 hours from BL map to BL map, the repair never done
+        assertEquals(2, blackLightPingPong(true), "back through the same portal");
+        assertEquals(1, blackLightPingPong(false), "no fire there: the repair there, the hits before the jump not counted");
     }
 
     @Test
