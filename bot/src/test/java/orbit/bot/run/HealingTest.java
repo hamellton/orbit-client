@@ -248,50 +248,49 @@ class HealingTest {
         assertTrue(sim.sent.stream().noneMatch(p -> p instanceof orbit.protocol.gen.JumpRequest));
     }
 
-    /** On 3-BL at its 2-BL portal, shot: jumps; on 2-BL at the portal back, {@code shotThere} — fire there too. */
-    private static long blackLightPingPong(boolean shotThere) {
-        Sim sim = lowHp(308, 19_400, 11_854);
-        orbit.protocol.gen.ShipInitializationCommand at = new orbit.protocol.gen.ShipInitializationCommand();
-        at.userId = 1;
-        at.mapId = 308;
-        at.factionId = 3;
-        at.level = 24; // another company's 2-BL lets in from 24
-        at.x = 19_400;
-        at.y = 11_854;
-        at.hitPoints = 10_000;
-        at.hitMax = 100_000;
-        sim.world.apply(at, sim.now);
-        Safety s = new Safety(sim.ctx);
-        for (int t = 0; t < 30; t++) {
-            hurt(sim, 10_000, 0);
-            s.tick(true);
-            sim.now += 100 * Sim.MS;
-        }
+    static void onMap(Sim sim, int map, int x, int y) {
         orbit.protocol.gen.ShipInitializationCommand si = new orbit.protocol.gen.ShipInitializationCommand();
         si.userId = 1;
-        si.mapId = 307;
+        si.mapId = map;
         si.factionId = 3;
-        si.level = 24;
-        si.x = 20_377; // 2-BL by its 3-BL portal, where the jump puts it
-        si.y = 7_996;
+        si.level = 24; // another company's BL map lets in from 24
+        si.x = x;
+        si.y = y;
         si.hitPoints = 10_000;
         si.hitMax = 100_000;
         sim.world.apply(si, sim.now);
-        for (int t = 0; t < 100; t++) {
-            if (shotThere && t > 40) {
-                hurt(sim, 9_000 - t, 0);
-            }
-            s.tick(true);
-            sim.now += 100 * Sim.MS;
-        }
+    }
+
+    static long jumps(Sim sim) {
         return sim.sent.stream().filter(p -> p instanceof orbit.protocol.gen.JumpRequest).count();
     }
 
     @Test
-    void onABlacklightMapShotOnTheOtherSideTooItJumpsBackNotOnToAThirdMap() {
-        // live 2026-11-19 on the VPS (dr strange): 3 hours from BL map to BL map, the repair never done
-        assertEquals(2, blackLightPingPong(true), "back through the same portal");
-        assertEquals(1, blackLightPingPong(false), "no fire there: the repair there, the hits before the jump not counted");
+    void onABlacklightMapShotItJumpsAndComesStraightBackThenRepairsAtThatPortal() {
+        // DarkBot's SafetyFinder (the user, 2026-11-19: «если стреляют — прыгнуть в порт и вернуться назад»); live the same
+        // day on the VPS (dr strange): 3 hours from BL map to BL map, the repair never done
+        Sim sim = lowHp(308, 19_400, 11_854);
+        onMap(sim, 308, 19_400, 11_854); // 3-BL by its 2-BL portal
+        Safety s = new Safety(sim.ctx);
+        for (int t = 0; t < 30 && jumps(sim) == 0; t++) {
+            hurt(sim, 10_000, 0);
+            s.tick(true);
+            sim.now += 100 * Sim.MS;
+        }
+        assertEquals(1, jumps(sim), "shot: through the portal");
+        onMap(sim, 307, 20_377, 7_996); // 2-BL by its 3-BL portal, nobody shooting
+        for (int t = 0; t < 60 && jumps(sim) == 1; t++) {
+            s.tick(false);
+            sim.now += 100 * Sim.MS;
+        }
+        assertEquals(2, jumps(sim), "straight back, not on to a third map");
+        onMap(sim, 308, 19_400, 11_854); // back on 3-BL by the portal, shot again
+        for (int t = 0; t < 200; t++) {
+            hurt(sim, 9_000, 0);
+            s.tick(true);
+            sim.now += 100 * Sim.MS;
+        }
+        assertEquals(2, jumps(sim), "back home: the repair at that portal, no more jumps");
     }
 
     @Test
@@ -325,17 +324,16 @@ class HealingTest {
         }
         assertEquals(11_084, (int) sim.ctx.nav().destination().x(), "to the 2-BL portal, not the base");
         assertEquals(11_084, (int) sim.ctx.nav().destination().y());
-        // at that portal, still under fire: no jump back into what it ran from
+        // at that portal: straight back into 2-BL, as DarkBot (the jump left a BL map), the repair at its portal there
         si.x = 11_084;
         si.y = 11_084;
         sim.world.apply(si, sim.now);
-        for (int t = 0; t < 100; t++) {
+        for (int t = 0; t < 100 && jumps(sim) == 1; t++) {
             hurt(sim, 10_000, 0);
             s.tick(true);
             sim.now += 100 * Sim.MS;
         }
-        assertEquals(1, sim.sent.stream().filter(p -> p instanceof orbit.protocol.gen.JumpRequest).count(),
-                "no jump back into 2-BL");
+        assertEquals(2, jumps(sim), "back into 2-BL");
     }
 
     @Test

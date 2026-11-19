@@ -52,8 +52,10 @@ public final class Safety {
     /** The map the last escape jump left: no escape jump back into it this soon. */
     private int escapedFrom;
     static final long BACK_INTO_NS = 120_000_000_000L;
-    /** A Blacklight map's portal: back through it this soon after a jump when shot on arrival (DarkBot returns at once). */
+    /** After a jump from a Blacklight map: back through the portal this soon (the arrival, the jump's cooldown). */
     static final long BL_BACK_NS = 3_000_000_000L;
+    /** This close to a portal the jump goes (the game lets one jump within a few hundred units). */
+    static final double JUMP_REACH = 250;
     private long jumpedAt = Long.MIN_VALUE / 2;
     private double lastHp = -1;
     private long hurtAt = Long.MIN_VALUE / 2;
@@ -190,10 +192,15 @@ public final class Safety {
         }
         if (repaired(h, s, hp)) {
             repairing = false;
+            blOrigin = 0;
+            blReturned = false;
             log.info("Отремонтирован: HP {}%", pct(hp));
             return false;
         }
         ctx.ship().want(s.repairMode());
+        if (blDance(w, h, now)) {
+            return true;
+        }
         if (orbit.config.GateCatalog.instanced(h.mapId())) {
             // in a galaxy gate no portal is a shelter: the one learned there leads home, out of the gate, and the NPCs
             // follow to it (live 2026-11-15 on gb2, GG α: off to it at 59 %, shot there by the Protegits, jumped at
@@ -217,19 +224,15 @@ public final class Safety {
             return true;
         }
         MapCatalog.Portal portal = place.portal();
-        // on a Blacklight map as DarkBot's SafetyFinder: the repair at the portal, a jump through it only when shot
-        // (any hit — its NPCs and the players reach it), and back through the same portal when shot on the other side
-        // too — never on to a third map (the user, 2026-11-19: «ремонт на порту, если стреляют — прыгнуть в порт и
-        // вернуться назад, как в DarkBot и AstraBot»; live 2026-11-19 on the VPS, dr strange: «укрытия нет» jumps from
-        // BL map to BL map for 3 hours, the repair never done, 0 Invokes, 100+ deaths)
+        // on a Blacklight map as DarkBot's SafetyFinder (the user, 2026-11-19: «ремонт на порту, если стреляют — прыгнуть
+        // в порт и вернуться назад, как в DarkBot»): the repair at the portal; shot there — through it and straight back
+        // ({@link #blDance}), then the repair at that portal, no more jumps till repaired (live 2026-11-19 on the VPS,
+        // dr strange: «укрытия нет» jumps from BL map to BL map for 3 hours, the repair never done)
         boolean bl = orbit.bot.nav.Router.blacklight(h.mapId());
         boolean backInto = portal != null && portal.toId() == escapedFrom && now - jumpedAt < BACK_INTO_NS;
-        // back at once when shot again on arrival (DarkBot: HP down in the last 100 ms), else not sooner than 10 s
-        long gapNs = bl && backInto ? BL_BACK_NS : 10_000_000_000L;
-        // back only for fire here, after the arrival — not the hits before the jump still counted as «attacked»
-        boolean shot = bl && backInto ? !h.attackers().isEmpty() || hurtAt > jumpedAt + BL_BACK_NS : attacked;
-        if (portal != null && shot && (hp < s.escapeHp() || bl) && w.jumpingTo() == 0 && now - jumpedAt > gapNs) {
-            if (!place.jumpable() || backInto && !bl) {
+        if (portal != null && attacked && (hp < s.escapeHp() || bl) && !(bl && blReturned) && w.jumpingTo() == 0
+                && now - jumpedAt > 10_000_000_000L) {
+            if (!place.jumpable() || backInto) {
                 // 5-2 → 5-3 has no way back but the whole loop round the pirate maps (live 2026-11-12): stay in the
                 // portal's shelter and heal here
                 if (!oneWayTold) {
@@ -243,7 +246,7 @@ public final class Safety {
                 jumpAt = now + ctx.react(200, 700);
             } else if (now >= jumpAt) {
                 log.warn("На портале под огнём, HP {}% — прыгаю на {}{}", pct(hp), portal.toName(),
-                        bl && backInto ? " (обратно: и там стреляют)" : "");
+                        bl ? " и сразу обратно (как DarkBot)" : "");
                 ctx.actions().jump();
                 jumpedAt = now;
                 jumpAt = 0;
@@ -251,7 +254,62 @@ public final class Safety {
                 jumpedVia = portal;
                 deathsAtJump = ctx.stats().deaths.get();
                 escapedFrom = h.mapId();
+                blOrigin = bl ? h.mapId() : 0;
+                blReturned = false;
             }
+        }
+        return true;
+    }
+
+    /** The BL map a repair jump left (DarkBot's prevMap), 0 none; {@link #blReturned} — back on it already. */
+    private int blOrigin;
+    private boolean blReturned;
+
+    /**
+     * DarkBot's JUMPED → RETURNING → RETURNED from a Blacklight map: on the other side straight back through the portal
+     * to it (whatever is there), then on it the repair at that portal — {@code true} while this steers the ship. A death
+     * ends it (the revive puts the ship elsewhere).
+     */
+    private boolean blDance(WorldSnapshot w, WorldSnapshot.Hero h, long now) {
+        if (blOrigin == 0) {
+            return false;
+        }
+        if (ctx.stats().deaths.get() != deathsAtJump) {
+            blOrigin = 0;
+            blReturned = false;
+            return false;
+        }
+        if (h.mapId() == blOrigin || w.jumpingTo() != 0) {
+            if (h.mapId() == blOrigin && now - jumpedAt > BL_BACK_NS && !blReturned && jumpedFrom != blOrigin) {
+                blReturned = true;
+            }
+            return w.jumpingTo() != 0;
+        }
+        MapCatalog.Portal back = null;
+        for (MapCatalog.Portal p : ctx.maps().portals(h.mapId())) {
+            if (p.toId() == blOrigin && (back == null
+                    || Math.hypot(p.x() - h.x(), p.y() - h.y()) < Math.hypot(back.x() - h.x(), back.y() - h.y()))) {
+                back = p;
+            }
+        }
+        if (back == null) {
+            blOrigin = 0; // no way straight back: the usual repair here
+            return false;
+        }
+        if (Math.hypot(back.x() - h.x(), back.y() - h.y()) > JUMP_REACH) {
+            if (ctx.nav().idle() || ctx.nav().destination().x() != back.x() || ctx.nav().destination().y() != back.y()) {
+                ctx.nav().moveTo(back.x(), back.y(), true);
+            }
+            ctx.nav().tick();
+            return true;
+        }
+        if (now - jumpedAt > BL_BACK_NS) {
+            log.info("Прыгаю обратно на {} — ремонт у портала там (как DarkBot)", back.toName());
+            ctx.actions().jump();
+            jumpedAt = now;
+            jumpedFrom = h.mapId();
+            jumpedVia = back;
+            escapedFrom = h.mapId();
         }
         return true;
     }

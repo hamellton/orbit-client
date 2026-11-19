@@ -120,6 +120,21 @@ class MimesisModuleTest {
     }
 
     @Test
+    void atTheEntryOnX1TheShipHoldsGroundWhoeverStandsThere() throws Exception {
+        // the user, 2026-11-19 (daredevil on int7): an offender at x-1's portal, «рядом — ухожу» again and again before
+        // the entry — on x-1 with the entry due nobody is kept off; farming, the offenders are kept off as before
+        Sim sim = new Sim(config("{\"startTravelSeconds\":180}"), home(), 9_000, 6_000);
+        keys(sim, 3);
+        times(sim, 150, 0, 0);
+        MimesisModule m = new MimesisModule(sim.ctx);
+        assertTrue(m.holdsGround(), "the entry due, on x-1");
+        Sim farm = new Sim(config("{\"startTravelSeconds\":180}"), FARM, 9_000, 6_000);
+        keys(farm, 3);
+        times(farm, 1200, 0, 0);
+        assertFalse(new MimesisModule(farm.ctx).holdsGround(), "farming: the offenders kept off");
+    }
+
+    @Test
     void theTargetIsTakenNearTheFreighterOnly() throws Exception {
         Sim sim = new Sim(config("{}"), ESCORT, 10_000, 6_000);
         sim.npc(10, "-={EM Freighter}=-", 10_000, 6_000);

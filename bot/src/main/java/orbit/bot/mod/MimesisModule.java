@@ -467,10 +467,16 @@ public final class MimesisModule implements BotModule {
         return false;
     }
 
-    /** In the escort the players about are the company's own: nothing to keep off. */
+    /**
+     * In the escort the players about are the company's own: nothing to keep off. At the entry too — on x-1 with the
+     * entry due the portal is the place to be whoever stands there (the user, 2026-11-19, daredevil on int7: an offender
+     * at x-1's portal, «рядом — ухожу на другую сторону» again and again, the entry missed; «он должен прыгать в этот
+     * порт несмотря ни на что»).
+     */
     @Override
     public boolean holdsGround() {
-        return inEscort() || farm.holdsGround();
+        WorldSnapshot w = ctx.world().get();
+        return inEscort() || active(w) && w.hero().mapId() == homeMap(w.hero()) || farm.holdsGround();
     }
 
     @Override
