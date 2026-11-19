@@ -23,6 +23,7 @@ class DispatchCareTest {
 
     static Sim sim(String json, double credits, double uridium) throws Exception {
         Sim sim = new Sim(config(json), 26, 10_000, 6_000);
+        sim.now = 1_000 * Sim.MS; // the world's clock is never 0 (0 is «never told»)
         orbit.protocol.gen.ShipInitializationCommand si = new orbit.protocol.gen.ShipInitializationCommand();
         si.userId = 1;
         si.mapId = 26;
@@ -130,6 +131,22 @@ class DispatchCareTest {
         sim.world.apply(m, sim.now);
         run(sim, d, 20_000, new int[][] {}, new int[] {13}, 5);
         assertTrue(sent(sim).isEmpty(), "refused: no send for 30 min");
+    }
+
+    @Test
+    void onlyTheListInProgressIsAskedAndNotMoreOftenThanAMinute() throws Exception {
+        // the official client asks statusType 1 only; no answer — no new ask for a minute (live 2026-11-19 on gb2: every 2 s)
+        Sim sim = sim("{\"enabled\":true}", 1_000_000, 0);
+        DispatchCare d = new DispatchCare(sim.ctx);
+        for (long t = 0; t < 30_000; t += 100) {
+            d.tick();
+            sim.now += 100 * Sim.MS;
+        }
+        List<orbit.protocol.gen.DispatchGetRetrieverListRequest> asks = sim.sent.stream()
+                .filter(p -> p instanceof orbit.protocol.gen.DispatchGetRetrieverListRequest)
+                .map(p -> (orbit.protocol.gen.DispatchGetRetrieverListRequest) p).toList();
+        assertEquals(1, asks.size(), "once in 30 s with no answer");
+        assertEquals(1, asks.getFirst().statusType);
     }
 
     @Test

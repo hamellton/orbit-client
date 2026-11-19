@@ -11,8 +11,10 @@ import org.slf4j.LoggerFactory;
 
 /**
  * The dispatch's retrievers (the user, 2026-11-19: «диспатч как в даркботе и астработе»), by packets as AstraBot does —
- * no window: the lists asked every {@link #REFRESH_MS} ({@code DispatchGetRetrieverListRequest} 0 available, 1 in
- * progress), a finished one collected ({@code DispatchCollectRetrieverRequest}), into a free slot the chosen retriever
+ * no window: the list in progress asked every {@link #REFRESH_MS} ({@code DispatchGetRetrieverListRequest} 1 — the
+ * official client asks only this one; the server answers it with {@code DispatchSlotInfoCommand}, and the retrievers one
+ * may send are the client's own definitions, no list of them comes — live 2026-11-19 on gb2: waited for one, asked every
+ * 2 s, nothing done), a finished one collected ({@code DispatchCollectRetrieverRequest}), into a free slot the chosen retriever
  * sent ({@code DispatchSendRetrieverRequest}) — PikaPika's DispatchNew's limits: no more of it in progress than
  * {@code count}, its price checked first, {@code freeSlots} left unused (AstraBot); at most one action every
  * {@link #ACTION_MS}, a human's pace. Optional: a running one finished at once for a quick coupon ({@code instant}).
@@ -119,18 +121,21 @@ public final class DispatchCare {
         if (ms(now - actedAt) < ACTION_MS) {
             return;
         }
-        // the lists: at the start, every minute, and a moment after each action
-        boolean stale = d.availableNanos() == 0 || d.inProgressNanos() == 0 || ms(now - askedAt) > REFRESH_MS
-                || actedAt > askedAt && ms(now - actedAt) > AFTER_ACTION_MS;
-        if (stale && ms(now - askedAt) > AFTER_ACTION_MS) {
-            ctx.actions().dispatchList(0);
+        // the list in progress: at the start, every minute, and a moment after each action — never more often (no answer
+        // is no reason to ask again soon)
+        boolean due = ms(now - askedAt) > REFRESH_MS || actedAt > askedAt && ms(now - actedAt) > AFTER_ACTION_MS;
+        if (due) {
             ctx.actions().dispatchList(1);
             askedAt = now;
             return;
         }
-        if (d.inProgressNanos() < askedAt || d.availableNanos() < askedAt) {
+        if (d.inProgressNanos() == 0 || d.inProgressNanos() < askedAt) {
+            if (ms(now - askedAt) > 20_000) {
+                tell("noanswer", "Диспетчер: сервер не ответил на запрос слотов — спрошу через минуту");
+            }
             return; // the answer to the last ask not here yet
         }
+        state(d, now);
         // finished ones: collected one at a time
         for (WorldSnapshot.Retriever r : d.inProgress()) {
             double left = r.duration() - (now - d.inProgressNanos()) / 1e9;
@@ -160,16 +165,13 @@ public final class DispatchCare {
             tell("kind", "Диспетчер: сборщик «" + s.path("retriever").asText() + "» неизвестен — не отправляю");
             return;
         }
-        int free = d.freeSlots() >= 0 ? d.freeSlots() : 0;
+        int free = d.freeSlots() >= 0 ? d.freeSlots()
+                : Math.max(0, (d.maxSlots() > 0 ? d.maxSlots() : 1) - d.inProgress().size());
         if (free - Math.max(0, s.path("freeSlots").asInt(0)) <= 0 || now < refusedUntil) {
             return;
         }
         long running = d.inProgress().stream().filter(r -> r.id() == k.id()).count();
         if (running >= Math.max(1, s.path("count").asInt(5))) {
-            return;
-        }
-        if (d.available().stream().noneMatch(r -> r.id() == k.id())) {
-            tell("avail", "Диспетчер: " + k.name() + " сейчас недоступен — жду");
             return;
         }
         if (k.credits() > 0 && h.credits() >= 0 && h.credits() < k.credits()
@@ -186,6 +188,26 @@ public final class DispatchCare {
         log.info("Диспетчер: отправляю {} (свободных слотов {}, в работе таких {})", k.label(), free, running);
         ctx.actions().dispatchSend(k.id());
         actedAt = now;
+    }
+
+    /** The slots as the server told them, once each time they change: how many, what runs, the soonest end. */
+    private void state(WorldSnapshot.Dispatch d, long now) {
+        StringBuilder s = new StringBuilder("Диспетчер: слотов ").append(d.maxSlots() >= 0 ? d.maxSlots() : "?")
+                .append(", свободно ").append(d.freeSlots() >= 0 ? d.freeSlots() : "?");
+        if (!d.inProgress().isEmpty()) {
+            Map<String, Integer> kinds = new LinkedHashMap<>();
+            double soonest = Double.MAX_VALUE;
+            for (WorldSnapshot.Retriever r : d.inProgress()) {
+                Kind k = byId(r.id());
+                kinds.merge(k != null ? k.name() : "№" + r.id(), 1, Integer::sum);
+                soonest = Math.min(soonest, r.duration());
+            }
+            s.append(", в работе ");
+            kinds.forEach((n, c) -> s.append(n).append(" ×").append(c).append(' '));
+            long m = (long) Math.max(0, soonest) / 60;
+            s.append("(ближайший через ").append(m / 60).append(':').append(String.format("%02d", m % 60)).append(')');
+        }
+        tell("state", s.toString().strip());
     }
 
     /** A resource the inventory counts and has fewer of than needed (one it does not count is not judged). */
