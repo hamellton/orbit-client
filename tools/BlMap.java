@@ -113,7 +113,7 @@ public class BlMap {
             // the points the user approved (2026-11-20), fixed; their distance from the real routes
             double[][][] fixedPts = {
                 {{20200, 4300}, {20400, 7100}, {19300, 1900}, {20400, 4600}},
-                {{6000, 3500}, {5300, 5700}, {6700, 8900}, {6900, 600}},
+                {{6000, 3500}, {5300, 5700}, {5400, 4700}, {6900, 600}}, // 2-BL B: by the pocket's left wall (the user, 2026-11-20)
                 {{3100, 3100}, {5700, 2500}, {2300, 700}, {4700, 600}}};
             String[] fl = {"A1 сбоку", "A2 сбоку", "B у стены", "C край (радиация)"};
             Color[] fc = {new Color(0x3ce07a), new Color(0x3ce07a), new Color(0xf0e040), new Color(0xb070ff)};
