@@ -23,7 +23,7 @@ public final class QuestCrafts {
 
     /**
      * In this order (the user, 2026-11-19: «лучше за кредиты или сепром или рсб»): recipe → the item it makes (for its
-     * name). The Precision Targeter is the client's only recipe for credits alone (20 000); then Seprom and RSB-75 as
+     * name). The Precision Targeter is the client's only recipe for credits alone (20 000); then RSB-75 and Seprom (the user's order) as
      * AstraBot crafts them (the friend's VPS logs: {@code seprom-blacklight}, {@code rsb75-blacklight} — uridium, rinusk,
      * Blacklight trace).
      */
@@ -31,8 +31,8 @@ public final class QuestCrafts {
 
     static {
         DEFAULTS.put("recipe_blueprint-tech-precisiontargeter", "tech_precision-targeter");
-        DEFAULTS.put("recipe_blueprint-seprom-blacklight", "resource_ore_seprom");
         DEFAULTS.put("recipe_blueprint-rsb75-blacklight", "ammunition_laser_rsb-75");
+        DEFAULTS.put("recipe_blueprint-seprom-blacklight", "resource_ore_seprom");
     }
 
     private QuestCrafts() {

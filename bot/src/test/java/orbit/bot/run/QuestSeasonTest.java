@@ -141,6 +141,18 @@ class QuestSeasonTest {
     }
 
     @Test
+    void rsbBeforeSepromWhenTheCreditsAreShort() throws Exception {
+        // the user's order (2026-11-19): Precision Targeter, RSB-75 BL, Seprom BL
+        Sim sim = new Sim(config(BotConfig.Module.QUESTS, "{}"), 26, 7_500, 3_900);
+        season(sim, 700030, 9, Quests.COLLECT_BUILT_RECIPE, 25);
+        recipe(sim, PT, SEPROM, "recipe_blueprint-rsb75-blacklight");
+        credits(sim, 10_000);
+        sepromPrice(sim, 10);
+        assertEquals("recipe_blueprint-rsb75-blacklight",
+                QuestCrafts.craftRule(sim.config, sim.world.snapshot(sim.now)).recipe());
+    }
+
+    @Test
     void notWithoutTheUridiumNorWithTheCraftOff() throws Exception {
         Sim sim = new Sim(config(BotConfig.Module.QUESTS, "{\"craftRecipes\":[\"recipe_blueprint-rsb75-blacklight\"]}"),
                 26, 7_500, 3_900);

@@ -87,13 +87,13 @@ final class QuestsSection implements Section {
         passes.put("battlepass", new JCheckBox("Battle Pass: забирать награды (если пропуск куплен)"));
         passes.put("trek", new JCheckBox("Galaxy Trek: забирать награды за секторы"));
         passes.put("diminishing", new JCheckBox("Принимать убывающие квесты, которые бот умеет"));
-        passes.put("craft", new JCheckBox("Крафтить для «собрать скрафченное»: Precision Targeter (кредиты), Seprom BL, RSB-75 BL"));
+        passes.put("craft", new JCheckBox("Крафтить для «собрать скрафченное»: Precision Targeter (кредиты), RSB-75 BL, Seprom BL"));
         passes.values().forEach(b -> f.row("", b));
         f.note("Миссии Season Pass, Battle Pass и Galaxy Trek бот делает как обычные квесты — брать их не нужно."
                 + " Никогда сам: покупка уровней и перевыбор за уридий, поиск в Galaxy Trek (тратит FTL-ключи), обмен"
                 + " ключей Battle Pass. Миссии «выполнить N миссий сезона» и «выполнить N заданий» не перевыбираются —"
                 + " они растут сами. Крафт: первый рецепт из списка, на который хватает"
-                + " ресурсов (уридий тоже тратится: Seprom BL — 10 000 за партию, RSB-75 BL — 4 000).");
+                + " ресурсов (уридий тоже тратится: RSB-75 BL — 4 000 за партию, Seprom BL — 10 000).");
         f.section("Квесты по номерам");
         f.note("Все квесты, что бот видел у квестодателя или взял (local/quests-seen.json). «Первым» — взять и делать"
                 + " раньше всех; «Не делать» — не брать, а взятый не трогать (прогресс сохраняется); «Отменить» — отменить"
