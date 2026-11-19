@@ -1,6 +1,6 @@
 {
   "schema": 3,
-  "description": "[Default] Мимесис VRU 3-4 — эскорт EM Freighter (событие Mimesis Mutiny, docs/MIMESIS.md): рейс как DarkBot DonorPlugin (кружит у фрейтера, бьёт NPC в 2 000 от него, таблица целей SharedPlugin: Medic, Obscured, Mirror, Marker первыми), между рейсами фарм ключей на рабочей карте как AstraBot, вход за 3 мин до часа по таймеру сервера; EMP < 50 %, ISH < 45 %, пиявка < 30 %, Solace < 60 %, способность при 5 NPC рядом, HP Link, EMAA-20 по тяжёлым Мимесисам (как AstraBot), по мелким — UCB-100. Воскрешение на месте. Формации как AstraBot: бой — Drill, полёт и бегство — Wheel, ремонт — конфигурация 2 + Ring. Фарм ключей на 3-4 (VRU), вход с 3-1. Ящики Мимесисов (MIMESIS_AI_*, как AstraBot) собираются. Копию — под свой корабль (крафт EMAA-20, NPC рабочей карты).",
+  "description": "[Default] Мимесис VRU 3-4 — эскорт EM Freighter (событие Mimesis Mutiny, docs/MIMESIS.md): рейс как DarkBot DonorPlugin (кружит у фрейтера, бьёт NPC в 2 000 от него, таблица целей SharedPlugin: Medic, Obscured, Mirror, Marker первыми), между рейсами фарм ключей на рабочей карте как AstraBot, вход за 3 мин до часа по таймеру сервера; EMP < 50 %, ISH < 45 %, пиявка < 30 %, Solace < 60 %, способность при 5 NPC рядом, HP Link, EMAA-20 по тяжёлым Мимесисам (как AstraBot), по мелким — UCB-100. Воскрешение на месте. Формации как AstraBot: бой — Drill, полёт и бегство — Wheel, ремонт — конфигурация 2 + Ring. Фарм ключей на 3-4 (VRU), вход с 3-1. Ящики Мимесисов (MIMESIS_AI_*, как AstraBot) собираются. Крафт EMAA-20 включён (как AstraBot: 10 000 за 1 500 Byte и 15 000 уридия, пока меньше 10 000). Копию — под свой корабль (NPC рабочей карты).",
   "module": "MIMESIS",
   "general": {
     "workingMap": 12,
@@ -1649,7 +1649,7 @@
         "mode": "heavy"
       },
       "craftEmaa": {
-        "on": false,
+        "on": true,
         "below": 10000
       },
       "emp": {
