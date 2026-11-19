@@ -34,9 +34,36 @@ final class SidePanel extends JPanel implements Scrollable {
         this.feed = feed;
         this.config = config;
         BlockMenu.attach(this, p -> blockAt(cardsAt, p));
-        setToolTipText("Правый клик — меню");
+        // no tooltip over the cards (the user, 2026-11-19: «надоело всплывающее окно»): the card under the mouse shows
+        // its «⋯» button instead — a left click on it opens the same menu as the right click
+        java.awt.event.MouseAdapter hover = new java.awt.event.MouseAdapter() {
+            @Override
+            public void mouseMoved(java.awt.event.MouseEvent e) {
+                hovered(e.getPoint());
+            }
+
+            @Override
+            public void mouseExited(java.awt.event.MouseEvent e) {
+                hovered(null);
+            }
+
+            @Override
+            public void mouseClicked(java.awt.event.MouseEvent e) {
+                java.awt.Rectangle r = hoverCard;
+                if (javax.swing.SwingUtilities.isLeftMouseButton(e) && r != null && menuButton(r).contains(e.getPoint())) {
+                    ViewSettings.Block b = blockAt(cardsAt, e.getPoint());
+                    if (b != null) {
+                        java.awt.Rectangle m = menuButton(r);
+                        BlockMenu.forBlock(b).show(SidePanel.this, m.x, m.y + m.height);
+                    }
+                }
+            }
+        };
+        addMouseListener(hover);
+        addMouseMotionListener(hover);
         Font f = javax.swing.UIManager.getFont("Label.font");
         this.hud = new Hud(f != null ? f : getFont());
+        hud.menuRoom = MENU_ROOM; // the headings leave the «⋯» button its place
         setOpaque(true);
         setBackground(MainWindow.SURFACE);
         // a block moved («Сбоку», «На карте», «Скрыть»): laid out anew at once, no place kept for it (the steady places
@@ -168,12 +195,75 @@ final class SidePanel extends JPanel implements Scrollable {
                 max = Math.max(max, p.y() + p.height() + GAP);
             }
             cardsAt = placed;
+            java.awt.Rectangle hc = hoverCard;
+            for (java.awt.Rectangle r : placed.keySet()) {
+                paintMenu(g, r, r.equals(hc));
+            }
             if (Math.abs(max - GAP - contentHeight) > 2) {
                 contentHeight = Math.max(0, max - GAP);
                 revalidate(); // the scroll pane learns the new height
             }
         } finally {
             g.dispose();
+        }
+    }
+
+    /** The card under the mouse ({@code null} none): its frame lit and its «⋯» button shown. */
+    private volatile java.awt.Rectangle hoverCard;
+    private volatile boolean hoverButton;
+
+    private void hovered(java.awt.Point p) {
+        java.awt.Rectangle card = null;
+        if (p != null) {
+            for (java.awt.Rectangle r : cardsAt.keySet()) {
+                if (r.contains(p)) {
+                    card = r;
+                    break;
+                }
+            }
+        }
+        boolean onButton = card != null && menuButton(card).contains(p);
+        if (!java.util.Objects.equals(card, hoverCard) || onButton != hoverButton) {
+            hoverCard = card;
+            hoverButton = onButton;
+            setCursor(onButton ? java.awt.Cursor.getPredefinedCursor(java.awt.Cursor.HAND_CURSOR)
+                    : java.awt.Cursor.getDefaultCursor());
+            repaint();
+        }
+    }
+
+    /** The heading's room for the button. */
+    static final int MENU_ROOM = 24;
+
+    /** The card's «⋯» button: the right end of its heading. */
+    static java.awt.Rectangle menuButton(java.awt.Rectangle card) {
+        return new java.awt.Rectangle(card.x + card.width - 30, card.y + 7, 22, 16);
+    }
+
+    /** The «⋯» button of every card, dim; the card under the mouse — its frame lit, its button bright. */
+    private void paintMenu(Graphics2D g, java.awt.Rectangle card, boolean hover) {
+        if (hover) {
+            g.setColor(new java.awt.Color(0x6b7a99));
+            g.draw(new java.awt.geom.RoundRectangle2D.Double(card.x + 0.5, card.y + 0.5, card.width - 1, card.height - 1, 10,
+                    10));
+        }
+        java.awt.Rectangle b = menuButton(card);
+        if (!hover) {
+            g.setColor(new java.awt.Color(0x5b6578));
+            int cy = b.y + b.height / 2;
+            for (int i = -1; i <= 1; i++) {
+                g.fill(new java.awt.geom.Ellipse2D.Double(b.x + b.width / 2.0 + i * 5 - 1.4, cy - 1.4, 2.8, 2.8));
+            }
+            return;
+        }
+        g.setColor(hoverButton ? new java.awt.Color(0x3a4658) : new java.awt.Color(0x262f3d));
+        g.fill(new java.awt.geom.RoundRectangle2D.Double(b.x, b.y, b.width, b.height, 8, 8));
+        g.setColor(hoverButton ? new java.awt.Color(0x8b9bb8) : new java.awt.Color(0x4a5568));
+        g.draw(new java.awt.geom.RoundRectangle2D.Double(b.x + 0.5, b.y + 0.5, b.width - 1, b.height - 1, 8, 8));
+        g.setColor(hoverButton ? java.awt.Color.WHITE : new java.awt.Color(0xc4cbd8));
+        int cy = b.y + b.height / 2;
+        for (int i = -1; i <= 1; i++) {
+            g.fill(new java.awt.geom.Ellipse2D.Double(b.x + b.width / 2.0 + i * 5 - 1.6, cy - 1.6, 3.2, 3.2));
         }
     }
 

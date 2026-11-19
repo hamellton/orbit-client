@@ -776,7 +776,7 @@ final class Hud {
         Font smallFont = font(Font.PLAIN, 11f);
         return new Card() {
             int timeWidth() {
-                return time.isEmpty() ? 0 : measure(smallFont).stringWidth(time) + 10;
+                return (time.isEmpty() ? 0 : measure(smallFont).stringWidth(time) + 10) + menuRoom;
             }
 
             @Override
@@ -796,7 +796,7 @@ final class Hud {
                 int inner = width - 2 * pad;
                 g.setFont(smallFont);
                 g.setColor(DIM);
-                g.drawString(time, x + width - pad - g.getFontMetrics().stringWidth(time), y + pad + 12);
+                g.drawString(time, x + width - pad - menuRoom - g.getFontMetrics().stringWidth(time), y + pad + 12);
                 g.setFont(titleFont);
                 g.setColor(TEXT);
                 int ty = y + pad + 12;
@@ -1042,8 +1042,14 @@ final class Hud {
     /** The title and its right-hand note in one row, or the note under the title when it does not fit. */
     int titleLines(String title, String right, int width) {
         int need = measure(font(Font.BOLD, 13f)).stringWidth(title) + 12 + measure(font(Font.PLAIN, 11f)).stringWidth(right);
-        return right.isEmpty() || need <= width - 2 * pad ? 1 : 2;
+        return right.isEmpty() || need <= width - 2 * pad - menuRoom ? 1 : 2;
     }
+
+    /**
+     * Room kept free at the right of each card's heading (the side panel's «⋯» menu button, the user, 2026-11-19: no
+     * tooltip over the cards); 0 — none (the cards over the map).
+     */
+    int menuRoom;
 
     private static final java.awt.image.BufferedImage SCRATCH =
             new java.awt.image.BufferedImage(1, 1, java.awt.image.BufferedImage.TYPE_INT_ARGB);
@@ -1727,11 +1733,12 @@ final class Hud {
         int rw = right.isEmpty() ? 0 : g.getFontMetrics().stringWidth(right);
         if (rw > 0) {
             g.setColor(DIM);
-            g.drawString(right, x + width - pad - rw, y + pad + 10);
+            g.drawString(right, x + width - pad - menuRoom - rw, y + pad + 10);
         }
         g.setFont(headingFont());
         g.setColor(HEADING);
-        g.drawString(clip(g, title.toUpperCase(java.util.Locale.ROOT), width - 2 * pad - rw - 8), x + pad, y + pad + 10);
+        g.drawString(clip(g, title.toUpperCase(java.util.Locale.ROOT), width - 2 * pad - menuRoom - rw - 8), x + pad,
+                y + pad + 10);
         g.setColor(RULE);
         g.fillRect(x + pad, y + pad + line - 1, width - 2 * pad, 1);
     }
@@ -1762,13 +1769,14 @@ final class Hud {
         int rw = small.stringWidth(right);
         g.setColor(DIM);
         if (rows == 1) {
-            g.drawString(right, x + width - pad - rw, y + pad + 11);
+            g.drawString(right, x + width - pad - menuRoom - rw, y + pad + 11);
         } else {
             g.drawString(clip(g, right, width - 2 * pad), x + pad, y + pad + 11 + line);
         }
         g.setFont(font(Font.BOLD, 13f));
         g.setColor(color);
-        g.drawString(clip(g, title, rows == 1 ? width - 2 * pad - rw - 8 : width - 2 * pad), x + pad, y + pad + 11);
+        g.drawString(clip(g, title, rows == 1 ? width - 2 * pad - menuRoom - rw - 8 : width - 2 * pad - menuRoom), x + pad,
+                y + pad + 11);
         return rows;
     }
 
