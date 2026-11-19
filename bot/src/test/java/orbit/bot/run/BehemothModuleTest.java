@@ -1146,6 +1146,37 @@ class BehemothModuleTest {
     }
 
     @Test
+    void inAnOffendersCircleOnTheWayTheShipBacksAwayThenGoesOnToThePoint() throws Exception {
+        // the user, 2026-11-20: «не облетать, а двигаться в противоположном направлении, и если вышел из круга — бежать на
+        // точку, и так всё время»
+        Sim sim = new Sim(with(config(300), "{\"dodgeMargin\": 150}"), 307, 5_200, 5_000);
+        BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
+        com.fasterxml.jackson.databind.JsonNode s = sim.ctx.config().get().moduleSettings("behemoth");
+        int[] point = {9_000, 5_000};
+        double r = Math.max(300, sim.ctx.config().get().flee().avoidRadius()) + 150;
+        orbit.protocol.gen.ShipCreateCommand c = new orbit.protocol.gen.ShipCreateCommand();
+        c.userId = 930;
+        c.userName = "Hunter";
+        c.factionId = 3; // any company
+        c.x = 5_800; // east of the ship, between it and the point
+        c.y = 5_000;
+        sim.world.apply(c, sim.now);
+        assertEquals(point[0], m.around(s, sim.world.snapshot(sim.now), point)[0], "not an offender: on to the point");
+        sim.ctx.stats().offenders.set(Set.of(930));
+        int[] back = m.around(s, sim.world.snapshot(sim.now), point);
+        assertTrue(back[0] < 5_200 && Math.hypot(back[0] - 5_800, back[1] - 5_000) > r,
+                "inside his circle: away from him (west), past its edge: " + back[0] + "/" + back[1]);
+        orbit.protocol.gen.MoveCommand far = new orbit.protocol.gen.MoveCommand();
+        far.userId = 930;
+        far.x = 5_800;
+        far.y = 9_000;
+        far.timeToTarget = 1;
+        sim.world.apply(far, sim.now);
+        sim.now += 2_000 * Sim.MS;
+        assertEquals(point[0], m.around(s, sim.world.snapshot(sim.now), point)[0], "out of his circle: on to the point");
+    }
+
+    @Test
     void theStepAsideGoesAsFarAsTheConfigLets() throws Exception {
         // the user, 2026-11-20: «не дальше 1 200 — сделать настраиваемым», up to the corner
         Sim sim = new Sim(with(config(300), "{\"dodgeMax\": 2400}"), 307, 5_200, 5_000);

@@ -1050,6 +1050,7 @@ public final class BehemothModule implements BotModule {
         int[] p = standPoint(s, ctx.world().get());
         avoidSpawn(s, h.mapId(), p);
         p = dodge(s, ctx.world().get(), p);
+        p = around(s, ctx.world().get(), p);
         double dist = Math.hypot(p[0] - h.x(), p[1] - h.y());
         BotConfig.General g = ctx.config().get().general();
         if (dist > ARRIVE) {
@@ -1555,6 +1556,56 @@ public final class BehemothModule implements BotModule {
     /** {@code dodgeEnemies}: the wait point's neighbourhood searched this far for a point out of the enemies' reach. */
     public static final double DODGE_MAX = 1_200;
 
+    private boolean backing;
+
+    /**
+     * On the way to the wait point (the user, 2026-11-20: «не облетать, а двигаться в противоположном направлении, и если
+     * вышел из круга — бежать на точку, и так всё время»): inside an offender's circle (any company, radius «Обходить»,
+     * plus {@code dodgeMargin}) — straight away from its centre till out of it with the margin; out — straight on to the
+     * point. Not once the locator has found the behemoth («напролом»).
+     */
+    public int[] around(JsonNode s, WorldSnapshot w, int[] p) {
+        WorldSnapshot.Hero h = w.hero();
+        if (behemothListed || toBehemoth || onBehemoth || closing || !maps(s).contains(h.mapId())) {
+            backing = false;
+            return p;
+        }
+        double r = Math.max(300, ctx.config().get().flee().avoidRadius()) + Math.max(0, number(s, "dodgeMargin", 0));
+        java.util.Set<Integer> offenders = ctx.stats().offenders.get();
+        WorldSnapshot.Ship nearest = null;
+        double nd = Double.MAX_VALUE;
+        for (WorldSnapshot.Ship e : w.ships().values()) {
+            if (offenders.contains(e.id()) && e.id() != h.id()) {
+                double d = Math.hypot(h.x() - e.x(), h.y() - e.y());
+                if (d < nd) {
+                    nd = d;
+                    nearest = e;
+                }
+            }
+        }
+        if (nearest == null || nd >= r) {
+            if (backing) {
+                log.info("Вышел из круга обидчика — к точке ожидания {}/{}", p[0] / 100, p[1] / 100);
+            }
+            backing = false;
+            return p;
+        }
+        if (!backing) {
+            log.info("В круге обидчика {} ({} от него) — назад от него, потом снова к точке", nearest.name(), (int) nd);
+        }
+        backing = true;
+        double dx = h.x() - nearest.x();
+        double dy = h.y() - nearest.y();
+        double d = Math.max(1, Math.hypot(dx, dy));
+        double go = r + 200; // a little past the edge, so the ship does not stop on it
+        orbit.world.maps.MapCatalog.MapInfo info = ctx.maps().info(h.mapId());
+        int width = info.width() > 0 ? info.width() : 21_000;
+        int height = info.height() > 0 ? info.height() : 13_100;
+        int bx = (int) (nearest.x() + dx / d * go);
+        int by = (int) (nearest.y() + dy / d * go);
+        return new int[] {Math.max(300, Math.min(width - 300, bx)), Math.max(300, Math.min(height - 300, by))};
+    }
+
     /** An enemy flying on is reckoned this much ahead (1.5 s of a ship's flight) when the ship steps aside. */
     public static final double LEAD = 750;
 
@@ -2054,6 +2105,7 @@ public final class BehemothModule implements BotModule {
         int[] p = standPoint(s, ctx.world().get());
         avoidSpawn(s, h.mapId(), p);
         p = dodge(s, ctx.world().get(), p);
+        p = around(s, ctx.world().get(), p);
         double dist = Math.hypot(p[0] - h.x(), p[1] - h.y());
         BotConfig.General g = ctx.config().get().general();
         long now = ctx.now();
@@ -2739,17 +2791,7 @@ public final class BehemothModule implements BotModule {
             // (live 2026-11-14; the user, 2026-11-20: «напролом — когда пеленгатор нашёл бегемота»)
             return List.of();
         }
-        if (maps(s).contains(h.mapId())) {
-            // the players who attacked the ship, any company, flown round on the way to the wait point and to the boxes
-            // (the user, 2026-11-20: «к точке подлетает — заходит в круги обидчиков»)
-            double r = Math.max(300, ctx.config().get().flee().avoidRadius());
-            java.util.Set<Integer> offenders = ctx.stats().offenders.get();
-            for (WorldSnapshot.Ship e : w.ships().values()) {
-                if (offenders.contains(e.id()) && e.id() != h.id()) {
-                    out.add(new double[] {e.x(), e.y(), r});
-                }
-            }
-        }
+
         if (on(s, "avoidTrainPaths", false) && !onBehemoth && !beaconOn && maps(s).contains(h.mapId())) {
             out.addAll(pathCircles(h.mapId()));
         }
