@@ -105,13 +105,25 @@ final class BuyWatch {
         shop = s;
     }
 
+    /** The config's purchases as last seen: a change of them is acted on at once. */
+    private BotConfig.Buy lastBuy;
+
     void tick() {
         long now = ctx.now();
+        BotConfig.Buy seen = ctx.config().get().buy();
+        if (lastBuy != null && !seen.equals(lastBuy)) {
+            // the user changed the purchases (the user, 2026-11-19: the uridium reserve lowered on int7, the boosters
+            // still waited 10 min for their next try): the waits are over, checked now
+            log.info("Покупки в конфиге изменены — проверяю сразу");
+            triedAt.clear();
+            nextCheck = Math.min(nextCheck, now);
+        }
+        lastBuy = seen;
         if (now < nextCheck) {
             return;
         }
         nextCheck = now + CHECK_MS * 1_000_000;
-        BotConfig.Buy b = ctx.config().get().buy();
+        BotConfig.Buy b = seen;
         if (!b.enabled()) {
             return;
         }

@@ -135,6 +135,22 @@ class BuyWatchTest {
     }
 
     @Test
+    void aLowerReserveInTheConfigBuysAtOnceNotAfterTheWait() throws Exception {
+        // the user, 2026-11-19 on int7: the reserve lowered, the booster still waited for its 10 min
+        BotConfig.Buy buy = new BotConfig.Buy(true, List.of(), 0, 45_000, List.of("DMG-B01"), 0);
+        Sim sim = sim(buy, 0, 50_000);
+        boosters(sim, null, 0);
+        FakeShop shop = new FakeShop();
+        BuyWatch w = new BuyWatch(sim.ctx);
+        w.setShop(shop);
+        runFor(sim, w, 45_000);
+        assertTrue(shop.bought.isEmpty(), "under the reserve");
+        sim.config = sim.config.withBuy(new BotConfig.Buy(true, List.of(), 0, 2_000, List.of("DMG-B01"), 0));
+        runFor(sim, w, 3_000);
+        assertEquals(List.of("3 x1"), shop.bought, "bought at once after the change");
+    }
+
+    @Test
     void noBoosterBeforeTheGameListedThemNorBelowTheUridiumToKeep() throws Exception {
         BotConfig.Buy buy = new BotConfig.Buy(true, List.of(), 0, 45_000, List.of("DMG-B01"), 0);
         Sim sim = sim(buy, 0, 50_000);
