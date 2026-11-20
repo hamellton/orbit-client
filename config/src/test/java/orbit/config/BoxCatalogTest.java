@@ -10,7 +10,7 @@ class BoxCatalogTest {
 
     @Test
     void theUsersListOfBoxes() {
-        // the user's list, 2026-11-12
+        // the list of 2026-11-12
         assertEquals(750, BoxCatalog.waitMs("ore_8"), "palladium");
         assertEquals(5_500, BoxCatalog.waitMs("PIRATE_BOOTY_GOLD"));
         assertEquals(0, BoxCatalog.waitMs("BONUS_BOX"));

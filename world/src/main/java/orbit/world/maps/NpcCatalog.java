@@ -48,7 +48,7 @@ public final class NpcCatalog {
                     }
                 }
                 // the Blacklight NPCs the client's game.xml leaves out (AstraBot's NPC table, 2026-11-13): without them the
-                // config's locator list had no invoke or behemoth (the user, 2026-11-17)
+                // config's locator list had no invoke or behemoth
                 BLACKLIGHT.forEach((id, name) -> m.putIfAbsent(id, new Npc(id, name)));
                 c = new NpcCatalog(Map.copyOf(m));
                 bundled = c;

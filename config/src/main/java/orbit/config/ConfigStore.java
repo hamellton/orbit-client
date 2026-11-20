@@ -17,8 +17,8 @@ import java.util.regex.Pattern;
 
 /**
  * Named configs as files {@code <dir>/<name>.json} or {@code <dir>/<folder>/<name>.json} (by default
- * {@code local/configs}), and the program's own default configs in the read-only folder {@link #DEFAULT_FOLDER} (the
- * user, 2026-11-16: «папка Default — проверенные конфиги, закрыты для редактирования, от них делают копии»).
+ * {@code local/configs}), and the program's own default configs in the read-only folder {@link #DEFAULT_FOLDER}: proven
+ * configs, closed for editing, to be copied and changed.
  *
  * <p>A name is unique over all folders (the accounts keep a config by its name alone), so moving a config between
  * folders changes nothing for them. Saves go through a temporary file, so a crash never leaves half a config.
@@ -339,8 +339,8 @@ public final class ConfigStore {
     }
 
     /**
-     * The file is there under exactly this name: macOS's file system ignores the case, and «Cubikon» (a default) must not
-     * find «CUBIKON.json» (the user's own).
+     * The file is there under exactly this name: macOS's file system ignores the case, and {@code Cubikon} (a
+     * default) must not find {@code CUBIKON.json} (the user's own).
      */
     private static boolean exact(Path f, String name) {
         if (!Files.isRegularFile(f)) {

@@ -34,7 +34,7 @@ public record AccountSettings(Map<String, Entry> accounts) {
     public record Entry(String config, Schedule schedule, java.util.List<Ship> hangars, PalladiumShips palladium,
                         Integer clickHoldMs, Integer serviceShipId) {
 
-        /** The user, 2026-11-14: «по дефолту поставь 1 секунду». */
+        /** One second by default (user's choice). */
         public static final int DEFAULT_CLICK_HOLD_MS = 1_000;
 
         public Entry {
@@ -78,7 +78,7 @@ public record AccountSettings(Map<String, Entry> accounts) {
         }
 
         /**
-         * The ship for the Skylab and the enrichment (the user, 2026-11-15: «присылать со Скайлаба лучше на Цитадель»);
+         * The ship for the Skylab and the enrichment (Skylab transports are best sent to the Citadel, user's choice);
          * {@code 0} = none.
          */
         public Entry withServiceShip(int hangar) {

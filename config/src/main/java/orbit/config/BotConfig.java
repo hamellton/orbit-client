@@ -273,7 +273,7 @@ public record BotConfig(
     }
 
     /**
-     * Crafting in the game's assembly (the user, 2026-11-14: «крафт буквально всего можно добавить»; packets in
+     * Crafting in the game's assembly (any recipe can be added; packets in
      * docs/recon/ASSEMBLY.md): the recipe {@code recipe} ({@code recipe_blueprint-rsb75-blacklight}) is built
      * {@code amount} at a time when fewer than {@code below} of {@code item} ({@code ammunition_laser_rsb-75}) are
      * left; {@code below} 0 — whenever the recipe is free (as many batches as the resources give).
@@ -562,7 +562,7 @@ public record BotConfig(
     }
 
     /**
-     * How much of an ability item the bot may spend (the user, 2026-11-13: limits for EMP-01 and ISH-01).
+     * How much of an ability item the bot may spend (limits for EMP-01 and ISH-01).
      *
      * @param perFight at most this many times a fight, 0 = no limit
      * @param gapSeconds at least this long between two uses
@@ -653,7 +653,7 @@ public record BotConfig(
          */
         USE_RSB,
         /**
-         * Rush it through the enemies (the user, 2026-11-17: invokes farmed under enemy trains, as on the behemoth): while
+         * Rush it through the enemies (invokes are farmed under enemy trains, as on the behemoth): while
          * it is the target or the locator leads to it — no repair, no flight, no keeping off offenders or trains; the run
          * mode to it; EMP-01 with enemies about once it is nearer than {@code modules.kill.rushEmpWithin}; ISH-01 on a
          * fast loss of hull. All back as soon as it is dead.
@@ -691,7 +691,7 @@ public record BotConfig(
      * @param runCircle   the run configuration to catch a nearly dead target (below 25 %) that got farther than
      *                    twice the radius (DarkBot's {@code RUN_CONFIG_IN_CIRCLE})
      * @param skipCrowded not to take a target among other NPCs that attack on sight (off: taken like DarkBot does;
-     *                    the user, 2026-11-13: skipping them left the ship flying about for nothing)
+     *                    skipping them left the ship flying about for nothing)
      * @param smartCircle points looked at each way to turn the circle (DarkBot's {@code MAX_CIRCLE_ITERATIONS}, 0 =
      *                    never turn; {@code null} = {@link #SMART_CIRCLE})
      */
@@ -943,8 +943,9 @@ public record BotConfig(
      * @param maxDeathsPerPlayer stop the bot when one player has destroyed the ship this many times in the session
      *                      (AstraBot's {@code maxDeathsPerPlayer}); 0 or {@code null} = no limit
      * @param honorBreakMinutes honor lost for a kill (a minus in the game's reward log): out of the game for this many
-     *                      minutes, then on (DarkBot's honor check logs out and stops; the user, 2026-11-15: «мінус честь —
-     *                      перерва 15 хв»); {@code null} = {@link #DEFAULT_HONOR_BREAK_MINUTES}, 0 = off
+     *                      minutes, then on (DarkBot's honor check logs out and stops; here a
+     *                      15-minute break, user's choice);
+     *                      {@code null} = {@link #DEFAULT_HONOR_BREAK_MINUTES}, 0 = off
      */
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public record Safety(double repairHpMin, double repairHpMax, double repairHpNoNpc, double repairToShield,
@@ -953,7 +954,7 @@ public record BotConfig(
                          Double escapeHp, Boolean oneWayJumps, Integer maxDeathsPerPlayer, Integer honorBreakMinutes) {
 
         public static final int DEFAULT_HONOR_BREAK_MINUTES = 15;
-        /** Off by default (the user, 2026-11-17: repairs' price does not matter); kept to turn on for a weak account. */
+        /** Off by default (repairs' price does not matter, user's choice); kept to turn on for a weak account. */
         public static final int DEFAULT_PAID_REVIVES = 0;
         public static final int DEFAULT_PAID_REVIVE_MINUTES = 3;
         public static final double DEFAULT_ESCAPE_HP = 0.25;

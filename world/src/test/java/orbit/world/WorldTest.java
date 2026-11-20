@@ -68,7 +68,7 @@ class WorldTest {
 
     @Test
     void hitsAreSummedOursEveryonesAndOnUs() {
-        // the user, 2026-11-14: «можем отслеживать, сколько урона наносим и кому?»
+        // how much damage we deal and to whom
         World w = withHero();
         w.apply(ship(7, true, 1200, 1000), 0);
         w.apply(ship(8, false, 1300, 1000), 0);
@@ -559,7 +559,7 @@ class WorldTest {
 
     @Test
     void thePetShowsTheModeTheBotChoseUntilTheServerSetsAnother() {
-        // live 2026-11-12: the card said «пассивный» while the pet was collecting
+        // live 2026-11-12: the card said passive while the pet was collecting
         World w = new World();
         PetGearSelectCommand passive = new PetGearSelectCommand();
         passive.gearType = new orbit.protocol.gen.PetGearTypeModule();

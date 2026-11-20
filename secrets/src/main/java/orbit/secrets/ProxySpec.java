@@ -180,7 +180,7 @@ public record ProxySpec(Type type, String host, int port, String user, String pa
         return host.indexOf(':') >= 0 ? "[" + host + "]:" + port : host + ":" + port;
     }
 
-    /** For logs and the window: {@code SOCKS5 1.2.3.4:1080 (логин user)} — never the password. */
+    /** For logs and the window: {@code SOCKS5 1.2.3.4:1080} and the login — never the password. */
     public String describe() {
         if (direct()) {
             return "без прокси";

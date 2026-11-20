@@ -9,8 +9,8 @@ import java.util.Locale;
 import java.util.Map;
 
 /**
- * The radius DarkBot recommends for each NPC ({@code reference/maps/npc-radius.json}, the list DarkBot shows, from
- * the user 2026-11-12): the default when a config's NPC table leaves the radius at 0. Names match by their letters
+ * The radius DarkBot recommends for each NPC ({@code reference/maps/npc-radius.json}, the list DarkBot shows, as of
+ * 2026-11-12): the default when a config's NPC table leaves the radius at 0. Names match by their letters
  * and digits ({@code -=[ Boss Saimon ]=-} → {@code BossSaimon}), the case kept where it tells two NPCs apart
  * ({@code Streuner} of x-1 and {@code StreuneR} of x-8), else ignored.
  */

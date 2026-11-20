@@ -38,7 +38,7 @@ public final class QuestTitles {
         return titles().get(String.valueOf(questId));
     }
 
-    /** {@code 122004 «Безмолвный саботаж»}, or the number alone. */
+    /** The number and the Russian title in angle quotes, or the number alone. */
     public static String label(int questId) {
         String t = of(questId);
         return t == null ? String.valueOf(questId) : questId + " «" + t + "»";

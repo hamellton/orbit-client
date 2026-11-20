@@ -358,7 +358,7 @@ class GameConnectionTest {
 
     @Test
     void aKickIsLoggedInAgainEveryTimeNeverGivenUp() throws Exception {
-        // the user, 2026-11-14: «не останавливаться вообще, а растягивать паузы»
+        // never stop, only stretch the waits
         try (FakeGameServer gs = new FakeGameServer()) {
             gs.afterLogin = send -> {
                 LegacyModule kick = new LegacyModule();

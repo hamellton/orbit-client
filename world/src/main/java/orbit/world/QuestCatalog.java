@@ -11,7 +11,7 @@ import java.util.TreeMap;
 
 /**
  * The quests the bot has seen — taken or offered with their details — kept in {@code local/quests-seen.json} for the
- * «Квесты» tab, where the user marks them «first», «skip», «cancel» (the server sends no titles: a quest is its number,
+ * Quests tab, where the user marks them first, skip, cancel (the server sends no titles: a quest is its number,
  * type, conditions and rewards).
  */
 public final class QuestCatalog {

@@ -364,7 +364,7 @@ public record WorldSnapshot(long nanos, Hero hero, Map<Integer, Ship> ships, Map
             return Math.max(0, seconds - (nowNanos - sinceNanos) / 1_000_000_000L);
         }
 
-        /** «соберите 3 чёрных ящика за 40 с» / «соберите все красные ящики». */
+        /** The task in Russian: collect 3 black boxes, or collect all red boxes. */
         public String task() {
             String colour = pickRed() ? "красн" : "чёрн";
             if (all()) {
@@ -374,7 +374,7 @@ public record WorldSnapshot(long nanos, Hero hero, Map<Integer, Ship> ships, Map
                     + " из " + (pickRed() ? red : black);
         }
 
-        /** «ПРОВЕРКА: соберите 3 чёрных ящика из 5, осталось 40 с» */
+        /** The check line in Russian: the task and the seconds left. */
         public String text(long nowNanos) {
             return "ПРОВЕРКА: " + task() + (seconds > 0 ? ", осталось " + secondsLeft(nowNanos) + " с" : "");
         }
@@ -443,7 +443,7 @@ public record WorldSnapshot(long nanos, Hero hero, Map<Integer, Ship> ships, Map
 
         /**
          * Without what was spent. {@code spentCredits}, {@code spentUridium}: every fall of the balance (ammunition,
-         * boosters, paid repairs, a gate's lives and spins, the Skylab's quick transport…; the user, 2026-11-16).
+         * boosters, paid repairs, a gate's lives and spins, the Skylab's quick transport…).
          */
         public Rewards(double credits, double uridium, double honor, double experience, Map<String, Double> items) {
             this(credits, uridium, honor, experience, items, 0, 0);
@@ -624,7 +624,7 @@ public record WorldSnapshot(long nanos, Hero hero, Map<Integer, Ship> ships, Map
      *                 while it finds one; recorded 2026-11-11, the points led to the Cubikon), with
      * @param locatorNanos when — 0 none on this map
      * @param locatorTargets the NPCs the enemy locator may be set to ({@code PetLocatorGearInitializationCommand}: only
-     *                       those on the map — the user, 2026-11-13), with {@code locatorTargetsNanos} when; 0 none on
+     *                       those on the map), with {@code locatorTargetsNanos} when; 0 none on
      *                       this map yet
      * @param locatorNoneNanos when the locator last said «nothing» (its point in the map's corner, -1/-1): its target is
      *                         not on this map now; 0 never

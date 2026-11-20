@@ -118,8 +118,8 @@ public final class ItemCatalog {
 
     /** A readable name of an item id: the catalog label or the raw id; {@code —} for none. */
     /**
-     * A name for people (the user, 2026-11-13: the hangar showed {@code ammunition_mine_acm-01}; the items in English,
-     * as the game names them): the kind and the code as written on the item — «Mine ACM-01», «Rocket R-310».
+     * A name for people (the hangar showed {@code ammunition_mine_acm-01}; the items in English, as the game names
+     * them): the kind and the code as written on the item — «Mine ACM-01», «Rocket R-310».
      */
     public static String friendly(String id) {
         if (id == null) {

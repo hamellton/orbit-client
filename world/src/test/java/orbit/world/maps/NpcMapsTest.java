@@ -24,7 +24,7 @@ class NpcMapsTest {
 
     @org.junit.jupiter.api.Test
     void anNpcSeenWhereItDoesNotLiveIsLeftOut() throws Exception {
-        // the user 2026-11-12: Boss Kristallon lives on x-7 and 4-5; 2-6's sighting came with a special event
+        // Boss Kristallon lives on x-7 and 4-5; 2-6's sighting came with a special event
         NpcMaps m = NpcMaps.inMemory();
         m.read(new com.fasterxml.jackson.databind.ObjectMapper().readTree(
                 "{\"only\":{\"..::{ Boss Kristallon }::..\":[23,29]}}"));

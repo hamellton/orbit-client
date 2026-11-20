@@ -260,7 +260,7 @@ final class QuestBook {
             List<Quests.Condition> changed = replace(q.conditions(), conditionId, current, on, completed);
             if (changed != null) {
                 e.setValue(new Quests.Quest(q.id(), q.types(), changed, q.rewards(), q.star(), q.source()));
-                // each step of progress in the log (the user, 2026-11-17: a cargo quest stood at 0/100 unseen)
+                // each step of progress in the log (2026-11-17: a cargo quest stood at 0/100 unseen)
                 Quests.Condition was = find(q.conditions(), conditionId);
                 Quests.Condition now = find(changed, conditionId);
                 if (was != null && now != null && now.target() > 0 && !QuestTexts.isTime(now)

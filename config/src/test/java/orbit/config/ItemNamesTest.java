@@ -8,7 +8,7 @@ class ItemNamesTest {
 
     @Test
     void namesForPeople() {
-        // the user, 2026-11-13: the hangar showed the game's ids
+        // the hangar showed the game's ids
         assertEquals("Mine ACM-01", ItemCatalog.friendly("ammunition_mine_acm-01"));
         assertEquals("Mine EMPM-01", ItemCatalog.friendly("ammunition_mine_empm-01"));
         assertEquals("Mine AGL-M01", ItemCatalog.friendly("ammunition_mine_agl-m01"));

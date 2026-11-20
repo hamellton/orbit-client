@@ -10,7 +10,7 @@ import java.util.TreeSet;
 
 /**
  * The maps where a quest giver (a map asset of type 34) was seen: in the user's recordings 2-5, 2-8, 3-1, 3-4, 3-5
- * (x-1, x-4, x-5, x-8, as the user says), and every map the bot sees one on since ({@code local/giver-maps.json}) —
+ * (x-1, x-4, x-5, x-8), and every map the bot sees one on since ({@code local/giver-maps.json}) —
  * 5-2 too, if it has one.
  */
 public final class GiverMaps {

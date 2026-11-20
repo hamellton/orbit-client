@@ -36,7 +36,7 @@ public final class QuestTexts {
                 || c.type() == Quests.REAL_TIME_HASTE || c.type() == Quests.ENDURANCE;
     }
 
-    /** {@code убить Protegit}, {@code собрать прометий (на 1-BL или 3-BL)}… — with the maps a sub-condition binds it to. */
+    /** A condition in Russian (kill Protegit, collect promerium on 1-BL or 3-BL…) with the maps it is bound to. */
     public static String condition(Quests.Condition c) {
         List<Integer> on = c.onMaps();
         String text = bare(c);
@@ -108,7 +108,7 @@ public final class QuestTexts {
         return s >= 60 ? s / 60 + " мин" + (s % 60 > 0 ? " " + s % 60 + " с" : "") : s + " с";
     }
 
-    /** {@code 425 000 000 опыта}… */
+    /** A reward in Russian, such as 425 000 000 experience. */
     public static String reward(Quests.Reward r) {
         String what = switch (r.lootId()) {
             case "currency_experience" -> "опыта";
@@ -120,7 +120,7 @@ public final class QuestTexts {
         return String.format(java.util.Locale.ROOT, "%,d", r.amount()).replace(',', ' ') + " " + what;
     }
 
-    /** {@code миссия}, {@code ежедневный}… */
+    /** The quest types in Russian, such as mission or daily. */
     public static String type(List<Integer> types) {
         for (int t : types) {
             String s = switch (t) {

@@ -100,7 +100,7 @@ public final class GameConnection implements AutoCloseable {
 
     /**
      * A sign of trouble from the server (a kick, a login from elsewhere, a typed message): the account stops, no
-     * reconnect (plan 5в.7г).
+     * reconnect (docs/PLAN.md, stage 5, item 7).
      */
     private static final class Trouble extends IOException {
         private static final long serialVersionUID = 1L;
@@ -114,9 +114,8 @@ public final class GameConnection implements AutoCloseable {
 
     /**
      * A KIK is logged in again, never given up, the waits growing with the kicks of the last {@link #KICK_WINDOW_NS}
-     * (and a little more, at random): DarkBot and AstraBot never stop after a disconnect either (the user, 2026-11-14:
-     * «после KIK входить заново быстрее… не останавливаться вообще, а растягивать паузы»; kicks at 12:40, 14:25, 16:44
-     * while the ship only waited and nobody was at the account).
+     * (and a little more, at random): DarkBot and AstraBot never stop after a disconnect either (kicks
+     * live 2026-11-14 at 12:40, 14:25, 16:44 while the ship only waited and nobody was at the account).
      */
     static final java.util.List<Duration> KICK_WAITS = java.util.List.of(Duration.ofSeconds(20), Duration.ofMinutes(1),
             Duration.ofMinutes(5), Duration.ofMinutes(15));
@@ -352,7 +351,7 @@ public final class GameConnection implements AutoCloseable {
     /** Main loop: log in, stay online, follow server changes, reconnect on failures. */
     /**
      * The website is tried again no sooner than this: a Wi-Fi restart or the site's own trouble takes a minute
-     * or two (the user, 2026-11-11), knocking every few seconds helps nothing.
+     * or two, knocking every few seconds helps nothing.
      */
     static final Duration SITE_RETRY_MIN = Duration.ofMinutes(1);
 
@@ -773,7 +772,7 @@ public final class GameConnection implements AutoCloseable {
         }
     }
 
-    /** {@code 15 с}, {@code 4 мин 12 с}. */
+    /** A duration in Russian words, such as 15 s or 4 min 12 s. */
     static String spoken(Duration d) {
         long s = Math.round(d.toMillis() / 1000.0);
         return s < 60 ? s + " с" : s / 60 + " мин" + (s % 60 == 0 ? "" : " " + s % 60 + " с");

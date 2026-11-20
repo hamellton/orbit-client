@@ -617,8 +617,8 @@ public final class World {
     }
 
     /**
-     * Temporary recon on the Blacklight maps (the user, 2026-11-13: the bot cannot tell that a train killed the
-     * behemoth while it was elsewhere — what does the server say about it?): the first few of each packet the model
+     * Temporary recon on the Blacklight maps (the bot cannot tell that a train killed the behemoth while it
+     * was elsewhere — what does the server say about it?): the first few of each packet the model
      * does not take, and of each kind of text message, go to the log with their fields.
      */
     private final Map<String, Integer> reconSeen = new HashMap<>();
@@ -658,7 +658,7 @@ public final class World {
             hero.motion = Motion.fromAtSpeed(m.positionX, m.positionY, m.targetX, m.targetY, hero.speed, nanos);
         } else if (packet instanceof orbit.protocol.gen.PetGearActivationRequest r && r.gearTypeToActivate != null) {
             // the client shows the chosen mode at the click (PetWindowAssembly.setSelectedItem); the server sends
-            // PetGearSelectCommand only when it sets one itself (at login: passive) — the card stayed «пассивный»
+            // PetGearSelectCommand only when it sets one itself (at login: passive) — the card stayed passive
             pet = pet(pet.owned(), pet.alive(), pet.hasFuel(), pet.active(), pet.id(), pet.name(), pet.level(),
                     pet.health(), pet.fuel(), pet.fuelMax(), pet.heat(), pet.heatMax(), r.gearTypeToActivate.typeValue);
             pet = petWith(nanos, pet.gears(), pet.repairCost(), pet.comboRepair());
@@ -925,8 +925,8 @@ public final class World {
             spentCredits += Math.max(0, hero.credits - credits);
             spentUridium += Math.max(0, hero.uridium - uridium);
             if (hero.uridium - uridium >= 1) {
-                // each fall told: «потрачено» in the hour's report came with no purchase in the log (live 2026-11-17 on
-                // the VPS, 1 709 uridium) — what fell when, to be matched with what the bot did then
+                // each fall told: the spent amount in the hourly summary came with no purchase in the log (live
+                // 2026-11-17 on the VPS, 1 709 uridium) — what fell when, to be matched with what the bot did then
                 log.info("Уридий: −{} (было {}, стало {})", Num.group(hero.uridium - uridium),
                         Num.group(hero.uridium), Num.group(uridium));
             }
@@ -1279,8 +1279,8 @@ public final class World {
      * {@code XEN|<amount>} (extra energy); {@code LOG|<gained>|<total>} (log disks).
      */
     /**
-     * One line of the game's own log, as the client shows it over its map (the user, 2026-11-16: «лента на карте — журнал
-     * с самой игры»): an amount of a currency or an item gained or lost ({@code item} the client's key: «uridium»,
+     * One line of the game's own log, as the client shows it over its map (the feed on the map is the game's own
+     * log): an amount of a currency or an item gained or lost ({@code item} the client's key: «uridium»,
      * «credits», «experience», «honor» or the item's id), or a plain line of the server ({@code text}).
      */
     public record GameNote(long nanos, String item, double amount, String text) {

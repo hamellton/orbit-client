@@ -57,7 +57,7 @@ public final class NpcMaps {
 
     /**
      * NPCs that live only on some maps ({@code "only"} in the bundled file): seen elsewhere they came with a special
-     * event (the user, 2026-11-12: Boss Kristallon lives on x-7 and 4-5, elsewhere only in events).
+     * event (Boss Kristallon lives on x-7 and 4-5, elsewhere only in events).
      */
     private final Map<String, Set<Integer>> only = new TreeMap<>();
 

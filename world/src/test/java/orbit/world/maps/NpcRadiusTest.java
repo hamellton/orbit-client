@@ -8,7 +8,7 @@ class NpcRadiusTest {
 
     @Test
     void theRecommendedRadiiMatchTheGamesNames() {
-        // DarkBot's list (the user, 2026-11-12)
+        // DarkBot's list (2026-11-12)
         NpcRadius r = NpcRadius.bundled();
         assertEquals(450, r.of("-=[ Streuner ]=-"), "x-1");
         assertEquals(600, r.of("-=[ StreuneR ]=-"), "x-8: told apart by the case");

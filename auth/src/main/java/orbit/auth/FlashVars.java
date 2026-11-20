@@ -14,7 +14,7 @@ final class FlashVars {
     private FlashVars() {
     }
 
-    /** First occurrence of each key wins; JS escapes ({@code \/}, {@code А}) are undone. */
+    /** First occurrence of each key wins; JS escapes ({@code \/} and Unicode escapes of letters) are undone. */
     static Map<String, String> parse(String html) {
         Map<String, String> out = new LinkedHashMap<>();
         Matcher m = PAIR.matcher(html);

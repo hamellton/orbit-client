@@ -239,8 +239,8 @@ public final class AuthClient {
     }
 
     /**
-     * The site's maintenance page ({@code indexInternal.es?action=maintenance}, «сервера подверглись
-     * диверсии пришельцев…»): it shows up instead of the game page while the game servers are down.
+     * The site's maintenance page ({@code indexInternal.es?action=maintenance}, a message about an alien attack on
+     * the servers): it shows up instead of the game page while the game servers are down.
      */
     private static boolean maintenance(HttpSession.Response page) {
         return "maintenance".equals(queryParam(page.url(), "action"));
@@ -320,7 +320,7 @@ public final class AuthClient {
         return endpoints.accountOrigin(server);
     }
 
-    /** The servers of the logged-in account, as the site's «Сервер» button lists them. */
+    /** The servers of the logged-in account, as the site's Server button lists them. */
     public java.util.List<Instance> instances(String origin) throws AuthException {
         HttpSession.Response r = request(() -> http.postForm(origin + "/ajax/instances.php",
                 Map.of("command", "getInstanceList"), origin + "/indexInternal.es?action=internalStart"));
