@@ -16,8 +16,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * The Mimesis Mutiny escort (docs/MIMESIS.md; the user, 2026-11-18: «поведение берём с даркбота, автоматизацию с
- * астработа»). The run as DarkBot's DonorPlugin {@code MimesisGateModule} plays it — round the EM Freighter at 350–900,
+ * The Mimesis Mutiny escort (docs/MIMESIS.md; the behaviour from DarkBot, the automation from AstraBot). The run as
+ * DarkBot's DonorPlugin {@code MimesisGateModule} plays it — round the EM Freighter at 350–900,
  * the leash 600 / 2 000 with enemies / 2 500 with a box by it, the targets within 2 000 of it (those shooting it first),
  * the boxes within 2 500, out by the portal once the freighter is gone and nothing is left (or the hull is below
  * {@code after.stayHp}); SharedPlugin's {@code MimesisMutinyGate} table for the escort's NPCs the config does not list.
@@ -99,7 +99,7 @@ public final class MimesisModule implements BotModule {
     private final BoxPicker boxes;
     /** AstraBot: Kill &amp; Collect on the working map between the runs (the keys drop there). */
     private final KillModule farm;
-    /** The passes' free buttons (Season Pass «Забрать всё», Battle Pass «Забрать»): the event's Battle Pass is done here. */
+    /** The passes' free buttons (Season Pass Claim All, Battle Pass Claim): the event's Battle Pass is done here. */
     private final PassCare passes;
     private String status = "";
     private String told = "";
@@ -184,8 +184,8 @@ public final class MimesisModule implements BotModule {
      */
     static final Map<String, Def> ESCORT = escortTable();
     /**
-     * The Mimesis of the ordinary maps (the keys): the user's DarkBot profile {@code MIMESIS.json} — Terror and Reflector
-     * first and whoever hit them (their boxes go to the three best by damage), Cloning, then the small ones.
+     * The Mimesis of the ordinary maps (the keys): the owner's DarkBot profile {@code MIMESIS.json} — Terror and
+     * Reflector first and whoever hit them (their boxes go to the three best by damage), Cloning, then the small ones.
      */
     static final Map<String, Def> FARM = farmTable();
 
@@ -310,8 +310,8 @@ public final class MimesisModule implements BotModule {
                 }
                 if (escortMap && r.kill() && !r.has(BotConfig.NpcFlag.IGNORE_OWNERSHIP)) {
                     // DonorPlugin's shouldKill asks no owner: on the escort the reward goes by the damage, and the server
-                    // greys an NPC for whoever hit it first (live 2026-11-19 on Escort VRU 1: «чужая — бросаю» every 0.1 s,
-                    // a Hounding left at 7 %, an Inspirit at 13 %)
+                    // greys an NPC for whoever hit it first (live 2026-11-19 on Escort VRU 1: dropped as another's
+                    // every 0.1 s, a Hounding left at 7 %, an Inspirit at 13 %)
                     Set<String> f = new java.util.TreeSet<>(r.flags());
                     f.add(BotConfig.NpcFlag.IGNORE_OWNERSHIP.name());
                     r = new BotConfig.NpcRule(r.radius(), r.priority(), r.kill(), Set.copyOf(f), r.maps(), r.ammo(), r.sab(),
@@ -469,9 +469,9 @@ public final class MimesisModule implements BotModule {
 
     /**
      * In the escort the players about are the company's own: nothing to keep off. At the entry too — on x-1 with the
-     * entry due the portal is the place to be whoever stands there (the user, 2026-11-19, daredevil on int7: an offender
-     * at x-1's portal, «рядом — ухожу на другую сторону» again and again, the entry missed; «он должен прыгать в этот
-     * порт несмотря ни на что»).
+     * entry due the portal is the place to be whoever stands there (2026-11-19, daredevil on int7: an offender
+     * at x-1's portal, the ship moved to the other side again and again and missed the entry; it must jump into this
+     * portal no matter what).
      */
     @Override
     public boolean holdsGround() {

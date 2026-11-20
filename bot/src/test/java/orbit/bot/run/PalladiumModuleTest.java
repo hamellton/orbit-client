@@ -37,7 +37,7 @@ class PalladiumModuleTest {
 
     @Test
     void palladiumIsClickedAtOnceAndTheWaitComesAfter() {
-        // DarkBot's collector: collect first, then stay the box's wait (ore_8: 800 ms in the user's profile)
+        // DarkBot's collector: collect first, then stay the box's wait (ore_8: 800 ms in a real profile)
         Sim sim = new Sim(config(), 93, 20_000, 20_000);
         orbit.protocol.gen.AddOreCommand ore = new orbit.protocol.gen.AddOreCommand();
         ore.hash = "p1";
@@ -197,7 +197,7 @@ class PalladiumModuleTest {
 
     @Test
     void aFullHoldOfPalladiumIsSoldAtFiveTwosTrader() {
-        // already on 5-2 (the trip itself is the base sale's): the trader, palladium only, whatever «Сбор» says
+        // already on 5-2 (the trip itself is the base sale's): the trader, palladium only, whatever the Collect setting says
         Sim sim = new Sim(config(), 92, 9_000, 5_000);
         orbit.protocol.gen.AssetCreateCommand ref = new orbit.protocol.gen.AssetCreateCommand();
         ref.assetId = 700;
@@ -242,7 +242,7 @@ class PalladiumModuleTest {
 
     @Test
     void aSaleTheGameDidNotTakeIsNotRepeatedInALoop() {
-        // live 2026-11-11: palladium «sold» every 12 s for 6 minutes, the hold never changed
+        // live 2026-11-11: palladium "sold" every 12 s for 6 minutes, the hold never changed
         Sim sim = new Sim(config(), 92, 10_200, 6_200);
         orbit.protocol.gen.AssetCreateCommand ref = new orbit.protocol.gen.AssetCreateCommand();
         ref.assetId = 700;
@@ -274,7 +274,7 @@ class PalladiumModuleTest {
         return m;
     }
 
-    /** The user's profile: collect ship 500101 on 5-3, sell ship 500102 parked at 5-2; no portal before a switch. */
+    /** A real profile: collect ship 500101 on 5-3, sell ship 500102 parked at 5-2; no portal before a switch. */
     private static BotConfig twoShips() throws Exception {
         return config().withModuleSettings("palladium", orbit.config.Json.MAPPER.readTree(
                 "{\"goPortalChange\": false, \"sellOnDie\": true, \"collectHangar\": 500101, \"sellHangar\": 500102,"

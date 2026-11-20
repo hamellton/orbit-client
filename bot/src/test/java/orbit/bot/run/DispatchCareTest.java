@@ -14,7 +14,7 @@ import orbit.protocol.gen.DispatchSendRetrieverRequest;
 import orbit.protocol.gen.DispatchSlotInfoCommand;
 import org.junit.jupiter.api.Test;
 
-/** The user, 2026-11-19: the dispatch as AstraBot does it by packets, PikaPika's limits; R-01 by default. */
+/** The dispatch as AstraBot does it by packets, PikaPika's limits; R-01 by default. */
 class DispatchCareTest {
 
     static BotConfig config(String json) throws Exception {

@@ -19,7 +19,7 @@ import orbit.world.WorldSnapshot;
 import orbit.world.maps.MapCatalog;
 import org.junit.jupiter.api.Test;
 
-/** The user, 2026-11-14: «модель гелекси гейта по примеру даркбота и астработа — сначала абг, зеты, коппы, трініті». */
+/** Galaxy gates modelled on DarkBot and AstraBot: first ABG, then the Zeta, Kappa and Trinity gates. */
 class GateModuleTest {
 
     static BotConfig config(String json) throws Exception {
@@ -188,8 +188,8 @@ class GateModuleTest {
 
     @Test
     void inTheGateAstraBotsFormationsTheFightsModeAndVeteranOnTheLastStage() throws Exception {
-        // the user, 2026-11-15: «как AstraBot: Wheel на Streuner, Lordakia, Saimon, Drill на Kristallin; конец врат —
-        // конфигурация 2 и Veteran»
+        // as AstraBot: Wheel on Streuner, Lordakia, Saimon, Drill on Kristallin; at the gate's end configuration 2 and
+        // Veteran
         BotConfig base = config("""
                 {"gates":["alpha"],"useEndGateConfig":true,"endGateConfig":2,"endGateFormation":"drone_formation_f-3d-vt",
                  "npcFormations":{"streuner":"drone_formation_f-3d-wl","kristallin":"drone_formation_f-3d-dr"}}""");
@@ -247,7 +247,7 @@ class GateModuleTest {
 
     @Test
     void kamikazeAsDarkBotGathersTheFlaggedOnesThenStopsAndBlowsWhenTheyAreTight() throws Exception {
-        // the user, 2026-11-15: «камикадзе как у даркбота 1 в 1, и поведение корабля тоже» (SharedPlugin KamikazeHandler)
+        // kamikaze and the ship's behaviour exactly as DarkBot (SharedPlugin KamikazeHandler)
         Sim sim = new Sim(config("{\"gates\":[\"alpha\"],\"kamikaze\":{\"enabled\":true,\"minNpcs\":5}}")
                 .withPet(new BotConfig.Pet(true, "GUARD")), 51, 8_500, 6_200);
         PetCareTest.owned(sim);
@@ -321,7 +321,7 @@ class GateModuleTest {
 
     @Test
     void flaggedOnesNotAimingAreFoughtAsUsualAsInDarkBot() throws Exception {
-        // SharedPlugin counts only the ones aiming at the ship; no «wave of flagged ones» guess
+        // SharedPlugin counts only the ones aiming at the ship; no "wave of flagged ones" guess
         Sim sim = new Sim(config("{\"gates\":[\"beta\"],\"kamikaze\":{\"enabled\":true,\"minNpcs\":5}}")
                 .withPet(new BotConfig.Pet(true, "GUARD")), 52, 17_000, 11_000);
         sim.lasers("ammunition_laser_lcb-10");
@@ -403,7 +403,7 @@ class GateModuleTest {
 
     @Test
     void twoLivesLeftOneMoreIsBoughtWhileTheUridiumLasts() throws Exception {
-        // the user, 2026-11-14: «если осталось 2 жизни, то докупаем за уридиум ещё одну, если урика хватает»
+        // two lives left: one more is bought for uridium while there is enough
         Sim sim = new Sim(config("{\"gates\":[\"alpha\"],\"buyLives\":true}"), home(), 10_000, 6_000);
         info(sim, 0, new int[] {1, 0, 2});
         GateModule m = new GateModule(sim.ctx);

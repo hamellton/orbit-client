@@ -14,8 +14,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Mindfire Behemoth, solo, as AstraBot's «Mindfire Behemoth» module does it (the user, 2026-11-13; its settings from
- * the {@code BEHEMOTH} section of the user's AstraBot profile {@code behe.json}):
+ * Mindfire Behemoth, solo, as AstraBot's «Mindfire Behemoth» module does it (its settings from the {@code BEHEMOTH}
+ * section of a real AstraBot profile {@code behe.json}):
  * <ul>
  *   <li>the BL maps in turn ({@code maps}, AstraBot's firstMap/secondMap/thirdMap); on each a safe point near the
  *       behemoth's spawn to wait on (from BeheFarmBySpearhed, then the spawns the bot has seen);</li>
@@ -123,12 +123,12 @@ public final class BehemothModule implements BotModule {
     private int departFrom;
     private long departAt;
     private int departDeaths;
-    /** A fight since the departure: the flight's time is not learned (live 2026-11-13 on the VPS: 2 мин 23 с, not ~1). */
+    /** A fight since the departure: the flight's time is not learned (live 2026-11-13 on the VPS: 2 min 23 s, not ~1). */
     private boolean foughtOnTheWay;
     private boolean noCloakTold;
     /**
-     * A flight longer is not learned: a repair or a death was on the way (live 2026-11-13 on the VPS: «1-BL → 2-BL: 3 мин
-     * 58 с» with a death in between, against 1 мин 25 с).
+     * A flight longer is not learned: a repair or a death was on the way (live 2026-11-13 on the VPS: "1-BL → 2-BL: 3 min
+     * 58 s" with a death in between, against 1 min 25 s).
      */
     static final long TRAVEL_LEARN_MAX_MS = 140_000; // BLCycle: 70 or 130 s; longer had a detour from players
     private boolean holdTold;
@@ -270,7 +270,7 @@ public final class BehemothModule implements BotModule {
                     continue;
                 }
                 if (fromPortals(map, p) < SAFE_PORTAL_KEEP || fromPaths(map, sp, p) < PATH_KEEP) {
-                    continue; // portals and the trains' ways are where offenders and trains pass (the user, 2026-11-14)
+                    continue; // portals and the trains' ways are where offenders and trains pass
                 }
                 double near = heat.around(map, p[0], p[1], 3_000);
                 // a share of the map's heat, and a little for the way to the spawn
@@ -378,14 +378,14 @@ public final class BehemothModule implements BotModule {
 
     /**
      * {@code trainMode} by the behemoth: the offenders' circles do not take the ship away (live 2026-11-13 on the VPS:
-     * «DoWarBoy рядом — ухожу» in the behemoth's fight, the train config says to stay).
+     * "DoWarBoy near, leaving" in the behemoth's fight, the train config says to stay).
      */
     /** A planned new login waits till the next behemoth is at least this far off. */
     static final long CALM_SPARE_MS = 150_000;
 
     /**
-     * Calm for a planned new login (the user, 2026-11-14: «плановый перевход раз в 40 минут… только в спокойный момент,
-     * когда до бегемота больше 2–3 минут»): no fight, no behemoth on the way or in the list, no box being taken, and
+     * Calm for a planned new login (one every 40 minutes, only in a calm moment with the behemoth more than 2–3 minutes
+     * off): no fight, no behemoth on the way or in the list, no box being taken, and
      * every known behemoth more than {@link #CALM_SPARE_MS} off.
      */
     @Override
@@ -410,7 +410,7 @@ public final class BehemothModule implements BotModule {
     }
 
     /**
-     * {@code cloakRefill} (CARNAGE's BLCycle autoCraftCloak; the user, 2026-11-14): the cloak CPU empty — in a free
+     * {@code cloakRefill} (CARNAGE's BLCycle autoCraftCloak): the cloak CPU empty — in a free
      * window to the own x-8 for a new one, crafted ({@code cloakCraft}, {@code cloakCraftAmount}) when there is no
      * spare. Only with {@code useCloak}.
      */
@@ -424,8 +424,8 @@ public final class BehemothModule implements BotModule {
     }
 
     /**
-     * {@code petLasersOff} (the user, 2026-11-15: «на бегемоті пет має лазери на слотах, якщо є, зніми — можуть в мінус
-     * честь загнати»): on by default.
+     * {@code petLasersOff} (on the behemoth the pet's lasers come off if it has any: they could cost honor): on by
+     * default.
      */
     @Override
     public boolean petLasersOff() {
@@ -475,8 +475,8 @@ public final class BehemothModule implements BotModule {
     }
 
     /**
-     * {@code useLocator} (the user, 2026-11-13: «если на карте есть бегемот, то он будет в выборе пеленгатора»): the pet's
-     * enemy locator on the behemoth while there is none in sight — a point: it is on this map, fly to it; «nothing»: it
+     * {@code useLocator} (a behemoth on the map is among the locator's choices): the pet's
+     * enemy locator on the behemoth while there is none in sight — a point: it is on this map, fly to it; "nothing": it
      * is not, on to the next map at once instead of waiting.
      */
     @Override
@@ -517,7 +517,7 @@ public final class BehemothModule implements BotModule {
 
     /**
      * {@code pushThrough} in {@code trainMode}: on the module's maps a train shooting the ship does not turn it away —
-     * EMP-01 and on to the spawn (the user, 2026-11-14; CARNAGE's BLCycle never runs either).
+     * EMP-01 and on to the spawn (CARNAGE's BLCycle never runs either).
      */
     private boolean pushThrough(JsonNode s, WorldSnapshot w) {
         return on(s, "trainMode", false) && on(s, "pushThrough", false) && maps(s).contains(w.hero().mapId());
@@ -536,7 +536,7 @@ public final class BehemothModule implements BotModule {
         WorldSnapshot.Ship b = findBehemoth(c, w);
         boolean saved = on(s, "powersForBehemoth", false);
         if (saved && b == null) {
-            // the user, 2026-11-14: ability, ISH and EMP only on the behemoth — never spent on an Impulse before it comes
+            // ability, ISH and EMP only on the behemoth — never spent on an Impulse before it comes
             attacker.setAbilityPlan(Attacker.AbilityPlan.OFF);
         } else {
             attacker.setAbilityPlan(new Attacker.AbilityPlan(on(s, "useEmp", true), percent(s, "empPercent", 35),
@@ -653,8 +653,8 @@ public final class BehemothModule implements BotModule {
     static final double SPAWN_BOX_ENEMY_MARGIN = 1_000;
 
     /**
-     * {@code collectSpawnBoxes} (on unless turned off; the user, 2026-11-14: «на месте бегемота жёлтые точки — коробки,
-     * но он их не собирает, и то же на других картах»): the behemoth not on the map (not in sight, not in the locator's
+     * {@code collectSpawnBoxes} (on unless turned off; yellow dots where the behemoth was are boxes, and they were not
+     * collected, on the other maps too): the behemoth not on the map (not in sight, not in the locator's
      * list) and its next one more than {@link #SPAWN_BOX_SPARE_MS} off — the boxes by its spawn are picked up, whatever
      * their type and whoever is near, then the ship goes back to its wait. True while busy with them.
      */
@@ -672,7 +672,7 @@ public final class BehemothModule implements BotModule {
             return false;
         }
         int[] sp = spawnPoint(h.mapId());
-        // not by enemies (the user, 2026-11-14: «когда возле ящика нет обидчиков»; live the same day on the VPS, 2-BL
+        // not by enemies (only when no offenders are near the box; live 2026-11-14 on the VPS, 2-BL
         // 16:09: the ship went for a box by the spawn, the train standing there killed it in 20 s)
         java.util.Set<Integer> group = PlayerFight.group(w);
         List<String> black = names(s, "blacklist");
@@ -779,8 +779,8 @@ public final class BehemothModule implements BotModule {
     }
 
     /**
-     * The ship died fighting the behemoth before it died (the user, 2026-11-16: «считать время от момента моей
-     * смерти»): its death is dated by ours, give or take the seconds it lived on — the ship left the map and saw no
+     * The ship died fighting the behemoth before it died (the time counts from the ship's death): its
+     * death is dated by ours, give or take the seconds it lived on — the ship left the map and saw no
      * end (live 2026-11-16 on the VPS, 1-BL 21:06: died at it, its box picked up later, the timer unknown, 7 minutes
      * held for it). Seen alive again later, the sighting makes the timer unknown till its real death.
      */
@@ -1088,7 +1088,7 @@ public final class BehemothModule implements BotModule {
     }
 
     /**
-     * Between maps too (the user, 2026-11-14: «на перелётах невид тоже нужен»): the runner flies the ship, the cloak is
+     * Between maps too (the cloak is wanted there as well): the runner flies the ship, the cloak is
      * used by the same rules; the formation stays the travel one.
      */
     @Override
@@ -1138,7 +1138,7 @@ public final class BehemothModule implements BotModule {
                 return;
             }
         }
-        cloakAskedAt = now; // none left: the buy list («Покупки», CL04K-XL) may bring one
+        cloakAskedAt = now; // none left: the buy list (the Purchases tab, CL04K-XL) may bring one
         if (!noCloakTold) {
             noCloakTold = true;
             log.info("Маскировки нет (CL04K) — жду без неё; купить можно во вкладке «Покупки»");
@@ -1168,8 +1168,8 @@ public final class BehemothModule implements BotModule {
             log.info("Бегемот через {} — ставлю боевой маяк питомца", clock(Math.max(0, due - wall)));
         }
         beaconOn = beaconNow;
-        // {@code closeBeforeSeconds} (the user, 2026-11-14: «не прямо возле него, но как можно ближе, как позволяют
-        // атакующие корабли, и там ждать» — from afar it came when the behemoth was already dead): that long before it
+        // {@code closeBeforeSeconds} (not right by it but as near as the attacking ships let, and wait there; from
+        // afar it came when the behemoth was already dead): that long before it
         // is due, as near its spawn as the enemies there let, and wait there
         int[] target;
         double arrive;
@@ -1263,7 +1263,7 @@ public final class BehemothModule implements BotModule {
                 int[] p = {(int) (sp[0] + r * Math.cos(a)), (int) (sp[1] + r * Math.sin(a))};
                 if (p[0] < 300 || p[1] < 300 || p[0] > width - 300 || p[1] > height - 300
                         || !pf.free(p[0], p[1]) || !pf.clear(p[0], p[1], sp[0], sp[1])) {
-                    continue; // a wall between it and the spawn: near by the line, far by the way (the user, 2026-11-14)
+                    continue; // a wall between it and the spawn: near by the line, far by the way
                 }
                 double score = enemies.isEmpty() ? Double.MAX_VALUE : freeness(p, enemies);
                 if (score > farthestScore) {
@@ -1353,8 +1353,8 @@ public final class BehemothModule implements BotModule {
             lastPoint = new int[] {h.mapId(), pet.locatorX(), pet.locatorY()};
             lastPointNs = pet.locatorNanos();
         }
-        // the locator flickers: a point, «nothing», the point again (live 2026-11-13 on the VPS, 2-BL; BLCycle's log the
-        // same, «approx_death_pending graceMs=10000») — its last point is kept LOCATOR_GRACE_MS through a «nothing»
+        // the locator flickers: a point, "nothing", the point again (live 2026-11-13 on the VPS, 2-BL; BLCycle's log the
+        // same, «approx_death_pending graceMs=10000») — its last point is kept LOCATOR_GRACE_MS through a "nothing"
         // and as long as the locator's list still has it (live 2026-11-14 on the VPS, 2-BL: 4 600 away, 10 s were not
         // enough, the ship turned back while it was alive)
         boolean pointHeld = lastPoint != null && lastPoint[0] == h.mapId()
@@ -1425,8 +1425,8 @@ public final class BehemothModule implements BotModule {
             status = "Лечу к бегемоту по пеленгатору: " + x / 100 + "/" + y / 100;
             return true;
         }
-        // «nothing» counts only at the wait point, said again after coming there (live 2026-11-13 on the VPS: «nothing» 6 s
-        // after each jump, the ship left every map before its point — a word from before the locator looked round)
+        // "nothing" counts only at the wait point, said again after coming there (live 2026-11-13 on the VPS: "nothing"
+        // 6 s after each jump, the ship left every map before its point — a word from before the locator looked round)
         // and said twice there: the pet's mode may be set afresh after a jump (live 2026-11-13, 3-BL), its first word
         // may come before it looked round
         boolean saidAtPoint = reachedMap == h.mapId()
@@ -1436,8 +1436,8 @@ public final class BehemothModule implements BotModule {
         }
         boolean twice = saidAtPoint && noneFirst > reachedAt
                 && pet.locatorNoneNanos() - noneFirst >= LOCATOR_AGAIN_MS * 1_000_000;
-        // «nothing» at the point, said twice: told, the wait runs its time all the same (the map is marked empty when it
-        // ends) (the user, 2026-11-13: «нужно ждать, если в конфиге указали не 0»)
+        // "nothing" at the point, said twice: told, the wait runs its time all the same (the map is marked empty when
+        // it ends): a wait set to more than 0 in the config is waited out
         if (pet.locatorNoneWithin(now, LOCATOR_FRESH_MS) && pet.locatorNoneNanos() > settled && twice
                 && pet.locatorNoneNanos() != noneHandled) {
             noneHandled = pet.locatorNoneNanos();
@@ -1466,8 +1466,8 @@ public final class BehemothModule implements BotModule {
     private boolean behemothListed;
 
     /**
-     * {@code locatorList} (the user, 2026-11-13: «если в пеленгаторе можно выбрать бегемота — НПС есть на карте, а если
-     * его даже выбрать нельзя — его нет на карте»): the enemy locator lists only the NPCs on the map
+     * {@code locatorList} (if the behemoth can be chosen in the locator it is on the map, if it cannot it is not): the
+     * enemy locator lists only the NPCs on the map
      * ({@code PetLocatorGearInitializationCommand}). The behemoth not listed — on to the next map at once; listed — the
      * wait goes on until it is seen. True when the ship leaves.
      */
@@ -1486,7 +1486,7 @@ public final class BehemothModule implements BotModule {
             long lastAlive = wallBase + (wasListedSeenNs - nanoBase) / 1_000_000;
             long killed = Math.min(wallMs(), lastAlive + LIST_DEATH_SLACK_MS);
             // the respawn counts from the death (CARNAGE's BLCycle: death + 900 000 ms, its death the locator losing it
-            // for 10 s; AstraBot's kill rewards 15:03–15:18 apart; the user, 2026-11-15) — not dated back to its coming,
+            // for 10 s; AstraBot's kill rewards 15:03–15:18 apart) — not dated back to its coming,
             // which put the timers minutes early after a long-lived one (the VPS night of 2026-11-14/15)
             memory.killed(h.mapId(), sp[0], sp[1], killed);
             log.info("Пеленгатор: бегемот пропал из списка на {} — убит{}, следующий через {}",
@@ -1571,10 +1571,10 @@ public final class BehemothModule implements BotModule {
     private boolean backing;
 
     /**
-     * On the way to the wait point (the user, 2026-11-20: «не облетать, а двигаться в противоположном направлении, и если
-     * вышел из круга — бежать на точку, и так всё время»): inside an offender's circle (any company, radius «Обходить»,
+     * On the way to the wait point (no flying round: move the opposite way, and once out of the circle run to the
+     * point, and so on all the time): inside an offender's circle (any company, the config's avoid radius,
      * plus {@code dodgeMargin}) — straight away from its centre till out of it with the margin; out — straight on to the
-     * point. Not once the locator has found the behemoth («напролом»).
+     * point. Not once the locator has found the behemoth (then straight through).
      */
     public int[] around(JsonNode s, WorldSnapshot w, int[] p) {
         WorldSnapshot.Hero h = w.hero();
@@ -1619,11 +1619,11 @@ public final class BehemothModule implements BotModule {
     }
 
     /**
-     * {@code trainStyle} (the user, 2026-11-20: keep both behaviours of the farm among trains, switched in the config):
+     * {@code trainStyle} (both behaviours of the farm among trains kept, switched in the config):
      * {@code "v1"} or none (every other behemoth config stays as it was) — as the restore point {@code best-2026-11-20} (the wait's dodge only from another company's
      * players, where they stand, rings of 300 within 1 200, no backing out of circles on the way, the way to the behemoth
      * through them only once flying to it); {@code "v2"} — the current one (offenders of any company, their flight
-     * reckoned ahead, {@code dodgeMax}/{@code dodgeMargin}, {@link #around}, «напролом» once the locator has found it).
+     * reckoned ahead, {@code dodgeMax}/{@code dodgeMargin}, {@link #around}, straight through once the locator has found it).
      */
     public static boolean newStyle(JsonNode s) {
         return "v2".equals(s.path("trainStyle").asText(""));
@@ -1641,7 +1641,7 @@ public final class BehemothModule implements BotModule {
         return min;
     }
 
-    /** {@code dodgeMax}: how far from the wait point the ship may step aside (the user, 2026-11-20: up to the corner). */
+    /** {@code dodgeMax}: how far from the wait point the ship may step aside (up to the corner). */
     static double dodgeMax(JsonNode s) {
         return Math.max(300, number(s, "dodgeMax", DODGE_MAX));
     }
@@ -1649,9 +1649,9 @@ public final class BehemothModule implements BotModule {
     private boolean dodging;
 
     /**
-     * {@code dodgeEnemies} (on unless turned off; the user, 2026-11-14: «стоим на точке, зона обидчиков достаёт до нас —
-     * отлетать не сильно от зоны, не ближе к обидчикам, двигаться не в их радиусе; как отлетят — ближе к точке; увидели
-     * бегемота — радиус не учитываем»): while waiting, enemy players within the config's avoid radius ({@code flee
+     * {@code dodgeEnemies} (on unless turned off; at the point with the offenders' zone reaching the ship: move not far
+     * from the zone, not nearer the offenders, not within their radius; once they leave, back nearer the point; the
+     * behemoth in sight, the radius no longer counts): while waiting, enemy players within the config's avoid radius ({@code flee
      * avoidRadius}) of the wait point move the ship to the nearest point within {@link #DODGE_MAX} of it out of every
      * enemy's radius (or, none being, the one farthest from them); back to the point when they are gone. The behemoth
      * seen, this is not called: the way to it is as before.
@@ -1667,14 +1667,14 @@ public final class BehemothModule implements BotModule {
         double max = fresh ? dodgeMax(s) : DODGE_MAX;
         java.util.Set<Integer> group = PlayerFight.group(w);
         List<String> black = names(s, "blacklist");
-        // another company's players and whoever attacked the ship this session, of any company (the user, 2026-11-20)
+        // another company's players and whoever attacked the ship this session, of any company
         java.util.Set<Integer> offenders = fresh ? ctx.stats().offenders.get() : java.util.Set.of();
         List<WorldSnapshot.Ship> enemies = w.ships().values().stream()
                 .filter(e -> PlayerFight.enemy(e, h, group, black) || offenders.contains(e.id()) && e.id() != h.id()
                         && !group.contains(e.id()))
                 .filter(e -> Math.hypot(e.x() - p[0], e.y() - p[1]) <= radius + max)
                 .toList();
-        // each enemy where he is and where he will be in LEAD_S if he flies on (the user, 2026-11-20: a train came
+        // each enemy where he is and where he will be in LEAD_S if he flies on (live 2026-11-20: a train came
         // straight at the ship — at the edge of its circle it was caught in 2 s)
         List<double[]> at = new java.util.ArrayList<>();
         for (WorldSnapshot.Ship e : enemies) {
@@ -1697,7 +1697,7 @@ public final class BehemothModule implements BotModule {
             dodgePoint = null;
             return p;
         }
-        // out of every circle by a little (dodgeMargin, the user: 100–200 — near the behemoth), the nearest to the point
+        // out of every circle by a little (dodgeMargin, 100–200 near the behemoth), the nearest to the point
         double out = radius + (fresh ? Math.max(0, number(s, "dodgeMargin", 0)) : 0);
         if (dodgePoint != null && clearOf(dodgePoint, at) > out
                 && Math.hypot(dodgePoint[0] - p[0], dodgePoint[1] - p[1]) <= max) {
@@ -1751,8 +1751,8 @@ public final class BehemothModule implements BotModule {
     static final double FIGHT_BOX_RADIUS = 600;
 
     /**
-     * {@code fightBoxes} (on unless turned off; the user, 2026-11-14: «во время боя с бегемотом подбирать коробки, что
-     * там уже есть — только во время боя»): the behemoth's boxes (an earlier one's, by the spawn) within
+     * {@code fightBoxes} (on unless turned off; in the behemoth's fight, and only then, the boxes already there are
+     * picked up): the behemoth's boxes (an earlier one's, by the spawn) within
      * {@link #FIGHT_BOX_RADIUS} of it are picked up while the lasers keep on it — DarkBot's collector in a fight the same
      * (a box near the target, the target shot at meanwhile). The ship's config and formation stay the fight's.
      */
@@ -1799,8 +1799,8 @@ public final class BehemothModule implements BotModule {
     static final double SPAWN_SIGHT = 1_500;
 
     /**
-     * {@code boxRuns} (on unless turned off; the user, 2026-11-14: «может есть свободное окно, чтобы облететь и собрать
-     * коробки»): while waiting to leave for the next behemoth, a map whose spawn had the behemoth's boxes in the last
+     * {@code boxRuns} (on unless turned off; a free window is used to fly round and collect boxes): while
+     * waiting to leave for the next behemoth, a map whose spawn had the behemoth's boxes in the last
      * {@link #BOX_SEEN_MS} is flown to when the way there, the pickup and the way on to the chosen map leave
      * {@link #BOX_RUN_SPARE_MS} before the ship must be off; there the boxes are taken as on any wait, then the choice
      * goes on. True when a run starts.
@@ -1891,8 +1891,8 @@ public final class BehemothModule implements BotModule {
     /** NPCs shoot from about this far; one farther is not shot back at. */
     static final double DEFEND_REACH = 900;
     /**
-     * Shot back at only this close to the wait point (the user, 2026-11-14: «когда летим на точку, не стреляем нпс — только
-     * на точке, когда ждём, пассивно, если сами стрельнут»); the step aside from a train is ~300.
+     * Shot back at only this close to the wait point (no fire at NPCs on the way to the point: only at the point while
+     * waiting, passively, if they shoot first); the step aside from a train is ~300.
      */
     static final double DEFEND_AT_POINT = 700;
 
@@ -1909,7 +1909,7 @@ public final class BehemothModule implements BotModule {
             return false;
         }
         if (h.cloaked()) {
-            // NPCs do not see a cloaked ship; «shooting at us» is the attack from before the cloak, not cleared yet — a
+            // NPCs do not see a cloaked ship; "shooting at us" is the attack from before the cloak, not cleared yet — a
             // shot back would only take the cloak off and its charge with it (live 2026-11-14 on int1: a charge a minute)
             attacker.clear();
             return false;
@@ -1945,8 +1945,7 @@ public final class BehemothModule implements BotModule {
     private boolean firstTold;
 
     /**
-     * {@code waitFirst} (the user, 2026-11-13: «на первой же карте простоять всё время, пока не дождёмся бегемота,
-     * дождались — и пойдём по кругу»): until a behemoth has been seen (or a train taken as its kill), the first map is
+     * {@code waitFirst} (stay on the very first map until its behemoth comes, then go round the maps): until a behemoth has been seen (or a train taken as its kill), the first map is
      * not left — at most a respawn and {@link #FIRST_SPARE_MS}; after that the round as usual, by the timers.
      */
     private boolean waitingFirst(int map) {
@@ -1979,8 +1978,8 @@ public final class BehemothModule implements BotModule {
     private int unknownLeaveTold;
 
     /**
-     * {@code waitUnknown} (the user, 2026-11-17: «если таймера нет, то почему он не ждёт на месте до того, пока бегемот не
-     * появится?»; live on the VPS that night: 2-BL's time unknown, two minutes there and on, again and again, a train
+     * {@code waitUnknown} (with no timer the ship should wait in place until the behemoth appears; live on the VPS
+     * 2026-11-17 at night: 2-BL's time unknown, two minutes there and on, again and again, a train
      * waiting by its spawn): on a map whose behemoth's time is not known the ship stays till it comes — at most a respawn
      * and {@link #FIRST_SPARE_MS} — leaving earlier only for a known one on another map when its flight must start.
      */
@@ -2020,9 +2019,9 @@ public final class BehemothModule implements BotModule {
     }
 
     /**
-     * {@code relearnTimers} (the user, 2026-11-15: «если уже запомнил тайминги, а потом что-то поменялось и не может найти
-     * бегемота какое-то время — ждать на карте до появления, и так на трёх картах»; live the night before on the VPS:
-     * from 01:00 to 07:44 the ship came early by its timers, waited ~2 min, «бегемота нет», on — forever): no behemoth
+     * {@code relearnTimers} (timers learned, then something changed and no behemoth is found for a while: wait on each
+     * map until it comes, on all three maps; live the night of 2026-11-14/15 on the VPS: from 01:00 to 07:44 the ship
+     * came early by its timers, waited ~2 min, "no behemoth", on, forever): no behemoth
      * seen for {@code relearnMinutes} (20) while working by the timers — the timers of the BL maps forgotten, and on each
      * map without one the ship waits, not leaving, until its behemoth comes (at most a respawn and
      * {@link #FIRST_SPARE_MS}); all three learned — the round by the timers again.
@@ -2163,8 +2162,8 @@ public final class BehemothModule implements BotModule {
                 log.info("{}: по таймеру бегемот должен был быть {} назад, его нет — таймер неверный, забываю",
                         ctx.maps().info(h.mapId()).name(), clock(wall - due));
                 if (holdUnknown(h.mapId())) {
-                    // its time unknown now: waited on here like any map not known (the user, 2026-11-17: «а если он
-                    // улетел, а там таймер сбился — то что?») — a wrong timer was most often early, it may come yet
+                    // its time unknown now: waited on here like any map not known (the case of a timer gone wrong
+                    // after the ship left) — a wrong timer was most often early, it may come yet
                     return;
                 }
             }
@@ -2295,7 +2294,7 @@ public final class BehemothModule implements BotModule {
             return seconds * 1_000;
         }
         long minutes = (long) number(settings(), "respawnMinutes", 0);
-        // 15:00 from the death (BLCycle's constant): the shortest «death → next» learned came out minutes short when a
+        // 15:00 from the death (BLCycle's constant): the shortest "death → next" learned came out minutes short when a
         // death was dated back to the coming (9:36 on 2-BL, the VPS night of 2026-11-14/15)
         return minutes > 0 ? minutes * 60_000 : DEFAULT_RESPAWN_MS;
     }
@@ -2316,8 +2315,8 @@ public final class BehemothModule implements BotModule {
     private long trainLeftAt;
 
     /**
-     * {@code followTrain} (the user, 2026-11-13: «после поезда туда не полетел, а туда поехал поезд, потому что там
-     * сейчас бегемот появится»): enemies vanishing by a portal, {@link #TRAIN_MIN} within {@link #EXIT_WINDOW_NS} — a
+     * {@code followTrain} (the ship did not follow a train that went there because the behemoth was about to appear):
+     * enemies vanishing by a portal, {@link #TRAIN_MIN} within {@link #EXIT_WINDOW_NS} — a
      * train left for that map; it knows the timers, so the behemoth is due there.
      */
     private void watchTrainLeave(WorldSnapshot w, WorldSnapshot.Hero h) {
@@ -2428,7 +2427,7 @@ public final class BehemothModule implements BotModule {
     }
 
     /**
-     * {@code trainTimer} (the user, 2026-11-13: «поезд полетел на 3-BL убивать бегемота, а мы улетели»; the bot never
+     * {@code trainTimer} (a train flew to 3-BL to kill the behemoth while the ship left; the bot never
      * sees a kill, so it has no timers): a train of {@link #TRAIN_MIN} enemies by the spawn for {@link #TRAIN_CAMP_NS},
      * the behemoth not in sight — they killed it: its death is recorded then and the next is due a respawn later.
      */
@@ -2467,7 +2466,7 @@ public final class BehemothModule implements BotModule {
     }
 
     /**
-     * {@code waitForTrain} (the user, 2026-11-13: «не улетать, если поезд идёт к нам»): the wait over, a train on the
+     * {@code waitForTrain} (do not leave while a train is coming to us): the wait over, a train on the
      * map near the spawn and not counted as having killed it — the behemoth is likely due here: wait on, at most
      * {@link #TRAIN_WAIT_MAX_NS} more.
      */
@@ -2497,7 +2496,7 @@ public final class BehemothModule implements BotModule {
             return true;
         }
         // seen from the wait point at the edge of the view the train flickers in and out of sight: held on a while
-        // after its last look (live 2026-11-17 on the VPS, 2-BL 08:05: «жду дальше», then gone 4 s later — the
+        // after its last look (live 2026-11-17 on the VPS, 2-BL 08:05: "waiting on", then gone 4 s later — the
         // timer unknown, the train there was all there was to go by)
         return trainSeenMap == h.mapId() && now - trainSeenNs < TRAIN_STICKY_NS;
     }
@@ -2525,8 +2524,8 @@ public final class BehemothModule implements BotModule {
     private volatile double[] spawnCircle;
 
     /**
-     * Where to stand while waiting. {@code freeSide} (the user, 2026-11-13: «стоять в точке рядом с бегемотом со стороны
-     * где нет никого»): on a ring of {@code freeSideRadius} round the spawn, the point farthest from the enemy players in
+     * Where to stand while waiting. {@code freeSide} (wait at a point near the behemoth on the side where nobody is):
+     * on a ring of {@code freeSideRadius} round the spawn, the point farthest from the enemy players in
      * sight; none in sight — the wait point (or the side taken before). Otherwise the wait point.
      */
     int[] standPoint(JsonNode s, WorldSnapshot w) {
@@ -2616,8 +2615,8 @@ public final class BehemothModule implements BotModule {
     private int[] lastPathLogged;
 
     /**
-     * {@code awayFromPortals} (the user, 2026-11-13: «точку недалеко от бегемота, но не со стороны порта, чтобы поезд
-     * не задел»; CARNAGE's BLCycle: trains go 1-BL → 2-BL → 3-BL, each map from one portal to the spawn and on to the
+     * {@code awayFromPortals} (a point near the behemoth but not on the portal's side, so a train does not touch the
+     * ship; CARNAGE's BLCycle: trains go 1-BL → 2-BL → 3-BL, each map from one portal to the spawn and on to the
      * next): the point on the ring of {@code freeSideRadius} round the spawn farthest from the ways portal → spawn of
      * every portal on the map (the base's too: the revived come that way). BeheFarm's 1-BL point lay on such a way.
      */
@@ -2634,7 +2633,7 @@ public final class BehemothModule implements BotModule {
         int height = info.height() > 0 ? info.height() : 13_100;
         BotConfig.Zones zones = ctx.config().get().zones().get(map);
         BotConfig.ZoneGrid avoided = zones == null ? null : zones.avoided();
-        // the walls of the map count: no wall between the point and the spawn (the user, 2026-11-14 on the VPS, 2-BL:
+        // the walls of the map count: no wall between the point and the spawn (live 2026-11-14 on the VPS, 2-BL:
         // 69/70 was behind the L-shaped wall from the spawn 69/50 — near by the line, far by the way)
         WorldSnapshot w = ctx.world().get();
         orbit.bot.nav.PathFinder pf = orbit.bot.nav.PathFinder.of(w, ctx.maps(), false);
@@ -2814,7 +2813,7 @@ public final class BehemothModule implements BotModule {
         JsonNode s = settings();
         if (toBehemoth || onBehemoth || closing || behemothListed && newStyle(s)) {
             // to the behemoth or fighting it, or the locator has found it: through them, the train mode does not run
-            // (live 2026-11-14; the user, 2026-11-20: «напролом — когда пеленгатор нашёл бегемота»)
+            // (live 2026-11-14; straight through once the locator has found the behemoth)
             return List.of();
         }
 
@@ -2842,8 +2841,8 @@ public final class BehemothModule implements BotModule {
     private final Map<String, List<double[]>> pathCircles = new HashMap<>();
 
     /**
-     * {@code avoidTrainPaths} (the user, 2026-11-13: «у них самый краткий полёт от порта к бегемоту … полёт по другой
-     * траектории»): the ways portal → spawn the trains fly are kept off, but their ends — the portal to jump through
+     * {@code avoidTrainPaths} (trains fly the shortest way from the portal to the behemoth, so the ship flies another
+     * way): the ways portal → spawn the trains fly are kept off, but their ends — the portal to jump through
      * and the spawn.
      */
     private List<double[]> pathCircles(int map) {

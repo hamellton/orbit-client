@@ -8,8 +8,8 @@ import org.slf4j.LoggerFactory;
 /**
  * A CL04K cloak kept on while the ship does not fight, as the behemoth module's waiting cloak (CARNAGE's BLCycle useCloak):
  * the biggest CPU there is, not more often than {@link #GAP_NS}; a use that brings no cloak twice in a row (the charge
- * spent, as after a death) — a rest of {@link #REST_NS}. Our own attack takes the cloak off by itself (the user,
- * 2026-11-17: invokes under the enemy trains — «невиды, пока не бьёт инвоков»).
+ * spent, as after a death) — a rest of {@link #REST_NS}. Our own attack takes the cloak off by itself (invokes under
+ * the enemy trains stay invisible until they attack).
  */
 final class Cloaker {
 

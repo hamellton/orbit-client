@@ -15,7 +15,7 @@ import orbit.protocol.gen.EternalBlacklightWaveInfoCommand;
 import orbit.protocol.gen.MenuActionRequest;
 import org.junit.jupiter.api.Test;
 
-/** The user, 2026-11-16: EBG «1 в 1 как DarkBot» (SharedPlugin EternalBlacklightGate) with the runs, the CPU's craft. */
+/** EBG exactly as DarkBot (SharedPlugin EternalBlacklightGate) with the runs, the CPU's craft. */
 class EternalGateTest {
 
     static void cpus(Sim sim, int n) {

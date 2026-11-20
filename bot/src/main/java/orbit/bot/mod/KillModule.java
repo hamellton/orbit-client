@@ -122,7 +122,7 @@ public final class KillModule implements BotModule {
         }
         if (kill && attacker.targetId() != 0 && !keepTarget) {
             // one of a higher priority came in sight (an invoke while an Impulse is fought): to it at once, unless the
-            // one fought is nearly dead or shoots the ship (the user, 2026-11-13) — with «бросать всё» in any case
+            // one fought is nearly dead or shoots the ship — with the drop-everything option in any case
             WorldSnapshot.Ship now = w.ships().get(attacker.targetId());
             WorldSnapshot.Ship better = now == null ? null : pick(c, w);
             BotConfig.NpcRule nowRule = now == null ? null : Targets.rule(c, now, w.hero().mapId());
@@ -134,8 +134,8 @@ public final class KillModule implements BotModule {
                 attacker.clear();
                 attacker.target(better);
             }
-            // the locator has found one of a higher priority out of sight: everything dropped, to it (the user,
-            // 2026-11-17: «бросить всё и бежать к высшему приоритету в любом случае»)
+            // the locator has found one of a higher priority out of sight: everything dropped, to it (drop
+            // everything and run to the higher priority in any case)
             // (only when there is somewhere to fly: a point just found empty leaves the fight as it is)
             if (dropAll && now != null && nowRule != null && attacker.targetId() == now.id()
                     && locatorPriority(c, w) < nowRule.priority() && locatorFresh(w) && followLocator(c, w)) {
@@ -152,8 +152,8 @@ public final class KillModule implements BotModule {
             status = "Бой";
             return;
         }
-        // IGNORE_BOXES counts in the fight only, as DarkBot's: once it is dead its boxes are taken like any (the user,
-        // 2026-11-17: «1 в 1»)
+        // IGNORE_BOXES counts in the fight only, as DarkBot's: once it is dead its boxes are taken like any (exactly
+        // as DarkBot)
         // no fight: any box in sight (DarkBot's collector); its radius only counts next to a target
         if (collect && boxes.tickAnywhere()) {
             status = "Подбираю " + boxes.currentName();
@@ -161,8 +161,8 @@ public final class KillModule implements BotModule {
         }
         if (kill) {
             WorldSnapshot.Ship t = pick(c, w);
-            // the locator has found one of a higher priority (the user, 2026-11-13: «почему бьёт импульсов, а не сразу
-            // летит на инвока»): to it, past the lesser ones — unless one of them shoots the ship
+            // the locator has found one of a higher priority (2026-11-13: Impulses were fought instead of
+            // flying straight to the invoke): to it, past the lesser ones — unless one of them shoots the ship
             if (t != null && t.attackTargetId() != w.hero().id() && locatorPriority(c, w) < Targets.rule(c, t,
                     w.hero().mapId()).priority() && followLocator(c, w)) {
                 return;
@@ -182,10 +182,10 @@ public final class KillModule implements BotModule {
     }
 
     /**
-     * The best NPC of the list flagged {@code PET_LOCATOR} for this map (the user, 2026-11-13: the locator on Boss
+     * The best NPC of the list flagged {@code PET_LOCATOR} for this map (e.g. the locator on Boss
      * Kristallon): the pet's enemy locator looks for it — also while one is in sight and fought (live 2026-11-17 on the
-     * VPS: dropped then, the pet took the config's mode, «ищет Cubikon», blind to the next invoke for the fight and some
-     * 5 s after it).
+     * VPS: dropped then, the pet took the config's mode and searched for Cubikon, blind to the next invoke for the
+     * fight and some 5 s after it).
      */
     @Override
     public int petLocator() {
@@ -346,16 +346,16 @@ public final class KillModule implements BotModule {
     private WorldSnapshot.Ship pick(BotConfig c, WorldSnapshot w) {
         double range = c.loot().ignoreFartherThan() > 0 ? c.loot().ignoreFartherThan() : Double.MAX_VALUE;
         MapCatalog.MapInfo here = ctx.maps().info(w.hero().mapId());
-        // «only in the preferred zone» (DarkBot's ONLY_KILL_PREFERRED; the user's BL_RINUSK keeps to a zone)
+        // «only in the preferred zone» (DarkBot's ONLY_KILL_PREFERRED; the BL_RINUSK profile keeps to a zone)
         boolean onlyZone = c.general().onlyKillPreferred();
         int map = w.hero().mapId();
         return Targets.best(c, w, range, s -> attacker.gaveUp(s.id())
-                    // one flagged RUSH is taken by the offenders' circles and the trains too (the user, 2026-11-17)
+                    // one flagged RUSH is taken by the offenders' circles and the trains too
                     || !rushed(c, s, map) && ctx.nav().inDanger(s.x(), s.y())
                     || onlyZone && !Zones.inPreferred(c, here, s.x(), s.y())
                     // not one in a crowd of NPCs that attack on sight (live 2026-11-13 on 2-BL: Abide I packs took
                     // 5–9 % of the hull a second while Impulse II was fought)
-                    // (a setting: off it is taken, like DarkBot does — the user, 2026-11-13)
+                    // (a setting: off it is taken, like DarkBot does)
                     || c.loot().skipsCrowded() && Targets.crowd(w, s) >= CROWD_MAX
                     || attacker.tooStrong(s.name())
                     // another player is by it and nearer: he gets there first (live 2026-11-13 on 2-1: 155 of 165
@@ -363,7 +363,7 @@ public final class KillModule implements BotModule {
                     // (not for an NPC whose rule ignores who hit first: the invoke's reward goes by the damage, the
                     // rule kept the ship off it until it was itself within 700 — live 2026-11-17 on the VPS)
                     || !Targets.ownerIgnored(c, w, s) && Targets.someoneNearer(w, s)
-                    // a train by it: the config's «обходить чужие поезда» (AstraBot avoidTrain)
+                    // a train by it: the config's avoid-other-trains option (AstraBot avoidTrain)
                     || !rushed(c, s, map) && c.loot().fight().avoidTrains() && Targets.train(w, s,
                             c.loot().fight().trainPlayers(), c.loot().fight().trainRadius()));
     }

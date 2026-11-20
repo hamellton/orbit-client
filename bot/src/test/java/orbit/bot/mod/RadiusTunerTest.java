@@ -50,7 +50,7 @@ class RadiusTunerTest {
 
     @Test
     void aNewBaseStartsAgainFromItTheLimitKept() {
-        // the user, 2026-11-13: an own radius in the list is where the learning starts, it goes on
+        // an own radius in the list is where the learning starts, it goes on
         RadiusTuner.testing = true;
         String k = "-=[ Based ]=-";
         RadiusTuner.learn(k, 560, 560, 10, 0.6, true);

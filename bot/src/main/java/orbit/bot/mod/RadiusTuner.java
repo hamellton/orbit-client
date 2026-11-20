@@ -12,11 +12,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * The distance to fight each NPC kind at, learned from the fights (the user, 2026-11-13: «чтобы цель не била
- * корабль»): the target that hit the ship a good part of a fight is fought {@link #STEP} farther next time; once the
+ * The distance to fight each NPC kind at, learned from the fights (so the target does not hit the ship): the target
+ * that hit the ship a good part of a fight is fought {@link #STEP} farther next time; once the
  * lasers stopped reaching it (it lost nothing), {@link #STEP_BACK} nearer, and that is the kind's limit. Kept in
  * {@code local/npc-radius-learned.json}. It starts from the base radius (the config's own, else the recommended one)
- * and goes on whether the list sets one or not (the user, 2026-11-13); a new base starts it again from there, the
+ * and goes on whether the list sets one or not; a new base starts it again from there, the
  * limit found stays.
  */
 public final class RadiusTuner {

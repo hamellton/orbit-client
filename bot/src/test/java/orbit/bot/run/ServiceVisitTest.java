@@ -203,7 +203,7 @@ class ServiceVisitTest {
 
     @Test
     void aRefusedQuickTransportIsNeverSentAsTheSlowOne() throws Exception {
-        // the user, 2026-11-19: no switch to the free, slow transport (live on int1: it held the visit for minutes)
+        // no switch to the free, slow transport (live on int1: it held the visit for minutes)
         Sim sim = new Sim(EnricherTest.config(VISIT.replace("\"visit\":true", "\"visit\":true,\"visitFast\":true"), null),
                 1, 1_000, 1_000);
         sim.now = 1_000_000_000L;

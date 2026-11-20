@@ -17,7 +17,7 @@ import org.slf4j.LoggerFactory;
  *   <li>wait until in game;</li>
  *   <li>the kill screen and the pause after reviving ({@link Revive});</li>
  *   <li>stopping: to the nearest portal, log out ({@link #stop});</li>
- *   <li>the user's orders from the map ({@link #order}) and the pause ({@link #setPaused});</li>
+ *   <li>orders given on the map ({@link #order}) and the pause ({@link #setPaused});</li>
  *   <li>running from players ({@link Flee});</li>
  *   <li>safety: healing, repair at a portal, escape ({@link Safety});</li>
  *   <li>travel to the module's map;</li>
@@ -31,7 +31,7 @@ public final class BotRunner {
 
     public enum State { STARTING, DEAD, MANUAL, PAUSED, FLEEING, REPAIRING, TRAVELLING, WORKING, STOPPING, STOPPED, FAILED }
 
-    /** An order from the user's map: fly to a point, or jump through the portal to {@code map}. */
+    /** An order given on the map: fly to a point, or jump through the portal to {@code map}. */
     public record Order(Kind kind, double x, double y, int map) {
 
         public enum Kind { MOVE, JUMP }
@@ -47,8 +47,7 @@ public final class BotRunner {
 
     /**
      * After an order is done the module waits this long before it takes the ship back — the account's setting
-     * ({@code clickHoldMs} in {@code local/accounts.json}, the user, 2026-11-14: «настраиваемым на акке, по дефолту 1
-     * секунду»; DarkBot waits 5 s).
+     * ({@code clickHoldMs} in {@code local/accounts.json}, 1 second by default; DarkBot waits 5 s).
      */
     static final long HOLD_MS = 1_000;
     private volatile long holdMs = HOLD_MS;
@@ -320,8 +319,8 @@ public final class BotRunner {
     }
 
     /**
-     * Honor lost for a kill (DarkBot's {@code StatsManager.checkHonor}: lost in one go — logs out and stops; the user,
-     * 2026-11-15: «якщо буде за якесь вбивство мінус честь, то нехай робить перерву в 15 хв»): the game's reward log
+     * Honor lost for a kill (DarkBot's {@code StatsManager.checkHonor}: lost in one go — logs out and stops; here a
+     * kill with minus honor means a 15 min break): the game's reward log
      * ({@code 0|LM|ST|HON|<gained>|<total>}) with a minus, the pilot's total down with it — out of the game for
      * {@code honorBreakMinutes}. DarkBot reads the total from memory and counts only 100·2ⁿ as a kill's; the reward
      * line is the server's own word for it, any minus counts.
@@ -351,7 +350,7 @@ public final class BotRunner {
         stop("минус честь, перерыв " + minutes + " мин");
     }
 
-    /** Paused: the module rests, the ship does only what the user orders; any thread. */
+    /** Paused: the module rests, the ship does only what it is ordered on the map; any thread. */
     public void setPaused(boolean on) {
         paused = on;
     }
@@ -596,8 +595,7 @@ public final class BotRunner {
             return;
         }
         nudgeWhenStill(h);
-        // a RUSH target in sight counts too: the trip to repair is dropped for it (the user: «совсем не уходить, пока
-        // инвок жив»)
+        // a RUSH target in sight counts too: the trip to repair is dropped for it (never leave while the invoke lives)
         boolean rush = module != null && (module.rushing() || rushInSight(w));
         if (rush != rushTold) {
             rushTold = rush;
@@ -708,8 +706,8 @@ public final class BotRunner {
     }
 
     /**
-     * A ship standing on one spot for minutes gets a server kick (the user, 2026-11-14: «кик, может из-за бездействия?
-     * может пару метров туда-сюда летать?»; live on the VPS: KIK about 5 min after each login while it stood still on 2-8):
+     * A ship standing on one spot for minutes gets a server kick (suspected idle kick; live on the VPS: KIK about 5 min
+     * after each login while it stood still on 2-8):
      * after {@link #STILL_MIN_MS}–{@link #STILL_MAX_MS} without moving, a short step aside (150–300); the module puts the
      * ship back on its spot if it wants it there.
      */
@@ -846,8 +844,7 @@ public final class BotRunner {
             if (!pauseShown) {
                 pauseShown = true;
                 log.info("Пауза: бот ждёт, корабль летает только по кликам на карте");
-                // the module's plan is kept (the user, 2026-11-14: «сохранять поведение до паузы и после снятия паузы
-                // сразу же возобновлять поведение до паузы»)
+                // the module's plan is kept (the behaviour before the pause resumes right after it)
                 ctx.nav().halt(); // stop where it is: it would fly on to the module's last click
             }
             state = State.PAUSED;
@@ -991,7 +988,7 @@ public final class BotRunner {
         if (all.isEmpty()) {
             ctx.maps().portals(h.mapId()).forEach(x -> all.add(new int[] {x.x(), x.y()}));
         }
-        // a base (own or shared) is as safe (the user, 2026-11-12: on 5-2 the shared base, not a portal)
+        // a base (own or shared) is as safe (on 5-2 the shared base, not a portal)
         SafePlaces.bases(w).forEach(b -> all.add(new int[] {b.x(), b.y()}));
         return all.stream().min(Comparator.comparingDouble(x -> Math.hypot(x[0] - h.x(), x[1] - h.y()))).orElse(null);
     }
@@ -1054,7 +1051,6 @@ public final class BotRunner {
         // straight to the portal and out: the hull is not repaired first, no escape jump on the way
         safety.healOnly();
         // on a Blacklight map no logging out at its portal (NPCs reach it): through it first, out on the other side
-        // (the user, 2026-11-13)
         if (!logoutHere && !orbit.config.GateCatalog.instanced(h.mapId()) && orbit.bot.nav.Router.blacklight(h.mapId())) {
             SafePlaces.Place out = wayHome(h);
             if (out == null) {
@@ -1080,8 +1076,8 @@ public final class BotRunner {
                 return true;
             }
         }
-        // in a galaxy gate the game lets nobody log out (the user, 2026-11-15: «во вратах выйти нельзя — прыгнуть в портал
-        // на x-1 и выйти там, на базе»): through the gate's home portal (type 1), out on x-1; the gate is kept
+        // in a galaxy gate the game lets nobody log out (jump into the portal to x-1 and log out there, at the base):
+        // through the gate's home portal (type 1), out on x-1; the gate is kept
         boolean inGate = orbit.config.GateCatalog.instanced(h.mapId());
         if (inGate) {
             WorldSnapshot.Portal home = w.portals().values().stream()
@@ -1117,7 +1113,7 @@ public final class BotRunner {
             return false;
         }
         // DarkBot's DisconnectModule: the logout only once the escape is over — a player shooting the ship (a battle map:
-        // the server cancels the logout under fire, the user 2026-11-19) — away from him, through a portal when at one,
+        // the server cancels the logout under fire) — away from him, through a portal when at one,
         // and the logout only after PLAYER_QUIET_NS without a shot (it used to stand still at the portal pressing it)
         if (underPlayerFire(w)) {
             playerFireAt = now;
@@ -1191,7 +1187,7 @@ public final class BotRunner {
                 stopWhenFree = reason;
                 stopWhenFreeSince = stopAskedAt;
                 // the NPC that shoots is the fight to finish, and the module gets time to take it on: the next tick
-                // found the ship not shooting yet and called the fight over — logout, «отбиваюсь», logout… for a
+                // found the ship not shooting yet and called the fight over — logout, fighting back, logout… for a
                 // minute and a half, never shooting back (live 2026-11-17 on 3-1, Streuners)
                 stopWhenFreeTarget = npcFiring(w);
                 fightBackUntil = now + FIGHT_BACK_NS;
@@ -1206,7 +1202,7 @@ public final class BotRunner {
         // pressed again once its countdown is over and the ship is still in (the server cancels it under fire or when
         // the ship moves; DarkBot waits 25 s) — not 30 s every time
         if (now >= logoutAt && !h.moving() && now - logoutPressedAt > (logoutSeconds + 8) * 1_000_000_000L) {
-            // the game's countdown: 20 s, 5 s with premium (the user, 2026-11-17)
+            // the game's countdown: 20 s, 5 s with premium
             logoutSeconds = h.premium() ? 5 : 20;
             log.info("Выход из игры ({} с)", logoutSeconds);
             ctx.actions().logout();

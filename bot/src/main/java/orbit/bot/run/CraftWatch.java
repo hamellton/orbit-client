@@ -11,8 +11,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Crafts what the config's craft list asks for (the user, 2026-11-14: «крафт буквально всего, чтобы можно было
- * конфигурировать это в конфигах»): a recipe free in the assembly and its item below the rule's count — a batch is
+ * Crafts what the config's craft list asks for (crafting of anything, set up in the configs): a recipe free in the
+ * assembly and its item below the rule's count — a batch is
  * started; a batch ready — collected. Packets as the official client's (docs/recon/ASSEMBLY.md): the window opened,
  * {@code AssemblyBuildRequest}, the window closed; later {@code AssemblyCollectRequest} the same way. One action every
  * {@link #CHECK_MS}, nothing before the game has listed the recipes.
@@ -184,7 +184,7 @@ public final class CraftWatch {
 
     /**
      * What the account lacks for {@code amount} batches of the recipe (the client's prices, {@link RecipeCosts}), as
-     * «Eternal Fragment 120 из 500, …»; {@code null} when enough or when not known.
+     * "Eternal Fragment 120 of 500, …"; {@code null} when enough or when not known.
      */
     public static String lacking(WorldSnapshot w, String recipe, int amount) {
         java.util.List<String> out = new java.util.ArrayList<>();
@@ -202,7 +202,7 @@ public final class CraftWatch {
         return out.isEmpty() ? null : String.join(", ", out);
     }
 
-    /** «500 Eternal Fragment, 500 Rinusk, 150 000 кредиты» — a recipe's price for {@code amount} batches. */
+    /** "500 Eternal Fragment, 500 Rinusk, 150 000 credits" — a recipe's price for {@code amount} batches. */
     public static String price(String recipe, int amount) {
         java.util.List<String> out = new java.util.ArrayList<>();
         for (orbit.config.RecipeCosts.Part p : orbit.config.RecipeCosts.of(recipe)) {
@@ -215,7 +215,7 @@ public final class CraftWatch {
         return String.format(java.util.Locale.ROOT, "%,.0f", v).replace(',', ' ');
     }
 
-    /** «кредиты», «уридий», «Eternal Fragment» for a price's part. */
+    /** "credits", "uridium", "Eternal Fragment" for a price's part. */
     static String partName(String id) {
         return switch (id) {
             case "currency_credits" -> "кредиты";
@@ -250,8 +250,8 @@ public final class CraftWatch {
         if (inv != null) {
             return inv;
         }
-        // an ore (resource_ore_seprom: what «Сепром (BL)» makes) lies in the hold, the game counts it there only
-        // (the user, 2026-11-20 on gb2: «Крафт: игра не прислала количество resource_ore_seprom — не крафчу»)
+        // an ore (resource_ore_seprom: what the Seprom (BL) recipe makes) lies in the hold, the game counts it there
+        // (2026-11-20 on gb2: crafting refused because the game sent no count of resource_ore_seprom)
         Integer ore = item.startsWith(ORE_PREFIX) ? HOLD_ORES.get(item.substring(ORE_PREFIX.length())) : null;
         if (ore != null && !w.inventory().ores().isEmpty() && w.inventory().oresSinceLogin()) {
             return w.inventory().ore(ore);

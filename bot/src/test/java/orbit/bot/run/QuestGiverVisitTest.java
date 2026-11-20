@@ -21,7 +21,7 @@ class QuestGiverVisitTest {
 
     static final int GIVER = 150_000_097;
 
-    /** A fake quest giver as the server of the user's recording (ru1 2026-11-12): on within 400, list, info, accept. */
+    /** A fake quest giver as the server of a recording (ru1 2026-11-12): on within 400, list, info, accept. */
     static final class Giver {
         final Sim sim;
         final int gx;
@@ -184,7 +184,7 @@ class QuestGiverVisitTest {
 
     @Test
     void aGiverInSightIsVisitedWithoutAFlight() {
-        int map = MapCatalog.bundled().byName("3-5").id(); // x-5: a giver there too (the user)
+        int map = MapCatalog.bundled().byName("3-5").id(); // x-5: a giver there too
         Sim sim = new Sim(BotConfig.empty(), map, 5_000, 5_000);
         new Giver(sim, 6_000, 5_000);
         QuestGiverVisit v = new QuestGiverVisit(sim.ctx, Set.of(Quests.DAILY), q -> true);
@@ -194,7 +194,7 @@ class QuestGiverVisitTest {
 
     @Test
     void aMapWhereTheBotSawAGiverIsTriedToo() {
-        // the user 2026-11-12: if 5-2 has a quest giver, no need to fly elsewhere
+        // if 5-2 has a quest giver, no need to fly elsewhere
         int map52 = MapCatalog.bundled().byName("5-2").id();
         Sim sim = new Sim(BotConfig.empty(), map52, 5_000, 5_000);
         QuestGiverVisit v = new QuestGiverVisit(sim.ctx, Set.of(Quests.DAILY), q -> true).withGiverMaps(Set.of(map52));

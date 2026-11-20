@@ -14,8 +14,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Galaxy gates (docs/GALAXY-GATES.md; the user, 2026-11-14: «модель гелекси гейта по примеру даркбота и астработа —
- * сначала абг, зеты, коппы, трініті»). Out of a gate, on the company's x-1: the builder's state (as the client's window,
+ * Galaxy gates (docs/GALAXY-GATES.md; modelled on DarkBot and AstraBot, first ABG, Zeta, Kappa, Trinity). Out of a
+ * gate, on the company's x-1: the builder's state (as the client's window,
  * {@code ggBuilder}), the first gate of the list with lives enough — placed when its parts are all there, spun for when
  * {@code build} — and its portal ({@link GateCatalog.Gate#portal}) jumped into. In a gate: the NPCs (the config's rules,
  * else the catalog's), the boxes between waves, else the map's centre; a portal of the gate (the next stage of ABG, ζ1 → ζ2
@@ -208,7 +208,7 @@ public final class GateModule implements BotModule {
         return new double[] {10_000, 6_000};
     }
 
-    /** SharedPlugin's collect.radius from the user's profile: boxes this close are taken in a fight. */
+    /** SharedPlugin's collect.radius from the owner's profile: boxes this close are taken in a fight. */
     static final double FIGHT_BOX_RADIUS = 400;
 
     /** A box within 400 of the ship lies inside the target's radius (SharedPlugin leaves it for later). */
@@ -403,7 +403,7 @@ public final class GateModule implements BotModule {
         WorldSnapshot.Gate st = w.gates().gate(gate.builderId());
         int last = Math.max(1, s.path("endGateWaves").asInt(4));
         int from = gate.waves() - last + 1;
-        // the server tells the wave once a stage, the last one done (live 2026-11-15 on gb2: «волна 36» while α37–α40
+        // the server tells the wave once a stage, the last one done (live 2026-11-15 on gb2: wave 36 while α37–α40
         // were fought): that one done means the last stage; the NPCs' own numbers tell it at once
         if (st != null && st.wave() >= from - 1) {
             return true;
@@ -488,7 +488,7 @@ public final class GateModule implements BotModule {
     // ---- out of a gate ----
 
     /** SharedPlugin: out of a gate the ship goes to the refinery first (over 500 off it, in the run mode); the builder
-     *  and the way to the next gate start there (the user, 2026-11-15: spins were made amid 3-1's NPCs, shot at). */
+     *  and the way to the next gate start there (2026-11-15: spins were made amid 3-1's NPCs, shot at). */
     static final double AT_REFINERY = 500;
 
     /** SharedPlugin's shouldMoveToRefinery: set at the start and on leaving a gate, cleared at the refinery. */
@@ -579,7 +579,7 @@ public final class GateModule implements BotModule {
                 continue;
             }
         }
-        // nothing placed or built: spins for the gate of the list nearest its parts (the user's list first on a tie) —
+        // nothing placed or built: spins for the gate of the list nearest its parts (the list's order first on a tie) —
         // not the first one from naught while another lacks one part (live 2026-11-15 on gb2: α done, α spun from 0/34
         // with β at 47/48)
         if (on(s, "build", false)) {
@@ -770,8 +770,8 @@ public final class GateModule implements BotModule {
     }
 
     /**
-     * Lives kept in stock (the user, 2026-11-14: «если осталось 2 жизни, то докупаем за уридиум ещё одну, если урика
-     * хватает, и так дальше — чтобы всегда был запас жизней»; AstraBot {@code buyLife}/{@code maxLifeToBuy}): a placed
+     * Lives kept in stock (at 2 lives left one more is bought for uridium if there is enough, and so on, so a reserve
+     * of lives is always there; AstraBot {@code buyLife}/{@code maxLifeToBuy}): a placed
      * gate with fewer than {@code keepLives} (3) gets one more while the uridium after it stays at
      * {@code lifeMinUridium} (0) or above; {@code maxLivesToBuy} a gate (0 — no limit). True when one was asked for.
      */
@@ -1003,7 +1003,7 @@ public final class GateModule implements BotModule {
         kamikaze.waiting(); // between waves: the next one's start is primed (SharedPlugin)
         boolean quiet = ms(now - quietSince) > QUIET_MS;
         if (ebgGate) {
-            // EBG between the waves: the boosters (SharedPlugin selectBestBooster); the brake «выход» — home portal
+            // EBG between the waves: the boosters (SharedPlugin selectBestBooster); the brake's exit — home portal
             eternal.boosters(ebg(), w);
             WorldSnapshot.Portal out = quiet ? eternal.exit(ebg(), w) : null;
             if (out != null) {
@@ -1019,8 +1019,8 @@ public final class GateModule implements BotModule {
                 .min(java.util.Comparator.comparingDouble(p -> Math.hypot(p.x() - h.x(), p.y() - h.y()))).orElse(null);
         boolean done = completed || g.builderId() == 0 && home != null && ms(now - enteredAt) > 60_000;
         if (quiet && next != null && !done && on(settings(), "holdBeforePortal", false)) {
-            // a safe moment for a new build: the stage over, nothing about, the next not begun (the user, 2026-11-15:
-            // «между волнами, прежде чем прыгнуть в портал — идеальное место для перезапуска»)
+            // a safe moment for a new build: the stage over, nothing about, the next not begun (between the
+            // waves, before the jump into the portal, is the ideal place for a restart)
             tellOnce("Врата " + g.name() + ": этап пройден — жду перед порталом (держать перед порталом)");
             ctx.nav().stop();
             status = "Врата " + g.name() + ": жду перед порталом";

@@ -169,7 +169,7 @@ class OffendersTest {
     @Test
     void onTheWayToAnotherMapAStationByThePortalIsPassed() {
         // live 2026-11-13 on the VPS, 4-2: the portal to 4-4 by a station of another clan, the ship went in and out of
-        // its circle until the user jumped by hand
+        // its circle until a jump by hand
         var cat = orbit.world.maps.MapCatalog.bundled();
         var portal = orbit.bot.nav.Router.route(cat, 92, 10_000, 6_000, 93, 3, Integer.MAX_VALUE).getFirst();
         double away = BotConfig.Flee.STATION_RADIUS + 1_500;

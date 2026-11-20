@@ -148,8 +148,8 @@ public final class Traveler {
         List<MapCatalog.Portal> route = Router.route(catalog, h.mapId(), h.x(), h.y(), targetMap, h.factionId(),
                 h.level() > 0 ? h.level() : Integer.MAX_VALUE);
         if (route.isEmpty()) {
-            // a Blacklight map the pilot's level does not open: say so, «нет пути» alone was a riddle (the user,
-            // 2026-11-20: gb2 on «Blacklight Invoke 2-BL» «просто не хочет заходить»)
+            // a Blacklight map the pilot's level does not open: say so, a bare "no path" was a riddle (2026-11-20:
+            // gb2 on «Blacklight Invoke 2-BL» simply would not go in)
             String closed = h.level() > 0 && !Router.open(targetMap, h.factionId(), h.level())
                     ? " — она закрыта для пилота: уровень " + h.level() + ", чужая Blacklight открывается с "
                     + Router.BLACKLIGHT_LEVEL + "-го, своя — " + catalog.info(305 + h.factionId()).name()

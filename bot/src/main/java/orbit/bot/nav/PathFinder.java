@@ -93,8 +93,8 @@ public final class PathFinder {
 
     /**
      * An enemy station: a battle station or its module, a headquarters or a station turret of another faction — not one
-     * of the ship's own clan, an allied clan's or one with a pact, which do not shoot (the user, 2026-11-18: «база не
-     * вражеская, зачем он её облетает»; the offenders' circles already left those).
+     * of the ship's own clan, an allied clan's or one with a pact, which do not shoot (2026-11-18: a friendly base
+     * was flown round for nothing; the offenders' circles already left those).
      */
     public static boolean enemyBase(WorldSnapshot.Asset a, WorldSnapshot.Hero hero) {
         return BASE_TYPES.contains(a.type()) && a.factionId() != 0 && a.factionId() != hero.factionId()
@@ -138,7 +138,7 @@ public final class PathFinder {
     }
 
     /**
-     * The same with the config's preferred zone: a server's danger zone the user chose to work in is no obstacle
+     * The same with the config's preferred zone: a server's danger zone chosen to work in is no obstacle
      * (live 2026-11-11: 5-3's palladium field is a damage zone; DarkBot collects inside it, the bot stopped at
      * its edge).
      */

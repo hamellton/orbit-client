@@ -21,8 +21,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * QUESTS («Квесты», plan 5б.9): takes quests at the home base's quest giver ({@link QuestGiverVisit}) and does them
- * one condition at a time with the bot's own parts:
+ * QUESTS (the Quests module, plan 5b.9): takes quests at the home base's quest giver ({@link QuestGiverVisit}) and
+ * does them one condition at a time with the bot's own parts:
  * <ul>
  *   <li>kill or damage NPCs — the kill module on the nearest map where those NPCs were seen, only them on its list
  *       (the config's other settings stay: ammunition, safety, boxes);</li>
@@ -38,8 +38,8 @@ import org.slf4j.LoggerFactory;
  * Daily quests first, then weekly, event, challenge, missions. A quest done — back to the giver for the next one (a
  * chain); quests the bot cannot do are not taken, and a taken one it cannot do waits.
  *
- * <p>Settings ({@code modules.quests}, the «Квесты» tab): {@code types} — quest types to take (default DAILY, WEEKLY,
- * EVENT, MISSION — the user's choice 2026-11-12); {@code do} — condition kinds to do (KILL, DAMAGE, SALVAGE, BOX, ORE,
+ * <p>Settings ({@code modules.quests}, the Quests tab): {@code types} — quest types to take (default DAILY, WEEKLY,
+ * EVENT, MISSION — user's choice, 2026-11-12); {@code do} — condition kinds to do (KILL, DAMAGE, SALVAGE, BOX, ORE,
  * SELL, MAP; all by default); {@code revisitMinutes} — how often to look at the giver again (360).
  */
 public final class QuestModule implements BotModule {
@@ -52,7 +52,7 @@ public final class QuestModule implements BotModule {
     static final String BONUS_BOX = "BONUS_BOX";
     /** On the work's map this long without one of its NPCs in sight: try another map (the table can be wrong). */
     static final long NOT_THERE_MS = 10 * 60_000;
-    /** Bosses are easier elsewhere than on 4-5 (the user, 2026-11-12): that map counts as this many jumps more. */
+    /** Bosses are easier elsewhere than on 4-5: that map counts as this many jumps more. */
     static final int BOSS_4_5_EXTRA_HOPS = 4;
     /**
      * Another company's map (N-x with N its company) counts as this many jumps more: its players and stations
@@ -62,14 +62,14 @@ public final class QuestModule implements BotModule {
 
     enum Kind { KILL, DAMAGE, SALVAGE, BOX, ORE, SELL, MAP, REFINE, SKYLAB }
 
-    /** {@code Work.ore} of a resource's salvage («собрать Prismatium» — from the NPCs that carry it). */
+    /** {@code Work.ore} of a resource's salvage ("collect Prismatium" — from the NPCs that carry it). */
     static final int LOOT = -3;
 
     /**
      * Which NPCs carry a resource a quest asks to collect ({@code COLLECT_LOOT}, «resource_collectable_hybrid-alloy»):
      * darkorbitwiki «Elite Missions (Level 22+)», Tips and Tricks (2026-11-17) — Prismatium from all Kristallin and
      * Kristallon, Scrap from Saimon and Mordon, Mucosum from Lordakia, Lordakium and Sibelonit, Plasmide from Sibelon and
-     * Devolarium; Hybrid Alloy from the Blighted Gygerthrall (the user, 2026-11-17), called up by fighting Blighted
+     * Devolarium; Hybrid Alloy from the Blighted Gygerthrall (2026-11-17), called up by fighting Blighted
      * Kristallon ({@link #CALLED_BY}). Names as {@link
      * QuestTargets#norm}; Uber ones are left out (4-5), the plain ones and bosses do. Where they live — {@link NpcMaps}.
      */
@@ -183,13 +183,13 @@ public final class QuestModule implements BotModule {
         return worker != null && worker.busy();
     }
 
-    /** The quest and condition worked on now ({quest, condition}), {@code null} none — the «Квесты» card marks them. */
+    /** The quest and condition worked on now ({quest, condition}), {@code null} none — the Quests card marks them. */
     public int[] doing() {
         Work wk = work;
         return wk == null ? null : new int[] {wk.quest(), wk.condition()};
     }
 
-    /** «Теория преобразования» by its title (the user, 2026-11-17: the number alone said nothing), else the number. */
+    /** A quest by its title (the number alone says nothing), else the number. */
     static String named(int quest) {
         String t = orbit.world.QuestTitles.of(quest);
         return t == null ? String.valueOf(quest) : "«" + t + "»";
@@ -202,7 +202,7 @@ public final class QuestModule implements BotModule {
         }
     }
 
-    /** The work's NPC for the pet's enemy locator (the «Квесты» tab's checkbox), on the work's map only. */
+    /** The work's NPC for the pet's enemy locator (the Quests tab's checkbox), on the work's map only. */
     @Override
     public int petLocator() {
         if (!locatorOn() || visit != null || work == null || work.npc() <= 0
@@ -253,7 +253,7 @@ public final class QuestModule implements BotModule {
         long revisit = (long) setting("revisitMinutes", DEFAULT_REVISIT_MIN) * 60_000_000_000L;
         boolean due = !visitedOnce || finishedOne || now - visitedAt > revisit || next == null && now - visitedAt > revisit / 6;
         // on a map left only one way (5-2 → 5-3, back by the whole loop) its quests first, the giver after
-        // (the user, 2026-11-12: «нельзя прыгать на 5-3, потом нужно делать целый облет»)
+        // (a jump to 5-3 means a whole loop back)
         if (due && next != null && next.map() == w.hero().mapId()
                 && orbit.bot.run.SafePlaces.hardToLeave(w, ctx.maps())) {
             if (!giverLaterTold) {
@@ -463,11 +463,11 @@ public final class QuestModule implements BotModule {
 
     /**
      * Cargo picked up on the work's map and the condition not moving: its NPCs there carry other ore (live 2026-11-17 on
-     * gb2: Streuner's cargo on 3-1, «Сборщик дураниума» 0/100 after dozens) — that map is left out, the next one tried.
+     * gb2: Streuner's cargo on 3-1, the duranium collector quest 0/100 after dozens) — that map is left out, the next
+     * one tried.
      */
     private boolean noCount(WorldSnapshot w, Quests.Condition c) {
-        // a resource's NPCs come from the wiki's table: no guessing at other maps (the user, 2026-11-17: «лишнее, потом
-        // баг может быть»)
+        // a resource's NPCs come from the wiki's table: no guessing at other maps (needless, and a source of bugs)
         if (work.kind() != Kind.SALVAGE || work.ore() == LOOT || w.hero().mapId() != work.map()) {
             cargoFrom = -1;
             return false;
@@ -525,7 +525,7 @@ public final class QuestModule implements BotModule {
         return true;
     }
 
-    /** Quests marked «Отменить»: cancelled (the quest window's button, anywhere), one at a time, again if still there. */
+    /** Quests marked Cancel: cancelled (the quest window's button, anywhere), one at a time, again if still there. */
     private final Map<Integer, Long> cancelAskedAt = new java.util.HashMap<>();
     private long nextCancelAt;
 
@@ -560,7 +560,7 @@ public final class QuestModule implements BotModule {
         return out;
     }
 
-    /** Neither taken nor worked on: marked «Не делать» or «Отменить». */
+    /** Neither taken nor worked on: marked Skip or Cancel. */
     private boolean left(int questId) {
         return ids("skip").contains(questId) || ids("cancel").contains(questId);
     }
@@ -591,7 +591,7 @@ public final class QuestModule implements BotModule {
 
     /** The next condition to work on: by type order, then the quest's id; the first open condition the bot can do. */
     Work choose(WorldSnapshot w) {
-        // «Первым» first, in the user's order; then by type, then by number; «Не делать»/«Отменить» never
+        // marked First go first, in the list's order; then by type, then by number; Skip/Cancel never
         List<Integer> first = ids("first");
         List<Quests.Quest> quests = w.quests().active().values().stream()
                 .filter(x -> !left(x.id()))
@@ -720,7 +720,7 @@ public final class QuestModule implements BotModule {
         if (!sources.isEmpty()) {
             return null;
         }
-        // no NPC named anywhere (300011 «Сборщик дураниума»): the plain NPCs of the company's own maps, the nearest —
+        // no NPC named anywhere (300011, the duranium collector): the plain NPCs of the company's own maps, nearest —
         // the config's list and working map sent a VRU ship to MMO's 1-1 and killed nothing there (live 2026-11-17)
         Map<Integer, Set<String>> home = ownMapNpcs(c, w.hero().factionId());
         Integer near = nearest(home.keySet(), w.hero());
@@ -777,7 +777,7 @@ public final class QuestModule implements BotModule {
             "ubersaboteur", "uberinterceptor", "uberbarracuda", "uberannihilator", "uberbattleray");
 
     /**
-     * Pirate NPCs with no map in the quest: 5-2 (the user, 2026-11-12: more chance of a group there, the quest closes
+     * Pirate NPCs with no map in the quest: 5-2 (more chance of a group there, the quest closes
      * sooner), when they live there and it can be reached.
      */
     private Integer pirateMap(Set<String> want, Set<Integer> maps, WorldSnapshot.Hero h) {
@@ -793,8 +793,8 @@ public final class QuestModule implements BotModule {
 
     /** Collect an ore: where it lies in sight, else the nearest map where it was seen. */
     /**
-     * «Собрать resource_collectable_…»: the NPCs that carry it ({@link #LOOT_NPCS}) killed and their cargo picked, on the
-     * nearest map they live on ({@link NpcMaps}; the quest's own maps if it binds them).
+     * Collecting resource_collectable_…: the NPCs that carry it ({@link #LOOT_NPCS}) killed and their cargo picked, on
+     * the nearest map they live on ({@link NpcMaps}; the quest's own maps if it binds them).
      */
     private Work lootWork(Quests.Quest quest, Quests.Condition c, WorldSnapshot w) {
         String id = c.matches().isEmpty() ? "" : c.matches().getFirst().toLowerCase(java.util.Locale.ROOT);
@@ -823,8 +823,8 @@ public final class QuestModule implements BotModule {
 
     /**
      * Refined ore a quest wants collected (prometid, duranium, promerium): refined in the hold from what is aboard; else
-     * brought from the Skylab (its transport on); else the raw ore it is made of collected first (the user, 2026-11-17:
-     * «покупки нет, есть только скайлаб или переработка — любое должно подходить»). A way the counter does not move on
+     * brought from the Skylab (its transport on); else the raw ore it is made of collected first (there is no purchase,
+     * only the Skylab or refining, and any of them must do). A way the counter does not move on
      * is dropped for that condition. The hold nearly full with the refined ore: it is sold to make room (counted already).
      */
     private Work refinedWork(Quests.Quest quest, Quests.Condition c, int wanted, int ore, WorldSnapshot w) {
@@ -889,7 +889,7 @@ public final class QuestModule implements BotModule {
         if (here) {
             maps.add(w.hero().mapId());
         }
-        // «Endurium 30 000 on enemy x-4» (the user, 2026-11-17): only where the quest counts it — there even when the
+        // «Endurium 30 000 on enemy x-4» (2026-11-17): only where the quest counts it — there even when the
         // bot never saw that ore on it
         List<Integer> on = c.onMaps();
         if (!on.isEmpty()) {
@@ -1012,8 +1012,7 @@ public final class QuestModule implements BotModule {
 
     /**
      * NPCs that call up others when fought ({@link QuestTargets#norm} names): Blighted Kristallon brings the Blighted
-     * Gygerthrall, which carry the Hybrid Alloy (the user, 2026-11-17: «чтобы вторые были, нужно бить Blighted
-     * Kristallon»).
+     * Gygerthrall, which carry the Hybrid Alloy (the second ones come only while Blighted Kristallon is fought).
      */
     static final Map<String, String> CALLED_BY = Map.of("blightedgygerthrall", "blightedkristallon");
     /** The priority of a caller: fought only when none of what it calls is in sight. */
@@ -1174,7 +1173,7 @@ public final class QuestModule implements BotModule {
         return ORDER.size();
     }
 
-    /** The quest types to take ({@code types}); the user's four by default. */
+    /** The quest types to take ({@code types}); the chosen four by default. */
     Set<Integer> types() {
         Set<Integer> out = new TreeSet<>();
         for (String t : strings("types", List.of("DAILY", "WEEKLY", "EVENT", "MISSION"))) {

@@ -555,7 +555,7 @@ public final class Actions {
         sender.accept(r);
     }
 
-    /** «Принять» in the quest giver's window. */
+    /** The Accept button in the quest giver's window. */
     public void questAccept(int questId) {
         orbit.protocol.gen.QuestAcceptRequest r = new orbit.protocol.gen.QuestAcceptRequest();
         r.questId = questId;
@@ -569,7 +569,7 @@ public final class Actions {
         sender.accept(r);
     }
 
-    /** Cancels a taken quest (the quest window's «Отменить»). */
+    /** Cancels a taken quest (the quest window's Cancel button). */
     public void questCancel(int questId) {
         orbit.protocol.gen.QuestCancelRequest r = new orbit.protocol.gen.QuestCancelRequest();
         r.questId = questId;
@@ -578,7 +578,7 @@ public final class Actions {
 
     // ---- the passes' windows (client facts: SeasonPassUIRewardsMediator, BattlePassUIWindowMediator, ...) ----
 
-    /** Season Pass «Забрать всё» (spcId 0 as the button sends): what the season's levels give and is not claimed. */
+    /** Season Pass Claim All (spcId 0 as the button sends): what the season's levels give and is not claimed. */
     public void seasonClaimAll() {
         orbit.protocol.gen.SeasonPassRewardClaimAllRequest r = new orbit.protocol.gen.SeasonPassRewardClaimAllRequest();
         r.spcId = 0;
@@ -593,7 +593,7 @@ public final class Actions {
         sender.accept(r);
     }
 
-    /** Battle Pass «Забрать» (the bought pass's rewards of finished objectives). */
+    /** Battle Pass Claim (the bought pass's rewards of finished objectives). */
     public void battlePassCollect() {
         sender.accept(new orbit.protocol.gen.BattlePassCollectRequest());
     }
@@ -607,7 +607,7 @@ public final class Actions {
         sender.accept(r);
     }
 
-    /** The diminishing quest window's «Принять» (with the default status module, as the client builds the request). */
+    /** The diminishing quest window's Accept (with the default status module, as the client builds the request). */
     public void diminishingAccept(int questId) {
         orbit.protocol.gen.DiminishingQuestAcceptQuestRequest r = new orbit.protocol.gen.DiminishingQuestAcceptQuestRequest();
         r.questId = questId;

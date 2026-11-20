@@ -73,7 +73,7 @@ public final class CpuJumper {
     public static final double AT_PORTAL = 300;
 
     /**
-     * Where the jump CPU works: at a portal, or in a station that is not an enemy's (the user, 2026-11-11;
+     * Where the jump CPU works: at a portal, or in a station that is not an enemy's (2026-11-11;
      * the recorded jumps were made at portals, the one tried on a Cubikon spawn under fire was called off).
      */
     public static boolean placeForJump(WorldSnapshot w, MapCatalog catalog) {

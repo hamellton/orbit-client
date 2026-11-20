@@ -8,7 +8,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A fight with another player (the behemoth module's defence and enemy hunting, the user 2026-11-13: as AstraBot's
+ * A fight with another player (the behemoth module's defence and enemy hunting, as AstraBot's
  * group behemoth and CARNAGE's PvpHelper / DefenseMode do it): select like a player, the laser ammunition, fire, keep
  * within laser range of a ship that runs, no circling (players are not NPCs: nothing is learned of them).
  */

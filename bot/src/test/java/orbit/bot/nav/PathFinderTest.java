@@ -257,7 +257,7 @@ class PathFinderTest {
 
     @Test
     void anAlliedClansStationOfAnotherCompanyIsNoBar() {
-        // the user, 2026-11-18: «база не вражеская, зачем он её облетает» — an allied clan's (1) or one with a pact (2)
+        // a station that is not hostile is not flown around: an allied clan's (1) or one with a pact (2)
         for (short relation : new short[] {1, 2}) {
             orbit.world.World w = withStation(4000, 6000, 7000, 6000, 2);
             orbit.protocol.gen.AssetCreateCommand a = new orbit.protocol.gen.AssetCreateCommand();
@@ -316,7 +316,7 @@ class PathFinderTest {
         assertEquals(9_500, end[0], 1);
     }
 
-    /** The user's 5-3 avoided zone (DarkBot profile PALLADIUM): all but the palladium field and one-cell lanes. */
+    /** A real 5-3 avoided zone (DarkBot profile PALLADIUM): all but the palladium field and one-cell lanes. */
     private static orbit.config.BotConfig.ZoneGrid fiveThree() {
         return new orbit.config.BotConfig.ZoneGrid(30, List.of(
                 "##############################", "##############################", "##############################",
@@ -333,7 +333,7 @@ class PathFinderTest {
 
     @Test
     void theOneCellLanesToTheFieldAreFlown() {
-        // the user's lanes: from 5-3's portal (38 200/6 600) to the palladium field
+        // the profile's lanes: from 5-3's portal (38 200/6 600) to the palladium field
         var info = orbit.world.maps.MapCatalog.bundled().info(93);
         PathFinder p = PathFinder.avoiding(fiveThree(), info.width(), info.height());
         var path = p.path(38_200, 6_600, 23_200, 21_200);

@@ -8,8 +8,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A service visit on the account's service ship (the user, 2026-11-15: «присылать со Скайлаба лучше на Цитадель, а
- * текущий ангар не всегда Цитадель; бот выбирал лучшее время пересесть, прислать со Скайлаба, обогатить из трюма»):
+ * A service visit on the account's service ship (Skylab transports are better sent to the Citadel, and the current
+ * hangar is not always the Citadel; the bot picks the best time to switch ships, send from the Skylab and enrich from
+ * the hold):
  * when an enriched item falls below {@code visitBelow} and the hold lacks its ore, at a calm moment of the module the
  * bot switches to the service ship ({@code AccountShips.serviceShip}), brings the ore from the Skylab into its big hold,
  * enriches every item up to {@code fillTo}, and switches back to the ship it came from.
@@ -49,7 +50,7 @@ public final class ServiceVisit {
     private int returnTo;
     private long nextAt;
     private boolean disabled;
-    /** «No service ship chosen» told once (the user, 2026-11-16: the visit set in the config, silently never made). */
+    /** «No service ship chosen» told once (2026-11-16: the visit set in the config, silently never made). */
     private boolean toldNoShip;
     private WorldSnapshot.Lab labBefore = WorldSnapshot.Lab.NONE;
     private long serviceSince;
@@ -64,7 +65,7 @@ public final class ServiceVisit {
     private volatile String orderError;
     /** The ore of the order came into the hold: once it is in the lab, the next trip (the hold limits one). */
     private boolean landed;
-    /** Trips this visit (the user, 2026-11-16: «один раз отправил — обогатил, второй раз отправил — обогатил»). */
+    /** Trips this visit (each transport sent is followed by its enrichment). */
     private int trips;
     /** A visit cut by a stop is finished after the next start: its ship to go back to is kept on disk. */
     private boolean savedChecked;
@@ -127,9 +128,9 @@ public final class ServiceVisit {
                     savedChecked = true;
                     int back = savedReturn(service);
                     if (back > 0 && back != service && activeHangar == service) {
-                        // stopped on the service ship mid-visit (the user, 2026-11-16: started again on the Citadel,
+                        // stopped on the service ship mid-visit (2026-11-16: started again on the Citadel,
                         // it flew off to the cubes on it): never work on it — the visit finished first when the
-                        // enrichment is on (the user, 2026-11-18: stopped mid-visit, it went back and waited 3 h with
+                        // enrichment is on (2026-11-18: stopped mid-visit, it went back and waited 3 h with
                         // the lasers running low), the service phase going back by itself when nothing is needed
                         returnTo = back;
                         if (!disabled && s.path("enabled").asBoolean(false) && s.path("visit").asBoolean(false)) {
@@ -218,8 +219,8 @@ public final class ServiceVisit {
 
     /**
      * A ship change the module asks for anyway (the two-ship palladium's «sold — back to collecting»): when a visit is
-     * due, the service ship first and the module's ship after it (the user, 2026-11-16: «после продажи палладия — на
-     * ангар для Скайлаба, сделали, что нужно, — на ангар для сбора; только когда нужно, иначе всё как сейчас»).
+     * due, the service ship first and the module's ship after it (after the palladium sale to the Skylab hangar, what
+     * is needed done, then to the collect hangar; only when needed, otherwise unchanged).
      *
      * @return the hangar to switch to now: the service ship, or {@code wanted} as it was
      */
@@ -411,7 +412,7 @@ public final class ServiceVisit {
                         for (Map.Entry<String, Long> e : lacking.entrySet()) {
                             long there = st.ores().getOrDefault(e.getKey(), 0L);
                             if (there < e.getValue()) {
-                                // told, not refused: what there is goes (the user, 2026-11-16: 14 000 set, 2 997 came)
+                                // told, not refused: what there is goes (2026-11-16: 14 000 set, 2 997 came)
                                 log.warn("Обслуживание: на складе Скайлаба {} {} из нужных {} — везу сколько есть",
                                         e.getKey(), orbit.world.Num.group(there), orbit.world.Num.group(e.getValue()));
                             }
@@ -486,7 +487,7 @@ public final class ServiceVisit {
     /**
      * The transport, tried again when the site refuses: the same amounts and the same kind after
      * {@link #REFUSED_WAIT_MS} — not half (the amount was never the cause), never the normal one in place of a quick one
-     * (the user, 2026-11-19: «автопереключение на не платный транспорт убрать»; live on int1: the slow one held the
+     * (no automatic switch to the free transport; live on int1: the slow one held the
      * visit for minutes); each refusal's page is kept in {@code local/debug} for its reason, which the site sends only
      * by a later ajax call.
      *
@@ -621,7 +622,7 @@ public final class ServiceVisit {
         return serviceSince;
     }
 
-    /** «; за визит: 2 рейса, promerium 14 056; лазеры 49 440 → 190 000» — empty without trips. */
+    /** The visit's tail for the log (trips, ore brought, the item's level before → after) — empty without trips. */
     private String summary(WorldSnapshot.Lab lab) {
         if (trips == 0) {
             return "";
@@ -650,7 +651,7 @@ public final class ServiceVisit {
             log.info("Обслуживание: {} — обратно на свой корабль", why);
         }
         if (trips > 0) {
-            // one line for the whole visit (the user, 2026-11-16: «в логах не понятно, он 2 транспорта сделал?»)
+            // one line for the whole visit (the log did not make clear how many transports were made)
             log.info("Обслуживание: итог{}", summary(ctx.world().get().inventory().lab()).replaceFirst("^; ", " — "));
         }
         phase = Phase.RETURNING;
@@ -681,8 +682,8 @@ public final class ServiceVisit {
     }
 
     /**
-     * The item's level to fill up to on the service ship: its threshold and one load more (the user, 2026-11-16:
-     * «двигатель меньше 100 часов — доставка 1 000 промериума»); an explicit {@code fillTo} of an older config wins.
+     * The item's level to fill up to on the service ship: its threshold and one load more (e.g. a drive below 100 hours
+     * gets 1 000 promerium); an explicit {@code fillTo} of an older config wins.
      */
     static long fillTo(JsonNode s, JsonNode it) {
         long below = it.path("below").asLong(50_000);

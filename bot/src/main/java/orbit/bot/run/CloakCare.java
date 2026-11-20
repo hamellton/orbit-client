@@ -12,9 +12,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A new cloaking CPU when the fitted one has no charges left (the user, 2026-11-14: «крафт невидов и установка их на акк,
- * если закончились — когда есть свободное окно: полёт на свою базу на x-8, установка нового процессора и продолжение — как
- * в даркботе в CARNAGE»; CARNAGE's BLCycle log: «cloak craft to base» 2-BL → 2-8 and back in ~1.5 min). In a free
+ * A new cloaking CPU when the fitted one has no charges left (cloak CPUs crafted and fitted when used up, in a free
+ * window: a flight to the own base on x-8, a new CPU fitted and on with the work, as DarkBot's CARNAGE does; CARNAGE's
+ * BLCycle log: «cloak craft to base» 2-BL → 2-8 and back in ~1.5 min). In a free
  * window ({@link BotModule#freeFor}) the ship flies to its company's x-8, into the base, and there:
  * <ol>
  *   <li>asks the site for the account's CL04K-XL CPUs ({@link HangarAccess#cpus});</li>
@@ -27,8 +27,8 @@ import org.slf4j.LoggerFactory;
  * </ol>
  * Then the module takes the ship back. A failed trip is not tried again for {@link #RETRY_MS}.
  *
- * <p>The same trip takes the pet's lasers off when the module asks for it ({@link BotModule#petLasersOff}; the user,
- * 2026-11-15: «на бегемоті пет має лазери на слотах, якщо є, зніми — можуть в мінус честь загнати»): once a session the
+ * <p>The same trip takes the pet's lasers off when the module asks for it ({@link BotModule#petLasersOff}; at the
+ * behemoth the pet's lasers can bring minus honor, so they come off): once a session the
  * site's hangar view is read ({@link HangarAccess#petLasers}, from anywhere); lasers in a config — in a free window to
  * the base, out of each config in one move ({@link HangarAccess#petLasersOff}), checked on the site, then a new login so
  * the game reads the pet's equipment again.
@@ -627,7 +627,7 @@ final class CloakCare {
         return pl.values().stream().mapToInt(List::size).sum();
     }
 
-    /** «конфиг 1: 7 шт., конфиг 2: 7 шт.» */
+    /** The charges per config, e.g. "config 1: 7 pcs, config 2: 7 pcs". */
     private static String configsText(java.util.Map<Integer, List<String>> pl) {
         return String.join(", ", pl.entrySet().stream().map(e -> "конфиг " + e.getKey() + ": " + e.getValue().size() + " шт.")
                 .toList());

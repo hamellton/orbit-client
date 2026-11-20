@@ -11,19 +11,19 @@ import orbit.world.Quests;
 import orbit.world.WorldSnapshot;
 
 /**
- * «Собрать N скрафченного» ({@link Quests#COLLECT_BUILT_RECIPE}, Season Pass 700030 «25», 700031 «50»; the user,
- * 2026-11-19: «крафт по рецептам, как у AstraBot» — its season module's «Item craft»): while such a condition is
+ * "Collect N crafted" ({@link Quests#COLLECT_BUILT_RECIPE}, Season Pass 700030 "25", 700031 "50"; crafting by
+ * recipes as AstraBot's season module's «Item craft»): while such a condition is
  * open the assembly builds one batch after another of a cheap recipe, and {@code CraftWatch} collects each — a collect is
  * what counts. The recipe the condition names, else the first of {@code modules.quests.craftRecipes} (default
- * {@link #DEFAULTS}) that is free in the assembly and whose price the account has (uridium too: the user, 2026-11-19 —
- * «тратить урик это нормально»); never one whose price is not known. On with the «Квесты» module or with quests alongside ({@link QuestsAlongside});
+ * {@link #DEFAULTS}) that is free in the assembly and whose price the account has (uridium too: spending it is fine);
+ * never one whose price is not known. On with the Quests module or with quests alongside ({@link QuestsAlongside});
  * {@code modules.quests.craft} false turns it off.
  */
 public final class QuestCrafts {
 
     /**
-     * In this order (the user, 2026-11-19: «лучше за кредиты или сепром или рсб»): recipe → the item it makes (for its
-     * name). The Precision Targeter is the client's only recipe for credits alone (20 000); then RSB-75 and Seprom (the user's order) as
+     * In this order (credits, Seprom or RSB preferred): recipe → the item it makes (for its
+     * name). The Precision Targeter is the client's only recipe for credits alone (20 000); then RSB-75 and Seprom as
      * AstraBot crafts them (the friend's VPS logs: {@code seprom-blacklight}, {@code rsb75-blacklight} — uridium, rinusk,
      * Blacklight trace).
      */

@@ -10,7 +10,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * The dispatch's retrievers (the user, 2026-11-19: «диспатч как в даркботе и астработе»), by packets as AstraBot does —
+ * The dispatch's retrievers (as in DarkBot and AstraBot), by packets as AstraBot does —
  * no window: the list in progress asked every {@link #REFRESH_MS} ({@code DispatchGetRetrieverListRequest} 1 — the
  * official client asks only this one; the server answers it with {@code DispatchSlotInfoCommand}, and the retrievers one
  * may send are the client's own definitions, no list of them comes — live 2026-11-19 on gb2: waited for one, asked every

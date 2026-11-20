@@ -21,7 +21,7 @@ public interface BotModule {
      */
     /**
      * The module's work is over and the account should log out (the galaxy gate's EBG: the runs done or no CPU left,
-     * «улететь на базу и выйти из игры»): the reason, {@code null} while it works on.
+     * fly to the base and log out): the reason, {@code null} while it works on.
      */
     default String stopRequest() {
         return null;
@@ -86,7 +86,7 @@ public interface BotModule {
         return java.util.List.of();
     }
 
-    /** The module's own way with a full hold ({@code null}: the config's «Полный трюм»). */
+    /** The module's own way with a full hold ({@code null}: the config's full-hold setting). */
     default CargoPlan cargoPlan(orbit.config.BotConfig c) {
         return null;
     }
@@ -134,7 +134,7 @@ public interface BotModule {
 
     /**
      * True while the module rushes a target flagged {@code RUSH}: the runner leaves no repair, flight or keeping off
-     * offenders to it till the target is dead (the user, 2026-11-17: «совсем не уходить, пока инвок жив»).
+     * offenders to it till the target is dead (never leave while the invoke lives).
      */
     default boolean rushing() {
         return false;

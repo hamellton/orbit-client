@@ -236,10 +236,10 @@ public final class Safety {
             return true;
         }
         MapCatalog.Portal portal = place.portal();
-        // on a Blacklight map as DarkBot's SafetyFinder (the user, 2026-11-19: «ремонт на порту, если стреляют — прыгнуть
-        // в порт и вернуться назад, как в DarkBot»): the repair at the portal; shot there — through it and straight back
+        // on a Blacklight map as DarkBot's SafetyFinder (repair at the portal; shot there — jump through and back):
+        // the repair at the portal; shot there — through it and straight back
         // ({@link #blDance}), then the repair at that portal, no more jumps till repaired (live 2026-11-19 on the VPS,
-        // dr strange: «укрытия нет» jumps from BL map to BL map for 3 hours, the repair never done)
+        // dr strange: jumps from BL map to BL map with no cover found for 3 hours, the repair never done)
         boolean bl = orbit.bot.nav.Router.blacklight(h.mapId());
         boolean backInto = portal != null && portal.toId() == escapedFrom && now - jumpedAt < BACK_INTO_NS;
         if (portal != null && attacked && (hp < s.escapeHp() || bl) && !(bl && blReturned) && w.jumpingTo() == 0
@@ -276,7 +276,7 @@ public final class Safety {
     /**
      * A repair whose hull and shield stop growing ends after this long out of fire (live 2026-11-19 on the VPS: daredevil
      * an hour at the 4-2 portal at 59 % of a 60 % target, dr strange 40 min at the 2-BL portal waiting for the shield,
-     * killed there five times — both in the repair configuration 2; the user, 2026-11-20: «да делай»).
+     * killed there five times — both in the repair configuration 2).
      */
     static final long STALL_MS = 60_000;
     private long repairGrewAt;
@@ -308,7 +308,7 @@ public final class Safety {
 
     private int repairDeaths;
 
-    /** «HP 59% (412 000 из 698 000), щит 30% (…), конфигурация 2» — the numbers to see what a repair waits for. */
+    /** HP and shield in per cent and absolute, and the configuration — the numbers to see what a repair waits for. */
     private static String health(WorldSnapshot.Hero h) {
         orbit.world.Health x = h.health();
         StringBuilder b = new StringBuilder("HP ").append(pct(x.hpPercent())).append("% (").append(orbit.world.Num.group(x.hp()))

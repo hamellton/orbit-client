@@ -8,7 +8,7 @@ class KillModuleLocatorTest {
 
     @Test
     void theListsNameGivesTheGamesNpcNumber() {
-        // the pet's locator on Boss Kristallon (the user, 2026-11-13)
+        // the pet's locator on Boss Kristallon
         assertEquals(23, KillModule.npcNumber("..::{ Boss Kristallon }::.."));
         assertEquals(10, KillModule.npcNumber("-=[ Kristallon ]=-"));
         assertEquals(0, KillModule.npcNumber("-=[ Nobody ]=-"));

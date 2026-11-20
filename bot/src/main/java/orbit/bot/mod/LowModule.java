@@ -18,9 +18,9 @@ import org.slf4j.LoggerFactory;
 
 /**
  * The LoW group gate (docs/LOW.md) as DarkBot's SharedPlugin {@code LowGate} plays it, with KekkaReloaded's waiting for
- * the group, the community's «leave 3 Vagrants» and the user's group of own accounts (2026-11-18: «в точности как у
- * даркбот, но с фишками оставлять вагрантов 3 шт; три аккаунта приглашают друг друга, лидером всегда один; лидер сам
- * проходит, а группа после захода выходит; порт пройден — вся группа снова идёт в лоу порт»).
+ * the group, the community's «leave 3 Vagrants» and a group of own accounts (exactly as DarkBot, plus leaving
+ * 3 Vagrants; three accounts invite each other, always the same leader; the leader runs the gate, the group leaves
+ * after the entry; the gate done, the whole group goes to the LoW portal again).
  *
  * <p>Roles by the config's {@code leader} (the name in the game): the leader gathers the group on x-3 at the portal,
  * jumps first (the server queues him for an instance and beams the group in), fights the waves, charges the relays in
@@ -40,7 +40,7 @@ import org.slf4j.LoggerFactory;
  * {@code {on, item, minNpcs}}, {@code helpersExit} {@code radiation|npc|stay}, {@code between} {@code base|logout} (where a
  * helper waits for the next run; {@code base} by default), {@code restMinutes} (60).
  *
- * <p>The crew (docs/LOW.md §11, the user, 2026-11-18): instead of {@code leader} and {@code members} the leader's config
+ * <p>The crew (docs/LOW.md §11): instead of {@code leader} and {@code members} the leader's config
  * lists {@code helpers} — own accounts ({@code name@server}) the leader starts himself when they are not at work, his keys
  * to the gate. The program writes {@code account} (who runs the config) into the settings, and for a helper
  * {@code role = helper} and {@code crew} (the leader's account) into its own config: a helper plays the leader's LoW

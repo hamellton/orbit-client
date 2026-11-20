@@ -45,7 +45,7 @@ class KillLocatorTest {
 
     @Test
     void theLocatorKeepsLookingForTheInvokeWhileOneIsFought() throws Exception {
-        // dropped while one was in sight: the pet took the config's mode, «ищет Cubikon», blind for the fight and ~5 s
+        // dropped while one was in sight: the pet took the config's mode, still "searching Cubikon", blind for the fight and ~5 s
         Sim sim = new Sim(config(false), 307, 10_000, 6_000);
         KillModule m = new KillModule(sim.ctx, true, false);
         sim.npc(7, INVOKE, 10_400, 6_000);
@@ -70,7 +70,7 @@ class KillLocatorTest {
 
     @Test
     void anInvokeIsTakenThoughAnotherPlayerIsNearerToIt() throws Exception {
-        // its reward goes by the damage: «someone nearer gets it first» kept the ship off it until it was within 700
+        // its reward goes by the damage: "someone nearer gets it first" kept the ship off it until it was within 700
         BotConfig c = BotConfig.empty()
                 .withLoot(new BotConfig.Loot("ammunition_laser_lcb-10", null, 0, 0, null, true, 0, null, false, false, null))
                 .withNpcs(Map.of(INVOKE, new BotConfig.NpcRule(500, -10000, true, Set.of("IGNORE_OWNERSHIP", "IGNORE_ATTACKED"),

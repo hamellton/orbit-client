@@ -19,8 +19,8 @@ import orbit.world.maps.MapCatalog;
 import org.junit.jupiter.api.Test;
 
 /**
- * The user, 2026-11-14: «крафт невидов и установка их на акк, если закончились — когда есть свободное окно: полёт на свою
- * базу на x-8, установка нового процессора и продолжение — как в даркботе в CARNAGE».
+ * Cloaks crafted and fitted when the account runs out of them: in a free window a flight to the own base on x-8, the
+ * new CPU fitted and the work goes on, as DarkBot does it in CARNAGE.
  */
 class CloakCareTest {
 
@@ -208,7 +208,7 @@ class CloakCareTest {
 
     @Test
     void thePetsLasersComeOffAtTheBaseAndTheGameReadsItAtANewLogin() throws Exception {
-        // the user, 2026-11-15: «на бегемоті пет має лазери на слотах, якщо є, зніми — можуть в мінус честь загнати»
+        // on the behemoth the pet's lasers come off if it has any: they could cost honor
         Sim sim = withPet(atHome(12));
         Site site = new Site();
         site.petLasers.put(1, List.of("21", "22"));

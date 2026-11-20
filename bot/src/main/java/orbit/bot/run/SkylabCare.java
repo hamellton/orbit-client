@@ -8,8 +8,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Ore from the Skylab into the hold by its transport module (DarkBot's DmPlugin SkylabSender; the user, 2026-11-15: «бот сам
- * присылал со Скайлаба»): every {@code everyMinutes} — or as soon as the enrichment lacks an ore, with {@code forEnrich} —
+ * Ore from the Skylab into the hold by its transport module (DarkBot's DmPlugin SkylabSender, sent by the bot itself):
+ * every {@code everyMinutes} — or as soon as the enrichment lacks an ore, with {@code forEnrich} —
  * the page is read; no new transport while one is on its way; the amounts are the config's, no more than the hold's room
  * and what the storage holds above {@code keepOnSkylab}.
  *
@@ -69,10 +69,10 @@ public final class SkylabCare {
             return; // the site refused a moment ago (no uridium for the quick one, a limit…): not again at once
         }
         Map<Integer, Long> lacking = new LinkedHashMap<>(s.path("forEnrich").asBoolean(true) ? enrichMissing.get() : Map.of());
-        // a quest's refined ore (the user, 2026-11-17: «скайлаб или переработка»): brought like the enrichment's lack
+        // a quest's refined ore (the Skylab or refining): brought like the enrichment's lack
         ctx.stats().questOres.get().forEach((ore, n) -> lacking.merge(ore, n, Math::max));
         // the want must hold a minute: the ore of a transport may be landing in the hold this very second (live
-        // 2026-11-15 on GE1: «нет seprom» 2 s before the 100 came, a second transport asked and refused)
+        // 2026-11-15 on GE1: seprom reported missing 2 s before the 100 came, a second transport asked and refused)
         if (lacking.isEmpty()) {
             lackingSince = 0;
         } else if (lackingSince == 0) {
@@ -125,7 +125,7 @@ public final class SkylabCare {
                 for (Map.Entry<String, Long> e : want.entrySet()) {
                     long there = Math.max(0, st.ores().getOrDefault(e.getKey(), 0L) - keep);
                     if (there < e.getValue()) {
-                        // a warning, not a refusal: what there is goes (the user, 2026-11-16)
+                        // a warning, not a refusal: what there is goes
                         tellOnce("Скайлаб: на складе " + e.getKey() + " " + there + " из нужных " + e.getValue()
                                 + " — везу сколько есть");
                     }
@@ -139,8 +139,8 @@ public final class SkylabCare {
                 }
                 long sending = send.values().stream().mapToLong(Long::longValue).sum();
                 if (room >= 0 && total > room) {
-                    // the paid one only into a hold at least half free (the user, 2026-11-16: «без премиума у Цитадели
-                    // 8 000 трюма… хотя бы 50 % трюма свободно, если размер большой»), else not in small paid trips
+                    // the paid one only into a hold at least half free (a Citadel without premium has an 8 000
+                    // hold; at least 50 % of a big hold free), else not in small paid trips
                     if (fast && cargoMax > 0 && room * 100 < (long) fastMinFree * cargoMax) {
                         tellOnce("Скайлаб: быстрый транспорт — в трюме свободно " + room + " из " + cargoMax + " (меньше "
                                 + fastMinFree + " %), нужно " + total + " — жду, пока освободится");

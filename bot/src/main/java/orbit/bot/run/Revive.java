@@ -12,13 +12,13 @@ import org.slf4j.LoggerFactory;
  * The kill screen: waits like a player reading it, then takes the repair the config asks for
  * ({@code BASE}, {@code PORTAL}, {@code SPOT}) whatever it costs if affordable, otherwise the base; a
  * single option is taken as it is. Counts deaths for {@code maxDeaths}, and by the player who destroyed the ship for
- * {@code maxDeathsPerPlayer} (AstraBot's setting, the user 2026-11-13; only kills the server marks as a player's).
+ * {@code maxDeathsPerPlayer} (AstraBot's setting; only kills the server marks as a player's).
  * <p>Paid revives in a row are limited ({@code paidRevives}): killed again within {@code paidReviveMinutes} of a
  * revive at the portal or on the spot (live 2026-11-11: a player kept killing the ship at the portal) counts as
  * «in a row»; past the limit the ship revives at the base once and the count starts again. The count is kept
  * in the account's data folder, so a restart does not reset it.
- * <p>Also when the bot is logging out the repair is the config's (the user, 2026-11-13: paying at the portal to log out
- * there is right, keep it).
+ * <p>Also when the bot is logging out the repair is the config's (paying at the portal to log out
+ * there is right).
  */
 public final class Revive {
 
@@ -129,8 +129,8 @@ public final class Revive {
             }
         }
         if (death != null && !killerCounted) {
-            // the kill screen may come a moment after the ship is seen dead (live 2026-11-13 on the VPS: «уничтожен (?)»,
-            // the player's death not counted): counted when it comes
+            // the kill screen may come a moment after the ship is seen dead (live 2026-11-13 on the VPS: destroyed by
+            // an unknown killer, the player's death not counted): counted when it comes
             killerCounted = true;
             if (death.cause() == DestructionTypeModule.DESTRUCTIONCAUSE_PLAYER && death.killer() != null
                     && !death.killer().isBlank()) {
@@ -252,7 +252,7 @@ public final class Revive {
                 || o.type() == KillScreenOptionTypeModule.OPTIONTYPE_BASIC_FULL_REPAIR;
     }
 
-    /** {@code на базе — бесплатно}, {@code у портала — 200}… for the log. */
+    /** The repair option and its price for the log (at the base free, at the portal 200…). */
     static String describe(WorldSnapshot.RepairOption o) {
         String place = switch (o.type()) {
             case KillScreenOptionTypeModule.OPTIONTYPE_BASIC_REPAIR, KillScreenOptionTypeModule.OPTIONTYPE_FREE_PHOENIX,

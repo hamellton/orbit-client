@@ -4,13 +4,13 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * What the accounts of one LoW group tell each other inside the program (docs/LOW.md, the user, 2026-11-18: «у нас все
- * аки можно сделать в одной проге»): the leader's phase — gathering on x-3, jumping in, the gate started, done — and when
+ * What the accounts of one LoW group tell each other inside the program (docs/LOW.md; all the accounts can run in one
+ * program): the leader's phase — gathering on x-3, jumping in, the gate started, done — and when
  * it began; the helpers read it to come to the portal, to leave after the start and to log in again for the next run.
  * One board per leader (the name as in the game, any case); the helpers that left the group see nothing of it in the
  * game's packets any more, so the board is their only word from the leader.
  *
- * <p>The leader's own crew (docs/LOW.md §11, the user, 2026-11-18): the leader's config lists the accounts that are his
+ * <p>The leader's own crew (docs/LOW.md §11): the leader's config lists the accounts that are his
  * keys to the gate; the board is then keyed by the leader's account ({@code name@server}), the leader writes his name in
  * the game and his LoW settings on it, each helper its name, and the program's {@link Crew} starts the helpers.
  */
@@ -36,7 +36,7 @@ public final class LowBoard {
         /**
          * Starts the stopped account {@code helper} as {@code leader}'s helper.
          *
-         * @return {@code null} when it runs for the leader now, otherwise why not («уже в работе»)
+         * @return {@code null} when it runs for the leader now, otherwise why not (e.g. already at work)
          */
         String take(String leader, String helper);
 
@@ -159,7 +159,7 @@ public final class LowBoard {
         return phase == Phase.GATHER || phase == Phase.ENTERING;
     }
 
-    /** A helper's word for the window («у портала», «вышел»…). */
+    /** A helper's word for the window (at the portal, left…). */
     public void helper(String name, String status) {
         if (name != null && !name.isBlank()) {
             helpers.put(name, status);

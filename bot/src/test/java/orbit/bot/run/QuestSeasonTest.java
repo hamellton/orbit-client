@@ -26,8 +26,8 @@ import orbit.world.maps.NpcMaps;
 import org.junit.jupiter.api.Test;
 
 /**
- * The user, 2026-11-19, after comparing with DmPlugin and AstraBot: no reroll of the missions that count other missions,
- * cargo boxes, crafting for «collect built recipes», quests alongside another module.
+ * As DmPlugin and AstraBot do it: no reroll of the missions that count other missions, cargo boxes, crafting for
+ * "collect built recipes", quests alongside another module.
  */
 class QuestSeasonTest {
 
@@ -129,7 +129,7 @@ class QuestSeasonTest {
                 "10 000 credits of 20 000, no rinusk told: nothing to craft");
         sepromPrice(sim, 1);
         assertEquals(SEPROM, QuestCrafts.craftRule(sim.config, sim.world.snapshot(sim.now)).recipe(),
-                "uridium is fine (the user)");
+                "uridium is fine (user's choice)");
         credits(sim, 5_000_000);
         assertTrue(m.doable(sim.world.snapshot(sim.now).quests().active().get(700030)));
         CraftWatch w = new CraftWatch(sim.ctx);
@@ -142,7 +142,7 @@ class QuestSeasonTest {
 
     @Test
     void rsbBeforeSepromWhenTheCreditsAreShort() throws Exception {
-        // the user's order (2026-11-19): Precision Targeter, RSB-75 BL, Seprom BL
+        // user's choice of order: Precision Targeter, RSB-75 BL, Seprom BL
         Sim sim = new Sim(config(BotConfig.Module.QUESTS, "{}"), 26, 7_500, 3_900);
         season(sim, 700030, 9, Quests.COLLECT_BUILT_RECIPE, 25);
         recipe(sim, PT, SEPROM, "recipe_blueprint-rsb75-blacklight");

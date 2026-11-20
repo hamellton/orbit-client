@@ -14,7 +14,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * The Cubikon camp on the x-6 maps (the user's working DarkBot profile, GE5 Cubi Camp logic):
+ * The Cubikon camp on the x-6 maps (the owner's working DarkBot profile, GE5 Cubi Camp logic):
  * <ul>
  *   <li>a live Cubikon on the map — even one others fight — is attacked at once;</li>
  *   <li>its boxes are picked up while it has more than {@code boxesWhileCubikonHpAbove} HP;</li>
@@ -24,7 +24,7 @@ import org.slf4j.LoggerFactory;
  *       shows up), next spot;</li>
  *   <li>a Cubikon that dies in sight (whoever killed it): its boxes, then straight to the next spawn,
  *       no fights on the way;</li>
- *   <li>NPCs the list marks "не бить" (Protegit) are never shot.</li>
+ *   <li>NPCs the list marks "do not attack" (Protegit) are never shot.</li>
  * </ul>
  * Spots ({@code spotMode}): {@code ROUND} — the config's spots in turn, nearest first; {@code LEARNED} —
  * also the spawns the bot has seen ({@link SpawnMemory}), going where a Cubikon is due back soonest,
@@ -41,7 +41,7 @@ public final class CubikonModule implements BotModule {
     static final double SEEN_DYING = 2_500;
     /** See {@link #chooseLearned}. */
     static final long UNKNOWN_PENALTY_MS = 60_000;
-    /** Longest wait on a spawn seen empty before (the user's DarkBot camp waits 90 s). */
+    /** Longest wait on a spawn seen empty before (the owner's DarkBot camp waits 90 s). */
     static final long EMPTY_WAIT_MS = 90_000;
     /** A look around on a spawn of unknown state before choosing again. */
     static final long LOOK_MS = 5_000;
@@ -132,7 +132,7 @@ public final class CubikonModule implements BotModule {
         return workMap;
     }
 
-    /** «Перелёт: CPU» in the cubes tab: jumps between the x-6 maps, uridium within the day's budget. */
+    /** The CPU travel option in the cubes tab: jumps between the x-6 maps, uridium within the day's budget. */
     @Override
     public int jumpUridiumPerDay() {
         JsonNode s = ctx.config().get().modules().get(BotConfig.Module.CUBIKON.key());
@@ -198,7 +198,7 @@ public final class CubikonModule implements BotModule {
                 status = "Подбираю " + boxes.currentName() + " с куба";
                 return;
             }
-            // a full hold is not waited out, even while the pet sells: on at once (the user's choice 2026-11-12)
+            // a full hold is not waited out, even while the pet sells: on at once (user's choice, 2026-11-12)
             if (setting(s, "collectBoxes", true) && ctx.now() - deadAtNanos < BOX_WAIT_MS * 1_000_000) {
                 ctx.nav().stop();
                 status = "Жду ящик с куба";

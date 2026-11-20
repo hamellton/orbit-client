@@ -106,7 +106,7 @@ final class CargoCare {
     }
 
     /**
-     * The ores the enrichment uses are not sold (the user, 2026-11-15: promerium brought from the Skylab for the lasers,
+     * The ores the enrichment uses are not sold (2026-11-15: promerium brought from the Skylab for the lasers,
      * and CUBIKON's list sold promerium): every ore of an item set on, while the enrichment is on.
      */
     static CargoPlan keepEnrichOres(BotConfig c, CargoPlan plan) {

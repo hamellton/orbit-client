@@ -93,7 +93,7 @@ class BehemothModuleTest {
 
     @Test
     void thePetIsInUntilTheBehemothThenTheBeaconAndHpLinkWhenTheHullIsLow() throws Exception {
-        // AstraBot: petOnlyOnBehemoth, usePetCombatBeacon, PET hpLinkMinPercent 65 (the user, 2026-11-13)
+        // AstraBot: petOnlyOnBehemoth, usePetCombatBeacon, PET hpLinkMinPercent 65
         BotConfig c = config(300);
         var s = c.moduleSettings("behemoth");
         s.put("petOnlyOnBehemoth", true);
@@ -143,7 +143,7 @@ class BehemothModuleTest {
 
     @Test
     void onTheWayToThePointNpcFireIsNotAnsweredOnlyAtThePoint() throws Exception {
-        // the user, 2026-11-14: «когда летим на точку, не стреляем нпс — только на точке, когда ждём, если сами стрельнут»
+        // no fire at NPCs on the way to the point: only at the point while waiting, and only if they shoot first
         Sim sim = new Sim(config(300), 308, 12_000, 8_000); // far from 3-BL's point 5 700/2 600
         sim.holdShip = true;
         BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
@@ -178,7 +178,7 @@ class BehemothModuleTest {
 
     @Test
     void aTrainByTheBehemothIsNotRunFromAndTheShipStandsOnTheFarSide() throws Exception {
-        // CARNAGE's BLCycle: their attacks ignored, avoidEnemyOrbit (the user, 2026-11-13)
+        // CARNAGE's BLCycle: their attacks ignored, avoidEnemyOrbit
         Sim sim = new Sim(with(config(300), "{\"trainMode\": true, \"avoidEnemyOrbit\": true}"), 308, 8_000, 5_700);
         sim.lasers("ammunition_laser_a-bl");
         BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
@@ -197,7 +197,7 @@ class BehemothModuleTest {
 
     @Test
     void inTheTrainModeTheBehemothsFightHoldsItsGroundAgainstTheOffendersCircles() throws Exception {
-        // live 2026-11-13 on the VPS: «DoWarBoy рядом — ухожу на другую сторону» in the behemoth's fight, the train
+        // live 2026-11-13 on the VPS: "DoWarBoy near, moving to the other side" in the behemoth's fight, the train
         // config says to stay — the runner leaves the offenders' circles alone while the module holds its ground
         Sim sim = new Sim(with(config(300), "{\"trainMode\": true}"), 308, 8_000, 5_600);
         sim.lasers("ammunition_laser_a-bl");
@@ -530,7 +530,7 @@ class BehemothModuleTest {
 
     @Test
     void cloakedBetweenMapsToo() throws Exception {
-        // the user, 2026-11-14: «на перелётах невид тоже нужен» — the runner flies 2-8 → BL, the cloak is used on the way
+        // the cloak is wanted between maps too: the runner flies 2-8 → BL, the cloak is used on the way
         Sim sim = new Sim(with(config(300), "{\"useCloak\": true}"), 24, 11_200, 1_200);
         sim.lasers("ammunition_laser_ucb-100", orbit.config.ItemCatalog.CLOAK_BAR);
         BotRunner r = new BotRunner(sim.ctx, () -> false, x -> { });
@@ -733,7 +733,7 @@ class BehemothModuleTest {
 
     @Test
     void enemiesByTheWaitPointMakeTheShipWaitOnTheFreeSideOfTheSpawn() throws Exception {
-        // the user, 2026-11-13: «стоять в точке рядом с бегемотом со стороны где нет никого»
+        // wait at a point near the behemoth on the side where nobody is
         Sim sim = new Sim(with(config(300), "{\"freeSide\": true, \"freeSideRadius\": 2000}"), 308, 4_000, 8_000);
         BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
         m.workingMap();
@@ -809,7 +809,7 @@ class BehemothModuleTest {
 
     @Test
     void enemiesFarAwayDoNotMoveTheShipOffTheWaitPoint() throws Exception {
-        // live 2026-11-13 on the VPS, 1-BL: «Чужие у точки ожидания (12033 от ближайшего) — встаю со свободной стороны»
+        // live 2026-11-13 on the VPS, 1-BL: "enemies by the wait point (12033 from the nearest), moving to the free side"
         Sim sim = new Sim(with(config(300), "{\"freeSide\": true}"), 308, 5_700, 2_600);
         BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
         m.workingMap();
@@ -821,7 +821,7 @@ class BehemothModuleTest {
 
     @Test
     void theShipWaitsAwayFromTheWaysPortalToSpawnTheTrainsFly() throws Exception {
-        // the user, 2026-11-13: «точку недалеко от бегемота, но не со стороны порта, чтобы поезд не задел»
+        // a point near the behemoth but not on the portal's side, so a train does not touch the ship
         Sim sim = new Sim(with(config(300), "{\"awayFromPortals\": true, \"freeSideRadius\": 2000}"), 308, 4_000, 6_000);
         BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
         m.workingMap();
@@ -855,7 +855,7 @@ class BehemothModuleTest {
 
     @Test
     void byDefaultTheLocatorsNothingDoesNotCutTheWaitShort() throws Exception {
-        // the user, 2026-11-13: «долетает до точки и не ждёт, а в конфиге стоит, чтобы ждал»
+        // the ship reached the point and did not wait although the config said to wait
         Sim sim = new Sim(with(config(30), "{\"useLocator\": true}"), 308, 5_700, 2_600);
         BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
         locatorPet(sim);
@@ -889,7 +889,7 @@ class BehemothModuleTest {
 
     @Test
     void aTrainCampingTheSpawnWithTheBehemothUnseenSetsItsTimer() throws Exception {
-        // the user, 2026-11-13: «поезд полетел на 3-BL убивать бегемота, а мы улетели» — the bot had no timers
+        // a train flew to 3-BL to kill the behemoth while the ship left: the bot had no timers
         Sim sim = new Sim(with(config(300), "{\"trainTimer\": true}"), 308, 5_700, 2_600);
         SpawnMemory mem = SpawnMemory.inMemory();
         BehemothModule m = new BehemothModule(sim.ctx, mem);
@@ -906,7 +906,7 @@ class BehemothModuleTest {
 
     @Test
     void aTrainComingToTheSpawnKeepsTheShipWaiting() throws Exception {
-        // the user, 2026-11-13: «не улетать, если поезд идёт к нам»
+        // do not leave while a train is coming to us
         Sim sim = new Sim(with(config(5), "{\"waitForTrain\": true}"), 308, 5_700, 2_600);
         BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
         m.workingMap();
@@ -928,7 +928,7 @@ class BehemothModuleTest {
 
     @Test
     void aMapWhoseTimeIsUnknownIsWaitedOnUntilItsBehemothComes() throws Exception {
-        // the user, 2026-11-17: 2-BL's time unknown, two minutes there and on, again and again all night
+        // 2-BL's time unknown, two minutes there and on, again and again all night
         Sim sim = new Sim(with(config(30), "{\"waitUnknown\": true}"), 308, 5_700, 2_600);
         BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
         m.workingMap();
@@ -1007,7 +1007,7 @@ class BehemothModuleTest {
 
     @Test
     void theTrainsWaysAreFlownRoundButTheirEndsLeftOpen() throws Exception {
-        // the user, 2026-11-13: «у них самый краткий полёт от порта к бегемоту … полёт по другой траектории»
+        // trains fly the shortest way from the portal to the behemoth, so the ship flies another way
         Sim sim = new Sim(with(config(300), "{\"avoidTrainPaths\": true}"), 308, 15_000, 6_000);
         BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
         m.workingMap();
@@ -1046,7 +1046,7 @@ class BehemothModuleTest {
 
     @Test
     void theBehemothsBoxesByItsSpawnArePickedUpWhileWaitingWhateverTheirType() throws Exception {
-        // the user, 2026-11-14: «на месте бегемота жёлтые точки — коробки, но он их не собирает»
+        // yellow dots where the behemoth was are boxes, and they were not collected
         Sim sim = new Sim(with(config(300), "{\"trainMode\": true}"), 307, 5_200, 5_000);
         BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
         m.workingMap();
@@ -1097,7 +1097,7 @@ class BehemothModuleTest {
 
     @Test
     void anOffenderOfOurOwnCompanyMovesTheShipAsideToo() throws Exception {
-        // the user, 2026-11-20: «обидчиком может быть любой абсолютно» — one who attacked the ship, whatever his company
+        // anyone at all can be an offender: one who attacked the ship, whatever his company
         Sim sim = new Sim(with(config(300), "{\"trainStyle\": \"v2\"}"), 307, 5_200, 5_000);
         BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
         com.fasterxml.jackson.databind.JsonNode s = sim.ctx.config().get().moduleSettings("behemoth");
@@ -1118,7 +1118,7 @@ class BehemothModuleTest {
 
     @Test
     void theStepAsideKeepsTheMarginAndWhereTheEnemyFliesTo() throws Exception {
-        // the user, 2026-11-20: out of the circle by 100–200 (near the behemoth), away from a train coming at the ship
+        // out of the circle by 100–200 (near the behemoth), away from a train coming at the ship
         Sim sim = new Sim(with(config(300), "{\"trainStyle\": \"v2\", \"dodgeMargin\": 150}"), 307, 5_200, 5_000);
         BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
         com.fasterxml.jackson.databind.JsonNode s = sim.ctx.config().get().moduleSettings("behemoth");
@@ -1148,8 +1148,7 @@ class BehemothModuleTest {
 
     @Test
     void inAnOffendersCircleOnTheWayTheShipBacksAwayThenGoesOnToThePoint() throws Exception {
-        // the user, 2026-11-20: «не облетать, а двигаться в противоположном направлении, и если вышел из круга — бежать на
-        // точку, и так всё время»
+        // no flying round: move the opposite way, and once out of the circle run to the point, and so on all the time
         Sim sim = new Sim(with(config(300), "{\"trainStyle\": \"v2\", \"dodgeMargin\": 150}"), 307, 5_200, 5_000);
         BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
         com.fasterxml.jackson.databind.JsonNode s = sim.ctx.config().get().moduleSettings("behemoth");
@@ -1179,7 +1178,7 @@ class BehemothModuleTest {
 
     @Test
     void theRollbackStyleIgnoresOffendersOfOurCompanyAndDoesNotBackAway() throws Exception {
-        // the user, 2026-11-20: both behaviours kept, «v1» = as the restore point best-2026-11-20
+        // both behaviours kept, "v1" = as the restore point best-2026-11-20
         Sim sim = new Sim(with(config(300), "{\"dodgeMargin\": 150}"), 307, 5_200, 5_000);
         BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
         com.fasterxml.jackson.databind.JsonNode s = sim.ctx.config().get().moduleSettings("behemoth");
@@ -1201,7 +1200,7 @@ class BehemothModuleTest {
 
     @Test
     void theStepAsideGoesAsFarAsTheConfigLets() throws Exception {
-        // the user, 2026-11-20: «не дальше 1 200 — сделать настраиваемым», up to the corner
+        // the step aside was capped at 1 200, now configurable, up to the corner
         Sim sim = new Sim(with(config(300), "{\"trainStyle\": \"v2\", \"dodgeMax\": 2400}"), 307, 5_200, 5_000);
         BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
         com.fasterxml.jackson.databind.JsonNode s = sim.ctx.config().get().moduleSettings("behemoth");
@@ -1224,7 +1223,7 @@ class BehemothModuleTest {
 
     @Test
     void enemiesByTheWaitPointMoveTheShipAsideAndBack() throws Exception {
-        // the user, 2026-11-14: «отлетать не сильно от зоны, не ближе к обидчикам; как отлетят — ближе к точке»
+        // move not far from the zone and not nearer the offenders; once they leave, back nearer the point
         Sim sim = new Sim(config(300), 307, 5_200, 5_000);
         BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
         com.fasterxml.jackson.databind.JsonNode s = sim.ctx.config().get().moduleSettings("behemoth");
@@ -1245,7 +1244,7 @@ class BehemothModuleTest {
 
     @Test
     void aBoxByTheBehemothIsPickedUpInItsFightWhileTheLasersStayOnIt() throws Exception {
-        // the user, 2026-11-14: «во время боя с бегемотом подбирать коробки, что там уже есть»
+        // in the behemoth's fight the boxes already there are picked up
         Sim sim = new Sim(with(config(300), "{\"trainMode\": true}"), 307, 6_500, 5_000);
         sim.lasers("ammunition_laser_a-bl");
         BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
@@ -1266,7 +1265,7 @@ class BehemothModuleTest {
 
     @Test
     void aWindowBeforeTheNextBehemothIsUsedForAnotherMapsBoxes() throws Exception {
-        // the user, 2026-11-14: «есть свободное окно — облететь и собрать коробки»
+        // a free window is used to fly round and collect boxes
         Sim sim = new Sim(with(config(30), "{\"arriveOnTime\": true, \"trainMode\": true, \"respawnSeconds\": 915}"),
                 308, 4_700, 3_900);
         SpawnMemory mem = SpawnMemory.inMemory();
@@ -1354,7 +1353,7 @@ class BehemothModuleTest {
 
     @Test
     void theBehemothMissingFromTheLocatorsListSendsTheShipOn() throws Exception {
-        // the user, 2026-11-13: «если его даже выбрать нельзя, то его нет на карте»
+        // if it cannot even be chosen in the locator, it is not on the map
         Sim sim = new Sim(with(config(30), "{\"useLocator\": true, \"locatorList\": true}"), 308, 5_700, 2_600);
         BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
         locatorPet(sim);
@@ -1381,8 +1380,8 @@ class BehemothModuleTest {
 
     @Test
     void aWaitPointAmongEnemiesIsLeftForAFreeOne() throws Exception {
-        // live 2026-11-13 on the VPS, 2-BL: «нет пути к 87/42 … иду напрямик» between two trains; then «стоит на месте и не
-        // на точке» (the user) — a free point away from them is flown to instead
+        // live 2026-11-13 on the VPS, 2-BL: "no path to 87/42, going straight" between two trains; then the ship stood
+        // still off the point; a free point away from them is flown to instead
         Sim sim = new Sim(with(config(300), "{\"avoidEnemies\": true, \"freeSide\": true}"), 308, 12_000, 8_000);
         BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
         sim.ctx.nav().setAvoidedPlayers(m::avoidCircles);
@@ -1396,7 +1395,7 @@ class BehemothModuleTest {
 
     @Test
     void theFirstMapIsWaitedOnUntilTheFirstBehemoth() throws Exception {
-        // the user, 2026-11-13: «на первой же карте простоять всё время, пока не дождёмся бегемота, дождались — и по кругу»
+        // stay on the very first map until its behemoth comes, then go round the maps
         Sim sim = new Sim(with(config(30), "{\"waitFirst\": true}"), 308, 5_700, 2_600);
         BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
         m.workingMap();
@@ -1413,8 +1412,8 @@ class BehemothModuleTest {
 
     @Test
     void timersThatFoundNothingForAWhileAreForgottenAndEachMapIsWaitedOnAgain() throws Exception {
-        // the user, 2026-11-15: «запомнил тайминги, потом что-то поменялось и не может найти бегемота какое-то время —
-        // ждать на карте до появления, и так на трёх картах»; the VPS night before: 01:00–07:44 «бегемота нет», on, on
+        // timers learned, then something changed and no behemoth is found for a while: wait on each map until it comes,
+        // on all three maps; the VPS night before: 01:00–07:44 "no behemoth", on and on
         Sim sim = new Sim(with(config(30), "{\"relearnTimers\": true, \"relearnMinutes\": 10}"), 308, 5_700, 2_600);
         SpawnMemory memory = SpawnMemory.inMemory();
         BehemothModule m = new BehemothModule(sim.ctx, memory);
@@ -1459,7 +1458,7 @@ class BehemothModuleTest {
 
     @Test
     void aTimerThatDidNotComeTrueLeavesTheShipWaitingThereWhenUnknownMapsAreWaitedOn() throws Exception {
-        // the user, 2026-11-17: «а если он улетел, а там таймер сбился — то что?»
+        // the ship left and the timer there went wrong: what then
         Sim sim = new Sim(with(config(30), "{\"waitUnknown\": true}"), 308, 5_700, 2_600);
         SpawnMemory mem = SpawnMemory.inMemory();
         BehemothModule m = new BehemothModule(sim.ctx, mem);
@@ -1497,7 +1496,7 @@ class BehemothModuleTest {
 
     @Test
     void theLocatorsFlickerDoesNotTurnTheShipBack() throws Exception {
-        // live 2026-11-13 on the VPS, 2-BL: a point, «nothing» 9 s later, the point again — the ship turned back each time
+        // live 2026-11-13 on the VPS, 2-BL: a point, "nothing" 9 s later, the point again — the ship turned back each time
         Sim sim = new Sim(with(config(300), "{\"useLocator\": true}"), 308, 5_700, 2_600);
         BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
         locatorPet(sim);
@@ -1564,7 +1563,7 @@ class BehemothModuleTest {
 
     @Test
     void aTrainLeavingThroughAPortalIsFollowedAfterAWhile() throws Exception {
-        // the user, 2026-11-13: «после поезда туда не полетел, а туда поехал поезд, потому что там сейчас бегемот появится»
+        // the ship did not follow the train, which went there because the behemoth was about to appear
         Sim sim = new Sim(with(config(300), "{\"followTrain\": true}"), 308, 5_700, 2_600);
         BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
         m.workingMap();
@@ -1676,7 +1675,7 @@ class BehemothModuleTest {
 
     @Test
     void beforeTheBehemothTheShipWaitsAsNearItsSpawnAsTheEnemiesLet() throws Exception {
-        // the user, 2026-11-14: «не прямо возле него, но как можно ближе, как позволяют атакующие корабли, и там ждать»
+        // not right by it but as near as the attacking ships let, and wait there
         Sim sim = new Sim(with(config(300), "{\"closeBeforeSeconds\": 45, \"trainMode\": true}"), 308, 5_700, 2_600);
         SpawnMemory mem = SpawnMemory.inMemory();
         mem.killed(308, 4_700, 3_900, System.currentTimeMillis() - 15 * 60_000 + 40_000); // due in 40 s
@@ -1694,7 +1693,7 @@ class BehemothModuleTest {
 
     @Test
     void theShipLearnsWhereTheEnemiesGoAndWaitsWhereTheyAreLeast() throws Exception {
-        // the user, 2026-11-14: «найдём идеальную точку, чтобы дождаться бегемота и чтобы поезда не били»
+        // find the ideal point to wait for the behemoth where the trains do not hit the ship
         Sim sim = new Sim(with(config(300), "{\"learnSafeSpot\": true, \"awayFromPortals\": true}"), 308, 5_700, 2_600);
         BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
         m.workingMap();

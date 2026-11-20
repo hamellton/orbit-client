@@ -45,14 +45,14 @@ public record BotContext(Supplier<WorldSnapshot> world, Supplier<BotConfig> conf
 
     /**
      * A human's reaction before an action (select, press, jump, launch, log out, click a box): {@link #pause} with the
-     * config's «человеческие паузы» on, nothing with it off (the default; the user, 2026-11-17: AstraBot took the invokes
+     * config's human pauses on, nothing with it off (the default; AstraBot took the invokes
      * first). Retry gaps and the movement's rhythm stay {@link #pause}: they keep the server from being flooded.
      */
     public long react(long minMs, long maxMs) {
         return humanPauses() ? pause(minMs, maxMs) : 0;
     }
 
-    /** The config's «человеческие паузы» ({@code modules.human.pauses}), off unless set. */
+    /** The config's human pauses ({@code modules.human.pauses}), off unless set. */
     public boolean humanPauses() {
         orbit.config.BotConfig c = config().get();
         return c != null && c.moduleSettings("human").path("pauses").asBoolean(false);

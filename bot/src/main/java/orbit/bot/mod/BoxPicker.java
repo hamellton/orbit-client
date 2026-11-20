@@ -58,7 +58,7 @@ public final class BoxPicker {
         return hash != null;
     }
 
-    /** «палладий»: what is being picked up now, for the status. */
+    /** "palladium": what is being picked up now, for the status. */
     /** The box being taken, {@code null} none or gone. */
     public WorldSnapshot.Collectable currentBox(WorldSnapshot w) {
         return hash == null ? null : w.collectables().get(hash);
@@ -79,7 +79,7 @@ public final class BoxPicker {
 
     /**
      * Boxes of any type within {@code within} of (ax, ay), the config's box list and «contested» aside: the behemoth's
-     * boxes by its spawn (the user, 2026-11-14: «на месте бегемота жёлтые точки — коробки, но он их не собирает»; their
+     * boxes by its spawn (2026-11-14: yellow dots, boxes, at the behemoth's spot were left uncollected; their
      * type is not in the train configs' list and a train always stands by them). Mines and fireworks still not.
      */
     public boolean tickAnyType(double ax, double ay, double within) {
@@ -181,7 +181,7 @@ public final class BoxPicker {
         if (hash != null && !w.collectables().containsKey(hash)) {
             if (tries == 0) {
                 // gone before the ship asked for it (another took it, or the game removed it): not ours (live
-                // 2026-11-17 on gb2: «Подобрал груз» thirty times, the cargo quest still 0/100)
+                // 2026-11-17 on gb2: a cargo pickup logged thirty times, the cargo quest still 0/100)
                 log.info("{} исчез раньше, чем я его взял", orbit.config.LootNames.of(current));
             } else {
                 boxes++;
@@ -286,7 +286,7 @@ public final class BoxPicker {
                                 && (key(b).startsWith(BEHEMOTH_BOX) || rule != null && rule.collect());
                     }
                     BotConfig.BoxRule r = rule(c, key(b));
-                    // mines and fireworks show among the resources but are no boxes (the user's list, 2026-11-12)
+                    // mines and fireworks show among the resources but are no boxes (list as of 2026-11-12)
                     return r != null && r.collect() && orbit.config.BoxCatalog.collectable(key(b));
                 })
                 // not where an NPC flagged IGNORE_BOXES died a moment ago
@@ -302,7 +302,7 @@ public final class BoxPicker {
                         : Math.hypot(b.x() - anchorX, b.y() - anchorY) <= (within > 0 ? within : c.collect().radius()))
                 .filter(b -> anyType || !c.collect().ignoreContested() || !contested(w, b))
                 .filter(b -> !c.general().avoidMines() || !orbit.bot.nav.PathFinder.nearMine(w, b.x(), b.y()))
-                // not by a player who attacked the ship this session (the config's «Обходить тех, кто стрелял»)
+                // not by a player who attacked the ship this session (the config's avoid-those-who-shot option)
                 .filter(b -> !ctx.nav().inDanger(b.x(), b.y()))
                 // DarkBot's collector: the box priority first (lower first), then the nearest
                 .min(Comparator.<WorldSnapshot.Collectable>comparingInt(b -> {

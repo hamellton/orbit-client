@@ -30,7 +30,7 @@ import orbit.world.maps.MapCatalog;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-/** The user, 2026-11-18: LoW «в точности как у даркбот, но оставлять вагрантов 3 шт; лидер сам проходит, группа после захода выходит». */
+/** LoW exactly as DarkBot, but 3 Vagrants are left; the leader runs it himself, the group leaves after the entry. */
 class LowModuleTest {
 
     static final int X3 = MapCatalog.bundled().byName("3-3").id();

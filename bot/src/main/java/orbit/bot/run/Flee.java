@@ -183,7 +183,7 @@ public final class Flee {
             all = ctx.maps().portals(h.mapId()).stream()
                     .filter(p -> p.faction() == 0 || p.faction() == h.factionId()).toList();
         }
-        // a portal with a way back first, unless the user lets the bot jump anywhere
+        // a portal with a way back first, unless the config lets the bot jump anywhere
         java.util.List<MapCatalog.Portal> back = ctx.config().get().safety().oneWayJumps() ? all
                 : all.stream().filter(p -> !Safety.oneWay(ctx.maps(), p, h)).toList();
         return (back.isEmpty() ? all : back).stream()

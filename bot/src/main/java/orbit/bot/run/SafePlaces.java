@@ -8,7 +8,7 @@ import orbit.world.WorldSnapshot;
 import orbit.world.maps.MapCatalog;
 
 /**
- * Where the ship is safe to repair (low HP), to wait or to log out (the user, 2026-11-12): a base on the map — the
+ * Where the ship is safe to repair (low HP), to wait or to log out: a base on the map — the
  * own company's or a shared one (5-2's), never another company's — and the portals the ship can really jump
  * through: none refused a jump this run ({@link Stats#closedPortals}). A portal with no way back (5-2 → 5-3) is a place to stand,
  * not to jump; a base or a portal with a way back comes first, so on 5-2 the ship runs to the shared base.
@@ -85,7 +85,7 @@ public final class SafePlaces {
      * The nearest safe place: a base or a portal with a way back first; else a one-way portal to stand at; else
      * any portal of the map (nothing better known); {@code null} on a map with neither (a gate, an instance).
      *
-     * @param oneWayJumps the user lets the bot jump through one-way portals too
+     * @param oneWayJumps the config lets the bot jump through one-way portals too
      */
     public static Place nearest(WorldSnapshot w, MapCatalog maps, Set<String> closed, boolean oneWayJumps) {
         return nearest(w, maps, closed, oneWayJumps, 0);
@@ -93,8 +93,7 @@ public final class SafePlaces {
 
     /**
      * The same, away from the work map ({@code workMap}, after an escape jump): the portal back to it first, so
-     * the ship repairs where it came in and goes straight back (the user, 2026-11-12: 2-BL → 2-8, not to 2-8's
-     * base).
+     * the ship repairs where it came in and goes straight back (2-BL → 2-8, not to 2-8's base).
      */
     public static Place nearest(WorldSnapshot w, MapCatalog maps, Set<String> closed, boolean oneWayJumps, int workMap) {
         WorldSnapshot.Hero h = w.hero();
@@ -114,7 +113,7 @@ public final class SafePlaces {
             (back || oneWayJumps ? good : standOnly).add(place);
         }
         Comparator<Place> near = Comparator.comparingDouble(pl -> pl.distance(h));
-        // away from the company's own maps (5-2) the base first, a portal only without one (the user, 2026-11-12)
+        // away from the company's own maps (5-2) the base first, a portal only without one
         List<Place> bases = bases(w);
         if (!bases.isEmpty() && maps.info(h.mapId()).homeFaction() != h.factionId()) {
             return bases.stream().min(near).orElseThrow();

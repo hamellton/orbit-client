@@ -17,7 +17,7 @@ class AbilityUseTest {
 
     @Test
     void theHoursAndTheDaysLimits() {
-        // the user, 2026-11-13: limits for EMP-01 and ISH-01 in the config
+        // limits for EMP-01 and ISH-01 in the config
         BotConfig.Spend s = new BotConfig.Spend(1, 5, 2, 3, 0);
         long t = 1_000_000_000_000L;
         assertNull(AbilityUse.limited(1, "emp", s, t));

@@ -14,11 +14,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * One visit to the quest giver of the own home base, as the user did it with the client (ru1 2026-11-12, plan 5б.9):
+ * One visit to the quest giver of the own home base, as recorded with the client (ru1 2026-11-12, plan 5b.9):
  * to the nearest own map with a quest giver (x-1, x-4, x-5, x-8) and to within reach of the giver (a map asset of type 34; the server switches it on at
  * about 400 and sends its quest list itself), a click on it ({@code MapAssetActivationRequest}), the window
  * ({@code QuestGiverApproachedRequest}, {@code QuestSettingsRequest}), the conditions of each offered quest of a wanted
- * type ({@code QuestInfoRequest}), «Принять» for those the bot can do ({@code QuestAcceptRequest}, one by one, while
+ * type ({@code QuestInfoRequest}), Accept for those the bot can do ({@code QuestAcceptRequest}, one by one, while
  * there are slots), and the window closed ({@code QuestGiverWindowClosedRequest}). Pauses as in the recording.
  */
 public final class QuestGiverVisit {
@@ -38,7 +38,7 @@ public final class QuestGiverVisit {
     private final BotContext ctx;
     private final Set<Integer> types;
     private final Predicate<Quests.Quest> doable;
-    /** Quests the user marked «Первым»: read and taken whatever their type. */
+    /** Quests marked First: read and taken whatever their type. */
     private final Set<Integer> always;
     /** Maps where a quest giver was seen ({@link orbit.world.maps.GiverMaps}). */
     private Set<Integer> givers = Set.of();
@@ -205,7 +205,7 @@ public final class QuestGiverVisit {
 
     private boolean waitOn(WorldSnapshot w, long now) {
         if (w.quests().givers().contains(giver)) {
-            // the user clicked 0.2 s to 45 s after it switched on; a short look before the click
+            // in the recording the click came 0.2 s to 45 s after it switched on; a short look before the click
             if (at > 0) {
                 at = -(now + ctx.pause(700, 1_800)); // negative: the click's time
                 return true;
@@ -256,7 +256,7 @@ public final class QuestGiverVisit {
             if (o.status() == Quests.ACCEPTABLE && (always.contains(o.questId()) || types.stream().anyMatch(o::is))
                     && (level <= 0 || o.minLevel() <= level) && slotFor(o)) {
                 if (always.contains(o.questId())) {
-                    toRead.addFirst(o.questId()); // «Первым»: read and taken before the rest
+                    toRead.addFirst(o.questId()); // marked First: read and taken before the rest
                 } else {
                     toRead.add(o.questId());
                 }
@@ -389,7 +389,7 @@ public final class QuestGiverVisit {
     }
 
     /**
-     * The own company's maps with a quest giver (x-1, x-4, x-5, x-8 — the user, 2026-11-12) with a way there, nearest
+     * The own company's maps with a quest giver (x-1, x-4, x-5, x-8) with a way there, nearest
      * first by jumps (live 2026-11-12 on ru1: from 1-3 the bot flew 6 jumps to 2-8 with 2-1 three away); the map the
      * ship is on comes first when a giver is in sight there. The next one is tried when one has no quest giver.
      */

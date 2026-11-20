@@ -11,8 +11,8 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Where on a map the enemies have been seen and the ship was killed: a grid of {@link #CELL} cells per map, kept in a
- * file between runs. The behemoth module waits where it is lowest (the user, 2026-11-14: «найдём идеальную точку, чтобы
- * дождаться бегемота и чтобы поезда не били» — the trains' rounds differ, so the place is learned, not guessed).
+ * file between runs. The behemoth module waits where it is lowest (the place to wait for the behemoth unhit by the
+ * trains: their rounds differ, so the place is learned, not guessed).
  */
 public final class EnemyHeat {
 

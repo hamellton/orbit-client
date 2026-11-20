@@ -49,7 +49,7 @@ public final class Navigator {
     /** A turn back is told only for a click at least this far: the fight's small steps round a target are no news. */
     static final double FLIP_MIN = 800;
 
-    // ---- a stop on the way, told in the log (the user, 2026-11-18: the ship stops for a second in an offender's
+    // ---- a stop on the way, told in the log (2026-11-18: the ship stops for a second in an offender's
     // circle while going round obstacles — what made it stop is to be seen, not guessed) ----
     /** Standing this long with somewhere to go is a stop worth a line. */
     static final long STALL_MS = 700;
@@ -86,7 +86,7 @@ public final class Navigator {
         avoided = zones;
     }
 
-    /** Keep this far from enemy stations (the config's «Облетать вражеские базы»; 0 = not). */
+    /** Keep this far from enemy stations (the config's fly-round-enemy-bases option; 0 = not). */
     public void setAvoidBases(java.util.function.IntSupplier radius) {
         baseRadius = radius;
     }
@@ -207,7 +207,7 @@ public final class Navigator {
         return false;
     }
 
-    /** Fly round the mines on the map (the config's «Обходить мины»). */
+    /** Fly round the mines on the map (the config's avoid-mines option). */
     public void setAvoidMines(java.util.function.BooleanSupplier on) {
         avoidMines = on;
     }
@@ -349,7 +349,7 @@ public final class Navigator {
         boolean mineAhead = flyingToClick && (mineOnCourse(w, h, clickX, clickY) || baseOnCourse(w, h, clickX, clickY, d)
                 || playerOnCourse(h, clickX, clickY, d) || newZoneOnCourse(w, h));
         // the speed changed since the click (a config switch in flight): click again — live 2026-11-16 on gb2 the
-        // ship stood after «Конфигурация 2» while the bot reckoned it on its way, «arrived» 4 000 short of the spawn
+        // ship stood after the switch to config 2 while the bot reckoned it on its way, «arrived» 4 000 short of spawn
         boolean newSpeed = flyingToClick && clickSpeed != 0 && h.speed() != clickSpeed;
         if (flyingToClick && !refine && !turn && !mineAhead && !newSpeed) {
             return; // on course
@@ -399,7 +399,7 @@ public final class Navigator {
             // the way planned from here starts at the corner the ship is about to reach: on to the one after it,
             // else the same corner was clicked again and the ship stood at it (the test of 2026-11-18: 0.9 s) —
             // only when the straight line there is clear: from short of the corner it may cut through the wall
-            // (live 2026-11-18: «углы срезает и через стену в углах проходит»); then the corner is flown to first
+            // (live 2026-11-18: it cut corners and passed through the wall at them); then the corner is flown to first
             if (!paths.clear(h.x(), h.y(), route.get(1)[0], route.get(1)[1])) {
                 return;
             }
@@ -516,7 +516,7 @@ public final class Navigator {
         lastDirNanos = now;
     }
 
-    /** The player circle the point lies in, as «r 1 500 у x/y», or {@code null}. */
+    /** The player circle the point lies in, as its radius and centre x/y, or {@code null}. */
     private String circleAt(double x, double y) {
         for (double[] p : players.get()) {
             if (Math.hypot(p[0] - x, p[1] - y) <= p[2]) {

@@ -193,7 +193,7 @@ class HealingTest {
 
     @Test
     void onFiveTwoTheRepairIsAtTheSharedBaseNotAtAPortal() {
-        // on 5-2 the shared station, not a portal (the user, 2026-11-12)
+        // on 5-2 the shared station, not a portal
         Sim sim = lowHp(92, 17_500, 6_750); // nearer the 5-1 portal than the station: still the station
         base(sim, 500, 52, 0, 9_900, 6_600); // the shared station's OreTrade (live: 99/66)
         base(sim, 501, 47, 1, 3_000, 6_000);  // another company's: never
@@ -224,7 +224,7 @@ class HealingTest {
 
     @Test
     void onABlacklightMapTheRepairJumpsThroughThePortalWhenShot() {
-        // 3-BL's NPCs reach its portals (the user, 2026-11-13): shot there — through it, whatever the escape threshold
+        // 3-BL's NPCs reach its portals: shot there — through it, whatever the escape threshold
         Sim sim = lowHp(308, 14_027, 3_181); // 3-BL by its 3-8 portal
         hurt(sim, 28_000, 0); // 28 %: below the repair, above the escape-under-fire threshold
         Safety s = new Safety(sim.ctx);
@@ -237,7 +237,7 @@ class HealingTest {
 
     @Test
     void onABlacklightMapTheRepairStaysAtThePortalWhileNobodyShoots() {
-        // DarkBot's SafetyFinder (the user, 2026-11-19): no fire — no jump, the repair at the portal
+        // DarkBot's SafetyFinder: no fire — no jump, the repair at the portal
         Sim sim = lowHp(308, 19_400, 11_854); // 3-BL by its 2-BL portal
         hp(sim, 28_000);
         Safety s = new Safety(sim.ctx);
@@ -311,8 +311,8 @@ class HealingTest {
 
     @Test
     void onABlacklightMapShotItJumpsAndComesStraightBackThenRepairsAtThatPortal() {
-        // DarkBot's SafetyFinder (the user, 2026-11-19: «если стреляют — прыгнуть в порт и вернуться назад»); live the same
-        // day on the VPS (dr strange): 3 hours from BL map to BL map, the repair never done
+        // DarkBot's SafetyFinder (shot: jump through the portal and come back); live 2026-11-19
+        // on the VPS (dr strange): 3 hours from BL map to BL map, the repair never done
         Sim sim = lowHp(308, 19_400, 11_854);
         onMap(sim, 308, 19_400, 11_854); // 3-BL by its 2-BL portal
         Safety s = new Safety(sim.ctx);

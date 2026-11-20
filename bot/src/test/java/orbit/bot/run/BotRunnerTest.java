@@ -33,7 +33,7 @@ class BotRunnerTest {
 
     @Test
     void honorLostForAKillMeansABreakOutOfTheGame() throws Exception {
-        // the user, 2026-11-15: «якщо буде за якесь вбивство мінус честь, то нехай робить перерву в 15 хв»
+        // honor lost for a kill means a 15-minute break out of the game
         Sim sim = new Sim(CubikonModuleTest.config(90, false), 25, 10_000, 6_000);
         legacy(sim, "0|LM|ST|HON|0|1000000");
         BotRunner r = new BotRunner(sim.ctx, () -> false, s -> { });
@@ -98,7 +98,7 @@ class BotRunnerTest {
 
     @Test
     void aRushTargetInSightKeepsTheShipFromTheRepair() throws Exception {
-        // the user, 2026-11-17: «совсем не уходить, пока инвок жив»
+        // never leave while the invoke is alive
         BotConfig c = CubikonModuleTest.config(90, false)
                 .withSafety(new BotConfig.Safety(0.5, 0.9, 0.5, 0, null, null, 10, "PORTAL", 0, 0));
         java.util.Map<String, BotConfig.NpcRule> npcs = new java.util.HashMap<>(c.npcs());
@@ -176,7 +176,7 @@ class BotRunnerTest {
 
     @Test
     void aPlayerShootingTheShipHoldsTheLogoutTillHeStops() throws Exception {
-        // the user, 2026-11-19: on a battle map the server cancels the logout under a player's fire — DarkBot logs out
+        // on a battle map the server cancels the logout under a player's fire — DarkBot logs out
         // only once the escape is over; it used to stand still at the portal pressing it
         Sim sim = new Sim(CubikonModuleTest.config(90, false), 26, 10_000, 6_000);
         BotRunner r = new BotRunner(sim.ctx, () -> false, s -> { });
@@ -399,7 +399,7 @@ class BotRunnerTest {
 
     @Test
     void oneAndTheSamePlayerKillingTheShipTooOftenStopsTheBot() throws Exception {
-        // AstraBot's maxDeathsPerPlayer (the user, 2026-11-13); NPCs and other players do not count towards it
+        // AstraBot's maxDeathsPerPlayer; NPCs and other players do not count towards it
         BotConfig c = CubikonModuleTest.config(90, false)
                 .withSafety(new BotConfig.Safety(0.5, 0.9, 0.5, 0, null, null, 0, "BASE", 0, 0, 0, 3, null, null, 2));
         Sim sim = new Sim(c, 26, 10_000, 6_000);
@@ -418,7 +418,7 @@ class BotRunnerTest {
 
     @Test
     void aKillScreenComingAMomentAfterTheDeathStillCountsForItsPlayer() throws Exception {
-        // live 2026-11-13 on the VPS: «Корабль уничтожен (?)» — the ship was seen dead before the kill screen came
+        // live 2026-11-13 on the VPS: the "ship destroyed (?)" log line, the ship was seen dead before the kill screen came
         BotConfig c = CubikonModuleTest.config(90, false)
                 .withSafety(new BotConfig.Safety(0.5, 0.9, 0.5, 0, null, null, 0, "BASE", 0, 0, 0, 3, null, null, 1));
         Sim sim = new Sim(c, 26, 10_000, 6_000);

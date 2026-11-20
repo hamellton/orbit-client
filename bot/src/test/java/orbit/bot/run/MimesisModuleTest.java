@@ -19,7 +19,7 @@ import orbit.world.maps.MapCatalog;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
-/** The user, 2026-11-18: the Mimesis escort — the behaviour DarkBot's (DonorPlugin, SharedPlugin), the automation AstraBot's. */
+/** The Mimesis escort — the behaviour DarkBot's (DonorPlugin, SharedPlugin), the automation AstraBot's. */
 class MimesisModuleTest {
 
     static final int ESCORT = 436;
@@ -121,7 +121,7 @@ class MimesisModuleTest {
 
     @Test
     void atTheEntryOnX1TheShipHoldsGroundWhoeverStandsThere() throws Exception {
-        // the user, 2026-11-19 (daredevil on int7): an offender at x-1's portal, «рядом — ухожу» again and again before
+        // live 2026-11-19 (daredevil on int7): an offender at x-1's portal, "near, leaving" again and again before
         // the entry — on x-1 with the entry due nobody is kept off; farming, the offenders are kept off as before
         Sim sim = new Sim(config("{\"startTravelSeconds\":180}"), home(), 9_000, 6_000);
         keys(sim, 3);

@@ -136,7 +136,7 @@ class BuyWatchTest {
 
     @Test
     void aLowerReserveInTheConfigBuysAtOnceNotAfterTheWait() throws Exception {
-        // the user, 2026-11-19 on int7: the reserve lowered, the booster still waited for its 10 min
+        // live 2026-11-19 on int7: the reserve lowered, the booster still waited for its 10 min
         BotConfig.Buy buy = new BotConfig.Buy(true, List.of(), 0, 45_000, List.of("DMG-B01"), 0);
         Sim sim = sim(buy, 0, 50_000);
         boosters(sim, null, 0);
@@ -195,7 +195,7 @@ class BuyWatchTest {
 
     @Test
     void aCloakThePilotHasNoneOfIsBoughtOnceAndNotAgainWhenNoneComes() throws Exception {
-        // the user, 2026-11-13: «купи за урик и потести» — the pilot has no CL04K, the item bar no slot for it
+        // bought for uridium: the pilot has no CL04K, the item bar no slot for it
         BotConfig.Buy buy = new BotConfig.Buy(true, List.of(new BotConfig.BuyRule("equipment_extra_cpu_cl04k-xl", 1, 1)), 0, 0);
         Sim sim = sim(buy, 0, 50_000);
         CloakShop shop = new CloakShop();

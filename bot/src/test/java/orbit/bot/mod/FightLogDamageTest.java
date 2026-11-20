@@ -22,7 +22,7 @@ class FightLogDamageTest {
 
     @Test
     void theFightsLineTellsOurDamageItsShareAndWhoHitUs() {
-        // the user, 2026-11-14: «можем отслеживать, сколько урона наносим и кому?»
+        // the fight line tracks how much damage we deal and to whom
         World w = new World();
         ShipInitializationCommand si = new ShipInitializationCommand();
         si.userId = 1;

@@ -13,7 +13,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * The players who shot at the ship or killed it this session (the config's «Обходить тех, кто стрелял или убил»):
+ * The players who shot at the ship or killed it this session (the config's avoid-those-who-shot-or-killed option):
  * remembered by id and name for as long as the bot runs (deaths and reconnects included). While one is in sight
  * (or was, a short while ago) a circle of the config's radius round him is kept clear: no targets, no boxes, no way
  * through it ({@link orbit.bot.nav.Navigator#setAvoidedPlayers}); a ship inside such a circle flies out the other
@@ -76,8 +76,8 @@ public final class Offenders {
 
     /**
      * Anything to keep clear: remembered players, another company's battle stations. (Stepping away from NPCs that shoot
-     * the ship, made 2026-11-13 for Abide I on 2-BL, is gone: it broke the Cubikon among its Protegits and the palladium
-     * on 5-3 — the user, 2026-11-16.)
+     * the ship, made 2026-11-13 for Abide I on 2-BL, is gone since 2026-11-16: it broke the Cubikon among its Protegits
+     * and the palladium on 5-3.)
      */
     boolean active() {
         return on() || config().stationRadius() > 0;
@@ -161,8 +161,8 @@ public final class Offenders {
         ctx.stats().offenders.set(java.util.Set.copyOf(inSight));
         double r = f.avoidRadius();
         stations = stations(w, f.stationRadius());
-        // the window shows the players kept off (the user's own tick), not the bot's own keeping off NPCs and
-        // stations (the user, 2026-11-13: «это чисто механика самого бота»)
+        // the window shows the players kept off (the config's own option), not the bot's own keeping off NPCs and
+        // stations (that is the bot's internal mechanics)
         shown = !f.avoid() ? List.of() : seen.values().stream().map(s -> new Circle(s.name(), s.x(), s.y(), r)).toList();
     }
 
@@ -371,7 +371,7 @@ public final class Offenders {
         MapCatalog.MapInfo map = ctx.maps().info(h.mapId());
         double margin = 300;
         List<double[]> circles = circles();
-        // the config's zones of the map (the user, 2026-11-16, GE1 on 5-3: fled from Interceptors into the avoided part,
+        // the config's zones of the map (2026-11-16, GE1 on 5-3: fled from Interceptors into the avoided part,
         // out of the palladium field, and could not come back): never into the avoided part when there is another
         // way, and rather toward the preferred one
         BotConfig.Zones zones = ctx.config().get().zones().get(h.mapId());

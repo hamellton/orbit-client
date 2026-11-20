@@ -14,7 +14,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * The pet's kamikaze in a gate as DarkBot's SharedPlugin does it ({@code KamikazeHandler}, read from its classes on the
- * VPS, 2026-11-15; the user: «камикадзе делаем как у даркбота 1 в 1, и поведение корабля тоже»):
+ * VPS, 2026-11-15; the kamikaze and the ship's behaviour exactly as DarkBot):
  * <ol>
  *   <li>the NPCs flagged {@code KAMIKAZE} (ABG: Kristallin, Saimon, Sibelonit) that aim at the ship now or did within
  *       1 s, and are near the kamikaze point {@code K} (the map's centre (10 000, 6 000) less (1 500, 1 000): within
@@ -27,8 +27,7 @@ import org.slf4j.LoggerFactory;
  *       the cooldown (30 / 60 / 120 s by the gear's level) and the fight as usual; no blast in 10 s — gathering again.</li>
  * </ol>
  * The nearest of them is kept locked (selected, not shot at) while gathering and for the blast — SharedPlugin locks
- * the closest valid one before it turns the gear on; the pet flies at the locked one (the user, 2026-11-15: «берёт
- * одного в лок и включает камика»).
+ * the closest valid one before it turns the gear on; the pet flies at the locked one.
  * SharedPlugin also shoots a rocket at its own pet to bring its HP under 20 % when solo; that is not done here (not
  * known to be allowed by the server): the pet goes in at its HP and is shot down by the bunch, as KekkaReloaded does.
  */
@@ -103,7 +102,7 @@ final class GateKamikaze {
         JsonNode k = s.path("kamikaze");
         WorldSnapshot.Pet pet = w.pet();
         // the gear: listed among the pet's modes, or its button on the item bar — the game drops the mode from the list
-        // while it cools down (live 2026-11-15 on gb2: «нет режима №10» 14 s after a blast)
+        // while it cools down (live 2026-11-15 on gb2: mode 10 reported missing 14 s after a blast)
         boolean hasGear = pet.gears().isEmpty() || pet.gears().contains(PetGearTypeModule.PETGEARTYPE_KAMIKAZE)
                 || w.items().containsKey(KAMIKAZE_ITEM);
         if (!k.path("enabled").asBoolean(false) || !c.pet().enabled() || !pet.owned() || !hasGear) {
@@ -257,8 +256,8 @@ final class GateKamikaze {
     }
 
     /**
-     * The ship's mode while gathering and for the blast: the config's run mode (the user, 2026-11-15: «собирать НПС для
-     * камикадзе нужно на беговой конфигурации на Ring»), or the fight's with {@code mode: "fight"}.
+     * The ship's mode while gathering and for the blast: the config's run mode (NPCs for the kamikaze are gathered in
+     * the run configuration on Ring), or the fight's with {@code mode: "fight"}.
      */
     static BotConfig.ShipMode mode(JsonNode k, BotConfig c) {
         return "fight".equals(k.path("mode").asText("run")) ? c.general().offensive() : c.general().run();
@@ -329,7 +328,7 @@ final class GateKamikaze {
 
     /**
      * DarkBot's {@code Ship.isAiming}: the NPC faces the ship within {@link #AIM_ANGLE} — it comes at it or shoots it,
-     * not only shoots (the user, 2026-11-15: Sibelonits were fought by lasers, DarkBot gathers them from the start).
+     * not only shoots (2026-11-15: Sibelonits were fought by lasers, DarkBot gathers them from the start).
      */
     private boolean aiming(WorldSnapshot.Ship s, WorldSnapshot.Hero h) {
         if (s.attackTargetId() == h.id()) {

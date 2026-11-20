@@ -177,7 +177,7 @@ class QuestModuleTest {
 
     @Test
     void bossesAreHuntedElsewhereThanOn45() {
-        // the user 2026-11-12: bosses live on 4-5 too, but are easier on their own maps (Boss Saimon: x-3, x-4)
+        // bosses live on 4-5 too, but are easier on their own maps (Boss Saimon: x-3, x-4)
         int map45 = MapCatalog.bundled().byName("4-5").id();
         Sim sim = new Sim(BotConfig.empty(), map45, 10_000, 6_000);
         take(sim, 401, 3, 6, 3, "17");
@@ -226,7 +226,7 @@ class QuestModuleTest {
 
     @Test
     void salvageOfNoNamedNpcKillsThePlainNpcsOfTheCompanysOwnMap() {
-        // 300011 «Сборщик дураниума» (gb2 2026-11-17): cargo with duranium, no NPC named — a VRU ship on 3-1 kills the
+        // 300011, the duranium collector quest (gb2 2026-11-17): cargo with duranium, no NPC named — a VRU ship on 3-1 kills the
         // Streuner there, not the config's NPCs on its working map (1-1 was set: MMO's home map, ten deaths)
         int map = MapCatalog.bundled().byName("3-1").id();
         BotConfig c = BotConfig.empty().withGeneral(new BotConfig.General(MapCatalog.bundled().byName("1-1").id(), null, null, null,
@@ -244,7 +244,7 @@ class QuestModuleTest {
 
     @Test
     void cargoThatDoesNotCountSendsTheShipToTheNextOwnMap() {
-        // gb2 2026-11-17: Streuner's cargo on 3-1 left «Сборщик дураниума» at 0/100 — after ten boxes another 3-x map
+        // gb2 2026-11-17: Streuner's cargo on 3-1 left the duranium collector quest at 0/100 — after ten boxes another 3-x map
         int map = MapCatalog.bundled().byName("3-1").id();
         Sim sim = new Sim(BotConfig.empty(), map, 10_000, 6_000);
         sim.lasers("ammunition_laser_lcb-10");
@@ -414,7 +414,7 @@ class QuestModuleTest {
 
     @Test
     void theUsersMarksFirstSkipAndCancel() {
-        // the user 2026-11-12: Silent Sabotage (17 500 Saboteur, 122004) opens the 100-quest chain — first; 35 000
+        // user's choice: Silent Sabotage (17 500 Saboteur, 122004) opens the 100-quest chain — first; 35 000
         // Protegit (122001) not now; a quest marked «cancel» is cancelled
         com.fasterxml.jackson.databind.node.ObjectNode q = com.fasterxml.jackson.databind.node.JsonNodeFactory.instance.objectNode();
         q.putArray("first").add(122004);
@@ -457,7 +457,7 @@ class QuestModuleTest {
 
     @Test
     void aResourceIsCollectedFromTheNpcsThatCarryIt() {
-        // 122011 «Теория преобразования»: «собрать resource_collectable_hybrid-alloy 1200» — the Blighted, on x-7
+        // 122011, the transformation theory quest: collect resource_collectable_hybrid-alloy 1200 — the Blighted, on x-7
         Sim sim = new Sim(BotConfig.empty(), MapCatalog.bundled().byName("3-5").id(), 10_000, 6_000);
         take(sim, 805, 2, 67, 1_200, "resource_collectable_hybrid-alloy");
         QuestModule m = new QuestModule(sim.ctx, NpcMaps.shared(), orbit.world.maps.OreMaps.inMemory());
@@ -469,7 +469,7 @@ class QuestModuleTest {
 
     @Test
     void byteRemnantIsCollectedFromTheMimesisNeverOnAnEscortMap() {
-        // the user, 2026-11-19: «Коллекция байтов» (500461) when the damage quests are done — the Mimesis that drop
+        // the byte collection quest (500461) when the damage quests are done — the Mimesis that drop
         // Byte Remnant, where they were seen; never the escort maps, where only the escort's own NPCs live
         Sim sim = new Sim(BotConfig.empty(), MapCatalog.bundled().byName("3-1").id(), 10_000, 6_000);
         take(sim, 500461, 2, 67, 15_000, "resource_collectable_byte-remnant");
@@ -484,7 +484,7 @@ class QuestModuleTest {
         assertTrue(m.status().contains("byte-remnant 0/15 000"), m.status());
     }
 
-    /** 122011 «Теория преобразования»: Blighted Kristallon (160), Blighted Gygerthrall (155), Hybrid Alloy. */
+    /** 122011, the transformation theory quest: Blighted Kristallon (160), Blighted Gygerthrall (155), Hybrid Alloy. */
     static void conversionTheory(Sim sim, double kristallon, double gygerthrall) {
         QuestDefinitionModule d = QuestGiverVisitTest.Giver.definition(122011);
         d.types.getFirst().type = 2;
@@ -516,7 +516,7 @@ class QuestModuleTest {
 
     @Test
     void theGygerthrallAreFoughtAlongAndCalledUpByTheKristallon() {
-        // the user, 2026-11-17: the alloy drops from the Gygerthrall, which come when the Blighted Kristallon is fought
+        // the alloy drops from the Gygerthrall, which come when the Blighted Kristallon is fought
         int map = MapCatalog.bundled().byName("3-7").id();
         // the Kristallon done: the Gygerthrall's turn — one in sight is the target, not the Kristallon nearer
         Sim sim = new Sim(BotConfig.empty(), map, 10_000, 6_000);
@@ -642,7 +642,7 @@ class QuestModuleTest {
 
     @Test
     void piratesWithNoMapAreHuntedOn52() {
-        // the user 2026-11-12: more chance of a group on 5-2; Saboteur (60) live on 5-1 … 5-3, the ship is on 5-1
+        // more chance of a group on 5-2; Saboteur (60) live on 5-1 … 5-3, the ship is on 5-1
         int map51 = MapCatalog.bundled().byName("5-1").id();
         Sim sim = new Sim(BotConfig.empty(), map51, 10_000, 6_000);
         take(sim, 802, 2, 6, 17_500, "60");

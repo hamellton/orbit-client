@@ -112,7 +112,7 @@ final class BuyWatch {
         long now = ctx.now();
         BotConfig.Buy seen = ctx.config().get().buy();
         if (lastBuy != null && !seen.equals(lastBuy)) {
-            // the user changed the purchases (the user, 2026-11-19: the uridium reserve lowered on int7, the boosters
+            // the purchases were changed (2026-11-19: the uridium reserve lowered on int7, the boosters
             // still waited 10 min for their next try): the waits are over, checked now
             log.info("Покупки в конфиге изменены — проверяю сразу");
             triedAt.clear();
@@ -331,7 +331,7 @@ final class BuyWatch {
         }
     }
 
-    /** JSON string escapes back to text ({@code Б…} → «Б…»). */
+    /** JSON string escapes back to text (a backslash-u escape of a Cyrillic letter → the letter). */
     static String unescape(String s) {
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < s.length(); i++) {

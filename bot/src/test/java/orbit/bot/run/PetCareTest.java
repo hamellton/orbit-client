@@ -131,7 +131,7 @@ class PetCareTest {
 
     @Test
     void outOfFuelBuysItWithTheGamesKeyWhenTheConfigSaysSoAndGivesUpAfterSomeTries() {
-        // AstraBot's buyFuel (the user, 2026-11-13)
+        // AstraBot's buyFuel
         BotConfig c = BotConfig.empty().withPet(new BotConfig.Pet(true, "GUARD", 13, false, 0, null, true));
         Sim sim = new Sim(c, 26, 10_000, 6_000);
         owned(sim);
@@ -148,7 +148,7 @@ class PetCareTest {
 
     @Test
     void aModuleKeepingThePetInRecallsItAndDoesNotLaunchIt() {
-        // AstraBot's petOnlyOnBehemoth (the user, 2026-11-13)
+        // AstraBot's petOnlyOnBehemoth
         Sim sim = new Sim(config("GUARD", 0), 26, 10_000, 6_000);
         owned(sim);
         launched(sim);
@@ -283,7 +283,7 @@ class PetCareTest {
 
     @Test
     void aQuestsNpcTakesTheLocatorWhileItLastsThenTheConfigsModeAgain() {
-        // the «Квесты» tab's checkbox: the locator on the quest's NPC (31 = UberSaimon), the config's mode after
+        // the Quests tab's checkbox: the locator on the quest's NPC (31 = UberSaimon), the config's mode after
         Sim sim = new Sim(config("GUARD", 0), 29, 10_000, 6_000);
         owned(sim);
         PetCare pet = new PetCare(sim.ctx);
@@ -341,7 +341,7 @@ class PetCareTest {
         assertEquals(1, launches(sim));
     }
 
-    // ---- HP Link as DarkBot (Optimoth / OrbitHelper PetStuff; the user, 2026-11-19) ----
+    // ---- HP Link as DarkBot (Optimoth / OrbitHelper PetStuff) ----
 
     /** Launched with HP Link (16) and the pet repair (9) among its modes, its hull full. */
     static void launchedWithLink(Sim sim) {

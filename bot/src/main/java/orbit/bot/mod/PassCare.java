@@ -12,12 +12,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * The passes' free buttons, as a player clicks them in their windows (plan 5б.9 step 4; the user's choices
- * 2026-11-12): Season Pass «Забрать всё» when a reached level's reward is unclaimed on a track the account has; a free
- * reroll of a season mission the bot cannot do; Battle Pass «Забрать» with the bought pass; Galaxy Trek's sector rewards;
- * the diminishing window's «Принять» for a quest the bot can do. Never rerolled: a mission that counts other missions
+ * The passes' free buttons, as a player clicks them in their windows (plan 5b.9 step 4; user's choices
+ * 2026-11-12): Season Pass Claim All when a reached level's reward is unclaimed on a track the account has; a free
+ * reroll of a season mission the bot cannot do; Battle Pass Claim with the bought pass; Galaxy Trek's sector rewards;
+ * the diminishing window's Accept for a quest the bot can do. Never rerolled: a mission that counts other missions
  * or objectives ({@link QuestTargets#grows}) — it grows by itself. Never: uridium (level purchases, paid rerolls), Galaxy
- * Trek searches (they spend FTL keys — the user: never), the Battle Pass key exchange (the user chooses himself).
+ * Trek searches (they spend FTL keys — never), the Battle Pass key exchange (left to the player).
  * Settings ({@code modules.quests}): {@code season}, {@code seasonReroll}, {@code battlepass}, {@code trek},
  * {@code diminishing} — on by default.
  */
@@ -66,7 +66,7 @@ final class PassCare {
         }
         if (picks && on(settings, "seasonReroll")) {
             for (Quests.Quest q : w.quests().active().values()) {
-                // «N Season Pass missions», «N objectives»: they grow as the rest is done (the user, 2026-11-19)
+                // «N Season Pass missions», «N objectives»: they grow as the rest is done
                 if (!Quests.SEASON.equals(q.source()) || doable.test(q) || QuestTargets.growing(q)) {
                     continue;
                 }

@@ -7,11 +7,11 @@ import orbit.bot.run.CargoPlan;
 import orbit.config.BotConfig;
 
 /**
- * PALLADIUM, as the user's DarkBot runs it (profile PALLADIUM, 2026-11-11): collect palladium ({@code ore_8}) on
+ * PALLADIUM, as the owner's DarkBot runs it (profile PALLADIUM, 2026-11-11): collect palladium ({@code ore_8}) on
  * the working map (5-3) by the config's zones — roam in the preferred one (the field), fly round the avoided one —
  * kill what the NPC list says, and with a full hold sell the palladium at 5-2's trader (the open «Palladium
  * Module»: «Loot & collect, but when cargo is full travels to 5-2 to sell»).
- * <p>With two ships (DmPlugin «Palladium Hangar», the user's main way; settings as in the profile:
+ * <p>With two ships (DmPlugin «Palladium Hangar», the main way; settings as in the profile:
  * {@code collectHangar}, {@code sellHangar}, {@code goPortalChange}, {@code sellOnDie}, {@code aditionalWaitingTime}):
  * the collect ship works on 5-3 and stops taking palladium when full; then the bot logs out, the app makes the sell
  * ship active on the website and logs in — that ship waits parked at 5-2's trader — sells the palladium, and the

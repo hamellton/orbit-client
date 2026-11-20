@@ -216,7 +216,7 @@ class NavigatorTest {
 
     @Test
     void aNewDestinationIsClickedAtOnceWhileStillFlyingToTheOldOne() {
-        // «Выйти у портала» mid-flight (live 2026-11-11): the ship flew on to the old point first
+        // the "leave at the portal" option set mid-flight (live 2026-11-11): the ship flew on to the old point first
         Navigator nav = navigator(9, 2000, 2000);
         nav.moveTo(18000, 2000, false);
         nav.tick();
@@ -234,7 +234,7 @@ class NavigatorTest {
     }
     @Test
     void aSpeedChangeInFlightClicksAgain() {
-        // live 2026-11-16 on gb2: «Конфигурация 2» in flight, the server stopped the ship, the bot reckoned it arrived
+        // live 2026-11-16 on gb2: a switch to configuration 2 in flight, the server stopped the ship, the bot reckoned it arrived
         Navigator nav = navigator(9, 18800, 12500);
         nav.moveTo(2111, 2222, false);
         for (int i = 0; i < 20; i++) {

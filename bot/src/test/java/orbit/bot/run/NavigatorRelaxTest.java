@@ -11,7 +11,7 @@ class NavigatorRelaxTest {
 
     @Test
     void whenTheSoftBarsCloseEveryWayTheShipGoesThroughThemRatherThanStand() {
-        // live 2026-11-13 on the VPS, 2-BL: «Нет пути… зоны сервера, чужие базы 17, запретная зона конфига» — the ship
+        // live 2026-11-13 on the VPS, 2-BL: "no path" (server zones, 17 enemy stations, the config's avoided zone), the ship
         // stood in a corner; here the config's avoided zone is a band over the whole map
         List<String> rows = new ArrayList<>();
         for (int r = 0; r < 30; r++) {

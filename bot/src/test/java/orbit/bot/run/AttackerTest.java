@@ -265,7 +265,7 @@ class AttackerTest {
 
     @Test
     void onlyTheServersGreyMakesAnNpcSomebodyElses() {
-        // the user 2026-11-13: a player shooting it or its lost hull says nothing (he may have left it); the server's
+        // a player shooting it or its lost hull says nothing (he may have left it); the server's
         // LSH says, its USH frees it again; cubes and group NPCs are fought anyway
         Sim sim = new Sim(config(false, null, Set.of()), 1, 10_500, 6_000);
         sim.npc(77, "-=[ Target ]=-", 10_000, 6_000);
@@ -298,7 +298,7 @@ class AttackerTest {
 
     @Test
     void empOnceAFightAndIshWhenTheHullIsLow() {
-        // AstraBot's «Invoke XVI»: Use EMP, Use ISH (the user, 2026-11-13)
+        // AstraBot's «Invoke XVI»: Use EMP, Use ISH
         Sim sim = new Sim(invoke(Set.of("USE_EMP", "USE_ISH"), null), 1, 10_500, 6_000);
         sim.lasers("ammunition_laser_lcb-10", "ammunition_specialammo_emp-01", "equipment_extra_cpu_ish-01");
         sim.npc(7, "-=[ Target ]=-", 10_000, 6_000);
@@ -319,7 +319,7 @@ class AttackerTest {
 
     @Test
     void aRushThrowsEmpWithAnEnemyAboutOnceTheTargetIsNearEnough() {
-        // the user, 2026-11-17: invokes under the enemy trains — EMP once the invoke is nearer than 1 500
+        // invokes under the enemy trains — EMP once the invoke is nearer than 1 500
         Sim sim = new Sim(invoke(Set.of("RUSH"), null), 1, 13_000, 6_000);
         sim.lasers("ammunition_laser_lcb-10", "ammunition_specialammo_emp-01", "equipment_extra_cpu_ish-01");
         sim.npc(7, "-=[ Target ]=-", 10_000, 6_000);
@@ -342,7 +342,7 @@ class AttackerTest {
 
     @Test
     void energyLeechAndTheShipsFightAbilityWhenReadyNeverATravelOne() {
-        // AstraBot «Use Energy Leech», «Use Ship Ability» (the user, 2026-11-13)
+        // AstraBot «Use Energy Leech», «Use Ship Ability»
         Sim sim = new Sim(invoke(Set.of("USE_LEECH", "USE_ABILITY"), null), 1, 10_500, 6_000);
         sim.lasers("ammunition_laser_lcb-10", "tech_energy-leech", "ability_citadel_travel", "ability_venom");
         sim.npc(7, "-=[ Target ]=-", 10_000, 6_000);
@@ -420,7 +420,7 @@ class AttackerTest {
 
     @Test
     void aTargetOfAHigherPriorityComingInSightIsTakenAtOnce() {
-        // the user, 2026-11-13: «почему бьёт импульсов, а не сразу летит на инвока»
+        // a higher-priority target (the invoke) is taken at once instead of finishing the current NPC
         BotConfig c = BotConfig.empty().withModule(BotConfig.Module.KILL_COLLECT)
                 .withLoot(new BotConfig.Loot("ammunition_laser_lcb-10", null, 0, 0, null, true, 0, null, false, false, null))
                 .withNpcs(Map.of("-=[ Invoke ]=-", new BotConfig.NpcRule(500, -95, true, Set.of(), Set.of(), null),
@@ -438,7 +438,7 @@ class AttackerTest {
 
     @Test
     void aTargetDestroyedBeforeTheAttackWasConfirmedIsAKill() {
-        // live 2026-11-13 on 2-3: Lordakia died in the first volley, the reward came, the fight was «пропала из вида»
+        // live 2026-11-13 on 2-3: Lordakia died in the first volley, the reward came, the fight ended as "lost from sight"
         Sim sim = new Sim(config(false, null, Set.of()), 1, 10_500, 6_000);
         sim.lasers("ammunition_laser_lcb-10");
         sim.npc(77, "-=[ Target ]=-", 10_000, 6_000);
@@ -545,7 +545,7 @@ class AttackerTest {
 
     @Test
     void holdingTheRadiusKeepsAChasingNpcOff() {
-        // Blacklight NPCs chase (the user, 2026-11-12): backing off keeps them near the radius, standing lets them in
+        // Blacklight NPCs chase: backing off keeps them near the radius, standing lets them in
         BotConfig kite = BotConfig.empty()
                 .withLoot(new BotConfig.Loot("ammunition_laser_lcb-10", null, 0, 0, null, true, 0, null, false, false, null,
                         null, false, "KITE"))
@@ -585,7 +585,7 @@ class AttackerTest {
 
     @Test
     void circlingKeepsOffAnotherNpcThatShootsTheShip() {
-        // docs/FIGHT-MOVEMENT.md Д1+Д2: the circle turns away from the other NPC's radius
+        // docs/FIGHT-MOVEMENT.md D1+D2: the circle turns away from the other NPC's radius
         Sim sim = new Sim(moving("CIRCLE"), 1, 10_500, 6_000);
         sim.lasers("ammunition_laser_lcb-10");
         sim.npc(7, "-=[ Target ]=-", 10_000, 6_000);
@@ -638,7 +638,7 @@ class AttackerTest {
 
     @Test
     void theCubeIsCircledThoughItsGuardShootsTheShip() {
-        // live 2026-11-16 on gb2, 3-6: «Увожу Cubikon от Protegit» — no circling, the cube in reach 55 % of the fight
+        // live 2026-11-16 on gb2, 3-6: leading Cubikon away from the Protegit, no circling, the cube in reach 55 % of the fight
         double cube = turnsBesideAShooter("-=[ Cubikon ]=-");
         double other = turnsBesideAShooter("-=[ Target ]=-");
         assertTrue(cube > 3, "the cube circled " + cube + " turns");
@@ -729,7 +729,7 @@ class AttackerTest {
 
     @Test
     void underATrainTheAbilityFirstThenIshThenEmpNeverTogether() {
-        // the user, 2026-11-14: «навык, потом пониже HP стенка, потом импульс — не одновременно»
+        // the ability first, then at lower HP the ISH wall, then the EMP, never together
         Sim sim = new Sim(invoke(Set.of(), null), 1, 10_500, 6_000);
         sim.lasers("ammunition_laser_lcb-10", "ability_citadel-plus_prismatic-endurance", "equipment_extra_cpu_ish-01",
                 "ammunition_specialammo_emp-01");
@@ -758,8 +758,8 @@ class AttackerTest {
 
     @Test
     void asCarnageTheAbilityAtOnceThenAPlayerShootsEmpAndRightAfterIsh() {
-        // the user, 2026-11-14: «как подлетает к бегемоту сразу включает навык, когда начинают бить другие корабли, а не
-        // нпс, — импульс, сразу же после импульса — стенка»
+        // the ability as soon as the ship reaches the behemoth; when other ships (not NPCs) start shooting, the EMP,
+        // and right after it the ISH wall
         Sim sim = new Sim(invoke(Set.of(), null), 1, 10_500, 6_000);
         sim.lasers("ammunition_laser_lcb-10", "ability_citadel-plus_prismatic-endurance", "ability_citadel_fortify",
                 "equipment_extra_cpu_ish-01", "ammunition_specialammo_emp-01");

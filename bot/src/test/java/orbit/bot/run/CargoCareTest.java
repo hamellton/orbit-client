@@ -177,7 +177,7 @@ class CargoCareTest {
 
     @Test
     void anotherWayOfSellingIsTriedAtOnceAfterTheOldOneFailed() throws Exception {
-        // live 2026-11-11: the pet's sale got no answer, the user chose the base, nothing happened for 5 minutes
+        // live 2026-11-11: the pet's sale got no answer, the base was chosen by hand, nothing happened for 5 minutes
         BotConfig petCfg = config(BotConfig.Collect.CARGO_PET).withPet(new BotConfig.Pet(true, "GUARD"));
         Sim sim = new Sim(petCfg, 9, 17_000, 11_000);
         orbit.protocol.gen.PetInitializationCommand init = new orbit.protocol.gen.PetInitializationCommand();
@@ -209,7 +209,7 @@ class CargoCareTest {
         long pods = sim.sent.stream().filter(p -> p instanceof orbit.protocol.gen.PetGearActivationRequest g
                 && g.gearTypeToActivate.typeValue == 8).count();
         assertTrue(pods >= 2, "asked for the trade pod once more before giving up: " + pods);
-        sim.config = config(BotConfig.Collect.CARGO_BASE); // the user switches to the base
+        sim.config = config(BotConfig.Collect.CARGO_BASE); // a manual switch to the base
         for (int t = 0; t < 400 && sim.sent.stream().noneMatch(p -> p instanceof TradeRequest); t++) {
             sim.run(r::tick, 100);
             offerWhenNear(sim, 900, 20_080, 11_500);

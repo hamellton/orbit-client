@@ -10,8 +10,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * The lab's enrichment kept up from the hold (the user, 2026-11-15: «бот сам обогащал лазеры, ракеты, движки и щиты,
- * настраивается в конфиге»): an item below its threshold gets ore from the hold ({@code LabUpdateItemRequest}, the client's
+ * The lab's enrichment kept up from the hold (lasers, rockets, drives and shields enriched by the bot, set in the
+ * config): an item below its threshold gets ore from the hold ({@code LabUpdateItemRequest}, the client's
  * own request) — the ore it has now while some is left (no switching of a running enrichment), else the config's.
  *
  * <p>Settings {@code modules.enrich}: {@code enabled}, {@code items.<laser|rockets|drive|shield>} =

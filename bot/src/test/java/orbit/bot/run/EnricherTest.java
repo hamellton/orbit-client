@@ -176,7 +176,7 @@ class EnricherTest {
 
     @Test
     void thePaidTransportGoesIntoAHoldAtLeastHalfFreeElseWaits() throws Exception {
-        // the user, 2026-11-16: the citadel without premium holds 8 000; 6 000 free of 10 000 wanted — 6 000 go
+        // the citadel without premium holds 8 000; 6 000 free of 10 000 wanted — 6 000 go
         assertEquals(Map.of("promerium", 6_000L), fastSend(6_000, 8_000));
         assertEquals(Map.of(), fastSend(3_000, 8_000), "3 000 of 8 000 free: under 50 %, the paid one waits");
     }

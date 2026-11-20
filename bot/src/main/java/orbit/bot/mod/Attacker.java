@@ -124,7 +124,7 @@ public final class Attacker {
         }
         // too strong for the hull left, not for the ship: with a full hull a whole fight would be won — fight on, the
         // repair comes at its threshold, the kind is not skipped (live 2026-11-13 on 3-BL: Attend IX begun at 68 %,
-        // «не тяну», the only kind of the config skipped 10 min; one begun at 100 % was killed)
+        // judged too strong, the only kind of the config skipped 10 min; one begun at 100 % was killed)
         double fromFull = (1 - c.safety().repairHpMin()) / lossRate;
         if (killRate > 0 && 1 / killRate <= fromFull) {
             return false;
@@ -324,7 +324,7 @@ public final class Attacker {
         public static final AbilityPlan OFF = new AbilityPlan(false, -1, false, -1, -1, -1, 0, true);
     }
 
-    /** ISH-01's shield lasts about this: EMP-01 not while it holds (the user: not both at once). */
+    /** ISH-01's shield lasts about this: EMP-01 not while it holds (never both at once). */
     static final long ISH_HOLDS_NS = 3_000_000_000L;
     private long abilityAt = Long.MIN_VALUE / 2;
 
@@ -398,7 +398,7 @@ public final class Attacker {
     }
 
     /**
-     * A target flagged {@code RUSH} (the user, 2026-11-17: «рваться напролом с импульсом и стенкой, как на бегемоте»):
+     * A target flagged {@code RUSH} (push through with EMP and ISH, as at the behemoth):
      * EMP-01 once it is nearer than {@code modules.kill.rushEmpWithin} and an enemy player is about (shooting the ship or
      * within {@link #RUSH_ENEMY_NEAR}) — their locks gone on the way in; ISH-01 when the hull falls fast ({@link
      * #RUSH_FAST_LOSS} within {@link #RUSH_LOSS_NS}) or is below the config's ISH threshold under players' fire. Each only
@@ -460,8 +460,8 @@ public final class Attacker {
     private final java.util.ArrayDeque<double[]> hpSeen = new java.util.ArrayDeque<>();
 
     /**
-     * The behemoth's fight under a train (the user, 2026-11-14: «навык, потом пониже HP стенка, потом импульс — не
-     * одновременно, и только когда бьём бегемота»): the ship's abilities (prismatic first) once {@code threatPlayers}
+     * The behemoth's fight under a train (the ability, then ISH lower on HP, then EMP — never at once, and only while
+     * the behemoth is fought): the ship's abilities (prismatic first) once {@code threatPlayers}
      * players shoot it or the hull is below the prismatic threshold; then ISH-01 below its threshold; then EMP-01 below
      * its threshold and not while the ISH shield holds — one a tick, none at once.
      */
@@ -474,11 +474,10 @@ public final class Attacker {
             }
         }
         boolean threat = players >= plan.threatPlayers();
-        // CARNAGE's behemoth (BeheSolo: the ship's ability by the NPC's flag, EblExtraFlags' offensive EMP and ISH; the user,
-        // 2026-11-14: «как подлетает к бегемоту сразу включает навык, когда начинают бить другие корабли, а не нпс, —
-        // импульс, сразу же после импульса — стенка»)
+        // CARNAGE's behemoth (BeheSolo: the ship's ability by the NPC's flag, EblExtraFlags' offensive EMP and ISH):
+        // the ability on arrival at the behemoth, EMP once other ships (not NPCs) start shooting, ISH right after it
         // the prismatic shield only: Citadel's Fortify roots the ship, used 1 700 out it stood 11 s short of the behemoth
-        // (live 2026-11-14 on the VPS, 2-BL 13:57; the user: «призматик шилд нужно включать у цитадель плюс»)
+        // (live 2026-11-14 on the VPS, 2-BL 13:57; Citadel+ is to use the prismatic shield)
         if (plan.abilityAtStart() && useFirstReady(w, PRISMATIC, now, "призматический щит (подлетел к бегемоту)")) {
             abilityAt = now;
             return;
@@ -504,8 +503,7 @@ public final class Attacker {
                 return;
             }
         }
-        // the prismatic shield from the fight's first moment (the user, 2026-11-14: «призму можно с самого начала, как
-        // начал бить бегемота»); the other abilities when the train shoots
+        // the prismatic shield from the fight's first moment at the behemoth; the other abilities when the train shoots
         if (plan.prismaticAtStart() && useFirstReady(w, PRISMATIC, now, "призматический щит (начало боя)")) {
             abilityAt = now;
             return;
@@ -552,8 +550,7 @@ public final class Attacker {
 
     /**
      * Players shoot the ship off a fight (on the way to the behemoth's map or spawn): EMP-01 breaks their locks and the
-     * way goes on (the user, 2026-11-14: «встречает поезд и в него начинают стрелять — импульс и всё равно лететь на
-     * точку спауна»). True when used.
+     * way to the spawn point goes on. True when used.
      */
     public boolean empUnderFire(WorldSnapshot w) {
         WorldSnapshot.Hero h = w.hero();
@@ -593,7 +590,7 @@ public final class Attacker {
 
     /**
      * The item may be used now: ready in the game, the fight's count, the pause, the hour's and the day's limits and
-     * the stock kept (the config's «Расход»); a limit reached is told once.
+     * the stock kept (the config's spending section); a limit reached is told once.
      */
     /** EMP and ISH pressed and not yet answered by the game: id → {when, how many there were}. */
     private final java.util.Map<String, double[]> pendingUse = new java.util.HashMap<>();
@@ -787,7 +784,7 @@ public final class Attacker {
         if (t == null && !shotAt && w.destroyed().containsKey(targetId) && seenAt != 0
                 && Math.hypot(h.x() - seenX, h.y() - seenY) <= KILL_NEAR) {
             // gone in the first volley before the server confirmed our attack (live 2026-11-13 on 2-3: Lordakia
-            // dies in one or two volleys, the reward came, the fight was logged «пропала из вида»)
+            // dies in one or two volleys, the reward came, the fight was logged as lost from sight)
             shotAt = true;
         }
         if (t == null && !shotAt && seenAt != 0 && ctx.now() - seenAt < LOST_GRACE_NS) {
@@ -821,8 +818,8 @@ public final class Attacker {
         }
         BotConfig c = ctx.config().get();
         long now = ctx.now();
-        // another player's: greyed by the server, or someone else shot first — no reward for us (the user,
-        // 2026-11-12: only the first shooter's group gets it, except cubes and group NPCs)
+        // another player's: greyed by the server, or someone else shot first — no reward for us (only the first
+        // shooter's group gets it, except cubes and group NPCs)
         if (Targets.taken(c, w, t)) {
             log.info("Цель {} чужая (сервер отдал её другому игроку) — бросаю", t.name());
             endReason = "чужая";
@@ -841,8 +838,8 @@ public final class Attacker {
         targetRule = rule; // the pet's HP Link and the boxes go by it from the first moment of the fight
         track(t, now);
         // the run mode to catch up is the config's «chase» only: DarkBot's AGGRESSIVE_FOLLOW changes the radius alone
-        // (the user, 2026-11-17: «1 в 1 как в даркботе»)
-        // a target flagged RUSH: the run mode to it too (the user, 2026-11-17: invokes through the enemy trains)
+        // (exactly as DarkBot)
+        // a target flagged RUSH: the run mode to it too (invokes through the enemy trains)
         boolean chasing = move && dist > radius + CHASE_GAP
                 && (c.general().runModeChase() || rule != null && rule.has(BotConfig.NpcFlag.RUSH));
         boolean onTheWay = move && dist > radius + APPROACH && h.attackers().isEmpty();
@@ -906,7 +903,7 @@ public final class Attacker {
         } else if (move && now >= nextApproach) {
             switch (mode) {
                 case KITE -> {
-                    // hold the radius, away from it as it comes (Blacklight NPCs chase; the user, 2026-11-12)
+                    // hold the radius, away from it as it comes (Blacklight NPCs chase)
                     kite(threats, h, t, radius);
                     nextApproach = now + ctx.pause(300, 500);
                 }
@@ -916,10 +913,10 @@ public final class Attacker {
                 }
                 case CIRCLE -> {
                     // an NPC that attacks on sight by the target: the circle would pass by it — lead the target off
-                    // instead, it follows the ship and the slow one stays behind (the user, 2026-11-13 on 3-BL:
+                    // instead, it follows the ship and the slow one stays behind (2026-11-13 on 3-BL:
                     // Impulse II fought by Attend IX, the ship flew right up to it)
                     // never the cube: its Protegits stay by it wherever it goes, leading it off only kept the ship out
-                    // of its reach (the user, 2026-11-16: «не кружит вокруг куба»); DarkBot just circles it
+                    // of its reach (2026-11-16: it did not circle the cube); DarkBot just circles it
                     WorldSnapshot.Ship danger = threats != null && !CubikonModule.isCubikon(t)
                             ? threats.dangerNear(t, radius) : null;
                     if (danger != null) {
@@ -983,7 +980,7 @@ public final class Attacker {
         }
         WorldSnapshot.Item wanted = ammo == null ? null : w.items().get(ammo);
         // (the item bar comes a few seconds after the login: nothing is missing before it)
-        // and the lasers' part of it: the bar comes in parts (live 2026-11-15 on gb2: «нет MCB-50 в инвентаре» a second
+        // and the lasers' part of it: the bar comes in parts (live 2026-11-15 on gb2: MCB-50 reported missing a second
         // after the login, 1 113 049 of them on the account)
         boolean lasersKnown = w.items().keySet().stream().anyMatch(k -> k.startsWith("ammunition_laser_"));
         if (ammo != null && lasersKnown && (wanted == null || wanted.counter() < MIN_AMMO)
@@ -995,12 +992,12 @@ public final class Attacker {
         }
         if (wanted != null && (wanted.selected() || wanted.remainingMs(now) > 0)) {
             // selected, or its cooldown runs: it fired (RSB-75 shoots once and the game goes back to the ammunition
-            // before — live 2026-11-13 on the VPS, a false «не переключает» a minute without RSB)
+            // before — live 2026-11-13 on the VPS, a false "does not switch" a minute without RSB)
             ammoTries = 0;
         }
         if (wanted != null && ammo.equals(triedAmmo) && ammoCountAtPress >= 0 && wanted.counter() < ammoCountAtPress) {
             // fewer than at the press: it fired, though the bar never showed it selected (live 2026-11-16 on gb2:
-            // RSB-75 shot and the game went back to A-BL between two looks — a false «не переключает» at a Behemoth)
+            // RSB-75 shot and the game went back to A-BL between two looks — a false "does not switch" at a Behemoth)
             ammoTries = 0;
             ammoCountAtPress = wanted.counter();
         }
@@ -1113,7 +1110,7 @@ public final class Attacker {
     /**
      * How to move against this target: its own choice in the NPC list, else the config's; «auto» by its speed —
      * a Cubikon or a fast one circled, a slow one kept at the radius, a standing one stood by (docs/FIGHT-MOVEMENT.md
-     * Д3; the user, 2026-11-13: the cubes as they are). {@code NO_CIRCLE} turns circling into standing.
+     * item D3; the cubes as they are). {@code NO_CIRCLE} turns circling into standing.
      */
     private BotConfig.FightMove mode(BotConfig c, BotConfig.NpcRule rule, WorldSnapshot.Ship t, WorldSnapshot.Hero h,
                                      long now) {
@@ -1146,8 +1143,8 @@ public final class Attacker {
             m = BotConfig.FightMove.STAND;
         }
         // by the map's edge the circle goes on as DarkBot's: its points beyond the edge score «cannot», the way turns
-        // and the ship goes to and fro on the map's side (the user, 2026-11-17: it stood still by the radiation with the
-        // «hold the distance from the centre's side» of 2026-11-15 — «1 в 1 как даркбота»)
+        // and the ship goes to and fro on the map's side (2026-11-17: it stood still by the radiation with the
+        // «hold the distance from the centre's side» of 2026-11-15 — now exactly as DarkBot)
         if (m != modeTold) {
             modeTold = m;
             log.info("{}: {}", t.name(), switch (m) {
@@ -1161,7 +1158,7 @@ public final class Attacker {
 
     /**
      * The point to come in at: on the radius round the target, at most 60° off the straight way, where the threats
-     * are least (docs Д4: not through the other NPCs' radii); {@code null} when nothing is better than straight.
+     * are least (docs item D4: not through the other NPCs' radii); {@code null} when nothing is better than straight.
      */
     private double[] safeSide(Threats th, double[] at, double keep, WorldSnapshot.Hero h) {
         if (th == null) {
@@ -1270,7 +1267,7 @@ public final class Attacker {
     /**
      * DarkBot's circling with the threats: round where the target will be, the angle step from both ships'
      * speeds, the radius reached gradually, the side chosen by the 5 points ahead each way (switched when one way is
-     * blocked and the other not, or better by 300), a blocked point searched round (docs Д1).
+     * blocked and the other not, or better by 300), a blocked point searched round (docs item D1).
      */
     /**
      * The target moves away from the ship (not round it, not towards it): only then is the circle drawn in (live
@@ -1334,7 +1331,7 @@ public final class Attacker {
             }
         } else if (!raw) {
             // DarkBot's modifyRadius: a nearly dead NPC with «aggressive follow» — the radius × 0.75, on every map, not
-            // in the gates only (the user, 2026-11-17)
+            // in the gates only
             boolean low = t.health().known() && t.health().hpPercent() < 0.25;
             BotConfig.NpcRule rr0 = Targets.rule(ctx.config().get(), t, h.mapId());
             if (low && rr0 != null && rr0.has(BotConfig.NpcFlag.AGGRESSIVE_FOLLOW)) {
@@ -1364,7 +1361,7 @@ public final class Attacker {
         // approachToCenter: the way fixed, no scoring (the point is still searched valid)
         boolean fixedWay = gate != null && towardCentre(h, t);
         if (th != null && !fixedWay) {
-            // DarkBot's getBestDir (the user, 2026-11-13: «как в даркботе»): up to N points each way (the config's
+            // DarkBot's getBestDir (as in DarkBot): up to N points each way (the config's
             // «smart circling», DarkBot's MAX_CIRCLE_ITERATIONS, 0 = never turn); stop as soon as one side is clear and
             // the other not, or one is better by 300; turn to the better side then, else keep the way
             int max = ctx.config().get().loot().circleIterations();

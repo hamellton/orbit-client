@@ -17,7 +17,7 @@ import orbit.protocol.gen.InventoryItemModule;
 import orbit.protocol.gen.InventoryItemUpdatedCommand;
 import org.junit.jupiter.api.Test;
 
-/** The user, 2026-11-14: «крафт буквально всего, чтобы можно было конфигурировать это в конфигах». */
+/** Crafting of anything at all, configurable in the configs. */
 class CraftWatchTest {
 
     static final String RSB = "recipe_blueprint-rsb75-blacklight";
@@ -112,7 +112,7 @@ class CraftWatchTest {
 
     @Test
     void anOreIsCountedInTheHold() {
-        // «Сепром (BL)» counts resource_ore_seprom: the game tells it only as the hold's ore (gb2, 2026-11-20)
+        // the Seprom (BL) recipe counts resource_ore_seprom: the game tells it only as the hold's ore (gb2, 2026-11-20)
         Sim sim = sim(1_000);
         assertEquals(-1, CraftWatch.count(sim.world.snapshot(sim.now), "resource_ore_seprom"), "the hold not told yet");
         EnricherTest.hold(sim, new int[] {7, 1_200}, new int[] {6, 50});

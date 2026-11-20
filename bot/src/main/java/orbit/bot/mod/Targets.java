@@ -10,7 +10,7 @@ public final class Targets {
     /** Distance kept when an NPC has no rule. */
     /**
      * An NPC with no radius of its own (0 in the config's table) and none DarkBot recommends
-     * ({@link orbit.world.maps.NpcRadius}): the user's DarkBot profiles give such NPCs 560.
+     * ({@link orbit.world.maps.NpcRadius}): the owner's DarkBot profiles give such NPCs 560.
      */
     public static final double DEFAULT_RADIUS = 560;
 
@@ -23,7 +23,7 @@ public final class Targets {
         return r != null && r.appliesOn(mapId) ? r : null;
     }
 
-    /** Allowed to attack now: listed with "бить", visible, and free unless the rule ignores ownership. */
+    /** Allowed to attack now: listed with the attack flag, visible, and free unless the rule ignores ownership. */
     public static boolean attackable(BotConfig c, WorldSnapshot.Ship s, int mapId) {
         if (!s.npc() || s.cloaked()) {
             return false;
@@ -46,7 +46,7 @@ public final class Targets {
             return false;
         }
         // the server's own word only (LSH greys it, USH frees it again): an NPC hurt and left by somebody is free
-        // again, and a player shooting it got no claim unless the server greys it (the user, 2026-11-13)
+        // again, and a player shooting it got no claim unless the server greys it
         return s.lockedByOther();
     }
 
@@ -56,7 +56,7 @@ public final class Targets {
         if (orbit.config.GateCatalog.instanced(mapId)) {
             return baseRadius(c, s, mapId);
         }
-        // learned from the base (the user's own or the recommended one) — the user's own number is where it starts
+        // learned from the base (the config's own or the recommended one) — the config's own number is where it starts
         return RadiusTuner.radius(s.name(), baseRadius(c, s, mapId));
     }
 
@@ -71,7 +71,7 @@ public final class Targets {
         return learned > 0 ? learned : base;
     }
 
-    /** The radius with nothing learned: the user's own, else DarkBot's recommended, else {@link #DEFAULT_RADIUS}. */
+    /** The radius with nothing learned: the config's own, else DarkBot's recommended, else {@link #DEFAULT_RADIUS}. */
     static double baseRadius(BotConfig c, WorldSnapshot.Ship s, int mapId) {
         BotConfig.NpcRule r = rule(c, s, mapId);
         if (r != null && r.radius() > 0) {
@@ -162,7 +162,7 @@ public final class Targets {
 
     /**
      * How many NPCs that attack on sight (seen so) or shoot the ship now stand by {@code s}: of two targets alike the
-     * one alone first (docs/FIGHT-MOVEMENT.md Д4).
+     * one alone first (docs/FIGHT-MOVEMENT.md item D4).
      */
     static int crowd(WorldSnapshot w, WorldSnapshot.Ship s) {
         int n = 0;

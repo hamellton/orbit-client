@@ -102,7 +102,7 @@ public final class PetCare {
         this.ctx = ctx;
     }
 
-    /** A mode's name for the log: «Поиск врагов», not «Поиск врагов (Enemy Locator)». */
+    /** A mode's name for the log: the localized name without the English one in brackets. */
     static String gearName(String gear) {
         return "«" + orbit.config.ItemCatalog.label(gear).replaceFirst("\\s*\\(.*\\)$", "") + "»";
     }
@@ -239,7 +239,7 @@ public final class PetCare {
 
     /**
      * NPCs round the pet (round the ship while the pet is not seen): enough of them, or a flagged one —
-     * said for the log («Cubikon (флаг KAMIKAZE)», «5 NPC»), {@code null} when neither.
+     * said for the log (the NPC with its flag, or the count of NPCs), {@code null} when neither.
      */
     private String crowd(BotConfig.Kamikaze k, WorldSnapshot w, WorldSnapshot.Pet pet) {
         WorldSnapshot.Ship own = w.ships().get(pet.id());
@@ -340,8 +340,8 @@ public final class PetCare {
     static final double LINK_PET_REPAIR_BELOW = 0.975;
 
     /**
-     * DarkBot's HP Link (Optimoth / OrbitHelper {@code PetStuff}, the CARNAGE behemoth profiles; the user, 2026-11-19:
-     * «HP Link как в DarkBot во всех модулях»), over the module's word: a link running ({@code VisualModifierCommand} 86)
+     * DarkBot's HP Link (Optimoth / OrbitHelper {@code PetStuff}, the CARNAGE behemoth profiles; HP Link as in DarkBot,
+     * in every module), over the module's word: a link running ({@code VisualModifierCommand} 86)
      * is kept, never broken off; else, in a fight with the rule on, the pet repaired first below 97.5 % of its HP; else the
      * link in a fight when the hull is below the config's share (or the module asks for it: an NPC's flag) and its gear is
      * not on its cooldown; a link asked for on its cooldown — not asked (the config's mode meanwhile). {@code -1}: none.

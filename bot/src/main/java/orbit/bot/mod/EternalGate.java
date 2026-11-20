@@ -71,7 +71,7 @@ public final class EternalGate {
 
     /**
      * The BL map the run starts from: {@code own} (the default) the company's — a VRU account has no way to 1-BL (live
-     * 2026-11-16 on gb2: «нет пути с карты 3-6 на 1-BL»), else the one named.
+     * 2026-11-16 on gb2: no path from 3-6 to 1-BL), else the one named.
      */
     int blMap(JsonNode e) {
         String name = e.path("map").asText("own");
@@ -87,7 +87,7 @@ public final class EternalGate {
         return mapId == 306 || mapId == 307 || mapId == 308;
     }
 
-    /** The module's stop: the runs done, or no CPU and none to craft with «выйти из игры». */
+    /** The module's stop: the runs done, or no CPU and none to craft with the log-out choice. */
     String stopRequest() {
         return stop;
     }
@@ -117,7 +117,7 @@ public final class EternalGate {
         if (wanted > 0 && runs >= wanted) {
             return over(e, "забегов сделано " + runs + " из " + wanted, show);
         }
-        // the lasers enriched before a run (the user: «чтобы порт всегда не с пустыми лазерами проходить»)
+        // the lasers enriched before a run (never into the portal with plain lasers)
         long min = e.path("lasersMin").asLong(0);
         WorldSnapshot.Enrichment laser = w.inventory().lab().items().get(0);
         long left = laser == null ? 0 : laser.left();

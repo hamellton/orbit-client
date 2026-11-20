@@ -123,7 +123,7 @@ public final class SpawnMemory {
         return m;
     }
 
-    /** What the log calls the NPC: «куба» / «Куб» by default, «бегемота» / «Бегемот» for the behemoth module. */
+    /** What the log calls the NPC: the cube by default, the behemoth for the behemoth module (two word forms). */
     private String of = "куба";
     private String it = "Куб";
 

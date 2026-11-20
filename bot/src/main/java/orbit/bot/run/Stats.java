@@ -17,7 +17,7 @@ public final class Stats {
      */
     public final java.util.concurrent.atomic.AtomicReference<java.util.Map<Integer, Long>> questOres =
             new java.util.concurrent.atomic.AtomicReference<>(java.util.Map.of());
-    /** What was picked up, by name («палладий», «бонус-бокс»), in the order first seen. */
+    /** What was picked up, by name (e.g. palladium, bonus box), in the order first seen. */
     private final java.util.Map<String, AtomicInteger> picked = java.util.Collections.synchronizedMap(new java.util.LinkedHashMap<>());
 
     /** One more of {@code name} picked up; returns the session's count of it. */
@@ -60,7 +60,7 @@ public final class Stats {
     public final AtomicInteger cubesKilled = new AtomicInteger();
     /**
      * The players in sight who attacked or killed the ship this session (any company, {@code Offenders}): the behemoth's
-     * wait keeps off them too (the user, 2026-11-20: «обидчиком может быть любой абсолютно»).
+     * wait keeps off them too (an offender may be absolutely anyone).
      */
     public final java.util.concurrent.atomic.AtomicReference<java.util.Set<Integer>> offenders =
             new java.util.concurrent.atomic.AtomicReference<>(java.util.Set.of());

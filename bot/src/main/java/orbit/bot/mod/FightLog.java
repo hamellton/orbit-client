@@ -12,7 +12,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A temporary record of each fight to tune the movement by (the user, 2026-11-13): how long, which way of moving,
+ * A temporary record of each fight to tune the movement by: how long, which way of moving,
  * the target's and the ship's hull at the start and the end, the distance kept, the share of the time in range,
  * who shot the ship and for how long, how often the circle turned. One line in the log and one in
  * {@code local/fight-log.csv} when the fight ends (killed, given up, the ship went to repair, another target).
@@ -43,8 +43,8 @@ public final class FightLog {
     private int samples;
     private int inRange;
     private final Map<String, Long> hitBy = new LinkedHashMap<>();
-    /** The damage counters ({@link WorldSnapshot.Damage}) at the fight's first sample and now (the user, 2026-11-14:
-     * «можем отслеживать, сколько урона наносим и кому?»). */
+    /** The damage counters ({@link WorldSnapshot.Damage}) at the fight's first sample and now: how much damage is dealt
+     * and to whom. */
     private int targetId;
     private long dealt0 = -1;
     private long dealt1;
@@ -167,7 +167,7 @@ public final class FightLog {
         }
     }
 
-    /** «наш урон 1 240 000 (8% HP+щита цели, 15% всего урона по ней); урон по нам: Name 300 000, …». */
+    /** Our damage (its share of the target's HP + shield and of all damage on it) and the damage on us by player. */
     String damageLine() {
         if (dealt0 < 0) {
             return "";

@@ -629,7 +629,7 @@ class CubikonModuleTest {
 
     @Test
     void aFullHoldIsNotWaitedOutEvenWhileThePetSells() throws Exception {
-        // the user's choice 2026-11-12: no waiting by the cube's box for the hold to be sold — on after the short wait
+        // user's choice: no waiting by the cube's box for the hold to be sold — on after the short wait
         Object[] o = killedWithAFullHold();
         Sim sim = (Sim) o[0];
         CubikonModule m = (CubikonModule) o[1];

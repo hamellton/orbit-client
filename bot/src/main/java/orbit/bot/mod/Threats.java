@@ -8,12 +8,11 @@ import orbit.world.WorldSnapshot;
 import orbit.world.maps.MapCatalog;
 
 /**
- * How safe a point is to be in during a fight (docs/FIGHT-MOVEMENT.md, Д2): 0 is clear, lower is worse,
+ * How safe a point is to be in during a fight (docs/FIGHT-MOVEMENT.md, item D2): 0 is clear, lower is worse,
  * {@link #BLOCKED} is never. DarkBot steers its circle off other NPCs' radii; this adds who is dangerous:
  * <ul>
  *   <li>other NPCs by how deep the point is inside their radius — most for those shooting the ship now, then for
- *       the kinds seen attacking first (learned here), little for the rest: they shoot only when touched
- *       (the user, 2026-11-12);</li>
+ *       the kinds seen attacking first (learned here), little for the rest: they shoot only when touched;</li>
  *   <li>enemy players within their reach;</li>
  *   <li>never: off the map's edge, the avoided zone, the danger circles (offenders, clan stations), mines,
  *       no-access zones;</li>
@@ -155,7 +154,7 @@ public final class Threats {
     /**
      * DarkBot's score of a point on the circle (SharedLootModule.score): {@code -}{@link #CANNOT} where the ship may
      * not be (here also the danger circles, mines, the avoided zone), minus how deep it lies inside each other NPC's
-     * radius — the radius the NPC list fights it at, every NPC alike (the user, 2026-11-13: «как в даркботе»).
+     * radius — the radius the NPC list fights it at, every NPC alike (as in DarkBot).
      */
     double darkScore(double x, double y) {
         double s = blocked(x, y) ? -CANNOT : 0;

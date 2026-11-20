@@ -9,8 +9,8 @@ import orbit.world.Quests;
 import orbit.world.WorldSnapshot;
 
 /**
- * Quests alongside another main module (the user, 2026-11-19: «квесты поверх основного модуля, как в DmPlugin — сезон
- * шёл бы попутно»; DmPlugin's {@code useAsBehavior}): {@code modules.quests.alongside} on, the module stays what it is —
+ * Quests alongside another main module (quests on top of the main module, as in DmPlugin, so the season goes on by the
+ * way; DmPlugin's {@code useAsBehavior}): {@code modules.quests.alongside} on, the module stays what it is —
  * no flights to the quest giver or to other maps. What goes on beside it:
  * <ul>
  *   <li>the passes' free buttons ({@link PassCare}: Season Pass levels, Battle Pass, Galaxy Trek) — no rerolls and no
@@ -19,7 +19,7 @@ import orbit.world.WorldSnapshot;
  *   <li>«pick up cargo boxes» ({@link Quests#CARGO}) — a killing module (and the Mimesis farm between the runs, never in
  *       the escort) picks its NPCs' cargo too, the events' cargo as well ({@link #adjust});</li>
  * </ul>
- * The kills, damage and boxes of the module count by themselves. Not with the «Квесты» module (it does all this itself);
+ * The kills, damage and boxes of the module count by themselves. Not with the Quests module (it does all this itself);
  * with the Mimesis one the passes are its own.
  */
 public final class QuestsAlongside {
