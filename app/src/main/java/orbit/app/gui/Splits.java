@@ -11,7 +11,7 @@ import javax.swing.SwingUtilities;
 import javax.swing.plaf.basic.BasicSplitPaneUI;
 
 /**
- * A split that is easy to use (the user, 2026-11-16: «стрелки для свёртывания… удобными и юзерфрендли»): the divider says
+ * A split that is easy to use (folding arrows that are handy and friendly): the divider says
  * what it does, a double click folds the second part away and brings it back, the small arrows stay for one click, and
  * the place is remembered between runs.
  */
@@ -24,7 +24,7 @@ final class Splits {
 
     /**
      * @param key  where its place is kept
-     * @param what the second part, for the hint («журнал», «форму»)
+     * @param what the second part, for the hint (e.g. the log, the form)
      */
     static void setup(JSplitPane split, String key, String what) {
         split.setOneTouchExpandable(true);

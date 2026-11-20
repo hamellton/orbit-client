@@ -28,8 +28,8 @@ import orbit.world.maps.MapCatalog;
 
 /**
  * The config window (like AstraBot's settings): the list of configs on the left; the chosen config on the right — its
- * module and working map in a header above everything, under it a list of its parts in three groups (the user,
- * 2026-11-19: «огромный список вкладок, не понятно что есть что»): the chosen module's own part only (the other modules'
+ * module and working map in a header above everything, under it a list of its parts in three groups (a huge list of
+ * tabs was hard to follow): the chosen module's own part only (the other modules'
  * are hidden), the fight and flight every module uses, the extras that run beside any module with an on/off dot; the
  * pre-start check at the bottom; a second page for accounts and their timetables.
  */
@@ -38,7 +38,7 @@ public final class ConfigWindow {
     private final ConfigStore store;
     private final MapCatalog maps;
     private final JFrame frame = new JFrame("Orbit — конфиги");
-    /** The folders and their configs (the user, 2026-11-16: «фасовка конфигов по папкам»). */
+    /** The folders and their configs (configs sorted into folders). */
     private final javax.swing.tree.DefaultMutableTreeNode root = new javax.swing.tree.DefaultMutableTreeNode();
     private final javax.swing.tree.DefaultTreeModel model = new javax.swing.tree.DefaultTreeModel(root);
     private final javax.swing.JTree list = new javax.swing.JTree(model);
@@ -100,7 +100,7 @@ public final class ConfigWindow {
         sections.add(new EbgSection());
         sections.add(new LowSection());
         sections.add(new MimesisSection());
-        sections.add(new SeasonSection(general)); // the extras: the season first (the user asked how to turn quests on)
+        sections.add(new SeasonSection(general)); // the extras: the season first (turning quests on was hard to find)
         sections.add(new DispatchSection());
         sections.add(new EnrichSection());
         sections.add(new BuySection());
@@ -156,7 +156,7 @@ public final class ConfigWindow {
         right.add(bottom, BorderLayout.SOUTH);
 
         JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, left, right);
-        // the config list takes about a fifth of the width (140–240 px) until the user drags the divider
+        // the config list takes about a fifth of the width (140–240 px) until the divider is dragged
         left.setMinimumSize(new Dimension(110, 0));
         right.setMinimumSize(new Dimension(280, 0));
         split.setOneTouchExpandable(true);
@@ -179,7 +179,7 @@ public final class ConfigWindow {
         });
         split.addPropertyChangeListener(JSplitPane.DIVIDER_LOCATION_PROPERTY, e -> {
             if (!adjusting[0] && split.getWidth() > 0 && split.isShowing()) {
-                auto[0] = false; // dragged by the user: keep it
+                auto[0] = false; // dragged by hand: keep it
             }
         });
         JTabbedPane pages = new JTabbedPane();
@@ -249,8 +249,8 @@ public final class ConfigWindow {
     /**
      * The same on a chosen page and tab, to check every tab at every window size.
      *
-     * @param page 0 = «Конфиги», 1 = «Аккаунты»
-     * @param tab  the section tab on «Конфиги» (0 = «Общее»)
+     * @param page 0 = Configs, 1 = Accounts
+     * @param tab  the section tab on Configs (0 = General)
      */
     public static java.awt.image.BufferedImage snapshot(ConfigStore store, Path accountsFile, String select, int page,
                                                         int tab, int width, int height) {
@@ -518,7 +518,7 @@ public final class ConfigWindow {
         runCheck();
     }
 
-    /** The default configs are shown, never edited: the form's fields off, «Сохранить» off. */
+    /** The default configs are shown, never edited: the form's fields off, the save button off. */
     private void setFormEnabled(boolean on) {
         for (Section sec : sections) {
             enableAll(sec.view(), on);
@@ -700,7 +700,7 @@ public final class ConfigWindow {
         return f == null || ConfigStore.DEFAULT_FOLDER.equals(f) ? "" : f;
     }
 
-    /** The user's folders to pick from (no folder first, the defaults' never). */
+    /** The own folders to pick from (no folder first, the defaults' never). */
     private List<String> userFolders() {
         List<String> out = new ArrayList<>();
         out.add("");
@@ -716,7 +716,7 @@ public final class ConfigWindow {
         return out;
     }
 
-    /** A folder chosen from the user's ones, or a new one typed in; {@code null} cancelled. */
+    /** A folder chosen from the own ones, or a new one typed in; {@code null} cancelled. */
     private String askFolder(String question, String initial) {
         List<String> folders = userFolders();
         String none = "— без папки";

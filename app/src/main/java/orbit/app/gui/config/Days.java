@@ -6,7 +6,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-/** Days of a timetable window as text: «все», «Пн-Пт», «Сб, Вс». */
+/** Days of a timetable window as text in Russian short day names: all, a range, a list. */
 final class Days {
 
     static final List<String> SHORT = List.of("Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс");

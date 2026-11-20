@@ -9,7 +9,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Every gain and every spending in the log: the game's reward lines ({@code 0|LM|ST|…}) of one event
- * (a kill, a box) joined into one «Добыча: …» line, and each drop of credits or uridium as «Потрачено: …».
+ * (a kill, a box) joined into one loot line, and each drop of credits or uridium as a spending line.
  */
 final class LootLog {
 

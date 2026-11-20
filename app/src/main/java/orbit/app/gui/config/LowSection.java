@@ -11,7 +11,7 @@ import javax.swing.JSpinner;
 import orbit.config.BotConfig;
 
 /**
- * «LoW»: the group gate's settings (docs/LOW.md; the user, 2026-11-18) — the leader's helper accounts (§11: the one running
+ * The LoW section: the group gate's settings (docs/LOW.md) — the leader's helper accounts (§11: the one running
  * the config leads and starts them himself), how the gate is passed (the leader alone, the helpers out; the anchor; all together), the start, the relays,
  * the Vagrants of the Falcon, the chase, the life saver on the Falcon, the mines. Writes {@code modules.low}.
  */

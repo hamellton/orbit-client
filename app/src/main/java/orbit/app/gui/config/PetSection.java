@@ -6,7 +6,7 @@ import javax.swing.JSpinner;
 import orbit.config.BotConfig;
 import orbit.config.ItemCatalog;
 
-/** «Питомец» (PET). */
+/** The Pet section (PET). */
 final class PetSection implements Section {
 
     /**

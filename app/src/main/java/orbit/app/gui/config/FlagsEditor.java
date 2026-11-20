@@ -22,12 +22,12 @@ import javax.swing.table.TableCellEditor;
 import orbit.config.BotConfig;
 
 /**
- * The «Флаги» cell: a click opens the flags as ticks with what each does; the popup stays open while ticking,
+ * The Flags cell: a click opens the flags as ticks with what each does; the popup stays open while ticking,
  * the cell takes the ticks when it closes. Flags the bot does not know (imported) are kept as they were.
  */
 final class FlagsEditor extends AbstractCellEditor implements TableCellEditor {
 
-    /** What a flag does, in the user's words; the ones the bot does not act on yet say so. */
+    /** What a flag does, in plain words; the ones the bot does not act on yet say so. */
     static String describe(BotConfig.NpcFlag f) {
         return switch (f) {
             case IGNORE_OWNERSHIP -> "бить, даже если его начал другой игрок";

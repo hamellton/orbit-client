@@ -8,8 +8,9 @@ import java.util.Map;
 import orbit.secrets.ProxySpec;
 
 /**
- * Accounts the game can link by their address (plan 5в.5): the same proxy (host, port and login — the type does not
- * matter), both without a proxy (this computer's IP), or the same public IP last seen through different proxies.
+ * Accounts the game can link by their address (docs/PLAN.md, proxies and accounts): the same proxy (host, port and
+ * login — the type does not matter), both without a proxy (this computer's IP), or the same public IP last seen
+ * through different proxies.
  */
 public final class ProxySharing {
 
@@ -61,7 +62,7 @@ public final class ProxySharing {
         return p.host().toLowerCase(Locale.ROOT) + ":" + p.port() + " " + (p.user() == null ? "" : p.user());
     }
 
-    /** For the account list: {@code SOCKS5 1.2.3.4:1080 · DE · тот же прокси, что у «b»}. */
+    /** For the account list: type, address, country and which accounts share the proxy or IP. */
     public static String describe(ProxySpec p, IpHistory.Seen seen, Links links) {
         StringBuilder s = new StringBuilder(p.direct() ? "напрямую — IP этого компьютера" : p.describe());
         if (!p.direct() && seen != null && seen.country() != null) {

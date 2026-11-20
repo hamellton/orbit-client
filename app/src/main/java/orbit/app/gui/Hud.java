@@ -40,7 +40,7 @@ final class Hud {
     /** Sizes of this renderer: the normal ones, or tighter for cards on a small map. */
     final int pad;
     final int line;
-    /** From a heading's top to the first row under its rule: a little more than a row (the user: «отступа не хватает»). */
+    /** From a heading's top to the first row under its rule: a little more than a row (a plain row was too tight). */
     final int head;
     final int bar;
     private final float fontScale;
@@ -64,8 +64,8 @@ final class Hud {
     }
 
     /**
-     * «Итоги» shows all the loot, not the first {@link #STAT_LOOT_ROWS} and «ещё N» (the user, 2026-11-19: «по нажатию
-     * на ещё открывать все»); clicked again («свернуть») — short again.
+     * The Totals card shows all the loot, not the first {@link #STAT_LOOT_ROWS} and the "N more" row (a click on it
+     * opens them all); clicked again (the collapse row) — short again.
      */
     boolean allLoot;
 
@@ -76,7 +76,7 @@ final class Hud {
     }
 
     /**
-     * Cards drawn over the map (the user, 2026-11-16: «карточки на карте — компактно»): see-through, no frame, the
+     * Cards drawn over the map, kept compact: see-through, no frame, the
      * strip's duplicates left out (state, target), the ship and the results short, every attacker on one line.
      */
     private boolean onMap;
@@ -124,8 +124,8 @@ final class Hud {
     /** Every block there is something to show for, in the blocks' order. */
     Map<ViewSettings.Block, Card> blocks(WorldSnapshot w, WorldFeed feed, String config) {
         Map<ViewSettings.Block, Card> out = new java.util.EnumMap<>(ViewSettings.Block.class);
-        // on the map the bottom strip tells the state: the card only when put there on purpose («На карте», «И там, и
-        // там»), not just because the side panel is hidden
+        // on the map the bottom strip tells the state: the card only when put there on purpose (on the map, or both
+        // places), not just because the side panel is hidden
         if (!onMap || ViewSettings.shared().place(ViewSettings.Block.STATUS).map()) {
             out.put(ViewSettings.Block.STATUS, status(w, feed, config));
         }
@@ -139,7 +139,7 @@ final class Hud {
         }
         put(out, ViewSettings.Block.ATTACKERS, onMap ? attackersShort(w) : attackers(w));
         put(out, ViewSettings.Block.BOOSTERS, boosters(w.boosters(), feed.now()));
-        // «не выпущен» says nothing over the map, unless the pet was put there on purpose
+        // "not launched" says nothing over the map, unless the pet was put there on purpose
         if (w.pet().owned() && (!onMap || w.pet().active() || ViewSettings.shared().place(ViewSettings.Block.PET).map())) {
             out.put(ViewSettings.Block.PET, pet(w.pet(), w.nanos()));
         }
@@ -157,8 +157,8 @@ final class Hud {
     }
 
     /**
-     * The smallest form of a block over the map (the user, 2026-11-16: on a small window «ничего не открыто и не
-     * поместилось» — AstraBot shows less, but shows it): a few lines, used when the short card does not fit; {@code null}
+     * The smallest form of a block over the map (on a small window nothing was open and nothing fit — AstraBot shows
+     * less, but shows it): a few lines, used when the short card does not fit; {@code null}
      * for a block with none (it folds to its heading).
      */
     Card mini(ViewSettings.Block b, WorldSnapshot w, WorldFeed feed) {
@@ -239,7 +239,7 @@ final class Hud {
     }
 
     /**
-     * «Мимесис» (docs/MIMESIS.md) in the gates' place: the keys, the run's and the event's score, the time to the next
+     * Mimesis (docs/MIMESIS.md) in the gates' place: the keys, the run's and the event's score, the time to the next
      * freighter or to the entry's close, as the server tells them. While the Mimesis module runs or on an escort map.
      */
     private Card escort(WorldSnapshot w, orbit.bot.run.BotRunner r) {
@@ -391,12 +391,12 @@ final class Hud {
     static final Color QUEST_BAR = new Color(0x9071cf);
     static final Color GATE_BAR = new Color(0x3aa3b8);
 
-    /** The gates the card lists: ABG, ζ, κ first (the user's first test), then any other the builder tells of. */
+    /** The gates the card lists: ABG, ζ, κ first (the first ones tested), then any other the builder tells of. */
     static final List<String> GATE_ORDER = List.of("alpha", "beta", "gamma", "zeta", "kappa", "delta", "epsilon", "lambda",
             "kronos", "hades", "kuiper");
 
     /**
-     * «Врата»: the builder as the gate module sees it (the user, 2026-11-14: «а как мы показываем в боте билд гг?») —
+     * The Gates card: the builder as the gate module sees it, to show the galaxy gate build in the bot —
      * free energy and uridium, each gate's parts of all with a bar, its lives and wave; the gate the ship is in marked.
      * Shown while the gate module runs, or in a gate.
      */
@@ -476,7 +476,7 @@ final class Hud {
     }
 
     /**
-     * «Обогащение» (the user, 2026-11-15: «обогащены ли сейчас лазеры, движки, ракеты и щиты, чем и сколько осталось»):
+     * The Enrichment card (whether lasers, engines, rockets and shields are enriched now, with what, how much is left):
      * the lab's answer — each item's ore and what is left of it; when it was told and how often it is asked.
      */
     Card lab(WorldSnapshot.Lab lab, long nowNanos) {
@@ -522,7 +522,7 @@ final class Hud {
             Map.entry("sepromRefinery", "seprom"));
 
     /**
-     * «Скайлаб» (the user, 2026-11-15: «чтобы в боте всё отображалось, на каждом аке»): the website's Skylab, read by
+     * The Skylab card (everything shown in the bot, for every account): the website's Skylab, read by
      * the bot every 20 min — the transport, the modules not at the top level (or all at 20) with the stopped ones, and
      * each ore's stock of the storage with a bar.
      */
@@ -592,8 +592,8 @@ final class Hud {
 
     /**
      * The taken quests: type and number, then each condition with its progress. The one the bot works on first, marked
-     * «▶ сейчас» with a bar at the left and its condition marked, the others dimmed (the user, 2026-11-17: which quest is
-     * being done was not to be seen); then the HUD's quest.
+     * "now" with a bar at the left and its condition marked, the others dimmed (otherwise which quest is being done
+     * could not be seen); then the HUD's quest.
      */
     Card quests(orbit.world.Quests q, int[] doing) {
         if (q.active().isEmpty()) {
@@ -772,7 +772,7 @@ final class Hud {
         if (h.id() != 0 && !feed.loggedOut()) {
             lines.add(MapCatalog.bundled().info(h.mapId()).name() + "  ·  " + h.x() / 100 + "/" + h.y() / 100
                     + "  ·  " + heroStatus(h));
-            // the configuration and the formation chosen now (the user, 2026-11-15: «в карточке выбранную формацию показывать»)
+            // the configuration and the formation chosen now
             lines.add("Конфигурация " + (h.config() > 0 ? h.config() : "—") + "  ·  " + formation(w.items()));
             lines.add("Лазер: " + item(w.selected("lasers")));
             lines.add("Ракеты: " + item(w.selected("rockets")));
@@ -850,7 +850,7 @@ final class Hud {
         long used = inv.ores().isEmpty() ? h.cargoMax() - h.cargoFree() : inv.cargoUsed();
         stats.add(new String[] {"Трюм", h.cargoMax() > 0 ? String.format("%,d / %,d", used, h.cargoMax()) : "—"});
         stats.add(new String[] {"Конфигурация", h.config() > 0 ? String.valueOf(h.config()) : "—"});
-        // the formation the item bar marks as chosen (the user, 2026-11-15: «я не понимаю, какая формация сейчас»)
+        // the formation the item bar marks as chosen (the current formation was not to be seen otherwise)
         stats.add(new String[] {"Формация", formation(items)});
         String keys = keys(inv.bootyKeys());
         boolean nano = h.health().nanoHullMax() > 0;
@@ -928,7 +928,7 @@ final class Hud {
         };
     }
 
-    /** «Урон +13%» for every attribute with a bonus, the biggest first. */
+    /** A line like "damage +13%" for every attribute with a bonus, the biggest first. */
     static List<String> boostPills(WorldSnapshot.Boosters b) {
         Map<String, Double> byName = new LinkedHashMap<>();
         b.totals().forEach((k, v) -> {
@@ -1036,7 +1036,7 @@ final class Hud {
             Map.entry("BKLL", "лавровые"), Map.entry("BKEB", "эхо синие"), Map.entry("BKEG", "эхо зелёные"),
             Map.entry("BKEP", "эхо фиолетовые"), Map.entry("BKER", "эхо красные"), Map.entry("BKAPO", "Аполлон"));
 
-    /** «Ключи: зелёные 12  ·  синие 3», the ones the account has, the common ones first. */
+    /** The keys line (green 12, blue 3, ...), the ones the account has, the common ones first. */
     static String keys(Map<String, Integer> keys) {
         List<String> order = List.of("BK", "BKB", "BKR", "BKS", "BKBB");
         StringBuilder sb = new StringBuilder();
@@ -1062,7 +1062,7 @@ final class Hud {
     }
 
     /**
-     * Room kept free at the right of each card's heading (the side panel's «⋯» menu button, the user, 2026-11-19: no
+     * Room kept free at the right of each card's heading (the side panel's "..." menu button, which replaced the
      * tooltip over the cards); 0 — none (the cards over the map).
      */
     int menuRoom;
@@ -1349,7 +1349,7 @@ final class Hud {
     }
 
     private Card stats(WorldSnapshot w, WorldFeed feed) {
-        // a table (the user, 2026-11-19: «итоги сессии удобной таблицей»): the session, per hour, today over all runs
+        // the session totals as a table: the session, per hour, today over all runs
         WorldSnapshot.Rewards r = feed.sessionRewards();
         orbit.bot.run.Stats st = feed.sessionStats();
         double hours = feed.sessionHours();
@@ -1385,7 +1385,7 @@ final class Hud {
                 .toList();
         if (!loot.isEmpty()) {
             rows.add(StatRow.group("Добыча"));
-            // more than the short list and one row over: «ещё N» opens them all, «свернуть» closes them again
+            // more than the short list and one row over: "N more" opens them all, the collapse row closes them again
             boolean all = allLoot || loot.size() <= STAT_LOOT_ROWS + 1;
             int shown = all ? loot.size() : STAT_LOOT_ROWS;
             for (String id : loot.subList(0, shown)) {
@@ -1404,7 +1404,7 @@ final class Hud {
         String clock = feed.sessionStartNanos() == 0 ? "" : "сессия " + clock(java.time.Duration.ofNanos(feed.sessionNanos()));
         int rowH = line;
         return new Card() {
-            /** Where the «ещё N» / «свернуть» row was painted last. */
+            /** Where the "N more" / collapse row was painted last. */
             private java.awt.Rectangle toggle;
 
             @Override
@@ -1515,13 +1515,13 @@ final class Hud {
         };
     }
 
-    /** At most this many loot rows in «Итоги»; the rest as «ещё N», a click opens them all ({@link #allLoot}). */
+    /** At most this many loot rows in Totals; the rest as "N more", a click opens them all ({@link #allLoot}). */
     static final int STAT_LOOT_ROWS = 8;
     static final String MORE = "ещё ";
     static final String LESS = "свернуть";
     static final Color ACCENT_LINK = new Color(0x7aa7d6);
 
-    /** One row of «Итоги»: a name with the session's and today's value, or a group's heading. */
+    /** One row of the Totals card: a name with the session's and today's value, or a group's heading. */
     static final class StatRow {
         final String label;
         final double session;
@@ -1555,7 +1555,7 @@ final class Hud {
             return new String[] {s, h, d};
         }
 
-        /** 23 244, 53,2 млн, 1,25 млрд; 0 — a dash. */
+        /** 23 244, 53.2 million, 1.25 billion (Russian short words, comma decimals); 0 — a dash. */
         static String compact(double v) {
             if (Math.abs(v) < 0.5) {
                 return "—";
@@ -1708,7 +1708,7 @@ final class Hud {
     static final int TARGET_STRIP_HEIGHT = 40;
 
     /**
-     * The target over the map's bottom, on the right, in the bottom strip's style (the user, 2026-11-16: as AstraBot and
+     * The target over the map's bottom, on the right, in the bottom strip's style (as AstraBot and
      * DarkBot — the ship left, the target right): its name in red, what and how far, hull and shield. Nothing without one.
      *
      * @param right the strip's right edge; @param bottom its bottom
@@ -1746,7 +1746,7 @@ final class Hud {
 
     // ---- drawing helpers ----
 
-    /** Corners of the cards and bars: small, a classic panel (the user, 2026-11-16: «более классическое, строгое»). */
+    /** Corners of the cards and bars: small, a classic, strict panel. */
     static final int CARD_ARC = 0;
     static final int BAR_ARC = 3;
 
@@ -1772,7 +1772,7 @@ final class Hud {
 
     /**
      * A section's title as in a classic panel: small grey capitals spaced a little, its note on the right, a thin line
-     * under them (the user, 2026-11-16). On the card's first row; the rows below start where they did.
+     * under them. On the card's first row; the rows below start where they did.
      */
     private void heading(Graphics2D g, int x, int y, int width, String title, String right) {
         Font small = font(Font.PLAIN, 11f);
@@ -1859,8 +1859,8 @@ final class Hud {
     }
 
     /**
-     * A hull or shield bar written as the user chose ({@link ViewSettings.Numbers}): numbers by default, shortened
-     * («245к / 250к») when the bar is narrow, the share only as the last resort.
+     * A hull or shield bar written as chosen in {@link ViewSettings.Numbers}: numbers by default, shortened
+     * (245k / 250k) when the bar is narrow, the share only as the last resort.
      */
     private void valueBar(Graphics2D g, int x, int y, int w, int barHeight, double now, double max, Color color) {
         g.setColor(BAR_TRACK);
@@ -1911,7 +1911,7 @@ final class Hud {
         return String.format("%,.0f", v).replace(',', ' ').replace('\u00a0', ' ');
     }
 
-    /** 245 300 → 245к, 1 250 000 → 1,25М. */
+    /** 245 300 → 245k, 1 250 000 → 1.25M (Russian letters, comma decimals). */
     static String shortNum(double v) {
         if (v >= 1_000_000) {
             return String.format("%.2fМ", v / 1_000_000).replace('.', ',').replace(",00М", "М");

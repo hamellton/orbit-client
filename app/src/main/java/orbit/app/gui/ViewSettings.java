@@ -25,7 +25,7 @@ public final class ViewSettings {
         ATTACKERS("Атакующие"),
         BOOSTERS("Бустеры"),
         PET("Питомец"),
-        // the results right under the pet (the user, 2026-11-19): the cards stand in this order
+        // the results right under the pet: the cards stand in this order
         STATS("Итоги сессии"),
         GROUP("Группа"),
         QUESTS("Квесты"),
@@ -41,7 +41,7 @@ public final class ViewSettings {
 
         /**
          * With {@link CardLayout#SPLIT}: the card's place in the right column of its own, top to bottom, -1 for the left
-         * columns (the user, 2026-11-19): the fight and the deeds right — target, attackers, group, the results right
+         * columns: the fight and the deeds right — target, attackers, group, the results right
          * under the group, quests, gates; the ship left ({@link #leftColumn}).
          */
         int rightColumn() {
@@ -101,14 +101,14 @@ public final class ViewSettings {
         }
 
         /**
-         * The choices offered: the map has DarkBot's overlays only (the user, 2026-11-17: «то, чего в DarkBot нет на
-         * карте, — только в боковой панели»), so a block is beside it or hidden.
+         * The choices offered: the map has DarkBot's overlays only (what DarkBot does not draw on the map goes to the
+         * side panel only), so a block is beside it or hidden.
          */
         public static List<Place> choices() {
             return List.of(SIDE, HIDDEN);
         }
 
-        /** «На карте» and «Сбоку и на карте» of before: beside the map now. */
+        /** The former on-map and both-places choices: beside the map now. */
         static Place normalized(Place p) {
             return p == MAP || p == BOTH ? SIDE : p;
         }
@@ -161,7 +161,7 @@ public final class ViewSettings {
 
     private Numbers numbers = Numbers.EXACT;
 
-    /** How the side panel lays its cards out (the user, 2026-11-19: to be tried, and undone with one click). */
+    /** How the side panel lays its cards out (to be tried, and undone with one click). */
     public enum CardLayout {
         SPLIT("Слева корабль, справа бой и дела"),
         MASONRY("Как раньше — по самой короткой колонке");
@@ -185,7 +185,7 @@ public final class ViewSettings {
         }
         changed();
     }
-    /** Under the map's marks (the user, 2026-11-16): the game's minimap picture, a dark ground, or DarkBot's slate. */
+    /** Under the map's marks: the game's minimap picture, a dark ground, or DarkBot's slate. */
     public enum MapBackground {
         PICTURE("Картинка игры"),
         DARK("Тёмный"),

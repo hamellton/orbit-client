@@ -23,8 +23,7 @@ class SidePanelTest {
 
     @Test
     void theShipLeftTheFightAndTheDeedsRight() {
-        // the user, 2026-11-19: left the ship; right target, attackers, group, the results right under the group, quests,
-        // gates
+        // left the ship; right target, attackers, group, the results right under the group, quests, gates
         java.util.List<ViewSettings.Block> order = java.util.Arrays.stream(ViewSettings.Block.values())
                 .sorted(java.util.Comparator.comparingInt(ViewSettings.Block::splitOrder)).toList();
         org.junit.jupiter.api.Assertions.assertEquals(java.util.List.of(ViewSettings.Block.STATUS, ViewSettings.Block.SHIP,

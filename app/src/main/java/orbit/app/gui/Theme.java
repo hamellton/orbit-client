@@ -72,7 +72,7 @@ public final class Theme {
         UIManager.put("Separator.foreground", BORDER);
         UIManager.put("ScrollBar.thumbArc", 999);
         UIManager.put("ScrollBar.thumbInsets", new Insets(2, 2, 2, 2));
-        // scroll bars easy to see and to catch (the user, 2026-11-16): wider, a clearer thumb, brighter under the mouse
+        // scroll bars easy to see and to catch: wider, a clearer thumb, brighter under the mouse
         UIManager.put("ScrollBar.width", 12);
         UIManager.put("ScrollBar.track", BACKGROUND);
         UIManager.put("ScrollBar.thumb", new Color(0x354153));

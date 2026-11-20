@@ -19,7 +19,7 @@ public final class SessionSummary {
         out.add(row("Кредиты", r.credits(), hours));
         out.add(row("Опыт", r.experience(), hours));
         out.add(row("Честь", r.honor(), hours));
-        // what was spent (purchases, paid repairs, a gate's lives and spins, the quick transport): the user, 2026-11-16
+        // what was spent (purchases, paid repairs, a gate's lives and spins, the quick transport)
         String spent = HourlyReport.spent(r.spentUridium(), r.spentCredits());
         if (spent != null) {
             out.add("Потрачено: " + spent);

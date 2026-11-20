@@ -10,7 +10,7 @@ import javax.swing.JSpinner;
 import orbit.config.BotConfig;
 
 /**
- * «Мимесис» (docs/MIMESIS.md): the escort as DarkBot's DonorPlugin plays it, AstraBot's automation round it — what
+ * Mimesis (docs/MIMESIS.md): the escort as DarkBot's DonorPlugin plays it, AstraBot's automation round it — what
  * between the runs, when to fly to the entry, after the freighter, EMAA-20 and its craft, the abilities, the pet's HP
  * Link. Writes {@code modules.mimesis}.
  */

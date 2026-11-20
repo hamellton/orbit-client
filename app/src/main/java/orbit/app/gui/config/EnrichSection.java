@@ -11,9 +11,9 @@ import javax.swing.JSpinner;
 import orbit.config.BotConfig;
 
 /**
- * «Обогащение» (the user, 2026-11-15/16: «бот сам присылал со Скайлаба и обогащал… в конфигурациях»; «упрости — не могу
- * разобраться»): what is enriched and with what, where the ore comes from, the transport — the rest under
- * «Дополнительно». Writes {@code modules.enrich} (the bot's {@code Enricher}, {@code ServiceVisit}) and
+ * The Enrichment section (the bot sends ore from Skylab and enriches by itself, set in the configs; kept simple):
+ * what is enriched and with what, where the ore comes from, the transport — the rest under
+ * the advanced part. Writes {@code modules.enrich} (the bot's {@code Enricher}, {@code ServiceVisit}) and
  * {@code modules.skylab} ({@code SkylabCare}); off by default.
  */
 final class EnrichSection implements Section {
@@ -22,7 +22,7 @@ final class EnrichSection implements Section {
     static final String[] ITEM_LABELS = {"Лазеры", "Ракеты", "Двигатели", "Щиты"};
     static final String[] ORES = {"PROMERIUM", "SEPROM", "PROMETID", "DURANIUM"};
     static final String[] ORE_LABELS = {"Promerium", "Seprom", "Prometid", "Duranium"};
-    /** The defaults: as the user's own ship was enriched (recording of 2026-11-14). */
+    /** The defaults: as the account's own ship was enriched (recording of 2026-11-14). */
     static final String[] DEFAULT_ORE = {"PROMERIUM", "SEPROM", "PROMERIUM", "SEPROM"};
     static final String[] SKYLAB_ORES = {"promerium", "seprom", "prometid", "duranium"};
     /** The game's units of each item's enrichment (its lab window): shots, rockets, minutes, minutes. */
@@ -43,7 +43,7 @@ final class EnrichSection implements Section {
     private final JRadioButton normal = new JRadioButton("Обычный (бесплатно, ~10–15 мин)");
     private final JRadioButton fast = new JRadioButton("Быстрый (за уридий)");
 
-    /** A disclosure, not a tick (the user, 2026-11-16: «стрелки… удобными»): ▸ folded, ▾ open. */
+    /** A disclosure, not a tick (handy arrows): ▸ folded, ▾ open. */
     private final javax.swing.JToggleButton more = Form.disclosure("Дополнительные настройки");
     private final JSpinner keepInCargo = Form.number(0, 1_000_000, 100);
     private final JSpinner perHour = Form.number(1, 600, 1);
@@ -207,14 +207,14 @@ final class EnrichSection implements Section {
             it.put("ore", ORES[ore[i].getSelectedIndex()]);
             it.put("below", Form.intOf(below[i]));
             it.put("load", Form.intOf(load[i]));
-            // on the service ship: up to the threshold and one load more (the old «до» field is gone)
+            // on the service ship: up to the threshold and one load more (the old "up to" field is gone)
         }
         e.remove("visitBelow");
         e.remove("fillTo");
         e.put("keepInCargo", Form.intOf(keepInCargo));
         e.put("maxPerHour", Form.intOf(perHour));
         e.put("visit", viaService.isSelected());
-        // the way chosen, kept for the header's «Скайлаб» switch (off and on again restores it)
+        // the way chosen, kept for the header's Skylab switch (off and on again restores it)
         if (anySkylab) {
             e.put("source", viaService.isSelected() ? "service" : "skylab");
         }

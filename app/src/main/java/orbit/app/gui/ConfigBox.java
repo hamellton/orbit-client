@@ -11,8 +11,8 @@ import javax.swing.JComboBox;
 import javax.swing.JList;
 
 /**
- * A config to choose, by folders (the user, 2026-11-18: «конфиги разделены по папкам, а при выборе — сплошной список,
- * непонятно и неудобно»): each folder a heading that cannot be chosen, its configs under it indented; the chosen one
+ * A config to choose, by folders (a flat list hid which folder a config was in): each folder a heading that cannot
+ * be chosen, its configs under it indented; the chosen one
  * shown with its folder. The items are the config names themselves (unique over the folders), so callers keep
  * {@code (String) getSelectedItem()}.
  */
@@ -22,7 +22,7 @@ public final class ConfigBox extends JComboBox<String> {
     static final String HEAD = "\u0001";
 
     private final Map<String, String> folderOf = new HashMap<>();
-    /** Items above the folders (e.g. «— без конфига —»), shown as they are. */
+    /** Items above the folders (e.g. the no-config item), shown as they are. */
     private final java.util.Set<String> plain = new java.util.HashSet<>();
 
     public ConfigBox() {

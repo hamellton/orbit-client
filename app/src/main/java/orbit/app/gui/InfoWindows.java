@@ -16,8 +16,8 @@ import orbit.app.WorldFeed;
 import orbit.world.WorldSnapshot;
 
 /**
- * «Скайлаб» and «Обогащение» in windows of their own, as «Ангар» (the user, 2026-11-15: «скайлаб и обогащение кнопкой,
- * как ангар»): what the cards show, in full, with when it was read, how often, and «Обновить». One window per account.
+ * Skylab and Enrichment in windows of their own, opened by a button like the hangar: what the cards show, in full,
+ * with when it was read, how often, and a refresh button. One window per account.
  */
 final class InfoWindows {
 
@@ -94,7 +94,7 @@ final class InfoWindows {
     }
 
     /**
-     * «Итоги» in full (the user, 2026-11-20: «подобрано — не понятно чего; кнопку детали, окно как ангар»): what was
+     * The Totals in full, in a details window like the hangar (the card's "picked" did not say of what): what was
      * picked by its kind (the behemoth's, the invokes' and other boxes, the ore), the loot by item, the income and
      * the deeds — the session, per hour and today over all runs, exact numbers.
      */

@@ -56,7 +56,7 @@ final class BlockMenu {
         });
     }
 
-    /** «Цель»: Сбоку / Скрыть. */
+    /** The target block: beside the map or hidden. */
     static JPopupMenu forBlock(ViewSettings.Block b) {
         JPopupMenu menu = new JPopupMenu(b.label);
         JMenuItem title = new JMenuItem(b.label);
@@ -93,7 +93,7 @@ final class BlockMenu {
         return menu;
     }
 
-    /** «Только карта», «Показать всё» and a check per part of the window. */
+    /** Map only, show all, and a check per part of the window. */
     private static JMenuItem[] windowItems() {
         ViewSettings v = ViewSettings.shared();
         java.util.List<JMenuItem> out = new java.util.ArrayList<>();

@@ -13,7 +13,8 @@ import org.slf4j.LoggerFactory;
 
 /**
  * The public IP and its country each account was last seen with through its proxy ({@code local/proxy-seen.json},
- * plan 5в.5): an account's IP must not jump between countries, and two accounts behind one IP are linked by the game.
+ * docs/PLAN.md, proxies and accounts): an account's IP must not jump between countries, and two accounts behind one
+ * IP are linked by the game.
  */
 public final class IpHistory {
 

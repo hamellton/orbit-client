@@ -2,7 +2,7 @@ package orbit.app.log;
 
 /**
  * One row of the log: a line, or the same line repeated ({@link #count()} times from {@link #first()} to
- * {@link #last()}, the latest wording kept: «Подобрал палладий (за сессию: 812)» ×37). Changed only by
+ * {@link #last()}, the latest wording kept: a palladium pickup line with its session count ×37). Changed only by
  * {@link LogStore} under its lock; read from the window's thread.
  */
 public final class LogEntry {
@@ -24,7 +24,7 @@ public final class LogEntry {
     private volatile long last;
     private volatile int count = 1;
     private volatile String text;
-    /** Each line folded in, with its time (the last {@link #KEPT} of them): when which loot came (the user, 2026-11-13). */
+    /** Each line folded in, with its time (the last {@link #KEPT} of them): when which loot came. */
     private final java.util.ArrayDeque<Occurrence> occurrences = new java.util.ArrayDeque<>();
     static final int KEPT = 100;
 
@@ -97,7 +97,7 @@ public final class LogEntry {
         this.last = time;
     }
 
-    /** A row of the plain-words journal (shown on «Журнал»); the full log's rows are on «Всё» and «Проблемы». */
+    /** A row of the plain-words journal (shown on the Journal tab); the full log's rows are on All and Problems. */
     public boolean journal() {
         return journal;
     }

@@ -18,8 +18,8 @@ import orbit.config.BotConfig;
 import orbit.config.GateCatalog;
 
 /**
- * «Врата»: the gate module's settings as a form (the user, 2026-11-14: «давай сделаем юзер френдли, как в даркботе в
- * модуле ГГ») — the gates in their order with on/off and the lives needed, the builder (DarkBot SharedPlugin
+ * Gates: the gate module's settings as a user-friendly form, as in DarkBot's galaxy gate module — the gates in
+ * their order with on/off and the lives needed, the builder (DarkBot SharedPlugin
  * {@code GateBuilder} and AstraBot {@code GALAXY_GATES}), lives in stock, boxes, Trinity. Keys the form does not know are
  * kept as they were.
  */

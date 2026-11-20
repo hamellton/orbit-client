@@ -14,7 +14,7 @@ import javax.swing.JTable;
 import javax.swing.table.AbstractTableModel;
 import orbit.config.BotConfig;
 
-/** «Сбор» (COLLECTOR): which boxes to pick up. */
+/** The Collect section (COLLECTOR): which boxes to pick up. */
 final class CollectSection implements Section {
 
     private final JSpinner radius = Form.number(0, 10_000, 50);
@@ -40,7 +40,7 @@ final class CollectSection implements Section {
         table.setFillsViewportHeight(true);
         JButton add = new JButton("Добавить");
         add.addActionListener(e -> {
-            // the known boxes not in the list yet (the user's list, 2026-11-12), or any other type typed in
+            // the known boxes not in the list yet (user's list, 2026-11-12), or any other type typed in
             javax.swing.JComboBox<String> pick = new javax.swing.JComboBox<>();
             pick.setEditable(true);
             for (orbit.config.BoxCatalog.Box b : orbit.config.BoxCatalog.all()) {
@@ -138,7 +138,7 @@ final class CollectSection implements Section {
                 ignoreContested.isSelected(), CARGO[cargo.getSelectedIndex()], Form.intOf(cargoFullAt), ores));
     }
 
-    /** {@code PIRATE_BOOTY — пиратский бути-ящик (зелёный), 5500 мс} for the picker. */
+    /** The type, its Russian name with colour and its collect time (e.g. PIRATE_BOOTY, 5500 ms) for the picker. */
     static String label(orbit.config.BoxCatalog.Box b) {
         return b.type() + " — " + b.name() + (b.waitMs() > 0 ? ", " + b.waitMs() + " мс" : "");
     }

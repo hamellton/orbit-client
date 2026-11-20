@@ -19,7 +19,7 @@ final class StopDialog {
 
     /**
      * @param inGame the names of the accounts in game now
-     * @param action what follows, e.g. «и закрыть вкладку»; empty for a plain stop
+     * @param action what follows, e.g. "and close the tab"; empty for a plain stop
      */
     static Choice ask(Component parent, String title, List<String> inGame, String action) {
         String who = inGame.size() == 1 ? "«" + inGame.getFirst() + "» в игре"
@@ -33,9 +33,9 @@ final class StopDialog {
     }
 
     /**
-     * Stops the accounts as asked: those not in game at once, those in game by the user's choice.
+     * Stops the accounts as asked: those not in game at once, those in game as chosen in the dialog.
      *
-     * @return false when the user cancelled
+     * @return false when cancelled
      */
     static boolean stop(Component parent, String title, List<ManagedAccount> accounts, String action) {
         List<ManagedAccount> running = accounts.stream().filter(a -> a.phase() != ManagedAccount.Phase.STOPPED).toList();
@@ -50,7 +50,7 @@ final class StopDialog {
             } else if (choice == Choice.NOW || a.phase() == ManagedAccount.Phase.RUNNING) {
                 a.stopNow(); // not in game: nothing to fly or log out with
             }
-            // a portal exit already under way is left to finish unless «Закрыть сразу» was chosen
+            // a portal exit already under way is left to finish unless closing at once was chosen
         }
         return true;
     }

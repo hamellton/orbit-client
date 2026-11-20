@@ -11,16 +11,16 @@ import javax.swing.JSpinner;
 import orbit.config.BotConfig;
 
 /**
- * «Квесты» — the QUESTS module's own part (plan 5б.9), shown only with that module: which quest types the bot takes at
+ * Quests — the QUESTS module's own part (plan 5b.9), shown only with that module: which quest types the bot takes at
  * the home base's quest giver, what kinds of conditions it does, the pet's locator, quests by number and how often it
  * looks at the giver again ({@code modules.quests}: {@code types}, {@code do}, {@code locator}, {@code first},
  * {@code skip}, {@code cancel}, {@code revisitMinutes}). The passes, quests alongside and the crafting for quests are
- * {@link SeasonSection}'s (the user, 2026-11-19: the two were mixed in one tab).
+ * {@link SeasonSection}'s (the two were mixed in one tab before).
  */
 final class QuestsSection implements Section {
 
     private static final String KEY = BotConfig.Module.QUESTS.key();
-    /** Types by setting key; the first four are on by default (the user's choice 2026-11-12). */
+    /** Types by setting key; the first four are on by default (user's choice, 2026-11-12). */
     static final Map<String, String> TYPES = new LinkedHashMap<>();
     /** Condition kinds by setting key, all on by default. */
     static final Map<String, String> KINDS = new LinkedHashMap<>();
@@ -182,7 +182,7 @@ final class QuestsSection implements Section {
         return out;
     }
 
-    /** The seen quests with the user's mark: {id, type, conditions, rewards, mark}. */
+    /** The seen quests with their mark: {id, type, conditions, rewards, mark}. */
     static final class Marks extends javax.swing.table.AbstractTableModel {
 
         static final String NONE = "—";

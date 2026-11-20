@@ -13,7 +13,7 @@ import orbit.config.Json;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
-/** The user, 2026-11-14: «давай сделаем юзер френдли, как в даркботе в модуле ГГ». */
+/** The galaxy gate section made easy to use, as in DarkBot's gate module. */
 class GateSectionTest {
 
     @BeforeAll

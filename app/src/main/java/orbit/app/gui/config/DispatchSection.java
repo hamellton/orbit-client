@@ -9,7 +9,7 @@ import orbit.bot.run.DispatchCare;
 import orbit.config.BotConfig;
 
 /**
- * «Диспетчер» (the dispatch's retrievers, as AstraBot and PikaPika's DispatchNew): on or off, which retriever, how many of
+ * Dispatch (the dispatch's retrievers, as AstraBot and PikaPika's DispatchNew): on or off, which retriever, how many of
  * it at once, slots left free, the instant finish. Works with any module. Writes {@code modules.dispatch}.
  */
 final class DispatchSection implements Section {

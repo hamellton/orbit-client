@@ -24,7 +24,8 @@ class ConfigBoxTest {
         ConfigBox b = new ConfigBox();
         b.fill(List.of("— без конфига —"), folders(), "BEHE 2");
         assertEquals("BEHE 2", b.getSelectedItem());
-        // «— без конфига —», Default, EBG, Mimesis, Behemoth, BEHE 1, BEHE 2, «Без папки», loose (the empty folder left out)
+        // the no-config entry, Default, EBG, Mimesis, Behemoth, BEHE 1, BEHE 2, the no-folder header, loose (the empty
+        // folder left out)
         assertEquals(9, b.getItemCount());
         assertEquals(ConfigBox.HEAD + "Behemoth", b.getItemAt(4));
     }
@@ -33,7 +34,7 @@ class ConfigBoxTest {
     void aHeadingIsSkippedTheWayTheSelectionMoves() {
         ConfigBox b = new ConfigBox();
         b.fill(List.of(), folders(), "Mimesis VRU 3-4");
-        b.setSelectedIndex(3); // down onto «Behemoth»
+        b.setSelectedIndex(3); // down onto the Behemoth header
         assertEquals("BEHE 1", b.getSelectedItem());
         b.setSelectedIndex(3); // up from BEHE 1 onto it
         assertEquals("Mimesis VRU 3-4", b.getSelectedItem());

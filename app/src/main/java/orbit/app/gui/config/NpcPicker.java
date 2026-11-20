@@ -54,7 +54,7 @@ final class NpcPicker {
         list.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         list.setVisibleRowCount(16);
         String[] result = {null};
-        // the map filter: «Все карты», then the maps with NPCs known, in the game's order of maps
+        // the map filter: all maps, then the maps with NPCs known, in the game's order of maps
         orbit.world.maps.MapCatalog catalog = orbit.world.maps.MapCatalog.bundled();
         java.util.List<Integer> maps = byMap.keySet().stream().filter(m -> catalog.info(m).known())
                 .sorted(java.util.Comparator.comparing(m -> catalog.info(m).name())).toList();

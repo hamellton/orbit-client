@@ -28,7 +28,7 @@ import javax.swing.WindowConstants;
 import orbit.app.WorldFeed;
 
 /**
- * The bot window. One account fills it; several get a tab each, like a browser, plus «Все» with every
+ * The bot window. One account fills it; several get a tab each, like a browser, plus the All tab with every
  * chosen account's map side by side. Everything follows the window's size: the map keeps its shape,
  * the cards go beside or under it, the overview picks the number of columns that fits.
  */
@@ -100,7 +100,7 @@ public final class MainWindow {
     /**
      * The window's content drawn into an image without showing it (to check the layout at any size).
      *
-     * @param select the tab to show: 0 = «Все» when there are several accounts
+     * @param select the tab to show: 0 = the All tab when there are several accounts
      */
     public static BufferedImage snapshot(List<Tab> tabs, int select, int width, int height) {
         setupLook();
@@ -131,7 +131,7 @@ public final class MainWindow {
         }
         Component view = content instanceof JTabbedPane pane ? pane.getSelectedComponent() : content;
         if (!(view instanceof AccountView) || view.getWidth() <= 0) {
-            return; // «Все» keeps its grid
+            return; // the All tab keeps its grid
         }
         int extra = frame.getHeight() - view.getHeight(); // title bar, tabs, borders
         int want = extra + (int) Math.round(view.getWidth() / Grid.ASPECT);
@@ -148,7 +148,7 @@ public final class MainWindow {
 
     /**
      * Only the map shown on an account's tab: the window takes the map's shape, its height following the
-     * width (after the user lets go of the edge), so no empty bands are left. The overview is left alone.
+     * width (after the edge is let go), so no empty bands are left. The overview is left alone.
      */
     private static void fitToMap(JFrame frame, JComponent content) {
         Timer settle = new Timer(120, null);
@@ -203,7 +203,7 @@ public final class MainWindow {
             for (int i = 0; i < tabs.size(); i++) {
                 String title = tabs.get(i).feed().title();
                 if (!title.equals(pane.getTitleAt(i + 1))) {
-                    pane.setTitleAt(i + 1, title); // tab 0 is «Все»
+                    pane.setTitleAt(i + 1, title); // tab 0 is the All tab
                 }
             }
             pane.repaint();
@@ -225,7 +225,7 @@ public final class MainWindow {
     }
 
     /**
-     * «Все»: the chosen accounts' maps in a grid sized to the window; a click opens the account.
+     * The All tab: the chosen accounts' maps in a grid sized to the window; a click opens the account.
      *
      * @param firstTab the index of the first account's tab in {@code pane}
      */

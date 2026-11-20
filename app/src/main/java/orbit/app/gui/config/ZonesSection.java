@@ -22,7 +22,7 @@ import orbit.config.BotConfig;
 import orbit.world.maps.MapCatalog;
 
 /**
- * «Зоны»: preferred and avoided areas drawn on the map, cell by cell (a 30 × 30 grid over the map,
+ * The Zones section: preferred and avoided areas drawn on the map, cell by cell (a 30 × 30 grid over the map,
  * the way DarkBot stores them), edited the way DarkBot's zone editor does it: drag a frame over the cells (a
  * click is a frame of one); on release, a frame whose cells are all like the first one flips them, a mixed one
  * is filled by the left button and cleared by the right; the middle button flips every cell on its own.
@@ -52,8 +52,8 @@ final class ZonesSection implements Section {
     private final JRadioButton preferred = new JRadioButton("Предпочтительная зона", true);
     private final JRadioButton avoided = new JRadioButton("Запретная зона");
     /**
-     * The behemoth's wait point per map (the user, 2026-11-20: «добавим точки ожидания, чтобы через конфиг можно было
-     * хендлить»): {@code modules.behemoth.waitPoints}, set by a click on the map, removed by the right button.
+     * The behemoth's wait point per map, handled through the config: {@code modules.behemoth.waitPoints}, set by a
+     * click on the map, removed by the right button.
      */
     private final JRadioButton wait = new JRadioButton("Точка ожидания");
     private final Map<Integer, int[]> waits = new TreeMap<>();
@@ -388,7 +388,7 @@ final class ZonesSection implements Section {
         }
 
         /**
-         * The zones the bot saw here, drawn as DarkBot draws them (the user, 2026-11-13): no-access zones as barriers
+         * The zones the bot saw here, drawn as DarkBot draws them: no-access zones as barriers
          * (white, a light fill and a border), damage, radiation, mines and the like as a blue mist, a base's no-fight
          * ring as its green spot.
          */

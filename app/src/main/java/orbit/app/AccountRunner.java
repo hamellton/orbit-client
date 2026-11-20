@@ -15,8 +15,8 @@ import org.slf4j.MDC;
  * One account in the manager window: each start builds a fresh web login, proxy route and sessions
  * (so edits of the login or proxy apply), the feed stays — the tab and the log keep going.
  *
- * <p>The runners are a LoW leader's crew too (docs/LOW.md §11, the user, 2026-11-18): a leader takes a stopped helper
- * account and starts it as his helper (an account at work is not taken: «уже в работе»); while held it cannot be
+ * <p>The runners are a LoW leader's crew too (docs/LOW.md §11): a leader takes a stopped helper
+ * account and starts it as his helper (an account at work is not taken: "already at work"); while held it cannot be
  * started by hand; the leader's stop stops his helpers as by hand; a helper stopped by hand is not taken again till
  * the leader starts anew.
  */

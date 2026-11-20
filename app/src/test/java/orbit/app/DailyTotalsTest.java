@@ -22,7 +22,7 @@ class DailyTotalsTest {
 
     @Test
     void runsOfADayAddUpAndADayStartsAnew() throws Exception {
-        // the user, 2026-11-13: «итог сессии» started from nothing at each start of the bot
+        // the session summary started from nothing at each start of the bot
         Path file = Files.createTempDirectory("daily").resolve("today-3.json");
         DailyTotals first = new DailyTotals(file, ZoneOffset.UTC, LocalDate.of(2026, 11, 13));
         first.update(t(100, 3, 7), at(13, 10));

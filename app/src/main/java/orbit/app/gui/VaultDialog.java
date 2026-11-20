@@ -22,7 +22,7 @@ import orbit.secrets.VaultException;
 /**
  * The master password in a window: opens the vault, or creates a new one (the password typed twice).
  * {@code ORBIT_MASTER_PASSWORD} opens it without asking. A forgotten password cannot be recovered:
- * «Новое хранилище…» keeps the old file aside and starts empty.
+ * The new-vault button keeps the old file aside and starts empty.
  */
 public final class VaultDialog {
 
@@ -41,8 +41,8 @@ public final class VaultDialog {
     private Vault vault;
 
     /**
-     * The window (the user, 2026-11-15: «это экран для ввода пароля хранилища, но сейчас это не понятно» — on macOS it
-     * came up black, only the field and «Выход» drawn): a title, what the password is for, the label over the field, a
+     * The window (it was not clear it asks for the vault password — on macOS it came up black, only the field
+     * and the exit button drawn): a title, what the password is for, the label over the field, a
      * reveal button, the main button on the right; colours set, a repaint once it is up.
      */
     private VaultDialog(Path file) {
@@ -137,7 +137,7 @@ public final class VaultDialog {
     /**
      * Asks on the Swing thread and waits.
      *
-     * @return the opened vault, or {@code null} when the user closed the window
+     * @return the opened vault, or {@code null} when the window was closed
      */
     public static Vault open(Path file) throws Exception {
         String env = System.getenv(MasterPassword.ENV);

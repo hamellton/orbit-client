@@ -26,7 +26,7 @@ import orbit.app.WorldFeed;
 import orbit.world.WorldSnapshot;
 
 /**
- * What the account has, in a window of its own (the user, 2026-11-13: «кнопка — посмотреть ангар»): the laser
+ * What the account has, in a window of its own (opened by a button to view the hangar): the laser
  * ammunition, the rockets and mines, the resources and keys as the game counts them now, and the ships of the hangar
  * as the site listed them at the last login. Refreshed each second while open; one window per account.
  */

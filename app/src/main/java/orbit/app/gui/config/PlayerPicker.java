@@ -23,7 +23,7 @@ import orbit.app.WorldFeed;
 import orbit.world.WorldSnapshot;
 
 /**
- * «Добавить из игры…»: players the running accounts see now or saw in this run, their friends, clan
+ * The add-from-game picker: players the running accounts see now or saw in this run, their friends, clan
  * members and group, the accounts themselves; the ticked ones (or their clans as {@code [TAG]}) are
  * appended to a name list of the config.
  */

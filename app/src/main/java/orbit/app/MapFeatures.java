@@ -18,8 +18,8 @@ import orbit.world.WorldSnapshot;
 /**
  * What the bot saw on each map that the config window has no other way to know: the obstacles (no-access zones,
  * radiation, mine fields, asteroids…) and the stations (bases, refineries, clan battle stations), kept in
- * {@code local/map-features.json} for the «Зоны» tab (the user, 2026-11-12: no obstacles or bases to draw the zones
- * by). Learned whenever the server shows them; never forgotten (a map does not change much).
+ * {@code local/map-features.json} for the Zones tab (without them there were no obstacles or bases to draw the
+ * zones by). Learned whenever the server shows them; never forgotten (a map does not change much).
  */
 public final class MapFeatures {
 

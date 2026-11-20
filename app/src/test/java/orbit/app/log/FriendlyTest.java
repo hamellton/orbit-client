@@ -79,7 +79,7 @@ class FriendlyTest {
 
     @Test
     void windowsCommasInTheHourAndSessionNumbersAreThousands() {
-        // live 2026-11-17 on the VPS: «Час 08:31–09:00: 948 уридия · 5 кредитов» — the report wrote 5,495,923
+        // live 2026-11-17 on the VPS: the hour line showed 948 uridium and 5 credits — the report wrote 5,495,923
         assertEquals("Час 08:31–09:00: 6 922 уридия · 5,5 млн кредитов · NPC 3 · смертей 7 · потрачено 1,709 уридия",
                 Friendly.hour("Сводка 08:31–09:00 · в игре все 28 мин · уридий +6,922 · кредиты +5,495,923 · опыт"
                         + " +1,127,000 · честь +2,457 · потрачено 1,709 уридия · NPC 3 · ремонтов 0 · смертей 7"));
@@ -87,7 +87,7 @@ class FriendlyTest {
 
     @Test
     void windowsCommasInLootAreThousands() {
-        // live 2026-11-17 on the VPS: two behemoth boxes read «+11 уридия, +139 чести» — the log said 11,430 and 138,504
+        // live 2026-11-17 on the VPS: two behemoth boxes read +11 uridium, +139 honour; the log had 11,430 and 138,504
         assertEquals("+11 430 уридия, +40,1 млн кредитов, +22,7 млн опыта, +139 тыс. чести, +230 Rinusk,"
                         + " +255 Blacklight-trace, +66 Mindfire-cerebrum, +504 Eternal-fragment",
                 Friendly.loot("+230 Rinusk  ·  +255 Blacklight-trace  ·  +66 Mindfire-cerebrum  ·  +504 Eternal-fragment"

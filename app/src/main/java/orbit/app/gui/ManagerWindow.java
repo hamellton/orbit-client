@@ -41,14 +41,14 @@ import orbit.world.WorldSnapshot;
 /**
  * The account manager (like AstraBot's account list): every account of the vault with its server, proxy,
  * config, timetable, state and session results; add, edit, remove, proxy check; start and stop each or
- * all without restarting the program. A started account gets its tab (map, cards, log), «Все» shows them
+ * all without restarting the program. A started account gets its tab (map, cards, log), the All tab shows them
  * side by side. Closing the window logs every running account out at a portal first.
  */
 public final class ManagerWindow {
 
     private static final Color BAD = new Color(0xff6b5b);
     private static final Color WAIT = new Color(0xf59e0b);
-    /** The first account tab: 0 = «Аккаунты», 1 = «Все». */
+    /** The first account tab: 0 = Accounts, 1 = All. */
     private static final int FIRST_TAB = 2;
 
     private final Vault vault;
@@ -62,7 +62,7 @@ public final class ManagerWindow {
     private final JTable table = new JTable(model);
     private final JLabel hint = new JLabel(" ");
     /**
-     * Accounts left out of «Запустить отмеченные» (unticked), kept in {@code local/manager.properties}; new accounts
+     * Accounts left out of the start-ticked button (unticked), kept in {@code local/manager.properties}; new accounts
      * are ticked. Another file with {@code -Dorbit.manager.file=…}.
      */
     java.nio.file.Path picksFile = java.nio.file.Path.of(System.getProperty("orbit.manager.file", "local/manager.properties"));
@@ -545,7 +545,7 @@ public final class ManagerWindow {
         ManagedAccount a = tabs.get(index - FIRST_TAB).managed();
         if (a.phase() == ManagedAccount.Phase.RUNNING
                 && !StopDialog.stop(frame, "Закрыть вкладку", List.of(a), "и закрыть вкладку")) {
-            return; // in game and the user cancelled; not in game: stopped at once without a question
+            return; // in game and cancelled; not in game: stopped at once without a question
         }
         dropTab(index);
         refresh();
@@ -892,8 +892,8 @@ public final class ManagerWindow {
 
     /**
      * Only the map in the manager: the window takes the map's shape at quiet moments — the mode turned on, an account's
-     * tab opened, the start — and never while the user drags its edge (the user, 2026-11-17: the map's top was cut in a
-     * small window; «видно, как окно меняется» while resizing was not wanted). Same fit as the bot's window.
+     * tab opened, the start — and never while its edge is dragged (the map's top was cut in a small window, and
+     * the window visibly changing while resizing was not wanted). Same fit as the bot's window.
      */
     private void fitAtQuietMoments() {
         Timer later = new Timer(150, e -> MainWindow.fitOnce(frame, pane));

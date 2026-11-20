@@ -59,9 +59,9 @@ import orbit.app.log.LogEntry;
 import orbit.app.log.LogStore;
 
 /**
- * The log of the window: «Журнал» (what matters: starts, stops, deaths, quests, sales, hourly summaries, problems),
- * «Всё» (every line, repeats folded into one row with ×N) or «Проблемы» (warnings, errors); the subjects in a list
- * with their counts (a click — on/off, a double click — only this one); the account (in «Все»), the period, a
+ * The log of the window: Journal (what matters: starts, stops, deaths, quests, sales, hourly summaries, problems),
+ * All (every line, repeats folded into one row with ×N) or Problems (warnings, errors); the subjects in a list
+ * with their counts (a click — on/off, a double click — only this one); the account (in the All tab), the period, a
  * search; rows coloured by subject and weight; the row picked — its full text, repeats and times below.
  */
 public final class LogPanel extends JPanel {
@@ -80,7 +80,7 @@ public final class LogPanel extends JPanel {
     private static final Color ROUTINE = new Color(0xa3adbb);
     private static final Color[] ACCOUNT_COLORS = {new Color(0x38bdf8), new Color(0xf472b6), new Color(0xa3e635),
             new Color(0xfbbf24), new Color(0xc084fc), new Color(0x2dd4bf), new Color(0xfb923c), new Color(0x60a5fa)};
-    /** The ready periods; any other can be typed in («2ч 10м», «45м», «1.5ч», «90» = minutes). */
+    /** The ready periods; any other can be typed in (hours, minutes in Russian units; a bare number = minutes). */
     static final String[] PERIODS = {"За всё время", "5 мин", "10 мин", "15 мин", "20 мин", "30 мин", "1 ч", "2 ч",
             "3 ч", "6 ч", "12 ч", "24 ч"};
     private static final java.util.regex.Pattern PERIOD_PART =
@@ -88,7 +88,7 @@ public final class LogPanel extends JPanel {
     private static final Preferences PREFS = Preferences.userRoot().node("orbit/log");
 
     private final LogStore store;
-    /** The tab's account, or {@code null} for every account (the «Все» tab). */
+    /** The tab's account, or {@code null} for every account (the All tab). */
     private final String fixedAccount;
     /** Only the account's own lines, not those of no account. */
     private final boolean strict;
@@ -110,8 +110,8 @@ public final class LogPanel extends JPanel {
     private final JPanel detailBox;
     private final JToggleButton follow = new JToggleButton("↓ Следить", true);
     /**
-     * Over the list's bottom while it is scrolled up and new lines came (the user, 2026-11-16: «стрелки… юзерфрендли»):
-     * «↓ Новых: 12» — a click goes to them and follows again.
+     * Over the list's bottom while it is scrolled up and new lines came: a "new: 12" button with an arrow — a click
+     * goes to them and follows again.
      */
     private final JButton fresh = new JButton();
     private int unseen;
@@ -415,7 +415,7 @@ public final class LogPanel extends JPanel {
         more.addActionListener(e -> moreMenu().show(more, 0, more.getHeight()));
         bar.add(more);
 
-        // the subjects behind one button: «Разделы: все ▾», a list of ticks under it
+        // the subjects behind one button ("subjects: all" with an arrow), a list of ticks under it
         sections = new JButton();
         sections.putClientProperty("FlatLaf.style", "arc: 6");
         sections.setFocusable(false);
@@ -428,8 +428,8 @@ public final class LogPanel extends JPanel {
     }
 
     /**
-     * The subjects' list: «Показать все» / «Скрыть все», then a tick, a small muted colour mark, the name, the count
-     * and «только» per subject. Ticking keeps the list open.
+     * The subjects' list: show all / hide all, then a tick, a small muted colour mark, the name, the count
+     * and "only" per subject. Ticking keeps the list open.
      */
     private JPopupMenu sectionsMenu() {
         JPopupMenu menu = new JPopupMenu();
@@ -639,7 +639,7 @@ public final class LogPanel extends JPanel {
         if (!inScope(e)) {
             return false;
         }
-        // «Журнал» is the plain-words rows, «Всё» and «Проблемы» the full log's
+        // Journal is the plain-words rows, All and Problems the full log's
         if (mode == Mode.JOURNAL ? !e.journal() : e.journal() || mode == Mode.PROBLEMS && !e.problem()) {
             return false;
         }
@@ -1181,8 +1181,8 @@ public final class LogPanel extends JPanel {
     }
 
     /**
-     * A period in words: «5 мин», «2ч 10м», «1.5ч», «1д 6ч», «90» (minutes); «За всё время», «всё» or empty = 0
-     * (no limit); {@code null} when not understood.
+     * A period in words: minutes, hours and days with Russian units (also "2h 10m"-like forms, "1.5" hours), a bare
+     * number = minutes; the all-time words or empty = 0 (no limit); {@code null} when not understood.
      */
     static Long parsePeriod(String text) {
         String t = text == null ? "" : text.strip().toLowerCase(Locale.ROOT);
@@ -1215,7 +1215,7 @@ public final class LogPanel extends JPanel {
         return (long) total;
     }
 
-    /** «2 ч 10 мин» for the status line. */
+    /** Hours and minutes in Russian words for the status line. */
     static String periodText(long ms) {
         long min = Math.round(ms / 60_000.0);
         long d = min / 1440;
@@ -1278,8 +1278,8 @@ public final class LogPanel extends JPanel {
     }
 
     /**
-     * A row counting a logout down (the user, 2026-11-17: «выход — это отсчёт»): «⏱ Выход из игры (20 с)» seconds in →
-     * «⏱ Выход из игры … через 14 с».
+     * A row counting a logout down: the logout row with its 20 s wait, some seconds in, becomes the same row
+     * with the seconds left.
      */
     static String countdown(String text, long gone) {
         java.util.regex.Matcher m = java.util.regex.Pattern.compile("^(.*) \\((\\d+) с\\)$").matcher(text);

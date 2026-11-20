@@ -11,11 +11,11 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * The window's journal in plain words (the user, 2026-11-16: «краткими, информативными, юзер френдли, без спама, но
- * добычи пишутся каждая отдельно… под капотом записывать можем полные»): each event one short line, ships and quests by
- * name, big numbers shortened, a sign in front (▶ start, ■ stop, ✖ death, ⚠ problem, ✔ solved). The full lines stay in
- * the files and on «Всё». Keeps a little state per account: a death and its repair become one line, a lost link and its
- * return one pair with the time between, a start one line.
+ * The window's journal in plain words (short, informative, no spam, each loot on its own line; the full lines are
+ * still written underneath): each event one short line, ships and quests by name, big numbers shortened, a sign in
+ * front (▶ start, ■ stop, ✖ death, ⚠ problem, ✔ solved). The full lines stay in the files and on the All tab. Keeps
+ * a little state per account: a death and its repair become one line, a lost link and its return one pair with the
+ * time between, a start one line.
  */
 public final class Friendly {
 
@@ -165,7 +165,7 @@ public final class Friendly {
             return Out.NONE;
         }
         if (m.equals("Статистика сессии сброшена")) {
-            st.startAt = time; // «■ Остановлен. За N мин» counts from here too
+            st.startAt = time; // the stop line's duration counts from here too
             return Out.add("↺ Статистика сброшена — считаю с этого момента", false);
         }
         if (m.startsWith("Вечные врата: ") && m.matches(".*(забег|тормоз|бустер|использую CPU|CPU для Вечных врат нет|"
@@ -369,7 +369,7 @@ public final class Friendly {
             return Out.add("Врата" + gate + ": осталось жизней " + x.group(1), false);
         }
         if (m.matches("(?i)^Сервер: «gate\\s+completed\\.?»$")) {
-            return Out.NONE; // «пройдены за N мин» tells it
+            return Out.NONE; // the gate-completed line with its duration tells it
         }
         return null;
     }
@@ -434,7 +434,7 @@ public final class Friendly {
         return number(v);
     }
 
-    /** 1 024; 40 380; 614 тыс.; 1,6 млн. */
+    /** 1 024; 40 380; 614 thousand; 1.6 million (Russian units, decimal comma). */
     static String number(double v) {
         double a = Math.abs(v);
         if (a >= 1_000_000) {
@@ -448,12 +448,12 @@ public final class Friendly {
 
     private static double parse(String digits) {
         String d = digits.replaceAll("[\\s\\u00a0]", "");
-        // «5,495,923» — commas between groups of three are thousands (Windows' report, live 2026-11-17 on the VPS:
-        // «5 кредитов»); «1,6» is a decimal comma
+        // 5,495,923 — commas between groups of three are thousands (Windows' report, live 2026-11-17 on the VPS:
+        // 5 credits shown); 1,6 is a decimal comma
         return Double.parseDouble(d.matches("\\d{1,3}(,\\d{3})+") ? d.replace(",", "") : d.replace(',', '.'));
     }
 
-    /** «+614 400 опыта · +1 024 уридия» → «+1 024 уридия, +614 тыс. опыта» (uridium, credits, experience, honour first). */
+    /** Loot parts summed by name and reordered, numbers shortened (uridium, credits, experience, honour first). */
     static String loot(String body) {
         Map<String, Double> sum = new LinkedHashMap<>();
         List<String> other = new ArrayList<>();
@@ -511,10 +511,10 @@ public final class Friendly {
         return String.join(", ", out) + (spent == null ? "" : "; потрачено " + spent.strip());
     }
 
-    /** The bot's logout line, with the game's countdown since 2026-11-17: «Выход из игры (20 с)». */
+    /** The bot's logout line, with the game's countdown (in seconds) since 2026-11-17. */
     private static final Pattern LOGOUT = Pattern.compile("Выход из игры(?: \\((\\d+) с\\))?");
 
-    /** «Сводка 11:34–12:00 · в игре все 26 мин · уридий +6 523 · …» → «Час 11:34–12:00: 6 523 уридия · …». */
+    /** The hourly summary line turned into a short hour line: the period, then the gains. */
     static String hour(String s) {
         String span = grab(s, "^Сводка (\\S+)");
         List<String> out = new ArrayList<>();
@@ -560,7 +560,7 @@ public final class Friendly {
         }
     }
 
-    /** «promerium 14 056; лазеры 49 440 → 190 000» → «14 056 Promerium за 2 рейса, лазеры 49 440 → 190 000». */
+    /** A service visit's details (ore delivered, laser stock before and after) with the number of trips added. */
     static String visit(String rest, int trips) {
         String[] parts = rest.split("; ");
         List<String> ores = new ArrayList<>();

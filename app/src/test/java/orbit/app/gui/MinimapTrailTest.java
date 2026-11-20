@@ -13,7 +13,7 @@ class MinimapTrailTest {
 
     @Test
     void theShipsWayOfTheLastSecondsIsDrawnBehindIt() {
-        // DarkBot's TrailDrawer (the user, 2026-11-17: the overlays as in DarkBot)
+        // DarkBot's TrailDrawer (the overlays as in DarkBot)
         WorldFeed feed = new WorldFeed("тест");
         long[] now = {1_000_000_000L};
         feed.setClock(() -> now[0]);

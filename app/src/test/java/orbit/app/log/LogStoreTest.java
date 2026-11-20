@@ -115,7 +115,7 @@ class LogStoreTest {
 
     @Test
     void aFoldedRowKeepsEachLineWithItsTime() {
-        // the user, 2026-11-13: «×5 Добыча» — when which loot came was not to be seen
+        // a loot row folded ×5: when which loot came was not to be seen
         LogStore s = new LogStore();
         LogEntry row = s.add("3", I, "orbit.app.LootLog", "Добыча: +7 Blacklight-trace", "", 1_000);
         s.add("3", I, "orbit.app.LootLog", "Добыча: +9 Blacklight-trace", "", 60_000);

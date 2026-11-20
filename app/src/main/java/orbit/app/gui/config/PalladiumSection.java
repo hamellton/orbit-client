@@ -8,9 +8,9 @@ import javax.swing.JSpinner;
 import orbit.config.BotConfig;
 
 /**
- * «Палладий» (PALLADIUM): how the full hold of palladium is sold — with one ship (fly to 5-2's trader and back) or
+ * Palladium (PALLADIUM): how the full hold of palladium is sold — with one ship (fly to 5-2's trader and back) or
  * with two (the collect ship logs out, the sell ship parked at 5-2 sells, then the collect ship again), as the
- * user's DarkBot does it (DmPlugin «Palladium Hangar» settings: {@code collectHangar}, {@code sellHangar},
+ * user's DarkBot does it (DmPlugin "Palladium Hangar" settings: {@code collectHangar}, {@code sellHangar},
  * {@code goPortalChange}, {@code sellOnDie}, {@code aditionalWaitingTime}).
  */
 final class PalladiumSection implements Section {

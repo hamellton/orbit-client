@@ -10,9 +10,9 @@ import javax.swing.JRadioButton;
 import orbit.config.BotConfig;
 
 /**
- * «Сезон и квесты» (the user, 2026-11-19: «я даже не понимаю как мне выбрать, чтобы квесты работали»): one selector
+ * The Season and quests section (how to make quests work was not clear): one selector
  * for how this config deals with quests — off, alongside the module ({@code modules.quests.alongside}: the passes'
- * rewards, crafting for «collect built recipes», cargo boxes), or as the main module («Квесты»: the selector switches the
+ * rewards, crafting for "collect built recipes", cargo boxes), or as the main module (Quests: the selector switches the
  * header's module) — and the passes' switches ({@code season}, {@code seasonReroll}, {@code battlepass}, {@code trek},
  * {@code diminishing}, {@code craft}; on by default). Shown with every module.
  */
@@ -27,9 +27,9 @@ final class SeasonSection implements Section {
     /** The passes' free buttons: setting key → checkbox (on by default). */
     private final Map<String, JCheckBox> passes = new LinkedHashMap<>();
     private final JComponent view;
-    /** «Попутно» as last chosen, kept while the module is «Квесты» (that module does it all itself). */
+    /** Alongside as last chosen, kept while the module is Quests (that module does it all itself). */
     private boolean alongWanted;
-    /** The module before «Главный модуль» switched it to «Квесты», to switch back to. */
+    /** The module before the main-module choice switched it to Quests, to switch back to. */
     private BotConfig.Module before = BotConfig.Module.KILL_COLLECT;
     private boolean syncing;
 
@@ -83,7 +83,7 @@ final class SeasonSection implements Section {
         general.moduleBox().addActionListener(e -> sync());
     }
 
-    /** The selector as the header's module says: «Квесты» — the main module; else as last chosen. */
+    /** The selector as the header's module says: Quests — the main module; else as last chosen. */
     private void sync() {
         syncing = true;
         try {

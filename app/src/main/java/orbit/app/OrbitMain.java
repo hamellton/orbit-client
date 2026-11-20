@@ -156,7 +156,7 @@ public final class OrbitMain {
 
     /**
      * The account manager: the master password in a window, then the accounts — add, edit, proxy check,
-     * start and stop each or all — with a tab per started account and «Все».
+     * start and stop each or all — with a tab per started account and the All tab.
      */
     private static void manager(Options o) throws Exception {
         if (java.awt.GraphicsEnvironment.isHeadless()) {
@@ -173,7 +173,7 @@ public final class OrbitMain {
             log.warn("Профиль клиента {} не найден — раскладка окон и клавиши отправляться не будут", o.profile);
         }
         CountDownLatch closed = new CountDownLatch(1);
-        // «orbit manager --account a --account b»: these start at once (a restart on a server without anybody at it)
+        // orbit manager --account a --account b: these start at once (a restart on a server without anybody at it)
         orbit.app.gui.ManagerWindow.open(vault, name -> new AccountRunner(name, vault, profile), closed::countDown,
                 o.accounts());
         closed.await();
@@ -271,7 +271,7 @@ public final class OrbitMain {
 
     /**
      * @param account a vault name, or {@code name@server} for another server of the same login
-     *                ({@code main@ru5}); logs, tabs, stop files and «Аккаунты» use the whole string
+     *                ({@code main@ru5}); logs, tabs, stop files and the Accounts list use the whole string
      */
     private static Rig rig(String account, Vault vault) throws AuthException {
         return rig(account, vault, new WorldFeed("бот, " + account, account));
@@ -324,7 +324,8 @@ public final class OrbitMain {
 
     /**
      * Remembers the IP and country the proxy showed before a login; a country other than last time is told in the log
-     * and the window (plan 5в.5: an account's IP must not jump between countries). The login goes on.
+     * and the window (docs/PLAN.md, proxies and accounts: an account's IP must not jump between countries). The
+     * login goes on.
      */
     static void noteIp(String account, ProxyRoute route, WorldFeed feed) {
         if (route.direct() || route.externalIp() == null) {
@@ -370,7 +371,7 @@ public final class OrbitMain {
      * does (saved dosid, else another server's, the password last — new dosids are kept), through the account's
      * proxy (none reachable = no login), then the hangar list. Kept in the account's settings.
      *
-     * @throws java.io.IOException with a message for the user
+     * @throws java.io.IOException with a message to show in the window
      */
     public static List<orbit.config.AccountSettings.Ship> siteShips(Vault vault, String account) throws java.io.IOException {
         orbit.secrets.Account a = vault.get(loginOf(account));
@@ -656,7 +657,7 @@ public final class OrbitMain {
                 }
                 long nowMs = System.currentTimeMillis();
                 hourly.tick(nowMs, feed.sessionStartNanos() != 0 && !feed.loggedOut());
-                daily.update(HourlyReport.Totals.of(feed), nowMs); // «За сегодня» over all runs
+                daily.update(HourlyReport.Totals.of(feed), nowMs); // the Today totals over all runs
             }
             daily.flush();
         });
@@ -740,8 +741,8 @@ public final class OrbitMain {
                     run.runner().setHangar(hangarFor(auth, conn));
                     run.runner().setSkylab(skylabFor(auth, conn, feed));
                     run.runner().setRefresh(conn::refresh);
-                    // every module: which ship is in use, and the list the «Ангар» window shows (the user, 2026-11-14:
-                    // «в кораблях пусто» — it was read for palladium only)
+                    // every module: which ship is in use, and the list the Hangar window shows (it used to be read
+                    // for palladium only, and the ship list stayed empty otherwise)
                     watchHangar(auth, conn, run.runner(), lastHost, accountName, cfg, ships);
                     watchSkylab(auth, conn, feed, game);
                     watchLab(conn, game);
@@ -756,7 +757,7 @@ public final class OrbitMain {
                     game.join(10_000);
                     current.set(null);
                     if (conn.trouble() != null) {
-                        // a kick, a login from elsewhere, a typed server line: no retries, the user looks first
+                        // a kick, a login from elsewhere, a typed server line: no retries, a person checks first
                         log.error("Аккаунт остановлен: {}. Повторов входа не будет — проверьте аккаунт", conn.trouble());
                         feed.alert(conn.trouble());
                         break;
@@ -968,7 +969,7 @@ public final class OrbitMain {
         });
     }
 
-    /** The window's «Обновить»: the lab asked and the Skylab read now (the user, 2026-11-15). */
+    /** The window's Refresh button: the lab asked and the Skylab read now. */
     private static void refreshInfo(AuthClient auth, GameConnection conn, WorldFeed feed) {
         java.util.Map<String, String> ctx = org.slf4j.MDC.getCopyOfContextMap();
         Thread.ofVirtual().name("refresh-info").start(() -> {
@@ -995,8 +996,8 @@ public final class OrbitMain {
     static final long SKYLAB_SPREAD_MS = 5 * 60_000L;
 
     /**
-     * The account's Skylab from the website for the window's card (the user, 2026-11-15: «бот сам это делает, мне нужен
-     * результат — чтобы в боте всё отображалось, на каждом аке»): once the game session is known, then every 20–25 min
+     * The account's Skylab from the website for the window's card (so every account shows its Skylab results in the
+     * bot): once the game session is known, then every 20–25 min
      * while the game thread lives. Read only.
      */
     private static void watchSkylab(AuthClient auth, GameConnection conn, WorldFeed feed, Thread game) {
@@ -1038,8 +1039,8 @@ public final class OrbitMain {
     static final long REFRESH_SPREAD_MS = 5 * 60_000L;
 
     /**
-     * DarkBot's refresh (the user, 2026-11-14: «плановый перевход раз в 40 минут, как у CARNAGE, только в спокойный
-     * момент»): about every 40 min, as soon as the bot is calm (no fight, no box, the next behemoth more than 2.5 min
+     * DarkBot's refresh (a planned relogin every 40 minutes, as CARNAGE does, but only at a calm moment): about
+     * every 40 min, as soon as the bot is calm (no fight, no box, the next behemoth more than 2.5 min
      * off), the game connection logs in again; while the game thread lives.
      */
     private static void planRefresh(GameConnection conn, orbit.bot.run.BotRunner runner, Thread game) {
@@ -1298,7 +1299,7 @@ public final class OrbitMain {
             return new orbit.bot.act.Actions.Login(session.userId(), session.sessionId());
         }, orbit.bot.act.Actions.Screen.fromReadyString(profile.readyTypeStr()), random);
         orbit.bot.run.ShipSetup ship = new orbit.bot.run.ShipSetup(feed::snapshot, actions, System::nanoTime, random);
-        // after a ship change the session's counters go on (live 2026-11-12: «за сессию» started from 1 again)
+        // after a ship change the session's counters go on (live 2026-11-12: the session count restarted at 1)
         orbit.bot.run.Stats stats = previous != null && feed.stats() != null ? feed.stats() : new orbit.bot.run.Stats();
         feed.setStats(stats);
         orbit.bot.run.ConfigWatch watch = new orbit.bot.run.ConfigWatch(orbit.config.ConfigStore.openDefault(), configName,
@@ -1373,7 +1374,7 @@ public final class OrbitMain {
                         if (watch.poll()) {
                             runner.configChanged();
                         }
-                        // the account's ships changed in the account window while it runs (the user, 2026-11-16: the
+                        // the account's ships changed in the account window while it runs (live 2026-11-16: the
                         // Skylab's ship set on a running account, the bot never switched): taken at once
                         long stamp = accountsStamp();
                         if (stamp != accountsStamp) {
@@ -1401,8 +1402,8 @@ public final class OrbitMain {
                         runner.stopWhenFree("по команде");
                     }
                     if (stopRequested.get()) {
-                        // the user's order: everything dropped, straight to the portal (the user, 2026-11-16: the cube
-                        // camp «finished the fight» for three more cubes, its Protegits never stop shooting); in a gate
+                        // the stop button: everything dropped, straight to the portal (live 2026-11-16: the cube camp
+                        // "finished the fight" for three more cubes, its Protegits never stop shooting); in a gate
                         // the stop still plays the stage on till the home portal
                         runner.stop("по кнопке");
                     } else if (System.currentTimeMillis() > until) {
@@ -1432,7 +1433,7 @@ public final class OrbitMain {
                     Thread.sleep(100);
                 }
                 log.info("Бот завершил работу: {}", runner.status());
-                // a ship change goes on with the same session: no «итог» of it then (the user, 2026-11-16: the zeros
+                // a ship change goes on with the same session: no session summary then (live 2026-11-16: the zeros
                 // logged at the Skylab's ship change read as the session's results gone)
                 log.info(runner.hangarRequest() != 0 ? "Смена корабля — сессия продолжается, пока: {}" : "Итог сессии: {}",
                         feed.summary());
@@ -1811,7 +1812,7 @@ public final class OrbitMain {
         }
         feed.setClock(() -> at);
         Path out = o.out.toString().endsWith(".png") ? o.out : Path.of("minimap.png");
-        // «…window….png»: the whole account view (map, cards, log), to check the layout
+        // a *window*.png output: the whole account view (map, cards, log), to check the layout
         java.awt.image.BufferedImage img = out.getFileName().toString().contains("window")
                 ? MainWindow.snapshot(List.of(new MainWindow.Tab(feed, () -> { }, () -> "запись", n -> { })), 0, 1600, 1000)
                 : MainWindow.renderMinimap(feed, 1000, 624);

@@ -50,7 +50,7 @@ class HudQuestsTest {
 
     @Test
     void theQuestAtWorkIsMarkedAndFirst() throws Exception {
-        // the user, 2026-11-17: which quest the bot does was not to be seen in the card
+        // which quest the bot does was not to be seen in the card
         orbit.app.WorldFeed feed = new orbit.app.WorldFeed("test");
         feed.onPacket(quest(300010, 1, 30001001, 6, "2", 30, 12), 1);
         feed.onPacket(quest(122011, 2, 12201101, 6, "13", 230, 40), 1);

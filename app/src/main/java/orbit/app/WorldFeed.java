@@ -47,7 +47,7 @@ public final class WorldFeed {
         return stats;
     }
 
-    /** The window's statistics start here (its «Сбросить»): rewards, counters and the clock from this moment. */
+    /** The window's statistics start here (its Reset button): rewards, counters and the clock from this moment. */
     private volatile WorldSnapshot.Rewards rewardsBase = WorldSnapshot.Rewards.NONE;
     private volatile orbit.bot.run.Stats statsBase;
     private volatile orbit.bot.run.Stats statsOf;
@@ -76,7 +76,7 @@ public final class WorldFeed {
         return statsBase == null || statsOf != s ? s : s.since(statsBase);
     }
 
-    /** «Сбросить статистику»: the window's results and the session's clock count from now; the bot is not touched. */
+    /** The window's Reset statistics: its results and the session's clock count from now; the bot is untouched. */
     public void resetStatistics() {
         rewardsBase = snapshot().rewards();
         orbit.bot.run.Stats s = stats;
@@ -261,11 +261,11 @@ public final class WorldFeed {
         world.apply(p, nanos);
         if (learnNpcMaps && (p instanceof orbit.protocol.gen.QuestInitializationCommand
                 || p instanceof orbit.protocol.gen.QuestInfoCommand || p instanceof orbit.protocol.gen.QuestListCommand)) {
-            orbit.world.QuestCatalog.shared().note(world.snapshot(nanos).quests()); // for the «Квесты» tab
+            orbit.world.QuestCatalog.shared().note(world.snapshot(nanos).quests()); // for the Quests tab
         }
         if (learnNpcMaps && (p instanceof orbit.protocol.gen.MapAddPOICommand
                 || p instanceof orbit.protocol.gen.AssetCreateCommand)) {
-            MapFeatures.shared().note(world.snapshot(nanos)); // obstacles and stations for the «Зоны» tab
+            MapFeatures.shared().note(world.snapshot(nanos)); // obstacles and stations for the Zones tab
         }
         rememberPlayers(nanos);
         if (learnNpcMaps && nanos - heatAt > 5_000_000_000L) {
@@ -296,7 +296,7 @@ public final class WorldFeed {
                 int from = jumpedFrom;
                 jumpedFrom = 0;
                 // not in or out of a galaxy gate: its portals differ by gate and stage, and the stage's portal stands
-                // by the arrival (live 2026-11-15 on gb2: GG β's way on was learned as «to 3-1»)
+                // by the arrival (live 2026-11-15 on gb2: GG β's way on was learned as "to 3-1")
                 boolean gate = orbit.config.GateCatalog.instanced(si.mapId) || orbit.config.GateCatalog.instanced(from);
                 backPortal = !gate && from > 0 && from != si.mapId && maps.portals(si.mapId).stream().noneMatch(pt -> pt.toId() == from)
                         ? new int[] {si.mapId, si.x, si.y, from} : null;
@@ -333,7 +333,7 @@ public final class WorldFeed {
                             jg.y / 100, maps.info(b[3]).name());
                 }
             }
-            // a gate's or event map's portal by its type, as DarkBot knows them (the user, 2026-11-17: «мы то знаем»)
+            // a gate's or event map's portal by its type, as DarkBot knows them
             case orbit.protocol.gen.JumpgateCreateCommand jg when orbit.world.maps.PortalTypes.gate(jg.designId) != null
                     && world.snapshot(now()).hero().mapId() > 0 ->
                     log.debug("Портал на {} на {}: {}/{}", orbit.world.maps.PortalTypes.gate(jg.designId),
@@ -391,7 +391,7 @@ public final class WorldFeed {
     private volatile long alertAt;
     private volatile boolean alertStopped;
 
-    /** A sign of trouble that stopped the account (plan 5в.7г): the window shows it once. */
+    /** A sign of trouble that stopped the account (docs/PLAN.md, the box check): the window shows it once. */
     public void alert(String why) {
         alertStopped = true;
         alert = why;
@@ -399,7 +399,7 @@ public final class WorldFeed {
         state = "Остановлен: " + why;
     }
 
-    /** A warning the window shows once; the account goes on (plan 5в.5: the proxy's country changed). */
+    /** A warning the window shows once; the account goes on (docs/PLAN.md, proxies: the proxy's country changed). */
     public void warn(String why) {
         alertStopped = false;
         alert = why;
@@ -429,7 +429,7 @@ public final class WorldFeed {
 
     private volatile Runnable refreshInfo;
 
-    /** What the window's «Обновить» does: the lab asked at once, the Skylab read at once ({@code null} not in game). */
+    /** What the window's Refresh does: the lab asked at once, the Skylab read at once ({@code null} not in game). */
     public Runnable refreshInfo() {
         return refreshInfo;
     }

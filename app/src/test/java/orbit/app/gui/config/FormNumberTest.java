@@ -10,7 +10,7 @@ class FormNumberTest {
 
     @Test
     void aNumberTypedWithSpacesOrCommasIsReadWhole() throws Exception {
-        // the user, 2026-11-17: «14 000» in the enrichment's load stayed 14 (the field shows a no-break space)
+        // 14 000 typed in the enrichment's load stayed 14 (the field shows a no-break space)
         for (String typed : new String[] {"14 000", "14 000", "14,000", "14000"}) {
             JSpinner s = Form.number(1, 10_000_000, 100);
             JFormattedTextField f = ((JSpinner.DefaultEditor) s.getEditor()).getTextField();

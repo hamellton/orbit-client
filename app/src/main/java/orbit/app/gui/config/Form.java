@@ -338,8 +338,8 @@ final class Form {
         JSpinner s = new JSpinner(new SpinnerNumberModel(min, min, max, step));
         javax.swing.JFormattedTextField field = ((JSpinner.DefaultEditor) s.getEditor()).getTextField();
         field.setColumns(6);
-        // the field shows «10 000» with a no-break space; «14 000» typed with a plain space (or «14,000») was read as 14
-        // and nothing said (the user, 2026-11-17: the enrichment's load would not take 14 000) — spaces and commas
+        // the field shows "10 000" with a no-break space; "14 000" typed with a plain space (or "14,000") read as 14
+        // and nothing said (2026-11-17: the enrichment's load would not take 14 000) — spaces and commas
         // between the digits are dropped before the number is read
         if (field.getFormatter() instanceof javax.swing.text.NumberFormatter f) {
             javax.swing.text.NumberFormatter lenient = new javax.swing.text.NumberFormatter(

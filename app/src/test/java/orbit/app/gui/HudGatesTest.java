@@ -15,7 +15,7 @@ import orbit.protocol.gen.ShipInitializationCommand;
 import orbit.world.World;
 import org.junit.jupiter.api.Test;
 
-/** The user, 2026-11-14: «а как мы показываем в боте билд гг?» — the «Врата» card. */
+/** The Gates card: how the bot shows a galaxy gate's build. */
 class HudGatesTest {
 
     static World world(int map) {

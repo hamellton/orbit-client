@@ -18,7 +18,7 @@ import orbit.config.BotConfig;
 import orbit.config.ItemCatalog;
 import orbit.world.maps.MapCatalog;
 
-/** «Атака» (KILL): ammunition and the NPC list. */
+/** The Attack section (KILL): ammunition and the NPC list. */
 final class KillSection implements Section {
 
     private final ItemBox ammo = new ItemBox(ItemCatalog.LASERS, true);

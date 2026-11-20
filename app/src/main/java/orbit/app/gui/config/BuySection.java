@@ -14,7 +14,7 @@ import javax.swing.table.DefaultTableModel;
 import orbit.config.BotConfig;
 import orbit.config.ItemCatalog;
 
-/** «Закупка»: which ammunition and rockets to buy when they run low, and what money to keep. */
+/** The Buying section: which ammunition and rockets to buy when they run low, and what money to keep. */
 final class BuySection implements Section {
 
     private final JCheckBox enabled = new JCheckBox("Включить закупку");

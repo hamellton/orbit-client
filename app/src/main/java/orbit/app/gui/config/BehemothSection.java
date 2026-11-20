@@ -10,10 +10,10 @@ import orbit.config.BotConfig;
 import orbit.config.ItemCatalog;
 
 /**
- * «Бегемот» (BEHEMOTH): Mindfire Behemoth solo on the BL maps, the settings of AstraBot's «Mindfire Behemoth» module
+ * Behemoth (BEHEMOTH): Mindfire Behemoth solo on the BL maps, the settings of AstraBot's "Mindfire Behemoth" module
  * (its BEHEMOTH section: firstMap…thirdMap, changeMapSeconds, killOthers, defenceMode, collectBox, collectBoxConfig,
  * collectBoxFormation, useEmp/empPercent, useIsh/ishPercent). How the behemoth itself is fought — its row in the NPC
- * list («Убивать»): radius, A-BL, Drill, HP Link, RSB.
+ * list (the kill row): radius, A-BL, Drill, HP Link, RSB.
  */
 final class BehemothSection implements Section {
 
@@ -71,7 +71,7 @@ final class BehemothSection implements Section {
     private final JCheckBox petLasersOff = new JCheckBox("Снять лазеры питомца (могут загнать честь в минус)");
     private final JSpinner beaconSeconds = Form.number(0, 120, 1);
     private final JSpinner closeSeconds = Form.number(0, 300, 5);
-    // where to wait (the user, 2026-11-13: trains camp the spawn and BeheFarm's wait points)
+    // where to wait (trains camp the spawn and BeheFarm's wait points)
     private final JCheckBox trainTimer = new JCheckBox("Поезд стоит у места появления, бегемота не видно — считать его убитым (таймер)");
     private final JCheckBox waitForTrain = new JCheckBox("Не улетать, пока поезд идёт к месту появления (до 3 мин)");
     private final JCheckBox avoidEnemies = new JCheckBox("Облетать видимых врагов заранее (2000), рядом враги — не вылетать с точки (до 3 мин)");

@@ -7,7 +7,7 @@ import javax.swing.JLabel;
 import javax.swing.JSpinner;
 import orbit.config.BotConfig;
 
-/** «Безопасность»: repair thresholds, healing, deaths. */
+/** The Safety section: repair thresholds, healing, deaths. */
 final class SafetySection implements Section {
 
     private static final String[] REVIVE = {"BASE", "PORTAL", "SPOT"};

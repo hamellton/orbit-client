@@ -11,7 +11,7 @@ import javax.swing.table.DefaultTableModel;
 import orbit.config.BotConfig;
 
 /**
- * «Кубы» (CUBIKON): the spawn camp — wait on the spawn spots in turn, fly to any live Cubikon at once.
+ * The Cubikon section (CUBIKON): the spawn camp — wait on the spawn spots in turn, fly to any live Cubikon at once.
  * Spots are in minimap units (x/100, y/100), like the coordinates in the game.
  */
 final class CubikonSection implements Section {

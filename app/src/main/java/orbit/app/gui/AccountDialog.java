@@ -326,7 +326,7 @@ final class AccountDialog {
         }
     }
 
-    /** A ship in the lists: «Ангар 2: Goliath (Venom)»; the site's id stays behind it. */
+    /** A ship in the lists: hangar number, ship and design; the site's id stays behind it. */
     private record ShipItem(int id, String label) {
         @Override
         public String toString() {
@@ -336,7 +336,7 @@ final class AccountDialog {
 
     private static final ShipItem NO_SHIP = new ShipItem(0, "— не выбран");
 
-    /** The lists from the known ships; a chosen id the list does not have yet is kept as «ангар id». */
+    /** The lists from the known ships; a chosen id the list does not have yet is kept as a hangar with that id. */
     private void fillShips(java.util.List<AccountSettings.Ship> ships, AccountSettings.PalladiumShips chosen) {
         int collect = chosen != null ? chosen.collect() : idOf(collectShip);
         int sell = chosen != null ? chosen.sell() : idOf(sellShip);

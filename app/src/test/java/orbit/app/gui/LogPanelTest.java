@@ -96,7 +96,7 @@ class LogPanelTest {
 
     @Test
     void aLogoutCountsDownFromTheGamesTime() {
-        // the user, 2026-11-17: «выход — это отсчёт», 20 s, 5 s with premium
+        // the logout is a countdown: 20 s, 5 s with premium
         org.junit.jupiter.api.Assertions.assertEquals("⏱ Выход из игры … через 14 с",
                 LogPanel.countdown("⏱ Выход из игры (20 с)", 6));
         org.junit.jupiter.api.Assertions.assertEquals("⏱ Выход из игры … через 0 с",

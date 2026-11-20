@@ -103,7 +103,7 @@ final class MinimapPanel extends JPanel {
         }
     }
 
-    /** Where the user clicked last, drawn for a moment. */
+    /** Where the last click was, drawn for a moment. */
     private volatile double clickX;
     private volatile double clickY;
     private volatile long clickAt;
@@ -167,7 +167,7 @@ final class MinimapPanel extends JPanel {
         double sy = (getHeight() - 2.0 * pad) / map.height();
         if (mapOnly && fullScreen()) {
             // only the map on the whole screen: the screen is wider than the map (16:9 against 1.6:1), the map is
-            // stretched to it, nothing cut and no bands (the user, 2026-11-20: «растянуть по ширине»)
+            // stretched to it, nothing cut and no bands (stretched over the width)
             return new Projection(0, 0, sx, sy);
         }
         // only the map: it always covers the window (a sliver cut off while the window is being resized, until
@@ -342,7 +342,7 @@ final class MinimapPanel extends JPanel {
                 g.drawString(label, (float) (cx - lw / 2.0), (float) (cy - cr - 4));
             }
         }
-        // names only where they help and never on top of each other (the user, 2026-11-16: «подписи без каши»): the
+        // names only where they help and never on top of each other (no clutter of labels): the
         // target, the fight, the nearest players; the rest under the mouse
         java.util.Set<Integer> named = nearestPlayers(w, hero, NAMED_PLAYERS);
         for (Ship s : w.ships().values()) {
@@ -445,10 +445,10 @@ final class MinimapPanel extends JPanel {
         double vy = Math.max(oy, 0);
         double vw = Math.min(ox + mw, getWidth()) - vx;
         double vh = Math.min(oy + mh, getHeight()) - vy;
-        // the overlays as DarkBot draws them (the user, 2026-11-17: «наложения как в DarkBot 1 в 1»; the bottom strip,
+        // the overlays as DarkBot draws them, one to one (the bottom strip,
         // the game's fading lines and the map itself stay ours): stats left, boosters right, both in the middle of the
         // height; the target's bars bottom right, the pet's bottom left, above our strip
-        // the map's bottom as DarkBot's (the user, 2026-11-17: «нижнюю полосу тоже как в DarkBot»): the ship's name and
+        // the map's bottom strip as DarkBot's too: the ship's name and
         // bars on the left half, the target's on the right, the pet over the ship's, the configuration in the corner
         int bottom = (int) Math.round(vy + vh);
         int stripTop = bottom - (compact ? 80 : 96); // over the ship's bars and the pet's
@@ -460,7 +460,7 @@ final class MinimapPanel extends JPanel {
         if (hero.id() != 0) {
             int nameTop = dbHero(g, vx + 10, vw / 2 - 20, bottom - 10, w);
             dbTarget(g, vx + vw / 2 + 10, vw / 2 - 20, bottom - 10, w);
-            // the pet over the ship's name, clear of it (on top of each other in DarkBot's places, the user, 2026-11-17)
+            // the pet over the ship's name, clear of it (on top of each other in DarkBot's places)
             dbPet(g, vx + 10, (vw / 2 - 20) * 0.25, vx + vw / 2 - 10, nameTop - 4, w);
         } else {
             g.setFont(hud.font(Font.PLAIN, 12f));
@@ -479,7 +479,7 @@ final class MinimapPanel extends JPanel {
         }
     }
 
-    /** The map without the game's picture: DarkBot's slate (the user, 2026-11-16: «у DarkBot больше нравится»). */
+    /** The map without the game's picture: DarkBot's slate (preferred to a plain ground). */
     static final Color SLATE = new Color(0x26303b);
     /** Players named on the map: the nearest this many (the rest under the mouse). */
     static final int NAMED_PLAYERS = 3;
@@ -581,7 +581,7 @@ final class MinimapPanel extends JPanel {
     /** The map name's size: big and faint, a long name («Eternal Blacklight») no wider than about half the map. */
     private float watermarkSize(Graphics2D g, double mw, double mh, String name) {
         float size = (float) Math.max(28, Math.min(110, mh * 0.2));
-        // the user, 2026-11-16: «слишком большая»
+        // smaller: the first size was too big
         double fit = mw * 0.55;
         int nw = g.getFontMetrics(hud.font(Font.BOLD, size)).stringWidth(name);
         return nw > fit ? (float) Math.max(20, size * fit / nw) : size;
@@ -614,8 +614,8 @@ final class MinimapPanel extends JPanel {
     private static final java.util.regex.Pattern COUNT = java.util.regex.Pattern.compile("-=-\\s*(\\d+)\\s*-=-");
 
     /**
-     * The account's state and the bot's action, top left where DarkBot writes the module's status (the user, 2026-11-17:
-     * «на карте тоже всегда нужно это показывать»): «● В игре · Жду бегемота…». @return the line's bottom
+     * The account's state and the bot's action, top left where DarkBot writes the module's status (always shown on
+     * the map too): a dot, "in game", then e.g. "waiting for the behemoth...". @return the line's bottom
      */
     private int mapStatus(Graphics2D g, double vx, double vy, double vw) {
         AccountStatus st = AccountStatus.of(feed);
@@ -639,7 +639,7 @@ final class MinimapPanel extends JPanel {
     }
 
     /**
-     * While the ship shoots: the ammunition in use, as AstraBot's line «Killing … | ammo: A-BL» (the user, 2026-11-17);
+     * While the ship shoots: the ammunition in use, as AstraBot's line "Killing … | ammo: A-BL";
      * nothing out of a fight.
      */
     private String fightAmmo() {
@@ -685,7 +685,7 @@ final class MinimapPanel extends JPanel {
         WorldSnapshot.Hero hero = w.hero();
         double hours = Math.max(feed.sessionHours(), 1.0 / 3600);
         WorldSnapshot.Rewards r = feed.sessionRewards();
-        // titles dim on the left, values on the right edge, a thin line between the groups (the user, 2026-11-17)
+        // titles dim on the left, values on the right edge, a thin line between the groups
         java.util.List<String[]> rows = new java.util.ArrayList<>();
         rows.add(new String[] {"кредиты/ч", group(r.credits() / hours)});
         rows.add(new String[] {"уридий/ч", group(r.uridium() / hours)});
@@ -700,7 +700,7 @@ final class MinimapPanel extends JPanel {
         int limit = run == null ? -1 : run.maxDeaths();
         rows.add(new String[] {"смерти", (st == null ? 0 : st.deaths.get()) + " / " + (limit > 0 ? String.valueOf(limit) : "∞")});
         rows.add(null);
-        // AstraBot's stats have these too (the user, 2026-11-17): the ship, configuration | formation, speed, cloak
+        // AstraBot's stats have these too: the ship, configuration | formation, speed, cloak
         if (!hero.shipType().isBlank()) {
             rows.add(new String[] {"корабль", Hud.shipName(hero.shipType().replaceFirst("_design_.*$", ""))});
         }
@@ -1014,7 +1014,7 @@ final class MinimapPanel extends JPanel {
     }
 
     /**
-     * The game's own lines (the user, 2026-11-16: «лента на карте — журнал с самой игры»): «Вы получили 26 880 опыта»,
+     * The game's own lines (a feed on the map: the game's own log): "you received 26 880 experience",
      * the items, the server's text — the last {@link #FEED_LINES}, a new one at once, the old fading out.
      */
     private void gameFeed(Graphics2D g, double vx, int top, double vw) {
@@ -1046,7 +1046,7 @@ final class MinimapPanel extends JPanel {
         }
     }
 
-    /** A game's line in the client's words: «Вы получили 100 уридия», «Потрачено 500 уридия», the server's text. */
+    /** A game's line in the client's words: "you received 100 uridium", "spent 500 uridium", the server's text. */
     static String noteText(orbit.world.World.GameNote n) {
         if (n.text() != null) {
             return n.text();
@@ -1117,7 +1117,7 @@ final class MinimapPanel extends JPanel {
             return;
         }
         // the server's point comes every few seconds and the NPC moves on meanwhile: the ring rides the NPC by the point —
-        // the selected target first, else the nearest one (the user, 2026-11-17: the ring lagged behind the target, the
+        // the selected target first, else the nearest one (the ring lagged behind the target, the
         // red one did not)
         double px = pet.locatorX();
         double py = pet.locatorY();
@@ -1302,7 +1302,7 @@ final class MinimapPanel extends JPanel {
 
     /**
      * In a galaxy gate a portal by its type: home (type 1, out of the gate) or on (the next stage, the next map);
-     * {@code null} out of a gate (the user, 2026-11-15: «в АБГ порт слева показывает 3-1, а это в следующую волну»).
+     * {@code null} out of a gate (in ABG the left portal was labelled 3-1, but it leads to the next wave).
      */
     static String gateLabel(int mapId, WorldSnapshot.Portal p) {
         if (orbit.config.GateCatalog.byMap(mapId) == null) {

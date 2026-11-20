@@ -13,7 +13,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * One line an hour on the clock («Сводка 14:00–15:00 · в игре 58 мин · уридий +1 200 · …»): what the hour
+ * One line an hour on the clock (the hourly summary: the period, the time in game, uridium gained, …): what the hour
  * brought, so 40 hours read as 40 lines and the hour where something went wrong stands out. The first hour, when
  * shorter than {@link #MIN_FIRST_MINUTES}, is joined to the next one.
  */
@@ -90,7 +90,7 @@ public final class HourlyReport {
         return text;
     }
 
-    /** «1 200 уридия, 50 000 кредитов» — what was spent, {@code null} when nothing. */
+    /** The uridium and credits spent as one phrase, {@code null} when nothing. */
     static String spent(double uridium, double credits) {
         List<String> p = new ArrayList<>();
         if (uridium > 0) {

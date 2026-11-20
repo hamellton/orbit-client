@@ -348,7 +348,7 @@ final class AccountView extends JPanel {
         all.addActionListener(e -> orbit.app.gui.config.ConfigWindow.open(orbit.config.ConfigStore.openDefault(),
                 orbit.config.AccountSettings.DEFAULT_FILE, null));
         actions.add(all);
-        // quick switches of the running config (the user, 2026-11-16: «простые способы включения и выключения»):
+        // quick switches of the running config (simple ways to turn things on and off):
         // they write the config file, the running bot reads it within a second
         javax.swing.JCheckBox enrichOn = new javax.swing.JCheckBox("Обогащение");
         enrichOn.setToolTipText("Обогащать из трюма по настройкам конфига (вкладка «Обогащение»)");
@@ -465,7 +465,7 @@ final class AccountView extends JPanel {
         return bar;
     }
 
-    /** The configs by folders (the user, 2026-11-18), the account's own selected. */
+    /** The configs by folders, the account's own selected. */
     private void fill(ConfigBox box) {
         box.fill(List.of(), ConfigBox.folders(), tab.config().get());
     }

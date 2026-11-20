@@ -11,7 +11,7 @@ import orbit.config.ItemCatalog;
 import orbit.world.maps.MapCatalog;
 
 /**
- * «Общее»: ship configuration and formation per situation, enemies, roaming, sessions. The module and the working map
+ * General: ship configuration and formation per situation, enemies, roaming, sessions. The module and the working map
  * are this section's fields too, but the window shows them in its header above everything ({@link #moduleBox},
  * {@link #mapBox}): the module decides which other parts matter.
  */

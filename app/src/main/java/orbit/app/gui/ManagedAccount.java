@@ -21,7 +21,7 @@ public interface ManagedAccount {
     /**
      * Logs in after {@code delayMs} and runs the account's config or timetable; nothing when running.
      *
-     * @return {@code null} when started, otherwise why not (for the user)
+     * @return {@code null} when started, otherwise why not (to be shown)
      */
     String start(long delayMs);
 

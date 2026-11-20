@@ -16,8 +16,8 @@ import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * What an account earned today over all its runs (the user, 2026-11-13: the session's card starts from nothing at
- * each start of the bot). Each run keeps its own totals in {@code local/today-<account>.json}, written every
+ * What an account earned today over all its runs (the session's card starts from nothing at each start of the
+ * bot). Each run keeps its own totals in {@code local/today-<account>.json}, written every
  * {@link #SAVE_MS}; today is their sum. A run's counters going down (a new login in the same program) starts a new
  * run; at midnight the day starts anew, the running one counting from there.
  */

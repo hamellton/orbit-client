@@ -11,10 +11,10 @@ import java.util.function.Consumer;
 import java.util.regex.Pattern;
 
 /**
- * The log lines of this run for the window, repeats folded: a line that comes again with other numbers («Подобрал
- * палладий (за сессию: 812)») within {@link #MERGE_MS} of its last time grows its row's count instead of adding a row
- * (a row spans at most {@link #SPAN_MS}, so an hour shows its own rows). Journal lines fold only when worded exactly
- * the same. 40 hours of palladium (60 000 lines) become a few thousand rows.
+ * The log lines of this run for the window, repeats folded: a line that comes again with other numbers (a palladium
+ * pickup with its session count) within {@link #MERGE_MS} of its last time grows its row's count instead of adding a
+ * row (a row spans at most {@link #SPAN_MS}, so an hour shows its own rows). Journal lines fold only when worded
+ * exactly the same. 40 hours of palladium (60 000 lines) become a few thousand rows.
  */
 public final class LogStore {
 
@@ -202,8 +202,8 @@ public final class LogStore {
     private static final Pattern LOOT_PART = Pattern.compile("^\\+([\\d\\s\\u00a0.,]*\\d)\\s+(.+)$");
 
     /**
-     * «Добыча: +4 569 опыта · +32 чести» added to the row's sum so far: «Добыча всего: +9 138 опыта · +64 чести»
-     * (amounts by name, in the order first seen; a part that is not «+N name» is kept once as it is).
+     * A loot line (+N name parts) added to the row's loot total so far, the amounts summed
+     * (amounts by name, in the order first seen; a part that is not "+N name" is kept once as it is).
      */
     static String sumLoot(String sofar, String next) {
         java.util.LinkedHashMap<String, Double> sum = new java.util.LinkedHashMap<>();

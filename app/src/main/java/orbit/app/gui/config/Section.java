@@ -8,9 +8,9 @@ import orbit.config.BotConfig;
 interface Section {
 
     /**
-     * Where a part sits in the window's list (the user, 2026-11-19: «упростить, чтобы любому было понятно что и как»):
+     * Where a part sits in the window's list (kept simple so anyone can tell what is where):
      * the chosen module's own settings, the fight and flight every module uses, the extras that run beside any module
-     * («Попутно»: with whatever module the header chose).
+     * (alongside: with whatever module the header chose).
      */
     enum Group {
         MODULE("Модуль"),

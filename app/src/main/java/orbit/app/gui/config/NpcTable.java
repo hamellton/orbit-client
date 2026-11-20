@@ -17,7 +17,7 @@ final class NpcTable extends AbstractTableModel {
 
     static final String[] COLUMNS = {"NPC", "Бить", "Приоритет", "Радиус", "SAB", "Патроны", "Ракеты", "Ракетомёт", "Карты",
             "Флаги", "Движение", "Формация"};
-    /** The «Движение» cell for an NPC with no choice of its own: the config's «В бою». */
+    /** The Movement cell for an NPC with no choice of its own: the config's in-fight movement. */
     static final String CONFIG_MOVE = "как в конфиге";
     static final String NO_ROCKETS = "без ракет";
     static final String DEFAULT_AMMO = "общие";
@@ -56,7 +56,7 @@ final class NpcTable extends AbstractTableModel {
             row.kill = r.kill();
             row.priority = r.priority();
             row.ownRadius = (int) Math.round(r.radius());
-            // the number fought at, always (the user, 2026-11-13); the learning goes on from the base
+            // the number fought at, always; the learning goes on from the base
             row.radius = (int) Math.round(orbit.bot.mod.Targets.shownRadius(name, r.radius()));
             row.shownAtLoad = row.radius;
             row.maps = new LinkedHashSet<>(r.maps());
@@ -192,7 +192,7 @@ final class NpcTable extends AbstractTableModel {
         fireTableCellUpdated(r, c);
     }
 
-    /** The «Формация» choices: the config's, then each formation. */
+    /** The Formation choices: the config's, then each formation. */
     static String[] formationChoices() {
         List<String> out = new ArrayList<>();
         out.add(CONFIG_MOVE);
@@ -200,7 +200,7 @@ final class NpcTable extends AbstractTableModel {
         return out.toArray(String[]::new);
     }
 
-    /** The «Движение» choices: the config's, then each way. */
+    /** The Movement choices: the config's, then each way. */
     static String[] moveChoices() {
         List<String> out = new ArrayList<>();
         out.add(CONFIG_MOVE);
@@ -285,7 +285,7 @@ final class NpcTable extends AbstractTableModel {
                 .collect(Collectors.joining(", "));
     }
 
-    /** "3-6, 2-6" or ids; "все" or empty = everywhere. Unknown names are refused. */
+    /** "3-6, 2-6" or ids; the Russian word for all, or empty = everywhere. Unknown names are refused. */
     Set<Integer> parseMaps(String text) {
         Set<Integer> out = new LinkedHashSet<>();
         String t = text.strip();

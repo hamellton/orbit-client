@@ -9,7 +9,7 @@ import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import org.junit.jupiter.api.Test;
 
-/** The user, 2026-11-19: «в итогах почему я вижу данные, а потом снизу — ещё; по нажатию на ещё открывать все». */
+/** The Totals card: a few rows, then a "more" link below that opens them all. */
 class HudStatsTest {
 
     static Hud.Card stats(Hud hud, orbit.app.WorldFeed feed) {
@@ -23,7 +23,7 @@ class HudStatsTest {
         g.dispose();
     }
 
-    /** The point of the card's «ещё N» / «свернуть», {@code null} none. */
+    /** The point of the card's more / collapse link, {@code null} none. */
     static java.awt.Point link(Hud.Card c) {
         for (int y = 0; y < c.height(360); y++) {
             java.awt.Point p = new java.awt.Point(20, y);

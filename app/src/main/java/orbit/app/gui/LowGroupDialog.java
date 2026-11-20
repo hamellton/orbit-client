@@ -25,9 +25,9 @@ import orbit.config.BotConfig;
 import orbit.config.ConfigStore;
 
 /**
- * «Группа LoW» (docs/LOW.md §11, the user, 2026-11-18: «окно, где эти галочки удобно ставить»): the leader account and
+ * The LoW group window (docs/LOW.md §11, a place to set these ticks easily): the leader account and
  * his helper accounts; written into the leader's config ({@code modules.low.helpers}), the same ticks as in the config's
- * «LoW» tab. Only the leader is started; he starts his free helpers himself.
+ * LoW tab. Only the leader is started; he starts his free helpers himself.
  */
 final class LowGroupDialog {
 

@@ -29,15 +29,15 @@ final class SidePanel extends JPanel implements Scrollable {
 
     /** Where each card was drawn last, for the right-click menu. */
     private volatile java.util.Map<java.awt.Rectangle, ViewSettings.Block> cardsAt = java.util.Map.of();
-    /** The cards as last painted, by their place: what a click inside one does («Итоги»: «ещё N»). */
+    /** The cards as last painted, by their place: what a click inside one does (the Totals card: "N more"). */
     private volatile java.util.Map<java.awt.Rectangle, Hud.Card> cardObjects = java.util.Map.of();
 
     SidePanel(WorldFeed feed, Supplier<String> config) {
         this.feed = feed;
         this.config = config;
         BlockMenu.attach(this, p -> blockAt(cardsAt, p));
-        // no tooltip over the cards (the user, 2026-11-19: «надоело всплывающее окно»): the card under the mouse shows
-        // its «⋯» button instead — a left click on it opens the same menu as the right click
+        // no tooltip over the cards (the popup got in the way): the card under the mouse shows
+        // its "..." button instead — a left click on it opens the same menu as the right click
         java.awt.event.MouseAdapter hover = new java.awt.event.MouseAdapter() {
             @Override
             public void mouseMoved(java.awt.event.MouseEvent e) {
@@ -83,8 +83,8 @@ final class SidePanel extends JPanel implements Scrollable {
         hud.menuRoom = MENU_ROOM; // the headings leave the «⋯» button its place
         setOpaque(true);
         setBackground(MainWindow.SURFACE);
-        // a block moved («Сбоку», «На карте», «Скрыть»): laid out anew at once, no place kept for it (the steady places
-        // are for data that changes, not for the user's choice)
+        // a block moved (beside, on the map, hidden): laid out anew at once, no place kept for it (the steady places
+        // are for data that changes, not for a choice made by hand)
         ViewSettings.shared().onChange(() -> {
             synchronized (this) {
                 slots.clear();
@@ -97,7 +97,7 @@ final class SidePanel extends JPanel implements Scrollable {
     }
 
     /**
-     * Steady places (the user, 2026-11-16: «прыжки в блоке с карточками очень часто»): a card grows at once but gives
+     * Steady places (the cards jumped around too often): a card grows at once but gives
      * its room back only after it stayed smaller for {@link #HOLD_MS}; a card gone keeps its place empty as long; each
      * card keeps its column while the columns stay the same.
      */
@@ -147,7 +147,7 @@ final class SidePanel extends JPanel implements Scrollable {
         int[] col = new int[n];
         List<Placed> out = new java.util.ArrayList<>();
         // SPLIT: the ship's cards left, the fight and the deeds in the last column of their own when there are two or
-        // more, else under the ship's (the user, 2026-11-19)
+        // more, else under the ship's
         boolean split = ViewSettings.shared().cardLayout() == ViewSettings.CardLayout.SPLIT;
         List<ViewSettings.Block> order = new java.util.ArrayList<>(List.of(ViewSettings.Block.values()));
         if (split) {
@@ -279,7 +279,7 @@ final class SidePanel extends JPanel implements Scrollable {
         }
         boolean onButton = card != null && menuButton(card).contains(p);
         Hud.Card obj = card == null ? null : cardObjects.get(card);
-        boolean link = obj != null && obj.clickable(p); // «ещё N» in «Итоги»
+        boolean link = obj != null && obj.clickable(p); // "N more" in the Totals card
         setCursor(onButton || link ? java.awt.Cursor.getPredefinedCursor(java.awt.Cursor.HAND_CURSOR)
                 : java.awt.Cursor.getDefaultCursor());
         if (!java.util.Objects.equals(card, hoverCard) || onButton != hoverButton) {

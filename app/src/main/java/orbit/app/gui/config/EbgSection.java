@@ -13,8 +13,8 @@ import javax.swing.JTextField;
 import orbit.config.BotConfig;
 
 /**
- * «Вечные врата» (EBG, docs/EBG.md; the user, 2026-11-16: «всё через конфиг, очень понятно и просто, чтобы никто не
- * запутался»): on or off, how many runs, the CPU and its craft, what then, the lasers enriched before a run, the brake,
+ * The Eternal Gate section (EBG, docs/EBG.md; everything through the config, plain enough that nobody gets lost):
+ * on or off, how many runs, the CPU and its craft, what then, the lasers enriched before a run, the brake,
  * the Uber Kristallons, the boosters and the abilities. Writes {@code modules.gate.eternal} and the gate list.
  */
 final class EbgSection implements Section {

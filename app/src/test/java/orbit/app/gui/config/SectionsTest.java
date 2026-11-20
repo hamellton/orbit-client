@@ -89,7 +89,7 @@ class SectionsTest {
 
     @Test
     void palladiumKeepsTheDarkBotSettings() throws Exception {
-        // the user's DmPlugin «Palladium Hangar» settings, as imported (invented hangar numbers)
+        // DmPlugin's Palladium Hangar settings, as imported (invented hangar numbers)
         com.fasterxml.jackson.databind.node.ObjectNode m = Json.MAPPER.createObjectNode();
         m.put("goPortalChange", false).put("sellOnDie", true).put("ignoreSID", false)
                 .put("collectHangar", 123_456).put("sellHangar", 123_457).put("aditionalWaitingTime", 5);
@@ -99,7 +99,7 @@ class SectionsTest {
 
     @Test
     void theBehemothWaitPointsSurviveTheTabs() throws Exception {
-        // the user, 2026-11-20: wait points set on the zones tab, kept in modules.behemoth.waitPoints
+        // wait points set on the zones tab, kept in modules.behemoth.waitPoints
         com.fasterxml.jackson.databind.node.ObjectNode m = Json.MAPPER.createObjectNode();
         com.fasterxml.jackson.databind.node.ObjectNode wp = m.putObject("waitPoints");
         wp.putArray("306").add(19_400).add(7_500);
@@ -158,7 +158,7 @@ class SectionsTest {
 
     @Test
     void quests_alongside_aConfigOfAnotherModuleKeepsJustItsSwitch() throws Exception {
-        // the Mimesis configs since 2026-11-19: only «alongside» in the quests section — none of the module's keys added
+        // the Mimesis configs since 2026-11-19: only alongside in the quests section — none of the module's keys added
         BotConfig c = BotConfig.empty().withModule(BotConfig.Module.MIMESIS).withModuleSettings("quests",
                 Json.MAPPER.readTree("{\"alongside\": true, \"trek\": false}"));
         assertEquals(c, roundTrip(c));
@@ -173,15 +173,15 @@ class SectionsTest {
         general.load(c);
         season.load(c);
         org.junit.jupiter.api.Assertions.assertFalse(season.on(), "off: nothing set");
-        // «Главный модуль»: the header's module becomes «Квесты»
+        // the main-module choice: the header's module becomes Quests
         click(season, "Главный модуль");
         assertEquals(BotConfig.Module.QUESTS, general.selectedModule());
-        // «Попутно»: back to the module it was
+        // the alongside choice: back to the module it was
         click(season, "Попутно");
         assertEquals(BotConfig.Module.MIMESIS, general.selectedModule());
         BotConfig out = season.apply(general.apply(c));
         org.junit.jupiter.api.Assertions.assertTrue(out.modules().get("quests").path("alongside").asBoolean());
-        // the module switched to «Квесты» in the header: the selector follows
+        // the module switched to Quests in the header: the selector follows
         general.selectModule(BotConfig.Module.QUESTS);
         org.junit.jupiter.api.Assertions.assertTrue(season.on());
     }

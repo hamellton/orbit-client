@@ -7,7 +7,7 @@ import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import orbit.config.BotConfig;
 
-/** «Группа» (AstraBot's invitations): accepting, rejecting, inviting, leaving, kicking, the lead. */
+/** The Group section (AstraBot's invitations): accepting, rejecting, inviting, leaving, kicking, the lead. */
 final class GroupSection implements Section {
 
     private static final BotConfig.Accept[] ACCEPT = BotConfig.Accept.values();

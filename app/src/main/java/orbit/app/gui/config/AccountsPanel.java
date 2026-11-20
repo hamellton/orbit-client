@@ -27,8 +27,8 @@ import orbit.config.AccountSettings;
 import orbit.config.Schedule;
 
 /**
- * «Аккаунты и расписание»: the config of each account and its timetable (like AstraBot's time table):
- * windows «days, from, to, config»; a window with «перерыв» is a break; outside the windows the bot is offline.
+ * Accounts and timetable: the config of each account and its timetable (like AstraBot's time table):
+ * windows "days, from, to, config"; a window with the break config is a break; outside the windows the bot is offline.
  */
 final class AccountsPanel {
 

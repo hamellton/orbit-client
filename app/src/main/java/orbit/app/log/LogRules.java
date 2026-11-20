@@ -87,7 +87,7 @@ public final class LogRules {
     /**
      * Never in the journal: warnings of the everyday kind (they would bury the real ones) and the echoes of one
      * event told by several parts (a death: the connection state, the kill screen's choices, the wait for it —
-     * the journal keeps «Корабль уничтожен (кем) — смертей N»).
+     * the journal keeps one ship-destroyed line with the killer and the death count).
      */
     private static final Pattern NOT_JOURNAL = p(String.join("|",
             "бросаю цель$", "^Нет пути к", "сервер не ответил за", "^Диагностика", "Мина на пути",
