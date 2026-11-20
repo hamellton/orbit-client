@@ -854,6 +854,28 @@ class AttackerTest {
     }
 
     @Test
+    void rsbWaitsTillTheShipShootsTheTarget() {
+        // live 2026-11-20 on gb2: RSB-75 pressed as Invoke XVI was picked 1 000-1 900 away started no attack, the ship
+        // sat on it 6-12 s without firing; the usual ammunition starts the fight, RSB joins once it shoots
+        BotConfig c = BotConfig.empty()
+                .withLoot(new BotConfig.Loot("ammunition_laser_a-bl", null, 0, 0, "ammunition_laser_rsb-75", true, 0, null,
+                        false, false, List.of()))
+                .withNpcs(Map.of("-=[ Target ]=-", new BotConfig.NpcRule(500, 0, true, Set.of(), Set.of(), null)));
+        Sim sim = new Sim(c, 1, 10_400, 6_000);
+        sim.lasers("ammunition_laser_lcb-10", "ammunition_laser_rsb-75", "ammunition_laser_a-bl");
+        sim.npc(7, "-=[ Target ]=-", 10_000, 6_000);
+        sim.blockAttacks = true;
+        Attacker a = new Attacker(sim.ctx);
+        a.target(sim.world.snapshot(sim.now).ships().get(7));
+        fight(sim, a, 5);
+        assertEquals(0, used(sim, "ammunition_laser_rsb-75"), "no RSB before the attack runs: " + pressed(sim));
+        assertTrue(used(sim, "ammunition_laser_a-bl") >= 1, "the usual ammunition starts it: " + pressed(sim));
+        sim.blockAttacks = false;
+        fight(sim, a, 5);
+        assertTrue(used(sim, "ammunition_laser_rsb-75") >= 1, "RSB once the ship shoots: " + pressed(sim));
+    }
+
+    @Test
     void anIshTheGameNeverAnswersIsNotPressedEveryFewSeconds() {
         // live 2026-11-16 on gb2: the connection lagged at a Behemoth, ISH pressed every 5 s for a minute, none answered
         Sim sim = new Sim(invoke(Set.of("USE_ISH"), null), 1, 10_500, 6_000);

@@ -1604,7 +1604,11 @@ public final class Attacker {
         // reloads (its cooldown is the item's timer)
         // AstraBot «Use RSB»: once the config flags some NPC with it, only those get it
         boolean rsbHere = r != null && r.has(BotConfig.NpcFlag.USE_RSB) || !c.anyNpc(BotConfig.NpcFlag.USE_RSB);
-        if (rsbHere && l.rsb() != null && ready(w, l.rsb(), w.nanos()) && w.items().get(l.rsb()).counter() >= MIN_AMMO) {
+        // only once the ship already shoots this target: pressed out of reach the game starts no attack and the ship sat
+        // on RSB-75 without firing for 6–12 s (2026-11-20 on gb2, Invoke XVI picked 1 000–1 900 away); the usual
+        // ammunition starts the fight
+        boolean shooting = w.hero().attackTargetId() == t.id();
+        if (rsbHere && shooting && l.rsb() != null && ready(w, l.rsb(), w.nanos()) && w.items().get(l.rsb()).counter() >= MIN_AMMO) {
             return l.rsb();
         }
         return r != null && r.ammo() != null ? r.ammo() : l.ammo();
