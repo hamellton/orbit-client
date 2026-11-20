@@ -109,6 +109,8 @@ final class InfoWindows {
         tabs.addTab("Добыча", HangarWindow.table(loot));
         tabs.addTab("Доход и дела", HangarWindow.table(deeds));
         tabs.addTab("Расход", HangarWindow.table(spent));
+        HangarWindow.Rows npcs = new HangarWindow.Rows("NPC", "За сессию", "В час", "Бой, ср.", "Сегодня");
+        tabs.addTab("NPC", HangarWindow.table(npcs));
         JLabel note = new JLabel();
         open(feed, "Итоги", tabs, note, false, () -> {
             WorldSnapshot.Rewards r = feed.sessionRewards();
@@ -172,6 +174,29 @@ final class InfoWindows {
                 a.add(new String[] {r0[0], r0[1], r0[2], cubesNow > 0 && n > 0 ? exact(n / cubesNow) : "—", r0[3]});
             }
             spent.setRows(a);
+            // the NPCs killed by kind: the session, an hour, the average fight (from the pick to the kill), today
+            Map<String, Integer> killedNow = st == null ? Map.of() : st.killedBy();
+            Map<String, Double> fights = st == null ? Map.of() : st.fightSeconds();
+            java.util.Set<String> names = new java.util.LinkedHashSet<>(killedNow.keySet());
+            names.addAll(day.killed().keySet());
+            java.util.List<String[]> k = new java.util.ArrayList<>();
+            int killedSum = 0;
+            int killedDay = 0;
+            for (String n : names.stream().sorted(java.util.Comparator.<String>comparingInt(
+                    n -> -killedNow.getOrDefault(n, 0)).thenComparingInt(n -> -day.killed().getOrDefault(n, 0))).toList()) {
+                int s0 = killedNow.getOrDefault(n, 0);
+                int d0 = day.killed().getOrDefault(n, 0);
+                killedSum += s0;
+                killedDay += d0;
+                String[] r0 = row(npcName(n), s0, d0, hours, true);
+                Double f = fights.get(n);
+                k.add(new String[] {r0[0], r0[1], r0[2], f == null ? "—" : Math.round(f) + " с", r0[3]});
+            }
+            if (names.size() > 1) {
+                String[] r0 = row("Всего", killedSum, killedDay, hours, true);
+                k.add(new String[] {r0[0], r0[1], r0[2], "", r0[3]});
+            }
+            npcs.setRows(k);
             note.setText(feed.sessionStartNanos() == 0 ? "сессия ещё не началась"
                     : "Сессия " + Hud.clock(java.time.Duration.ofNanos(feed.sessionNanos()))
                     + " · «сегодня» — за все запуски с полуночи · раз в секунду");
@@ -239,6 +264,12 @@ final class InfoWindows {
         f.setLocationByPlatform(true);
         OPEN.put(key, f);
         f.setVisible(true);
+    }
+
+    /** An NPC's name without the game's frame: «\\ Invoke XVI //» → «Invoke XVI», «-=[ Cubikon ]=-» → «Cubikon». */
+    static String npcName(String raw) {
+        String s = raw.replaceAll("^[^\\p{L}\\p{N}]+|[^\\p{L}\\p{N}]+$", "").trim();
+        return s.isEmpty() ? raw : s;
     }
 
     private static String cap(String s) {

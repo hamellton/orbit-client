@@ -213,6 +213,11 @@ public final class Attacker {
         return targetId;
     }
 
+    /** Seconds of the fight with the target so far (from its pick), {@code -1} when none. */
+    public double fightSeconds() {
+        return fight.seconds(ctx.now());
+    }
+
     /** The name of the NPC fought, {@code null} when none. */
     public String targetName() {
         return targetId == 0 ? null : targetName;
@@ -814,7 +819,7 @@ public final class Attacker {
                 }
                 lastKill = new Kill(targetName, seenX, seenY, ctx.now(), targetRule != null
                         && targetRule.has(BotConfig.NpcFlag.IGNORE_BOXES));
-                ctx.stats().kills.incrementAndGet();
+                ctx.stats().killed(targetName, fight.seconds(ctx.now()));
                 if (t0Cubikon) {
                     ctx.stats().cubesKilled.incrementAndGet();
                 }

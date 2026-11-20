@@ -1317,7 +1317,7 @@ public final class BehemothModule implements BotModule {
                 seen.clear();
             }
             if (!killCounted) {
-                ctx.stats().kills.incrementAndGet();
+                ctx.stats().killed("Mindfire Behemoth", -1);
                 killCounted = true;
             }
         }
@@ -2938,7 +2938,7 @@ public final class BehemothModule implements BotModule {
                 boolean ours = attacker.targetId() == e.getKey() && attacker.shooting();
                 log.info("Бегемот у {}/{} уничтожен{}", p[0] / 100, p[1] / 100, ours ? "" : " (не нами)");
                 if (ours) {
-                    ctx.stats().kills.incrementAndGet();
+                    ctx.stats().killed(attacker.targetName(), attacker.fightSeconds());
                 }
                 killedAt = now;
                 killCounted = ours;

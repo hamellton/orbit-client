@@ -59,6 +59,11 @@ public final class FightLog {
         return target != null;
     }
 
+    /** Seconds since this fight's target was picked, {@code -1} when there is none. */
+    double seconds(long now) {
+        return target == null ? -1 : (now - start) / 1e9;
+    }
+
     void begin(WorldSnapshot.Ship t, WorldSnapshot.Hero h, long now) {
         target = t.name();
         map = h.mapId();

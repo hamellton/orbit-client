@@ -53,6 +53,34 @@ public final class Stats {
         return java.util.Map.copyOf(keysSpent);
     }
 
+    /** NPCs killed by name and the seconds of their fights (from the pick to the kill; {@code -1} unknown — not summed). */
+    private final java.util.Map<String, Integer> killedBy = new java.util.TreeMap<>();
+    private final java.util.Map<String, double[]> fightTime = new java.util.TreeMap<>();
+
+    /** One NPC killed: the total and the kind's count, and its fight's length when known. */
+    public synchronized void killed(String name, double fightSeconds) {
+        kills.incrementAndGet();
+        String n = name == null || name.isBlank() ? "?" : name;
+        killedBy.merge(n, 1, Integer::sum);
+        if (fightSeconds > 0) {
+            double[] t = fightTime.computeIfAbsent(n, k -> new double[2]);
+            t[0] += fightSeconds;
+            t[1]++;
+        }
+    }
+
+    /** NPCs killed this session: name → count. */
+    public synchronized java.util.Map<String, Integer> killedBy() {
+        return java.util.Map.copyOf(killedBy);
+    }
+
+    /** The average fight with each kind killed, seconds (only kinds with known lengths). */
+    public synchronized java.util.Map<String, Double> fightSeconds() {
+        java.util.Map<String, Double> out = new java.util.HashMap<>();
+        fightTime.forEach((k, t) -> out.put(k, t[0] / t[1]));
+        return out;
+    }
+
     /** Ammunition counts as last seen (item id → count) and how much of each went this session. */
     private final java.util.Map<String, Double> ammoSeen = new java.util.HashMap<>();
     private final java.util.Map<String, Double> ammoSpent = new java.util.TreeMap<>();
@@ -139,6 +167,25 @@ public final class Stats {
                 d.picked.put(k, new AtomicInteger(n));
             }
         });
+        java.util.Map<String, Integer> killedBefore = base.killedBy();
+        killedBy().forEach((k, v) -> {
+            int n = v - killedBefore.getOrDefault(k, 0);
+            if (n > 0) {
+                d.killedBy.put(k, n);
+            }
+        });
+        synchronized (this) {
+            java.util.Map<String, double[]> before;
+            synchronized (base) {
+                before = new java.util.HashMap<>(base.fightTime);
+            }
+            fightTime.forEach((k, t) -> {
+                double[] b = before.getOrDefault(k, new double[2]);
+                if (t[1] - b[1] > 0) {
+                    d.fightTime.put(k, new double[] {t[0] - b[0], t[1] - b[1]});
+                }
+            });
+        }
         java.util.Map<String, Double> spentBefore = base.ammoSpent();
         ammoSpent().forEach((k, v) -> {
             double n = v - spentBefore.getOrDefault(k, 0.0);

@@ -79,4 +79,23 @@ class BootyKeysTest {
         org.junit.jupiter.api.Assertions.assertEquals(Map.of("ammunition_laser_rsb-75", 35.0), s.since(base).ammoSpent(),
                 "after a reset of the window's statistics");
     }
+
+    @Test
+    void killsAreCountedByKindWithTheirAverageFight() {
+        Stats s = new Stats();
+        s.killed("-=[ Cubikon ]=-", 30);
+        s.killed("-=[ Cubikon ]=-", 20);
+        s.killed("-=[ Protegit ]=-", 4);
+        s.killed("Mindfire Behemoth", -1); // no length known
+        org.junit.jupiter.api.Assertions.assertEquals(4, s.kills.get());
+        org.junit.jupiter.api.Assertions.assertEquals(
+                Map.of("-=[ Cubikon ]=-", 2, "-=[ Protegit ]=-", 1, "Mindfire Behemoth", 1), s.killedBy());
+        org.junit.jupiter.api.Assertions.assertEquals(25.0, s.fightSeconds().get("-=[ Cubikon ]=-"));
+        org.junit.jupiter.api.Assertions.assertNull(s.fightSeconds().get("Mindfire Behemoth"));
+        Stats base = s.copy();
+        s.killed("-=[ Cubikon ]=-", 40);
+        Stats d = s.since(base);
+        org.junit.jupiter.api.Assertions.assertEquals(Map.of("-=[ Cubikon ]=-", 1), d.killedBy());
+        org.junit.jupiter.api.Assertions.assertEquals(40.0, d.fightSeconds().get("-=[ Cubikon ]=-"));
+    }
 }

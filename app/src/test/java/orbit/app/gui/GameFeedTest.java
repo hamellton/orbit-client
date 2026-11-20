@@ -79,4 +79,12 @@ class GameFeedTest {
         org.junit.jupiter.api.Assertions.assertTrue(differing(big, cell(640, 400, false)) > 200, "lines in a big cell");
         assertEquals(0, differing(cell(420, 262, true), cell(420, 262, false)), "none in a small one");
     }
+
+    @Test
+    void npcNamesWithoutTheGamesFrame() {
+        assertEquals("Invoke XVI", InfoWindows.npcName("\\\\ Invoke XVI //"));
+        assertEquals("Cubikon", InfoWindows.npcName("-=[ Cubikon ]=-"));
+        assertEquals("Boss Kristallin", InfoWindows.npcName("..::{ Boss Kristallin }::.."));
+        assertEquals("Mindfire Behemoth", InfoWindows.npcName("Mindfire Behemoth"));
+    }
 }

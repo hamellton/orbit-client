@@ -418,7 +418,7 @@ public final class CubikonModule implements BotModule {
                 log.info("Cubikon у {}/{} уничтожен — лечу на следующий спаун", p[0] / 100, p[1] / 100);
                 if (attacker.targetId() == e.getKey() && attacker.shooting()) {
                     ctx.stats().cubesKilled.incrementAndGet();
-                    ctx.stats().kills.incrementAndGet();
+                    ctx.stats().killed(attacker.targetName(), attacker.fightSeconds());
                     attacker.clear();
                 }
                 deadAt = p;
