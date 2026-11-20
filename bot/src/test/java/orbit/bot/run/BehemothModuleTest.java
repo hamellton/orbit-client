@@ -1179,8 +1179,8 @@ class BehemothModuleTest {
 
     @Test
     void theRollbackStyleIgnoresOffendersOfOurCompanyAndDoesNotBackAway() throws Exception {
-        // the user, 2026-11-20: both behaviours kept, «rollback» = as the restore point best-2026-11-20
-        Sim sim = new Sim(with(config(300), "{\"trainStyle\": \"rollback\", \"dodgeMargin\": 150}"), 307, 5_200, 5_000);
+        // the user, 2026-11-20: both behaviours kept, «v1» = as the restore point best-2026-11-20
+        Sim sim = new Sim(with(config(300), "{\"trainStyle\": \"v1\", \"dodgeMargin\": 150}"), 307, 5_200, 5_000);
         BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
         com.fasterxml.jackson.databind.JsonNode s = sim.ctx.config().get().moduleSettings("behemoth");
         assertFalse(BehemothModule.newStyle(s));

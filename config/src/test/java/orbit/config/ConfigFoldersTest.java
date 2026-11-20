@@ -14,7 +14,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 class ConfigFoldersTest {
 
-    static final List<String> DEFAULTS = List.of("Behemoth", "Behemoth Train", "Behemoth Train - новое", "Behemoth Train - откат", "Blacklight Impulse", "Blacklight Invoke 1-BL",
+    static final List<String> DEFAULTS = List.of("Behemoth", "Behemoth Train", "Behemoth Train v1", "Behemoth Train v2", "Blacklight Impulse", "Blacklight Invoke 1-BL",
             "Blacklight Invoke 2-BL", "Blacklight Invoke 3-BL",
             "Blacklight Invoke Train 1-BL", "Blacklight Invoke Train 2-BL", "Blacklight Invoke Train 3-BL", "Cubikon", "EBG", "Galaxy Gates ABG", "Mimesis EIC 2-4", "Mimesis MMO 1-4",
             "Mimesis VRU 3-4", "Palladium");
