@@ -1,6 +1,6 @@
 # Вечные врата Блэклайт (EBG, Eternal Blacklight Gate)
 
-Перенос «1 в 1 как DarkBot» (SharedPlugin `EternalBlacklightGate`) с дополнениями пользователя (2026-11-16): число
+Перенос один в один, как в DarkBot (SharedPlugin `EternalBlacklightGate`) с дополнениями пользователя (2026-11-16): число
 забегов, крафт CPU, выход из игры, когда всё кончилось, обогащённые лазеры перед забегом, способности на тяжёлых NPC.
 Источники: SharedPlugin 0.12.10 (байткод), DarkBot `StarManager`/`EternalBlacklightProxy`, KekkaReloaded, клиент
 (`EternalBlacklight*`), профили друга `DB/configs/EBG.json`, `EBG_OnSterodis.json`, AstraBot GE3 (`ebg.json`, логи 07.11 и
