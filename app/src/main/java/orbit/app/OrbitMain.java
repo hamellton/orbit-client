@@ -66,7 +66,6 @@ public final class OrbitMain {
         System.setProperty("apple.awt.application.appearance", "NSAppearanceNameDarkAqua");
         WorldFeed.learnNpcMaps = true; // the NPCs met are remembered by map (local/npc-maps.json)
         orbit.bot.mod.FightLog.enable(); // temporary: each fight in the log and local/fight-log.csv
-        orbit.bot.mod.RadiusTuner.keepOnDisk(); // the distances learned per NPC kind (local/npc-radius-learned.json)
         orbit.bot.mod.Threats.keepOnDisk(); // the NPC kinds that attack on sight (local/npc-aggressive.json)
         orbit.bot.mod.AbilityUse.keepOnDisk(); // EMP-01 and ISH-01 spent per pilot (local/ability-use.json)
         // portals the data lacks, learned by jumping (5-2 → 5-1)

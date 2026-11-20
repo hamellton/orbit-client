@@ -129,7 +129,7 @@ AstraBot: публичных описаний поведения не нашло
 | 2-8 | 78 | 228 | 0 / 0 | StreuneR, Boss StreuneR |
 | 2-BL | 0 | 0 | частые / 4 смерти | толпа Abide I и Steadfast III, корабль без щитов в боевой конфигурации — не тянет |
 
-**Подобранные радиусы** (`local/npc-radius-learned.json`):
+**Подобранные радиусы** (`local/npc-radius-learned.json`; подбор убран 2026-11-20, радиусы как в DarkBot — `docs/PLAN.md`):
 - Kristallin — 605;
 - Kristallon — 680, предел: дальше лазеры не достают;
 - Plagued Kristallin — 740;

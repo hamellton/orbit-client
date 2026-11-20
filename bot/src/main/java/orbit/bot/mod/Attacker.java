@@ -869,9 +869,6 @@ public final class Attacker {
                     : chasing || runCircle ? c.general().run() : onTheWay ? c.general().travel() : fightMode);
         }
         Threats threats = move ? new Threats(ctx, ctx.world().get(), c, t.id()) : null;
-        double baseRadius = Targets.baseRadius(c, t, h.mapId());
-        learnedFarther = radius > baseRadius + 1;
-        fight.radius(radius, baseRadius, true);
         fight.sample(w, t, radius, switch (mode) {
             case KITE -> "отход";
             case STAND -> "стою";
@@ -1290,9 +1287,6 @@ public final class Attacker {
         return away > 0.3 * Math.max(1, Math.hypot(vx, vy));
     }
 
-    /** The radius of this fight was learned farther than the base one (the target hit the ship nearer). */
-    private boolean learnedFarther;
-
     private void circle(Threats th, WorldSnapshot.Hero h, WorldSnapshot.Ship t, double radius, boolean raw) {
         if (circleDir == 0) {
             circleDir = ctx.random().nextBoolean() ? 1 : -1;
@@ -1318,33 +1312,18 @@ public final class Attacker {
             }
         }
         double r = radius;
-        // DarkBot comes nearer to a still or nearly dead NPC — not when its kind was learned to hit the ship nearer
-        // (live 2026-11-13 on 2-7: Boss Kristallon learned 675, fought at 593, the learning took it for 675)
-        if (gate != null) {
-            if (!raw) {
-                // DarkBot's NpcAttacker.modifyRadius exactly: not shooting it yet — 550 at most, so the first shot
-                // reaches; a still or nearly dead one — 600; a nearly dead follower ×0.75
-                boolean low = t.health().known() && t.health().hpPercent() < 0.25;
-                BotConfig.NpcRule rr0 = Targets.rule(ctx.config().get(), t, h.mapId());
-                if (low && rr0 != null && rr0.has(BotConfig.NpcFlag.AGGRESSIVE_FOLLOW)) {
-                    r *= 0.75;
-                }
-                if (h.attackTargetId() != t.id()) {
-                    r = Math.min(550, r);
-                } else if (!t.moving() || low) {
-                    r = Math.min(600, r);
-                }
-            }
-        } else if (!raw) {
-            // DarkBot's modifyRadius: a nearly dead NPC with «aggressive follow» — the radius × 0.75, on every map, not
-            // in the gates only
+        if (!raw) {
+            // DarkBot's NpcAttacker.modifyRadius exactly, on every map: not shooting it yet — 550 at most, so the first
+            // shot reaches; a still or nearly dead one — 600; a nearly dead follower ×0.75 (the repair's 2 000 is raw)
             boolean low = t.health().known() && t.health().hpPercent() < 0.25;
             BotConfig.NpcRule rr0 = Targets.rule(ctx.config().get(), t, h.mapId());
             if (low && rr0 != null && rr0.has(BotConfig.NpcFlag.AGGRESSIVE_FOLLOW)) {
                 r *= 0.75;
             }
-            if (!learnedFarther && (!t.moving() || low)) {
-                r = Math.min(r, 600); // DarkBot's modifyRadius; the repair's 2 000 is taken raw
+            if (h.attackTargetId() != t.id()) {
+                r = Math.min(550, r);
+            } else if (!t.moving() || low) {
+                r = Math.min(600, r);
             }
         }
         if (gate == null && fleeing(t, h)) {

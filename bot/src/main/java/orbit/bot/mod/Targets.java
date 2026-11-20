@@ -50,25 +50,20 @@ public final class Targets {
         return s.lockedByOther();
     }
 
+    /**
+     * As DarkBot's {@code NpcInfo.radius}: the config's own, else the recommended one; nothing learned. The fights once
+     * learned a radius per kind (farther while the target hit the ship) and took Invoke XVI to 740, beyond the lasers'
+     * reach (2026-11-20 on gb2: 6–12 s without a shot), as Protegit 630 → 720 in a gate before (2026-11-15).
+     */
     public static double radius(BotConfig c, WorldSnapshot.Ship s, int mapId) {
-        // in a galaxy gate the config's own, as DarkBot's SimpleGalaxyGate (the learning widened Protegit 630 → 720,
-        // beyond the lasers' reach — live 2026-11-15 on gb2, GG β: circled, hardly shot)
-        if (orbit.config.GateCatalog.instanced(mapId)) {
-            return baseRadius(c, s, mapId);
-        }
-        // learned from the base (the config's own or the recommended one) — the config's own number is where it starts
-        return RadiusTuner.radius(s.name(), baseRadius(c, s, mapId));
+        return baseRadius(c, s, mapId);
     }
 
-    /**
-     * The radius a kind is fought at, for the config window: learned from the base — {@code own} when the list sets
-     * one, else the recommended one, else {@link #DEFAULT_RADIUS}.
-     */
+    /** The radius a kind is fought at, for the config window: {@code own} when the list sets one, else the recommended
+     * one, else {@link #DEFAULT_RADIUS}. */
     public static double shownRadius(String name, double own) {
         double recommended = orbit.world.maps.NpcRadius.bundled().of(name);
-        double base = own > 0 ? own : recommended > 0 ? recommended : DEFAULT_RADIUS;
-        double learned = RadiusTuner.learned(name, base);
-        return learned > 0 ? learned : base;
+        return own > 0 ? own : recommended > 0 ? recommended : DEFAULT_RADIUS;
     }
 
     /** The radius with nothing learned: the config's own, else DarkBot's recommended, else {@link #DEFAULT_RADIUS}. */
