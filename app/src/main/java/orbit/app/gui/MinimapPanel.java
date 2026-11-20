@@ -471,8 +471,12 @@ final class MinimapPanel extends JPanel {
         int statusBottom = mapStatus(g, vx, vy, vw);
         if (!compact) {
             menuHint(g, vx, statusBottom, vw);
-            gameFeed(g, vx, (int) Math.round(vy) + 8, vw);
+            gameFeed(g, vx, (int) Math.round(vy) + 8, vw, FEED_LINES);
             cardsAt = java.util.Map.of();
+        } else if (getWidth() >= FEED_CELL_W && getHeight() >= FEED_CELL_H) {
+            // the «Все» grid: the game's lines too once a cell is big enough (user's choice 2026-11-20), by its size,
+            // not by the number of accounts — 2 lines, 3 in a tall cell
+            gameFeed(g, vx, statusBottom + 4, vw, getHeight() >= FEED_CELL_TALL ? 3 : 2);
         }
         if (w.boxCheck() != null) {
             boxCheck(g, w, p, vx, vy, vw);
@@ -485,6 +489,10 @@ final class MinimapPanel extends JPanel {
     static final int NAMED_PLAYERS = 3;
     /** The game's lines over the map: the last few, each fully seen this long, then fading out. */
     static final int FEED_LINES = 4;
+    /** A cell of the «Все» grid this big or bigger shows the game's lines; this tall, three of them. */
+    static final int FEED_CELL_W = 560;
+    static final int FEED_CELL_H = 350;
+    static final int FEED_CELL_TALL = 500;
     static final long FEED_SHOW_NS = 4_000_000_000L;
     static final long FEED_FADE_NS = 1_500_000_000L;
 
@@ -1015,13 +1023,13 @@ final class MinimapPanel extends JPanel {
 
     /**
      * The game's own lines (a feed on the map: the game's own log): "you received 26 880 experience",
-     * the items, the server's text — the last {@link #FEED_LINES}, a new one at once, the old fading out.
+     * the items, the server's text — the last {@code lines}, a new one at once, the old fading out.
      */
-    private void gameFeed(Graphics2D g, double vx, int top, double vw) {
+    private void gameFeed(Graphics2D g, double vx, int top, double vw, int lines) {
         long now = feed.nowNanos();
         java.util.List<orbit.world.World.GameNote> all = feed.gameNotes();
         java.util.List<orbit.world.World.GameNote> shown = new java.util.ArrayList<>();
-        for (int i = all.size() - 1; i >= 0 && shown.size() < FEED_LINES; i--) {
+        for (int i = all.size() - 1; i >= 0 && shown.size() < lines; i--) {
             orbit.world.World.GameNote n = all.get(i);
             long age = now - n.nanos();
             if (age > FEED_SHOW_NS + FEED_FADE_NS) {
