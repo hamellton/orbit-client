@@ -4,8 +4,8 @@ Palladium
 Galaxy Gates ABG
 Behemoth
 Behemoth Train
-Behemoth Train v1
-Behemoth Train v2
+Behemoth Avoid Trains v1
+Behemoth Avoid Trains v2
 Blacklight Invoke 1-BL
 Blacklight Invoke 2-BL
 Blacklight Invoke 3-BL
