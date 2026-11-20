@@ -370,7 +370,7 @@ final class CargoCare {
         List<String> out = new ArrayList<>();
         w.inventory().ores().forEach((t, n) -> {
             if (n >= 1 && t != WorldSnapshot.Inventory.XENOMIT) {
-                out.add(oreName(t) + " " + Math.round(n));
+                out.add(oreName(t) + " " + orbit.world.Num.group(n));
             }
         });
         return out.isEmpty() ? "пусто" : "в трюме: " + String.join(", ", out);

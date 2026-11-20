@@ -174,7 +174,7 @@ public final class CraftWatch {
             }
             startedAt.put(r.recipe(), now);
             log.info("Крафт: запускаю {} ×{} (есть {}, нужно от {})", name(r), r.amount(),
-                    have < 0 ? "?" : String.valueOf((long) have), r.below());
+                    have < 0 ? "?" : orbit.world.Num.group(have), orbit.world.Num.group(r.below()));
             ctx.actions().assemblyWindow();
             ctx.actions().assemblyBuild(r.recipe(), r.amount());
             ctx.actions().assemblyWindow();

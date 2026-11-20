@@ -45,7 +45,7 @@ class QuestModuleTest {
         sim.run(m::tick, 3_000);
         assertEquals(map, m.workingMap());
         assertEquals(501, sim.world.snapshot(sim.now).hero().selectedId(), "the quest's NPC, not the config's Streuner");
-        assertTrue(m.status().startsWith("Квест «Protegit: команда «Удалить»»: убить Protegit 0/35000"), m.status());
+        assertTrue(m.status().startsWith("Квест «Protegit: команда «Удалить»»: убить Protegit 0/35 000"), m.status());
     }
 
     @Test
@@ -464,7 +464,7 @@ class QuestModuleTest {
         m.visited(sim.now);
         m.tick();
         assertEquals("3-7", MapCatalog.bundled().info(m.workingMap()).name(), m.status());
-        assertTrue(m.status().contains("hybrid-alloy 0/1200"), m.status());
+        assertTrue(m.status().contains("hybrid-alloy 0/1 200"), m.status());
     }
 
     @Test
@@ -481,7 +481,7 @@ class QuestModuleTest {
         m.visited(sim.now);
         m.tick();
         assertEquals("3-4", MapCatalog.bundled().info(m.workingMap()).name(), m.status());
-        assertTrue(m.status().contains("byte-remnant 0/15000"), m.status());
+        assertTrue(m.status().contains("byte-remnant 0/15 000"), m.status());
     }
 
     /** 122011 «Теория преобразования»: Blighted Kristallon (160), Blighted Gygerthrall (155), Hybrid Alloy. */

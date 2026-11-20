@@ -340,8 +340,8 @@ public final class ServiceVisit {
                 ctx.actions().labEnrich(item, ore, n);
                 sentAt = now;
                 sentLabNanos = lab.nanos();
-                log.info("Обслуживание: {} ← {} {} (было {}, до {})", Enricher.ITEM_NAMES[item], Enricher.oreName(ore), n,
-                        left, fillTo);
+                log.info("Обслуживание: {} ← {} {} (было {}, до {})", Enricher.ITEM_NAMES[item], Enricher.oreName(ore),
+                        orbit.world.Num.group(n), orbit.world.Num.group(left), orbit.world.Num.group(fillTo));
                 return busy(now, s, "обогащаю");
             }
         }
@@ -413,14 +413,14 @@ public final class ServiceVisit {
                             if (there < e.getValue()) {
                                 // told, not refused: what there is goes (the user, 2026-11-16: 14 000 set, 2 997 came)
                                 log.warn("Обслуживание: на складе Скайлаба {} {} из нужных {} — везу сколько есть",
-                                        e.getKey(), there, e.getValue());
+                                        e.getKey(), orbit.world.Num.group(there), orbit.world.Num.group(e.getValue()));
                             }
                             long n = Math.min(Math.min(e.getValue(), there), free);
                             if (n < Math.min(e.getValue(), there)) {
                                 // the hold, not the storage (live 2026-11-16 on gb2: 5 000 seprom in an 8 000 hold, 2 997
                                 // of the 14 000 promerium came)
-                                log.warn("Обслуживание: в трюме место на {} {} из нужных {} — везу {}", e.getKey(), free,
-                                        e.getValue(), n);
+                                log.warn("Обслуживание: в трюме место на {} {} из нужных {} — везу {}", e.getKey(),
+                                        orbit.world.Num.group(free), orbit.world.Num.group(e.getValue()), orbit.world.Num.group(n));
                             }
                             if (n > 0) {
                                 send.put(e.getKey(), n);
@@ -627,11 +627,11 @@ public final class ServiceVisit {
             return "";
         }
         StringBuilder b = new StringBuilder("; за визит: рейсов ").append(trips);
-        brought.forEach((k, v) -> b.append(", ").append(k).append(' ').append(String.format("%,d", v)));
+        brought.forEach((k, v) -> b.append(", ").append(k).append(' ').append(orbit.world.Num.group(v)));
         levelAtStart.forEach((item, was) -> {
             WorldSnapshot.Enrichment e = lab.items().get(item);
-            b.append("; ").append(Enricher.ITEM_NAMES[item]).append(' ').append(String.format("%,d", was)).append(" → ")
-                    .append(String.format("%,d", e == null ? 0 : e.left()));
+            b.append("; ").append(Enricher.ITEM_NAMES[item]).append(' ').append(orbit.world.Num.group(was)).append(" → ")
+                    .append(orbit.world.Num.group(e == null ? 0 : e.left()));
         });
         return b.toString();
     }

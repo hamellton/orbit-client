@@ -311,11 +311,11 @@ public final class Safety {
     /** «HP 59% (412 000 из 698 000), щит 30% (…), конфигурация 2» — the numbers to see what a repair waits for. */
     private static String health(WorldSnapshot.Hero h) {
         orbit.world.Health x = h.health();
-        StringBuilder b = new StringBuilder("HP ").append(pct(x.hpPercent())).append("% (").append((long) x.hp())
-                .append(" из ").append((long) x.hpMax()).append(")");
+        StringBuilder b = new StringBuilder("HP ").append(pct(x.hpPercent())).append("% (").append(orbit.world.Num.group(x.hp()))
+                .append(" из ").append(orbit.world.Num.group(x.hpMax())).append(")");
         if (x.shieldMax() > 0) {
-            b.append(", щит ").append(pct(x.shieldPercent())).append("% (").append(x.shield()).append(" из ")
-                    .append(x.shieldMax()).append(")");
+            b.append(", щит ").append(pct(x.shieldPercent())).append("% (").append(orbit.world.Num.group(x.shield())).append(" из ")
+                    .append(orbit.world.Num.group(x.shieldMax())).append(")");
         } else {
             b.append(", щита нет");
         }

@@ -299,7 +299,7 @@ public final class QuestModule implements BotModule {
             cargoFrom = -1;
         }
         Quests.Condition c = condition(q.active().get(work.quest()), work.condition());
-        String progress = QuestTexts.condition(c) + (c.target() > 0 ? " " + (long) c.current() + "/" + (long) c.target() : "");
+        String progress = QuestTexts.condition(c) + (c.target() > 0 ? " " + orbit.world.Num.of(c.current(), c.target()) : "");
         if (work.kind() != Kind.SKYLAB && !ctx.stats().questOres.get().isEmpty()) {
             ctx.stats().questOres.set(Map.of());
         }

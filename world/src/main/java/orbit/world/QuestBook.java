@@ -385,7 +385,7 @@ final class QuestBook {
 
     static String describe(Quests.Condition c) {
         String what = QuestTexts.condition(c);
-        return c.target() > 0 && !QuestTexts.isTime(c) ? what + " " + (long) c.current() + "/" + (long) c.target() : what;
+        return c.target() > 0 && !QuestTexts.isTime(c) ? what + " " + Num.of(c.current(), c.target()) : what;
     }
 
     static String rewards(Quests.Quest q) {

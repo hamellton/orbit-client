@@ -366,7 +366,7 @@ public final class MimesisModule implements BotModule {
         boolean first = emaaWas == null;
         emaaWas = emaa;
         if (emaa) {
-            log.info("Мимесис: EMAA-20 есть ({}) — бью им {}", (long) stock.counter(),
+            log.info("Мимесис: EMAA-20 есть ({}) — бью им {}", orbit.world.Num.group(stock.counter()),
                     "all".equalsIgnoreCase(em.path("mode").asText("heavy")) ? "всех Мимесисов" : "тяжёлых Мимесисов");
         } else if (!first || stock != null) {
             log.info("Мимесис: EMAA-20 {} — бью патронами конфига", stock == null ? "нет" : "меньше "

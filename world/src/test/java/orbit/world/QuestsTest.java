@@ -73,7 +73,7 @@ class QuestsTest {
         Quests.Condition c = quest.leaves().getFirst();
         assertEquals(Quests.KILL_NPC, c.type());
         assertEquals(12, c.match(0));
-        assertEquals("убить Protegit 4122/35000", QuestBook.describe(c));
+        assertEquals("убить Protegit 4 122/35 000", QuestBook.describe(c));
         assertEquals("425 000 000 опыта", QuestBook.rewards(quest));
 
         QuestConditionUpdateCommand u = new QuestConditionUpdateCommand();
@@ -120,7 +120,7 @@ class QuestsTest {
         QuestInfoCommand info = new QuestInfoCommand();
         info.definition = protegits(122005, 0);
         w.apply(info, 3);
-        assertEquals("убить Protegit 0/35000", QuestBook.describe(w.snapshot(3).quests().details().get(122005)));
+        assertEquals("убить Protegit 0/35 000", QuestBook.describe(w.snapshot(3).quests().details().get(122005)));
         assertTrue(w.snapshot(3).quests().active().isEmpty(), "details are no taken quest");
     }
 

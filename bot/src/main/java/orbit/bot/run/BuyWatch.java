@@ -265,12 +265,12 @@ final class BuyWatch {
                 return;
             }
             if (uridium - o.price() < b.keepUridium()) {
-                log.warn("Бустер {}: не хватает уридия (есть {}, запас {}, цена {})", code, (long) uridium,
-                        (long) b.keepUridium(), (long) o.price());
+                log.warn("Бустер {}: не хватает уридия (есть {}, запас {}, цена {})", code, orbit.world.Num.group(uridium),
+                        orbit.world.Num.group(b.keepUridium()), orbit.world.Num.group(o.price()));
                 return;
             }
-            log.info("Покупаю бустер {} за {} уридия (у бустера оставалось {}, уридия {})", code, (long) o.price(),
-                    clock(left), (long) uridium);
+            log.info("Покупаю бустер {} за {} уридия (у бустера оставалось {}, уридия {})", code, orbit.world.Num.group(o.price()),
+                    clock(left), orbit.world.Num.group(uridium));
             String answer = s.buy(o.item(), 1);
             told(answer, -1, uridium);
         } catch (java.io.IOException | RuntimeException e) {
@@ -313,8 +313,8 @@ final class BuyWatch {
         if (u.find()) {
             double left = Double.parseDouble(u.group(1));
             if (uridiumBefore > left) {
-                log.info("Потрачено: {} уридия (осталось {})", String.format("%,.0f", uridiumBefore - left),
-                        String.format("%,.0f", left));
+                log.info("Потрачено: {} уридия (осталось {})", orbit.world.Num.group(uridiumBefore - left),
+                        orbit.world.Num.group(left));
             }
             shopUridium = left;
             gameUridiumThen = w.hero().uridium();
@@ -323,8 +323,8 @@ final class BuyWatch {
         if (c.find()) {
             double left = Double.parseDouble(c.group(1));
             if (creditsBefore > left) {
-                log.info("Потрачено: {} кредитов (осталось {})", String.format("%,.0f", creditsBefore - left),
-                        String.format("%,.0f", left));
+                log.info("Потрачено: {} кредитов (осталось {})", orbit.world.Num.group(creditsBefore - left),
+                        orbit.world.Num.group(left));
             }
             shopCredits = left;
             gameCreditsThen = w.hero().credits();

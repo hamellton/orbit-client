@@ -108,7 +108,7 @@ public final class Enricher {
             long have = w.inventory().ore(ore) - keep;
             if (have <= 0) {
                 missing.merge(ore, load, Long::sum);
-                tellOnce("Обогащение: " + ITEM_NAMES[item] + " — " + left + ", а " + oreName(ore) + " в трюме нет");
+                tellOnce("Обогащение: " + ITEM_NAMES[item] + " — " + orbit.world.Num.group(left) + ", а " + oreName(ore) + " в трюме нет");
                 continue;
             }
             if (sent.size() >= perHour) {
