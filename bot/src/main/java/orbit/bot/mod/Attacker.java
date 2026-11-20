@@ -47,6 +47,11 @@ public final class Attacker {
     private String missingRocket;
     /** Ammunition switches sent without the game confirming them. */
     private int ammoTries;
+    /** Presses of one ammunition without a sign it switched before the bot warns and pauses for a minute. */
+    static final int AMMO_TRIES = 3;
+    /** A press with no sign of a switch is repeated after this long (the game switches after the shot under way). */
+    static final long AMMO_RECHECK_NS = 5_000_000_000L;
+    static final long AMMO_PAUSE_NS = 60_000_000_000L;
     /** How many of the wanted ammunition there were at the last press: fewer since means it fired. */
     private double ammoCountAtPress = -1;
     private long rocketSelectAt = Long.MIN_VALUE / 2;
@@ -987,29 +992,30 @@ public final class Attacker {
                 && !ammo.equals(missingAmmo)) {
             missingAmmo = ammo;
             log.warn("Нет патронов {} ({}) — стреляю тем, что выбрано в игре ({})", orbit.config.ItemCatalog.label(ammo),
-                    wanted == null ? "нет в инвентаре" : (long) wanted.counter() + " шт.",
+                    wanted == null ? "нет в инвентаре" : orbit.world.Num.group(wanted.counter()) + " шт.",
                     selected == null ? "?" : orbit.config.ItemCatalog.label(selected.id()));
-        }
-        if (wanted != null && (wanted.selected() || wanted.remainingMs(now) > 0)) {
-            // selected, or its cooldown runs: it fired (RSB-75 shoots once and the game goes back to the ammunition
-            // before — live 2026-11-13 on the VPS, a false "does not switch" a minute without RSB)
-            ammoTries = 0;
-        }
-        if (wanted != null && ammo.equals(triedAmmo) && ammoCountAtPress >= 0 && wanted.counter() < ammoCountAtPress) {
-            // fewer than at the press: it fired, though the bar never showed it selected (live 2026-11-16 on gb2:
-            // RSB-75 shot and the game went back to A-BL between two looks — a false "does not switch" at a Behemoth)
-            ammoTries = 0;
-            ammoCountAtPress = wanted.counter();
         }
         if (ammo != null && !ammo.equals(triedAmmo)) {
             triedAmmo = ammo; // SAB and back are two switches, not two failed tries of one
             ammoTries = 0;
+            ammoCountAtPress = -1;
         }
-        if (wanted != null && !wanted.selected() && ammoTries >= 2 && now - ammoAt > 60_000_000_000L) {
+        // the switch shows: selected, its cooldown runs, or fewer of it than at the press (RSB-75 fires once and the
+        // game goes back to the ammunition before; the bar may never show it selected)
+        boolean switched = wanted != null && (wanted.selected() || wanted.remainingMs(now) > 0
+                || ammoCountAtPress >= 0 && wanted.counter() < ammoCountAtPress);
+        if (switched) {
+            ammoTries = 0;
+            ammoCountAtPress = wanted.counter();
+        }
+        if (wanted != null && !switched && ammoTries >= AMMO_TRIES && now - ammoAt > AMMO_PAUSE_NS) {
             ammoTries = 0; // try again after the pause
         }
-        if (wanted != null && !wanted.selected() && wanted.counter() >= MIN_AMMO && ammoTries < 2
-                && now - ammoAt > 1_500_000_000L) {
+        // as DarkBot: one press for each change of the wanted ammunition; the game takes a while to switch (it waits
+        // for the shot under way, RSB-75's 3 s reload), so a press is repeated only when after AMMO_RECHECK_NS it has
+        // neither switched nor fired
+        if (wanted != null && !switched && wanted.counter() >= MIN_AMMO && ammoTries < AMMO_TRIES
+                && (ammoTries == 0 || now - ammoAt > AMMO_RECHECK_NS)) {
             if (pressAt == 0) {
                 pressAt = now + ctx.react(800, 1_500);
             }
@@ -1017,11 +1023,11 @@ public final class Attacker {
                 log.info("Патроны: {}", orbit.config.ItemCatalog.label(ammo));
                 missingAmmo = null;
                 ammoTries++;
-                if (ammoTries == 2) {
+                if (ammoTries == AMMO_TRIES) {
                     log.warn("Игра не переключает патроны на {} (у бота: {} шт., выбраны {} — {} шт.) — минуту стреляю ими",
-                            orbit.config.ItemCatalog.label(ammo), (long) wanted.counter(),
+                            orbit.config.ItemCatalog.label(ammo), orbit.world.Num.group(wanted.counter()),
                             selected == null ? "?" : orbit.config.ItemCatalog.label(selected.id()),
-                            selected == null ? 0 : (long) selected.counter());
+                            selected == null ? "0" : orbit.world.Num.group(selected.counter()));
                 }
                 ctx.actions().useItem(ammo); // with a target selected this also starts the attack
                 ammoCountAtPress = wanted.counter();

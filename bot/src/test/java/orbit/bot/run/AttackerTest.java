@@ -871,4 +871,44 @@ class AttackerTest {
         long presses = used(sim, "equipment_extra_cpu_ish-01");
         assertTrue(presses >= 1 && presses <= 2, "ISH pressed " + presses + " times in 30 s without an answer");
     }
+
+    private static Sim switching(long lagMs) {
+        BotConfig c = BotConfig.empty()
+                .withLoot(new BotConfig.Loot("ammunition_laser_a-bl", null, 0, 0, null, true, 0, null,
+                        false, false, List.of()))
+                .withNpcs(Map.of("-=[ Target ]=-", new BotConfig.NpcRule(500, 0, true, Set.of(), Set.of(), null)));
+        Sim sim = new Sim(c, 1, 10_400, 6_000);
+        sim.lasers("ammunition_laser_rsb-75", "ammunition_laser_a-bl");
+        sim.switchLagMs = lagMs;
+        sim.npc(7, "-=[ Target ]=-", 10_000, 6_000);
+        return sim;
+    }
+
+    private static void fight(Sim sim, Attacker a, int seconds) {
+        for (int t = 0; t < seconds * 10; t++) {
+            a.tick(true);
+            sim.now += 100 * Sim.MS;
+            sim.deliver();
+        }
+    }
+
+    @Test
+    void aSwitchTheGameShowsLateIsPressedOnce() {
+        // live 2026-11-20 on gb2: A-BL after RSB-75 showed selected only after the RSB reload, and a second press 1.5 s
+        // after the first came with a false "the game does not switch"; DarkBot presses once for each change
+        Sim sim = switching(2_500);
+        Attacker a = new Attacker(sim.ctx);
+        a.target(sim.world.snapshot(sim.now).ships().get(7));
+        fight(sim, a, 20);
+        assertEquals(1, used(sim, "ammunition_laser_a-bl"), "one press, the game switched 2.5 s later");
+    }
+
+    @Test
+    void aSwitchTheGameNeverMakesIsRetriedAFewTimesThenPaused() {
+        Sim sim = switching(-1);
+        Attacker a = new Attacker(sim.ctx);
+        a.target(sim.world.snapshot(sim.now).ships().get(7));
+        fight(sim, a, 40);
+        assertEquals(3, used(sim, "ammunition_laser_a-bl"), "retried every 5 s, then a minute's pause");
+    }
 }

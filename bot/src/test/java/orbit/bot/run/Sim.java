@@ -111,6 +111,27 @@ final class Sim {
     /** Ammunition that fires on use without the bar showing it selected (RSB-75 live), with how many are left. */
     final java.util.Map<String, Double> unseenShots = new java.util.HashMap<>();
 
+    /** Laser ammunition shows selected only this long after the press (the game waits for the shot under way). */
+    long switchLagMs;
+    /** {@code switchLagMs} below 0: the game never switches. */
+    private final java.util.List<Object[]> pendingSwitches = new java.util.ArrayList<>();
+
+    /** Applies the laser switches whose lag has run out; call it as the clock moves. */
+    void deliver() {
+        for (java.util.Iterator<Object[]> it = pendingSwitches.iterator(); it.hasNext(); ) {
+            Object[] p = it.next();
+            if (now >= (long) p[0]) {
+                it.remove();
+                MenuItemStatusCommand st = new MenuItemStatusCommand();
+                st.menuItemId = (String) p[1];
+                st.selected = true;
+                st.counterValue = 10_000;
+                st.available = true;
+                world.apply(st, now);
+            }
+        }
+    }
+
     /** The server never starts an attack (no ammunition on board). */
     boolean blockAttacks;
 
@@ -155,6 +176,17 @@ final class Sim {
             st.counterValue = unseenShots.merge(m.menuItemId, -1.0, Double::sum);
             st.available = true;
             world.apply(st, now);
+        } else if (p instanceof MenuActionRequest m && m.menuItemId.startsWith("ammunition_laser") && switchLagMs != 0) {
+            if (switchLagMs > 0) {
+                pendingSwitches.add(new Object[] {now + switchLagMs * MS, m.menuItemId});
+            }
+            int target = world.snapshot(now).hero().selectedId(); // the attack starts with what is selected
+            if (target != 0 && !blockAttacks) {
+                AttackLaserRunCommand run = new AttackLaserRunCommand();
+                run.attackerId = 1;
+                run.targetId = target;
+                world.apply(run, now);
+            }
         } else if (p instanceof MenuActionRequest m && m.menuItemId.startsWith("ammunition_laser")) {
             MenuItemStatusCommand st = new MenuItemStatusCommand();
             st.menuItemId = m.menuItemId;
