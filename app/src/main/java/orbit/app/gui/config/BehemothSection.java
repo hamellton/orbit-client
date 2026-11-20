@@ -251,8 +251,8 @@ final class BehemothSection implements Section {
                 .row("", freeSide)
                 .row("Круг вокруг места появления", freeSideRadius)
                 .row("", Form.inline(avoidSpawn, avoidSpawnRadius))
-                .note("Точки ожидания по картам — в файле конфига (waitPoints); в «behe train» — точки BeheSolo из"
-                        + " CARNAGE: в стороне от места появления, где стоят поезда.")
+                .note("Точки ожидания по картам — во вкладке «Зоны», режим «Точка ожидания»: клик ставит, правая кнопка"
+                        + " убирает; там же видно место бегемота и расстояние до него.")
                 .section("Бой")
                 .note("Как бить самого бегемота (радиус, A-BL, Drill, HP Link, RSB) — строка «Mindfire Behemoth» во"
                         + " вкладке «Убивать». Чужих игроков у бегемота не боимся: урон засчитывается всем.")

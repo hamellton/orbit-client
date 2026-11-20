@@ -44,6 +44,18 @@ public final class BehemothModule implements BotModule {
             308, new int[] {5_700, 2_600});
     static final Map<Integer, int[]> SPAWN = Map.of(306, new int[] {19_400, 5_800}, 307, new int[] {6_900, 5_000},
             308, new int[] {4_700, 3_900});
+    /** The behemoth's spawn on a BL map as the program knows it (BeheFarm), {@code null} off them — for the zones tab. */
+    public static int[] defaultSpawn(int map) {
+        int[] p = SPAWN.get(map);
+        return p == null ? null : p.clone();
+    }
+
+    /** The program's own wait point of a BL map (no {@code waitPoints} entry), {@code null} off them. */
+    public static int[] defaultWait(int map) {
+        int[] p = WAIT.get(map);
+        return p == null ? null : p.clone();
+    }
+
     /** From one spawn to the next (BeheFarm 900 s; BLCycle ~15 min) until the bot has seen its own. */
     static final long DEFAULT_RESPAWN_MS = 15 * 60_000L;
     /** A flight to another BL map, roughly (BLCycle's travelSeconds 130 for the longest). */

@@ -51,6 +51,15 @@ final class ZonesSection implements Section {
     private final MapBox map;
     private final JRadioButton preferred = new JRadioButton("Предпочтительная зона", true);
     private final JRadioButton avoided = new JRadioButton("Запретная зона");
+    /**
+     * The behemoth's wait point per map (the user, 2026-11-20: «добавим точки ожидания, чтобы через конфиг можно было
+     * хендлить»): {@code modules.behemoth.waitPoints}, set by a click on the map, removed by the right button.
+     */
+    private final JRadioButton wait = new JRadioButton("Точка ожидания");
+    private final Map<Integer, int[]> waits = new TreeMap<>();
+    private boolean waitsShown;
+    private static final Color WAIT = new Color(255, 210, 60);
+    private static final Color SPAWN = new Color(255, 140, 60);
     private final Canvas canvas = new Canvas();
     private final Map<Integer, boolean[][][]> grids = new TreeMap<>(); // map → [layer][y][x]
     private Map<Integer, List<BotConfig.SafetySpot>> spots = Map.of();
@@ -64,8 +73,16 @@ final class ZonesSection implements Section {
         ButtonGroup g = new ButtonGroup();
         g.add(preferred);
         g.add(avoided);
+        g.add(wait);
+        wait.setToolTipText("<html>Где бегемотный бот ждёт бегемота на этой карте: клик — поставить точку,<br>"
+                + "правая кнопка — убрать (тогда точка программы, пунктиром). Оранжевым — место бегемота.</html>");
         JButton clear = new JButton("Очистить");
         clear.addActionListener(e -> {
+            if (wait.isSelected()) { // the wait point's mode: only the point goes, never a zone
+                waits.remove(map.mapId());
+                canvas.repaint();
+                return;
+            }
             boolean[][] layer = layer(map.mapId());
             for (boolean[] row : layer) {
                 java.util.Arrays.fill(row, false);
@@ -86,6 +103,7 @@ final class ZonesSection implements Section {
         controls.add(new javax.swing.JLabel("   Зона"));
         controls.add(preferred);
         controls.add(avoided);
+        controls.add(wait);
         controls.add(clear);
         controls.add(new javax.swing.JLabel("   Сетка"));
         controls.add(resBox);
@@ -143,6 +161,24 @@ final class ZonesSection implements Section {
             grids.put(id, g);
         });
         spots = c.safetySpots();
+        waits.clear();
+        com.fasterxml.jackson.databind.JsonNode wp = c.moduleSettings("behemoth").path("waitPoints");
+        wp.fields().forEachRemaining(e -> {
+            com.fasterxml.jackson.databind.JsonNode v = e.getValue();
+            if (v.isArray() && v.size() >= 2) {
+                try {
+                    waits.put(Integer.parseInt(e.getKey()), new int[] {v.get(0).asInt(), v.get(1).asInt()});
+                } catch (NumberFormatException ignored) {
+                    // not a map number: left as it is in the file
+                }
+            }
+        });
+        // only a behemoth config shows the wait points (another module has none)
+        waitsShown = c.module() == BotConfig.Module.BEHEMOTH || !waits.isEmpty();
+        wait.setVisible(waitsShown);
+        if (!waitsShown && wait.isSelected()) {
+            preferred.setSelected(true);
+        }
         map.setMap(c.general().workingMap());
         canvas.repaint();
     }
@@ -157,7 +193,35 @@ final class ZonesSection implements Section {
                 out.put(id, new BotConfig.Zones(p, a));
             }
         });
-        return c.withZones(out);
+        BotConfig z = c.withZones(out);
+        if (!waitsShown) {
+            return z;
+        }
+        com.fasterxml.jackson.databind.node.ObjectNode m = z.moduleSettings("behemoth");
+        if (waits.isEmpty()) {
+            m.remove("waitPoints");
+        } else {
+            com.fasterxml.jackson.databind.node.ObjectNode wp = m.putObject("waitPoints");
+            waits.forEach((id, p) -> wp.putArray(String.valueOf(id)).add(p[0]).add(p[1]));
+        }
+        return z.withModuleSettings("behemoth", m);
+    }
+
+    /** Sets ({@code put}) or removes the wait point of the shown map at the mouse. */
+    private void waitAt(MouseEvent e, boolean put) {
+        int id = map.mapId();
+        if (!put) {
+            waits.remove(id);
+            return;
+        }
+        java.awt.Rectangle a = canvas.area();
+        MapCatalog.MapInfo info = catalog.info(id);
+        double x = (double) (e.getX() - a.x) / Math.max(1, a.width) * info.width();
+        double y = (double) (e.getY() - a.y) / Math.max(1, a.height) * info.height();
+        if (x < 0 || y < 0 || x > info.width() || y > info.height()) {
+            return;
+        }
+        waits.put(id, new int[] {(int) Math.round(x / 10) * 10, (int) Math.round(y / 10) * 10});
     }
 
     /** Rescales a stored grid of another resolution onto ours. */
@@ -232,6 +296,11 @@ final class ZonesSection implements Section {
             MouseAdapter m = new MouseAdapter() {
                 @Override
                 public void mousePressed(MouseEvent e) {
+                    if (wait.isSelected()) {
+                        waitAt(e, !SwingUtilities.isRightMouseButton(e));
+                        repaint();
+                        return;
+                    }
                     from = cell(e);
                     to = from;
                     repaint();
@@ -273,7 +342,7 @@ final class ZonesSection implements Section {
             addMouseMotionListener(m);
         }
 
-        private java.awt.Rectangle area() {
+        java.awt.Rectangle area() {
             MapCatalog.MapInfo info = catalog.info(map.mapId());
             double aspect = (double) info.width() / info.height();
             int w = getWidth() - 4;
@@ -438,6 +507,46 @@ final class ZonesSection implements Section {
             }
         }
 
+        /**
+         * The behemoth's spawn (orange ring) and the wait point (yellow; the program's own, dashed, when the config has
+         * none) with its distance from the spawn.
+         */
+        private void waitMarks(Graphics2D g, java.awt.Rectangle a, MapCatalog.MapInfo info) {
+            int[] sp = orbit.bot.mod.BehemothModule.defaultSpawn(info.id());
+            int[] own = waits.get(info.id());
+            int[] p = own != null ? own : orbit.bot.mod.BehemothModule.defaultWait(info.id());
+            if (sp != null) {
+                double x = sx(a, info, sp[0]);
+                double y = sy(a, info, sp[1]);
+                g.setColor(SPAWN);
+                g.setStroke(new BasicStroke(2f));
+                g.draw(new java.awt.geom.Ellipse2D.Double(x - 7, y - 7, 14, 14));
+                if (a.width >= SMALL) {
+                    g.drawString("бегемот", (int) x + 10, (int) y + 4);
+                }
+            }
+            if (p == null) {
+                return;
+            }
+            double x = sx(a, info, p[0]);
+            double y = sy(a, info, p[1]);
+            g.setColor(WAIT);
+            if (own != null) {
+                g.fill(new java.awt.geom.Ellipse2D.Double(x - 5, y - 5, 10, 10));
+            } else {
+                g.setStroke(new BasicStroke(1.5f, BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER, 10f, new float[] {3f, 3f}, 0f));
+                g.draw(new java.awt.geom.Ellipse2D.Double(x - 5, y - 5, 10, 10));
+            }
+            if (a.width >= SMALL) {
+                String t = "ждать " + p[0] / 100 + "/" + p[1] / 100
+                        + (sp != null ? ", " + (int) Math.hypot(p[0] - sp[0], p[1] - sp[1]) + " от бегемота" : "")
+                        + (own != null ? "" : " (программы)");
+                int tw = g.getFontMetrics().stringWidth(t);
+                int tx = x + 9 + tw > a.x + a.width ? (int) x - 9 - tw : (int) x + 9; // by the right edge: on the left
+                g.drawString(t, tx, (int) y + 4);
+            }
+        }
+
         /** The company whose home the map is (its battle stations are friends), 0 for none. */
         private int ownCompany(MapCatalog.MapInfo info) {
             return info.homeFaction();
@@ -485,7 +594,9 @@ final class ZonesSection implements Section {
             }
             // what the mouse would change: the frame being dragged, or the cell under it
             Color mark = preferred.isSelected() ? PREFERRED : AVOIDED;
-            if (from != null && to != null) {
+            if (wait.isSelected()) {
+                // a click puts the point: no cell highlight
+            } else if (from != null && to != null) {
                 java.awt.Rectangle r = cellRect(a, Math.min(from[0], to[0]), Math.min(from[1], to[1]),
                         Math.max(from[0], to[0]), Math.max(from[1], to[1]));
                 g.setColor(new Color(mark.getRed(), mark.getGreen(), mark.getBlue(), 60));
@@ -509,6 +620,9 @@ final class ZonesSection implements Section {
                 int py = a.y + (int) ((double) s.y() / info.height() * a.height);
                 g.setColor(new Color(90, 170, 255));
                 g.fillOval(px - 3, py - 3, 6, 6);
+            }
+            if (waitsShown) {
+                waitMarks(g, a, info);
             }
             if (a.width >= SMALL) { // a tiny map keeps only its marks: the names would cover it
                 g.setColor(Color.LIGHT_GRAY);

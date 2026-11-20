@@ -98,6 +98,20 @@ class SectionsTest {
     }
 
     @Test
+    void theBehemothWaitPointsSurviveTheTabs() throws Exception {
+        // the user, 2026-11-20: wait points set on the zones tab, kept in modules.behemoth.waitPoints
+        com.fasterxml.jackson.databind.node.ObjectNode m = Json.MAPPER.createObjectNode();
+        com.fasterxml.jackson.databind.node.ObjectNode wp = m.putObject("waitPoints");
+        wp.putArray("306").add(19_400).add(7_500);
+        wp.putArray("307").add(5_370).add(5_740);
+        m.put("trainStyle", "v2");
+        BotConfig c = BotConfig.empty().withModule(BotConfig.Module.BEHEMOTH).withModuleSettings("behemoth", m);
+        BotConfig out = roundTrip(c);
+        assertEquals(c.moduleSettings("behemoth").get("waitPoints"), out.moduleSettings("behemoth").get("waitPoints"));
+        assertEquals("v2", out.moduleSettings("behemoth").path("trainStyle").asText());
+    }
+
+    @Test
     void emptyConfigStaysEmpty() {
         BotConfig c = BotConfig.empty();
         assertEquals(c, roundTrip(c));
