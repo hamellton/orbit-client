@@ -12,7 +12,13 @@ Status: Stage 2 done; stage 3 in progress (login, game connection, vault, client
   profiles, BLCycle logs, AstraBot configs): `docs/REFERENCE-BOTS.md`. Never copy credentials from those files.
 - DarkBot (GPL): take facts and logic, do not copy code wholesale.
 - Do not touch binaries in `../DO-files/lib` and `../DO-files/plugins`.
-- UI, logs, README in Russian; code and comments in English.
+- UI, logs, README in Russian; everything in code in English: names, comments, javadoc. Russian stays only in texts
+  the user sees (UI labels, log messages) and in tests that match those texts.
+- Never paste the user's words as quotes into code or docs (no «the user, <date>: «…»», no «Пользователь: «…»»).
+  Write the fact and the reason in your own words. A decision the user made or approved is noted in one short phrase
+  without a quote («выбор пользователя», «с согласия пользователя»), so it is not changed without asking.
+- Document every change of behaviour, UI, logs or configs in `docs/` (the topic's file, else `docs/PLAN.md`) in the
+  same commit as the change, not later.
 - Commit small and often without asking; never push unless asked.
 - Git: development happens on `dev` (base branch); `main` is updated only on request.
   Remote `origin` = `git@github-hamellton:hamellton/orbit-client.git` (personal account, private).
