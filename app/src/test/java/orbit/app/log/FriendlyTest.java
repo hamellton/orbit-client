@@ -126,7 +126,7 @@ class FriendlyTest {
         line(I, "orbit.app.LootLog", "Добыча: −100 уридия");
         line(I, "orbit.app.LootLog", "Добыча: −100 уридия");
         assertEquals(List.of("Sibelonit убит: +1 уридия, +800 кредитов, +400 опыта, +2 чести",
-                "Ящики: +440 MCB-25, +4 ACM-01, +12 Ore xenomit", "Потрачено: 200 уридия"), journal());
+                "Ящик: +240 MCB-25, +4 ACM-01", "Ящик: +12 Ore xenomit, +200 MCB-25", "Потрачено: 200 уридия"), journal());
         assertEquals("Boss Kristallin", Friendly.bare("..::{ Boss Kristallin }::.."));
     }
     @Test

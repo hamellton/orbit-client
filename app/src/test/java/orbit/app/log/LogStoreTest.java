@@ -102,25 +102,27 @@ class LogStoreTest {
     }
 
     @Test
-    void lootAddsUpInItsRow() {
+    void eachLootLineIsARowOfItsOwn() {
         LogStore s = new LogStore();
         LogEntry a = s.add("1", I, "orbit.app.LootLog", "Добыча: +4 569 опыта  ·  +32 чести  ·  +14 103 кредитов  ·  +12 уридия", "", 0);
         assertTrue(a.important(), "loot is in the journal");
         assertEquals(LogCategory.REWARDS, a.category(), "under «Добыча», not «Сбор»");
         s.add("1", I, "orbit.bot.mod.Attacker", "Цель уничтожена (всего 2)", "", 1);
-        assertSame(a, s.add("1", I, "orbit.app.LootLog", "Добыча: +26 730 опыта  ·  +99 чести  ·  +5 EMP-01", "", 2));
-        assertEquals("Добыча всего: +31 299 опыта  ·  +131 чести  ·  +14 103 кредитов  ·  +12 уридия  ·  +5 EMP-01", a.text());
-        assertEquals(2, a.count());
+        LogEntry b = s.add("1", I, "orbit.app.LootLog", "Добыча: +26 730 опыта  ·  +99 чести  ·  +5 EMP-01", "", 2);
+        assertTrue(a != b, "not folded");
+        assertEquals("Добыча: +26 730 опыта  ·  +99 чести  ·  +5 EMP-01", b.text());
+        assertEquals(1, a.count());
+        assertTrue(s.add("1", I, "orbit.app.LootLog", "Добыча: +7 Blacklight-trace", "", 3)
+                != s.add("1", I, "orbit.app.LootLog", "Добыча: +7 Blacklight-trace", "", 4), "the same loot twice: two rows");
     }
 
     @Test
     void aFoldedRowKeepsEachLineWithItsTime() {
-        // a loot row folded ×5: when which loot came was not to be seen
         LogStore s = new LogStore();
-        LogEntry row = s.add("3", I, "orbit.app.LootLog", "Добыча: +7 Blacklight-trace", "", 1_000);
-        s.add("3", I, "orbit.app.LootLog", "Добыча: +9 Blacklight-trace", "", 60_000);
+        LogEntry row = s.add("3", I, "orbit.bot.mod.BoxPicker", "Подобрал palladium (за сессию: 7)", "", 1_000);
+        s.add("3", I, "orbit.bot.mod.BoxPicker", "Подобрал palladium (за сессию: 9)", "", 60_000);
         assertEquals(2, row.count());
-        assertEquals(java.util.List.of(new LogEntry.Occurrence(1_000, "Добыча: +7 Blacklight-trace"),
-                new LogEntry.Occurrence(60_000, "Добыча: +9 Blacklight-trace")), row.occurrences());
+        assertEquals(java.util.List.of(new LogEntry.Occurrence(1_000, "Подобрал palladium (за сессию: 7)"),
+                new LogEntry.Occurrence(60_000, "Подобрал palladium (за сессию: 9)")), row.occurrences());
     }
 }

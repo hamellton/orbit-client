@@ -227,8 +227,7 @@ public final class Friendly {
                         spent), null);
             }
             if (!cube && !npc && !body.matches(".*(уридия|кредитов|опыта|чести).*")) {
-                // a box's ammunition and ore: one row adding up, not a line per box
-                return new Out(new Line("Ящики: " + loot(body), false, true, "boxes", "Ящики: ", body), null);
+                return Out.once("Ящик: " + loot(body)); // each box its own row (user's choice 2026-11-20)
             }
             return Out.once(head + loot(body));
         }
