@@ -102,6 +102,8 @@ Gradle needs JDK 21 (`export JAVA_HOME=$(/usr/libexec/java_home -v 21)`; the def
   from the client's embedded `game.xml`; the pet locator's targets are these numbers.
 - `scripts/update-quest-titles.sh [lang]` — refresh `reference/maps/quest-titles-ru.json` (quest titles from the
   client's `resource_quest.xml` on the CDN; the server sends none).
+- `scripts/update-item-names.sh [lang]` — refresh `reference/maps/item-names-ru.json` (item names as the client shows
+  them, `items_<lootId>_fullname` from `resource_items.xml` on the CDN; `orbit.world.ItemNames`, the Totals window).
 - `scripts/update-protocol.sh [--force]` — after a game patch: download swf, decompile selected
   packages, parse, validate, diff, regenerate, build. Logic in `tools/update_protocol.py`.
 - `RecordedTrafficTest` reads `recordings/` (local only) and requires byte-exact round trips.

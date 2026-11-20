@@ -141,7 +141,7 @@ final class InfoWindows {
             for (String id : ids.stream().sorted(java.util.Comparator.<String>comparingDouble(
                     id -> -r.items().getOrDefault(id, 0.0)).thenComparingDouble(id -> -day.items().getOrDefault(id, 0.0)))
                     .toList()) {
-                l.add(row(orbit.app.SessionSummary.displayName(id), r.items().getOrDefault(id, 0.0),
+                l.add(row(orbit.app.SessionSummary.clientName(id), r.items().getOrDefault(id, 0.0),
                         day.items().getOrDefault(id, 0.0), hours, true));
             }
             loot.setRows(l);
@@ -170,7 +170,7 @@ final class InfoWindows {
                     id -> -used.getOrDefault(id, 0.0)).thenComparingDouble(id -> -day.ammo().getOrDefault(id, 0.0)))
                     .toList()) {
                 double n = used.getOrDefault(id, 0.0);
-                String[] r0 = row(orbit.config.ItemCatalog.label(id), n, day.ammo().getOrDefault(id, 0.0), hours, true);
+                String[] r0 = row(orbit.app.SessionSummary.clientName(id), n, day.ammo().getOrDefault(id, 0.0), hours, true);
                 a.add(new String[] {r0[0], r0[1], r0[2], cubesNow > 0 && n > 0 ? exact(n / cubesNow) : "—", r0[3]});
             }
             spent.setRows(a);

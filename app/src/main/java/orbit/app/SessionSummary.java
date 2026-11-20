@@ -72,6 +72,12 @@ public final class SessionSummary {
         return r != null ? r : itemName(id);
     }
 
+    /** The name the client gives an item (its own texts), else {@link #displayName}. */
+    public static String clientName(String id) {
+        String n = orbit.world.ItemNames.of(id);
+        return n != null ? n : displayName(id);
+    }
+
     /** A number as the window writes it (spaces between thousands). */
     public static String number(double v) {
         return num(v);
