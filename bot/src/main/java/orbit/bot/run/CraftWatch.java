@@ -33,6 +33,10 @@ public final class CraftWatch {
     private long nextCheck;
     private final Map<String, Long> startedAt = new HashMap<>();
     private final Map<String, Long> collectedAt = new HashMap<>();
+    /** When a build long overdue ({@link #STALE_MS}) was collected blindly. */
+    private final Map<String, Long> pokedAt = new HashMap<>();
+    /** A build this long past its time with no «ready»: collected as if ready. */
+    static final long STALE_MS = 60_000;
     /** A collect not answered (the recipe still ready) is sent again no sooner than this. */
     static final long COLLECT_RETRY_MS = 30_000;
     private final Set<String> told = new HashSet<>();
@@ -108,6 +112,20 @@ public final class CraftWatch {
                     return; // one action a check
                 }
                 case BUILDING -> {
+                    // «ready» lost (a map change right after the start: gb2 2026-11-20, Seprom BL paid, never collected):
+                    // long past its time it is collected as if ready — the game tells the recipes' states only at a
+                    // login (an opened window brings nothing, recording 2026-11-14), and answers a collect with them
+                    if (rec.readyNanos() > 0 && now - rec.readyNanos() > STALE_MS * 1_000_000) {
+                        Long poked = pokedAt.get(r.recipe());
+                        if (poked == null || now - poked > STALE_MS * 1_000_000) {
+                            pokedAt.put(r.recipe(), now);
+                            log.info("Крафт: {} давно должен быть готов, а игра не сказала — забираю", name(r));
+                            ctx.actions().assemblyWindow();
+                            ctx.actions().assemblyCollect(r.recipe());
+                            ctx.actions().assemblyWindow();
+                            return; // one action a check
+                        }
+                    }
                     continue;
                 }
                 case UNAVAILABLE -> {

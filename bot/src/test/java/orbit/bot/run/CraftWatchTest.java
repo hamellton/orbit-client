@@ -119,4 +119,22 @@ class CraftWatchTest {
         assertEquals(1_200, CraftWatch.count(sim.world.snapshot(sim.now), "resource_ore_seprom"));
         assertEquals(0, CraftWatch.count(sim.world.snapshot(sim.now), "resource_ore_prometid"), "told, none of it");
     }
+
+    @Test
+    void aBuildLongOverdueIsCollected() {
+        // gb2 2026-11-20: a map change right after the start, «ready» never came, the batch paid and left in the assembly
+        Sim sim = sim(1_000);
+        have(sim, 500);
+        AssemblyRecipeBuildStatusModule building = new AssemblyRecipeBuildStatusModule();
+        building.buildAmount = 1;
+        building.remainingTimeMillis = 5_000;
+        recipe(sim, building);
+        CraftWatch w = new CraftWatch(sim.ctx);
+        runFor(sim, w, 60_000);
+        assertEquals(0, sent(sim, AssemblyCollectRequest.class), "not overdue yet");
+        runFor(sim, w, 30_000);
+        assertEquals(1, sent(sim, AssemblyCollectRequest.class), "a minute past its time: collected");
+        runFor(sim, w, 30_000);
+        assertEquals(1, sent(sim, AssemblyCollectRequest.class), "not again at once");
+    }
 }
