@@ -67,7 +67,8 @@ Status: Stage 2 done; stage 3 in progress (login, game connection, vault, client
   conditions, meta missions never rerolled; `QuestsAlongside` = `modules.quests.alongside`, passes and crafts beside
   another module); fights by `Attacker`). Behemoth stage,
   what is not done and what comes next (farming among trains like CARNAGE, groups): `docs/BLACKLIGHT.md`, stage D.
-  `GateModule` galaxy gates as DarkBot's SharedPlugin (`docs/GALAXY-GATES.md`); `Enricher`, `SkylabCare`, `ServiceVisit`
+  `GateModule` galaxy gates as DarkBot's SharedPlugin (`docs/GALAXY-GATES.md`; ζ as ZetaGate, κ/λ/Kronos as AnyGate,
+  `ZetaChromin` AstraBot's Zeta chromin farmer, §12); `Enricher`, `SkylabCare`, `ServiceVisit`
   lab enrichment and Skylab ore, also by a visit to the account's service ship (`docs/SKYLAB.md`).
   `EternalGate` the Eternal Blacklight gate (EBG) as SharedPlugin: CPU on a BL map, runs, brake, boosters (`docs/EBG.md`).
   `LowModule` the LoW group gate (map 200, docs/LOW.md): the leader gathers own accounts on x-3 and jumps first, the relays

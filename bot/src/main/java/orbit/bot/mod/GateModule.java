@@ -58,6 +58,8 @@ public final class GateModule implements BotModule {
     private final GateKamikaze kamikaze;
     /** The Eternal Blacklight gate's part (docs/EBG.md). */
     private final EternalGate eternal;
+    /** The Zeta chromin farmer (AstraBot's, docs/GALAXY-GATES.md §12). */
+    private final ZetaChromin chromin;
     /** Out of EBG: the map the module wants (0 = where the ship is). */
     private int ebgWanted;
     private volatile Runnable refresh;
@@ -114,6 +116,7 @@ public final class GateModule implements BotModule {
         this.boxes = new BoxPicker(gctx);
         this.kamikaze = new GateKamikaze(gctx);
         this.eternal = new EternalGate(gctx);
+        this.chromin = new ZetaChromin(gctx);
     }
 
     @Override
@@ -183,9 +186,13 @@ public final class GateModule implements BotModule {
             status = "Вечные врата: жду гибели (тормоз)";
             return true; // no repair: the ship is to be destroyed
         }
+        if (chromin.suiciding()) {
+            status = "Врата " + g.name() + ": хромин-фарм — жду гибели";
+            return true; // no repair: the ship is to be destroyed
+        }
         repairedHere = true;
         BotConfig c = config();
-        attacker.gateStyle(centre(w));
+        gateStyle(g, w);
         if (kamikaze.tick(settings(), c, w, attacker)) {
             status = "Врата " + g.name() + ": ремонт, камикадзе";
             return true;
@@ -206,6 +213,27 @@ public final class GateModule implements BotModule {
     /** The gate's centre: SharedPlugin's GateHandler (10 000, 6 000), not the map's middle (GG β is 21 000 × 13 160). */
     private static double[] centre(WorldSnapshot w) {
         return new double[] {10_000, 6_000};
+    }
+
+    /**
+     * The gate's way of fighting (SharedPlugin GateHandler): round the centre with approachToCenter; AnyGate (κ, λ,
+     * Kronos) has it off — no tolerance reached, no far target skipped.
+     */
+    private void gateStyle(GateCatalog.Gate g, WorldSnapshot w) {
+        attacker.gateStyle(centre(w), GateCatalog.anyGate(g) ? Double.POSITIVE_INFINITY : Attacker.CENTER_ON);
+    }
+
+    /** SharedPlugin's AnyGateSettings ({@code anyGate}): {@code npcRadius} 560, {@code killAllNpcs}, {@code jumpToNextMap},
+     *  {@code moveToCenter} — SharedPlugin's own defaults 560, on, off, off. */
+    private JsonNode anyGate() {
+        return settings().path("anyGate");
+    }
+
+    /** SharedPlugin's ZetaGate: the target a Devourer below 25 %, not flagged IGNORE_BOXES — the boxes picked up meanwhile. */
+    static boolean devourerBoxes(BotConfig c, WorldSnapshot.Ship t, int mapId) {
+        return ZetaChromin.DEVOURER.equals(GateCatalog.gateNpc(t.name())) && t.health().known()
+                && t.health().hpPercent() < 0.25
+                && !Targets.rule(c, t, mapId).flags().contains(BotConfig.NpcFlag.IGNORE_BOXES.name());
     }
 
     /** SharedPlugin's collect.radius from the owner's profile: boxes this close are taken in a fight. */
@@ -231,8 +259,12 @@ public final class GateModule implements BotModule {
      */
     private WorldSnapshot.Ship pick(BotConfig c, WorldSnapshot w) {
         WorldSnapshot.Hero h = w.hero();
+        GateCatalog.Gate here = GateCatalog.byMap(h.mapId());
+        JsonNode gs = settings();
+        boolean farm = chromin.farming(gs, here, w);
         List<WorldSnapshot.Ship> all = w.ships().values().stream()
                 .filter(s -> Targets.attackable(c, s, h.mapId()) && !Targets.taken(c, w, s) && !attacker.gaveUp(s.id()))
+                .filter(s -> !farm || !chromin.held(gs, s)) // the chromin farmer keeps the Devourer alive
                 .toList();
         WorldSnapshot.Ship best = all.stream().min(java.util.Comparator
                         .<WorldSnapshot.Ship>comparingInt(s -> Targets.rule(c, s, h.mapId()).priority())
@@ -243,8 +275,10 @@ public final class GateModule implements BotModule {
         if (cur == null || !all.contains(cur) || best == null || cur.id() == best.id()) {
             return cur != null && all.contains(cur) ? cur : best;
         }
-        boolean ebgGate = GateCatalog.byMap(h.mapId()) != null && "eternal".equals(GateCatalog.byMap(h.mapId()).key());
-        if (ebgGate ? skipFar(cur, all, h, eternal.centre(), eternal.tolerance()) : skipFar(cur, all, h, centre(w))) {
+        boolean ebgGate = here != null && "eternal".equals(here.key());
+        // AnyGate (κ): SharedPlugin's skipFarTargets off
+        if (ebgGate ? skipFar(cur, all, h, eternal.centre(), eternal.tolerance())
+                : !GateCatalog.anyGate(here) && skipFar(cur, all, h, centre(w))) {
             return best;
         }
         // DarkBot's isAttacking: it locks and fires in the same tick; ours takes a second or more from the pick to the
@@ -295,7 +329,7 @@ public final class GateModule implements BotModule {
     @Override
     public int petGear() {
         int link = orbit.protocol.gen.PetGearTypeModule.PETGEARTYPE_HP_LINK;
-        if (eternal.suiciding()) {
+        if (eternal.suiciding() || chromin.suiciding()) {
             return orbit.protocol.gen.PetGearTypeModule.PETGEARTYPE_PASSIVE; // SharedPlugin: the pet passive
         }
         if (kamikaze.gear() >= 0) {
@@ -340,8 +374,18 @@ public final class GateModule implements BotModule {
                     com.fasterxml.jackson.databind.node.MissingNode.getInstance());
             BotConfig.ShipMode endMode = end ? endMode(s, base) : null;
             Map<String, BotConfig.NpcRule> npcs = new java.util.LinkedHashMap<>(base.npcs());
+            boolean any = GateCatalog.anyGate(gate);
+            JsonNode ag = s.path("anyGate");
             for (String n : names) {
+                if (any && !ag.path("killAllNpcs").asBoolean(true)) {
+                    break; // AnyGate's killAllNpcs off: only the config's own rules (DarkBot's DEFAULT decision)
+                }
                 BotConfig.NpcRule r = GateCatalog.defaultRule(gate, n);
+                if (any) {
+                    // AnyGate's getTargetRadius: one radius for all its NPCs
+                    r = new BotConfig.NpcRule(ag.path("npcRadius").asInt(560), r.priority(), r.kill(), r.flags(), r.maps(),
+                            r.ammo(), r.sab(), r.rocket(), r.launcher(), r.move(), r.formation());
+                }
                 if ("eternal".equals(gate.key())) {
                     java.util.Set<String> f = new java.util.HashSet<>(r.flags());
                     f.addAll(eternal.abilityFlags(eternal.settings(s), GateCatalog.gateNpc(n), eternal.wave(w)));
@@ -960,12 +1004,25 @@ public final class GateModule implements BotModule {
             eternal.fightCentre(ebg(), w);
             attacker.gateStyle(eternal.centre(), eternal.tolerance());
         } else {
-            attacker.gateStyle(centre(w));
+            gateStyle(g, w);
         }
         WorldSnapshot.Ship t = pick(c, w);
         if (ebgGate && eternal.suicide(ebg(), w, t, attacker)) {
             status = "Вечные врата: волна " + eternal.wave(w) + " — тормоз «самоубийство», жду гибели";
             return;
+        }
+        JsonNode gs = settings();
+        if (chromin.farming(gs, g, w)) {
+            WorldSnapshot.Ship cur = w.ships().get(attacker.targetId());
+            if (cur != null && chromin.held(gs, cur)) {
+                chromin.ceaseFire(h, attacker); // down to the hold: the Devourer kept alive
+            }
+            boolean steered = chromin.tick(gs, w, t, attacker, boxes, num(gs, "boxRadius", 1_500));
+            if (steered) {
+                quietSince = 0;
+                status = chrominStatus(g, w, st);
+                return;
+            }
         }
         if (t == null && attacker.targetId() != 0 && attacker.tick(true)) {
             quietSince = 0; // the target out of sight a moment: after it
@@ -976,6 +1033,13 @@ public final class GateModule implements BotModule {
             quietSince = 0;
             stuckStep = 0;
             attacker.target(t);
+            // SharedPlugin's ZetaGate: the Devourer below 25 % — the map's boxes (the config's list) picked up, the
+            // attack going on
+            if (devourerBoxes(c, t, h.mapId()) && boxes.tickNearInFight(h.x(), h.y(), num(gs, "boxRadius", 1_500))) {
+                attacker.tick(false);
+                status = "Врата " + g.name() + ": бой с Devourer, подбираю " + boxes.currentName() + wave(st);
+                return;
+            }
             // SharedPlugin's shouldCollectWhileAttacking: a box within the collect radius (400) of the ship, not inside
             // the target's radius — picked up, the attack going on
             double tr = Targets.radius(c, t, h.mapId());
@@ -987,7 +1051,8 @@ public final class GateModule implements BotModule {
                 }
             }
             attacker.tick(true);
-            status = "Врата " + g.name() + ": бой" + (ebgGate ? ebgWave(w) : wave(st));
+            status = chromin.farming(gs, g, w) ? chrominStatus(g, w, st)
+                    : "Врата " + g.name() + ": бой" + (ebgGate ? ebgWave(w) : wave(st));
             return;
         }
         // between the waves: the boxes about
@@ -1018,6 +1083,15 @@ public final class GateModule implements BotModule {
         WorldSnapshot.Portal home = w.portals().values().stream().filter(p -> p.designId() == GateCatalog.HOME_PORTAL)
                 .min(java.util.Comparator.comparingDouble(p -> Math.hypot(p.x() - h.x(), p.y() - h.y()))).orElse(null);
         boolean done = completed || g.builderId() == 0 && home != null && ms(now - enteredAt) > 60_000;
+        boolean any = GateCatalog.anyGate(g);
+        boolean noPortals = any && !anyGate().path("jumpToNextMap").asBoolean(false);
+        if (noPortals) {
+            next = null; // AnyGate's jumpToNextMap off: no portal taken, the server sends the ship home
+            home = null;
+        } else if (done && home == null && w.portals().size() == 1) {
+            // SharedPlugin's findNextPortal: one portal — that one (κ's way out, its type unknown)
+            home = w.portals().values().iterator().next();
+        }
         if (quiet && next != null && !done && on(settings(), "holdBeforePortal", false)) {
             // a safe moment for a new build: the stage over, nothing about, the next not begun (between the
             // waves, before the jump into the portal, is the ideal place for a restart)
@@ -1039,7 +1113,7 @@ public final class GateModule implements BotModule {
                 status = "Врата " + g.name() + ": домой";
                 return;
             }
-            if (ms(now - Math.max(completedSeen, quietSince)) > OUT_WAIT_MS) {
+            if (!noPortals && ms(now - Math.max(completedSeen, quietSince)) > OUT_WAIT_MS) {
                 Runnable r = refresh;
                 if (r != null) {
                     log.info("Врата {} пройдены, портала домой нет — перевхожу (как AstraBot)", g.name());
@@ -1058,6 +1132,15 @@ public final class GateModule implements BotModule {
         ctx.ship().want(c.general().run());
         if (stuck(w, cc, now)) {
             status = "Врата " + g.name() + ": долго жду волну" + (ebgGate ? ebgWave(w) : wave(st));
+            return;
+        }
+        if (any && !anyGate().path("moveToCenter").asBoolean(false)) {
+            // AnyGate's moveToCenter off: the next wave waited for where the ship is
+            if (!ctx.nav().idle()) {
+                ctx.nav().stop();
+            }
+            ctx.nav().tick();
+            status = "Врата " + g.name() + ": жду волну" + wave(st);
             return;
         }
         if (Math.hypot(wx - h.x(), wy - h.y()) > WAIT_NEAR) {
@@ -1117,6 +1200,16 @@ public final class GateModule implements BotModule {
         return true;
     }
 
+    /**
+     * The farmer's status as AstraBot's «Chromin Farmer | Lives | Status | Chromins | Bought lives».
+     */
+    private String chrominStatus(GateCatalog.Gate g, WorldSnapshot w, WorldSnapshot.Gate st) {
+        WorldSnapshot.Chromin ch = w.gates().chromin();
+        return "Врата " + g.name() + ": хромин-фарм — " + chromin.state() + wave(st) + ", хромин " + (long) ch.current()
+                + " из " + (long) ch.max() + ", гибелей " + chromin.deaths() + ", куплено жизней "
+                + livesBought.getOrDefault(g.key(), 0);
+    }
+
     private static String ebgWave(WorldSnapshot w) {
         int wv = w.gates().eternal().wave();
         return wv > 0 ? ", волна " + wv : "";
@@ -1130,6 +1223,7 @@ public final class GateModule implements BotModule {
     private void gateLeft(WorldSnapshot w) {
         GateCatalog.Gate g = GateCatalog.byKey(inGate);
         WorldSnapshot.Gate st = g != null && g.builderId() != 0 ? w.gates().gate(g.builderId()) : null;
+        chromin.left(st != null && st.completedNanos() > enteredAt);
         if (g != null) {
             if (st != null && st.completedNanos() > enteredAt) {
                 log.info("Из врат {} вышел — пройдены", g.name());

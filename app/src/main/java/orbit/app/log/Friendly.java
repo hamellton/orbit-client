@@ -374,9 +374,9 @@ public final class Friendly {
         return null;
     }
 
-    /** Waves of a gate by its sign (the client's numbers, docs/GALAXY-GATES.md). */
+    /** Waves of a gate by its sign (docs/GALAXY-GATES.md; ζ by DarkBot's live run: the reward after wave 40). */
     private static final Map<String, String> GATE_WAVES = Map.of("α", " из 40", "β", " из 40", "γ", " из 40",
-            "δ", " из 29", "ε", " из 30", "ζ", " из 46", "κ", " из 29", "λ", " из 21");
+            "δ", " из 29", "ε", " из 30", "ζ", " из 40", "κ", " из 29", "λ", " из 21");
 
     // ---------------------------------------------------------------------------------------------- the wording
 

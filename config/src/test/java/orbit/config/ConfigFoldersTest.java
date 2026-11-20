@@ -16,7 +16,8 @@ class ConfigFoldersTest {
 
     static final List<String> DEFAULTS = List.of("Behemoth", "Behemoth Avoid Trains v1", "Behemoth Avoid Trains v2", "Behemoth Train", "Blacklight Impulse", "Blacklight Invoke 1-BL",
             "Blacklight Invoke 2-BL", "Blacklight Invoke 3-BL",
-            "Blacklight Invoke Train 1-BL", "Blacklight Invoke Train 2-BL", "Blacklight Invoke Train 3-BL", "Cubikon", "EBG", "Galaxy Gates ABG", "Mimesis EIC 2-4", "Mimesis MMO 1-4",
+            "Blacklight Invoke Train 1-BL", "Blacklight Invoke Train 2-BL", "Blacklight Invoke Train 3-BL", "Cubikon", "EBG", "Galaxy Gates ABG", "Galaxy Gates Kappa",
+            "Galaxy Gates Zeta", "Mimesis EIC 2-4", "Mimesis MMO 1-4",
             "Mimesis VRU 3-4", "Palladium");
 
     @Test
@@ -31,6 +32,11 @@ class ConfigFoldersTest {
             assertFalse(c.modules().containsKey("enrich"), n + ": neutral");
         }
         assertEquals(BotConfig.Module.GALAXY_GATE, store.load("Galaxy Gates ABG").module());
+        BotConfig zeta = store.load("Galaxy Gates Zeta");
+        assertEquals("ammunition_laser_ucb-100", zeta.loot().ammo());
+        assertEquals(590, zeta.npc("-=[ StreuneR ]=- ζ31").radius(), 0.1, "SharedPlugin's ZetaGate, case kept");
+        assertEquals(550, zeta.npc("-=[ Streuner ]=- ζ30").radius(), 0.1);
+        assertEquals("kappa", store.load("Galaxy Gates Kappa").modules().get("gate").path("gates").get(0).path("gate").asText());
         assertEquals(BotConfig.Module.PALLADIUM, store.load("Palladium").module());
         assertEquals(26, store.load("Cubikon").general().workingMap(), "Venus, 3-6");
     }

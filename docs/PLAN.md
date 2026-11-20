@@ -501,8 +501,11 @@ SAFETY в нужном кубам объёме → KILL для кубов → 5�
       появлению, бой 20–35 с. 129/34 чаще пропускается: его куб обычно добивают другие (смерти не видно — времени
       нет), один раз — из-за ошибки позиции выше. Пропуски ещё от смертей от игроков (4 за 6 мин в 12:01–12:07).
 - [ ] 5б.2 Врата α, β, γ (АБГ) (`GALAXY_GATES`): прыжок в гейт, волны, жизни, сбор, выход.
-- [ ] 5б.3 Врата ζ (Зета) (`GALAXY_GATES`, `zetaChrominFarmer`).
-- [ ] 5б.4 Врата κ (Каппа) (`GALAXY_GATES`).
+- [ ] 5б.3 Врата ζ (Зета) (`GALAXY_GATES`, `zetaChrominFarmer`). Сделано 2026-11-20 как SharedPlugin ZetaGate
+  (Devourer ниже 25 % — ящики в бою, радиусы с учётом регистра, 40 волн), фарм хромина как AstraBot (опция), конфиг
+  «Galaxy Gates Zeta» (`docs/GALAXY-GATES.md` §12); осталось проверить на gb2.
+- [ ] 5б.4 Врата κ (Каппа) (`GALAXY_GATES`). Сделано 2026-11-20 как SharedPlugin AnyGate (`modules.gate.anyGate`, выход
+  через единственный портал), конфиг «Galaxy Gates Kappa»; осталось проверить на gb2.
 - [ ] 5б.5 ЕБГ — Eternal Blacklight (`ETERNAL_BLACKLIGHT`: волны, корабли, способности, ISH/EMP).
 - [ ] 5б.6 Автопостройка врат: GG Builder — части, энергия, спины, лимиты (`spin`, `maxSpinCost`,
       `spinAmount`, `spinMultiplier`, `keepMinUriSpin`).

@@ -88,6 +88,13 @@ final class GateSection implements Section {
     private final JComboBox<String> endGateConfig = new JComboBox<>(new String[] {"Конфигурация 1", "Конфигурация 2"});
     private final ItemBox endGateFormation = new ItemBox(orbit.config.ItemCatalog.FORMATIONS, true);
     private final JSpinner endGateWaves = Form.number(1, 20, 1);
+    private final JSpinner anyRadius = Form.number(100, 2_000, 10);
+    private final JCheckBox anyKillAll = new JCheckBox("Бить всех NPC (killAllNpcs)");
+    private final JCheckBox anyJump = new JCheckBox("Прыгать в портал следующей карты / выхода (jumpToNextMap)");
+    private final JCheckBox anyCenter = new JCheckBox("Ждать волну в центре карты (moveToCenter)");
+    private final JCheckBox chromin = new JCheckBox("Фарм хромина в ζ (как AstraBot «Zeta chromin farmer»)");
+    private final JSpinner chrominHold = Form.percent();
+    private final JSpinner chrominWait = Form.number(0, 300, 5);
     private final JComboBox<String> trinityAttribute = new JComboBox<>(TRINITY);
     private final JComboBox<String> trinityDifficulty = new JComboBox<>(DIFFICULTY);
 
@@ -138,6 +145,20 @@ final class GateSection implements Section {
             npcFormation.add(new ItemBox(orbit.config.ItemCatalog.FORMATIONS, true));
         }
         endGate.addActionListener(e -> sync());
+        chromin.addActionListener(e -> sync());
+        model.addTableModelListener(e -> sync());
+        anyRadius.setToolTipText("SharedPlugin AnyGate «npcRadius»: один радиус для всех NPC этих врат (своих правил NPC"
+                + " это не меняет)");
+        anyKillAll.setToolTipText("Иначе бьются только NPC, которые есть в таблице NPC");
+        anyJump.setToolTipText("Выключено — порталы во вратах не берутся, домой отправит сервер (через 5 мин после"
+                + " прохождения)");
+        anyCenter.setToolTipText("Выключено — следующая волна ждётся там, где корабль");
+        chromin.setToolTipText("Пока идёт событие Chromin Rush и предел хромина не набран: Devourer сбивается до порога и"
+                + " остаётся живым, его этап добивается, хроминовые ящики собираются, потом корабль даёт Devourer'у себя"
+                + " уничтожить и проходит этап снова. Последнюю жизнь не тратит; дважды без хромина — фарм выключается"
+                + " до следующих врат.");
+        chrominHold.setToolTipText("Devourer не добивать ниже этого HP");
+        chrominWait.setToolTipText("Столько ждать ящики у живого Devourer, прежде чем погибнуть");
         fightModeInGate.setToolTipText("Иначе к началу каждого этапа бот подлетает в режиме бегства (конфиг «полёт в"
                 + " режиме бегства») и переключает конфигурации туда-обратно");
         endGate.setToolTipText("CARNAGE END_GATE_MODE, AstraBot useEndGateConfig: на последних волнах — эта конфигурация"
@@ -187,6 +208,17 @@ final class GateSection implements Section {
                 .row("Конец врат: последние волны", endGateWaves)
                 .note("NPC врат, которых нет в таблице NPC, бот бьёт с радиусом из профилей DarkBot/AstraBot;"
                         + " свои правила (радиус, патроны) — во вкладке NPC.")
+                .section("κ, λ, Kronos (как AnyGate DarkBot)")
+                .row("Радиус всех NPC", anyRadius)
+                .row("", anyKillAll)
+                .row("", anyJump)
+                .row("", anyCenter)
+                .section("ζ: фарм хромина")
+                .row("", chromin)
+                .row("Devourer держать при HP, %", chrominHold)
+                .row("Ждать ящики, с", chrominWait)
+                .note("Работает только во время события Chromin Rush и только когда ζ включены в списке врат."
+                        + " Нужны жизни: включите «Докупать жизни за уридий».")
                 .section("Trinity Trials")
                 .row("Атрибут", trinityAttribute)
                 .row("Сложность", trinityDifficulty)
@@ -231,6 +263,10 @@ final class GateSection implements Section {
         endGateConfig.setEnabled(e);
         endGateFormation.setEnabled(e);
         endGateWaves.setEnabled(e);
+        boolean zeta = rows.stream().anyMatch(r -> r.on && "zeta".equals(r.key));
+        chromin.setEnabled(zeta);
+        chrominHold.setEnabled(zeta && chromin.isSelected());
+        chrominWait.setEnabled(zeta && chromin.isSelected());
     }
 
     @Override
@@ -314,6 +350,14 @@ final class GateSection implements Section {
         Form.setFraction(kamikazeShieldAbort, m.path("kamikaze").path("shieldAbort").asDouble(0.4));
         kamikazeMode.setSelectedIndex("fight".equals(m.path("kamikaze").path("mode").asText("run")) ? 1 : 0);
         kamikazeLevel.setSelectedIndex(Math.max(0, Math.min(2, m.path("kamikaze").path("level").asInt(3) - 1)));
+        JsonNode ag = m.path("anyGate");
+        Form.set(anyRadius, ag.path("npcRadius").asInt(560));
+        anyKillAll.setSelected(ag.path("killAllNpcs").asBoolean(true));
+        anyJump.setSelected(ag.path("jumpToNextMap").asBoolean(false));
+        anyCenter.setSelected(ag.path("moveToCenter").asBoolean(false));
+        chromin.setSelected(m.path("zetaChrominFarmer").asBoolean(false));
+        Form.setFraction(chrominHold, m.path("chromin").path("holdHp").asDouble(0.1));
+        Form.set(chrominWait, m.path("chromin").path("waitSec").asInt(10));
         trinityAttribute.setSelectedIndex(m.path("trinityAttribute").asInt(1) == 2 ? 1 : 0);
         trinityDifficulty.setSelectedIndex(Math.max(0, Math.min(4, m.path("trinityDifficulty").asInt(1) - 1)));
         fightModeInGate.setSelected(m.path("fightModeInGate").asBoolean(true));
@@ -391,6 +435,15 @@ final class GateSection implements Section {
         kz.put("shieldMin", Form.fraction(kamikazeShield));
         kz.put("hpAbort", Form.fraction(kamikazeHpAbort));
         kz.put("shieldAbort", Form.fraction(kamikazeShieldAbort));
+        ObjectNode ag = m.putObject("anyGate");
+        ag.put("npcRadius", Form.intOf(anyRadius));
+        ag.put("killAllNpcs", anyKillAll.isSelected());
+        ag.put("jumpToNextMap", anyJump.isSelected());
+        ag.put("moveToCenter", anyCenter.isSelected());
+        m.put("zetaChrominFarmer", chromin.isSelected());
+        ObjectNode ch = m.putObject("chromin");
+        ch.put("holdHp", Form.fraction(chrominHold));
+        ch.put("waitSec", Form.intOf(chrominWait));
         m.put("trinityAttribute", trinityAttribute.getSelectedIndex() + 1);
         m.put("trinityDifficulty", trinityDifficulty.getSelectedIndex() + 1);
         m.put("fightModeInGate", fightModeInGate.isSelected());

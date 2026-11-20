@@ -342,6 +342,12 @@ public final class World {
             case orbit.protocol.gen.PayloadEscortTimeInfoCommand p -> escortTimes(p, nanos);
             case orbit.protocol.gen.PayloadEscortScoreCommand p -> escort = escort.withScore(p.totalScore, p.runScore, nanos);
             case orbit.protocol.gen.EternalBlacklightWaveInfoCommand p -> ebgWave(p, nanos);
+            case orbit.protocol.gen.ChrominUpdateCommand p -> {
+                if (chromin.nanos() == 0 || chromin.max() != p.maxAmt) {
+                    log.info("Хромин: {} из {}", (long) p.currentAmt, (long) p.maxAmt);
+                }
+                chromin = new WorldSnapshot.Chromin(p.currentAmt, p.maxAmt, nanos);
+            }
             case orbit.protocol.gen.EternalBlacklightCpuInfoCommand p -> ebgCpus(p.cpuCount, nanos);
             case orbit.protocol.gen.EternalBlacklightBoosterInfoCommand p -> ebgBoosters(p, nanos);
             case orbit.protocol.gen.EternalBlacklightSkillPointInfoCommand p -> {
@@ -743,7 +749,7 @@ public final class World {
                 new WorldSnapshot.Damage(Map.copyOf(dealt), Map.copyOf(received), Map.copyOf(taken)),
                 new WorldSnapshot.Gates(Map.copyOf(gates), gateMoney, gateSamples, gateEnergyCost, gateSpinAmounts,
                         gateSpinSelected, gateInfoNanos, gateSetup, gateSetupError, gateSetupNanos, gateSpinError,
-                        gateSpinNanos, trinity, eternal, low, escort, dispatch));
+                        gateSpinNanos, trinity, eternal, low, escort, dispatch, chromin));
     }
 
     private WorldSnapshot.Escort escort = WorldSnapshot.Escort.NONE;
@@ -806,6 +812,7 @@ public final class World {
     private final Map<String, WorldSnapshot.Recipe> recipes = new HashMap<>();
     /** The galaxy gates by the builder's number (kept over map changes: the account's). */
     private final Map<Integer, WorldSnapshot.Gate> gates = new HashMap<>();
+    private WorldSnapshot.Chromin chromin = WorldSnapshot.Chromin.NONE;
     private double gateMoney = -1;
     private double gateSamples = -1;
     private int gateEnergyCost;

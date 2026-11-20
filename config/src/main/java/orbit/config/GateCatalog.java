@@ -73,6 +73,24 @@ public final class GateCatalog {
         return m;
     }
 
+    /**
+     * SharedPlugin's ZetaGate tells some names apart by case alone: {@code -=[ StreuneR ]=-} (ζ31) 590 and
+     * {@code -=[ Streuner ]=-} (ζ30) 550, {@code ( UberStreuneR )} (ζ34) 590 and {@code ( UberStreuner )} (ζ33) 560;
+     * {@link BotConfig#bare} lowers the case, so these are looked up first by the name as it is (no wave number).
+     */
+    static final Map<String, Integer> ZETA_EXACT = Map.of("-=[ StreuneR ]=-", 590, "( UberStreuneR )", 590);
+
+    /**
+     * The gates SharedPlugin has no own handler for — its AnyGate (DarkBot's {@code anyGate} settings: one radius for all
+     * NPCs, all killed, the next map's portal, no wait at the centre; no turning toward the centre, no far target skipped).
+     */
+    public static final Set<String> ANY_GATE = Set.of("kappa", "lambda", "kronos");
+
+    /** A gate SharedPlugin plays by its AnyGate. */
+    public static boolean anyGate(Gate g) {
+        return g != null && ANY_GATE.contains(g.key());
+    }
+
     static Map<String, Integer> kappa() {
         Map<String, Integer> m = new LinkedHashMap<>();
         for (String n : List.of("streuner", "vagrant", "infernal", "marauder", "scorcher", "boss mordon", "outcast",
@@ -169,7 +187,9 @@ public final class GateCatalog {
                     Set.of("kristallin", "saimon", "sibelonit")),
             new Gate("delta", "δ Delta", 4, 128, 29, List.of(55), 5, false, "δ", Map.of(), Set.of()),
             new Gate("epsilon", "ε Epsilon", 5, 99, 30, List.of(70), 53, false, "ε", Map.of(), Set.of()),
-            new Gate("zeta", "ζ Zeta", 6, 111, 46, List.of(71, 72, 73), 54, true, "ζ", zeta(), Set.of()),
+            // ζ: 40 waves — DarkBot's GG_ZETA on RU4 (2026-10-19) got the reward («Пройден телепорт «Зета»», Havoc)
+            // right after wave 40; the profiles list ζ41–ζ46 as well
+            new Gate("zeta", "ζ Zeta", 6, 111, 40, List.of(71, 72, 73), 54, true, "ζ", zeta(), Set.of()),
             new Gate("kappa", "κ Kappa", 7, 120, 29, List.of(74), 70, false, "κ", kappa(), Set.of()),
             new Gate("lambda", "λ Lambda", 8, 45, 21, List.of(75), 71, false, "λ", Map.of(), Set.of()),
             new Gate("kronos", "Kronos", 12, 21, 50, List.of(76), 72, false, "ђ", Map.of(), Set.of()),
@@ -255,6 +275,12 @@ public final class GateCatalog {
         return BotConfig.bare(name.substring(0, m.start()));
     }
 
+    /** A gate NPC's name without the wave number, case kept ({@code -=[ StreuneR ]=- ζ31} → {@code -=[ StreuneR ]=-}). */
+    static String exactName(String name) {
+        java.util.regex.Matcher m = WAVE.matcher(name);
+        return (m.find() ? name.substring(0, m.start()) : name).strip();
+    }
+
     /** The wave number at the end of a gate NPC's name ({@code -=[ Protegit ]=- α37} → 37), 0 when none. */
     public static int gateWave(String name) {
         if (name == null) {
@@ -281,7 +307,10 @@ public final class GateCatalog {
         if (gate == null || bare == null) {
             return null;
         }
-        Integer radius = gate.npcs().get(bare);
+        Integer radius = "zeta".equals(gate.key()) ? ZETA_EXACT.get(exactName(name)) : null;
+        if (radius == null) {
+            radius = gate.npcs().get(bare);
+        }
         if ("eternal".equals(gate.key())) {
             // SharedPlugin's EBG: every NPC killed but the boss wave's two guards, the seeker rockets first
             boolean passive = EBG_PASSIVE.contains(bare);

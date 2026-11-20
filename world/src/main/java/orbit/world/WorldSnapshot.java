@@ -75,10 +75,18 @@ public record WorldSnapshot(long nanos, Hero hero, Map<Integer, Ship> ships, Map
      */
     public record Gates(Map<Integer, Gate> gates, double money, double samples, int energyCost, List<Integer> spinAmounts,
                         int spinSelected, long infoNanos, int setupGate, int setupError, long setupNanos, int spinError,
-                        long spinNanos, Trinity trinity, Eternal eternal, Low low, Escort escort, Dispatch dispatch) {
+                        long spinNanos, Trinity trinity, Eternal eternal, Low low, Escort escort, Dispatch dispatch,
+                        Chromin chromin) {
 
         public static final Gates NONE = new Gates(Map.of(), -1, -1, 0, List.of(), 0, 0, 0, 0, 0, 0, 0, Trinity.NONE,
-                Eternal.NONE, Low.NONE, Escort.NONE, Dispatch.NONE);
+                Eternal.NONE, Low.NONE, Escort.NONE, Dispatch.NONE, Chromin.NONE);
+
+        public Gates(Map<Integer, Gate> gates, double money, double samples, int energyCost, List<Integer> spinAmounts,
+                     int spinSelected, long infoNanos, int setupGate, int setupError, long setupNanos, int spinError,
+                     long spinNanos, Trinity trinity, Eternal eternal, Low low, Escort escort, Dispatch dispatch) {
+            this(gates, money, samples, energyCost, spinAmounts, spinSelected, infoNanos, setupGate, setupError, setupNanos,
+                    spinError, spinNanos, trinity, eternal, low, escort, dispatch, Chromin.NONE);
+        }
 
         public Gates(Map<Integer, Gate> gates, double money, double samples, int energyCost, List<Integer> spinAmounts,
                      int spinSelected, long infoNanos, int setupGate, int setupError, long setupNanos, int spinError,
@@ -162,6 +170,21 @@ public record WorldSnapshot(long nanos, Hero hero, Map<Integer, Ship> ships, Map
 
         public Low cancelled(long nanos) {
             return new Low(queueGate, queuePosition, queueNanos, onlineNanos, relayNanos, relays, completedNanos, bossNanos, swarms, failedNanos, nanos);
+        }
+    }
+
+    /**
+     * The Chromin Rush event's chromin ({@code ChrominUpdateCommand}, DarkBot's {@code chrominEvent} facade): collected so
+     * far and the event's cap (160 000 in the past events), when it last came ({@code 0} never). During the event the gates'
+     * NPCs drop «Chromin Boxes» ({@code CHROMIN_BOX_*}).
+     */
+    public record Chromin(double current, double max, long nanos) {
+
+        public static final Chromin NONE = new Chromin(0, 0, 0);
+
+        /** The event is told and its cap not reached. */
+        public boolean open() {
+            return nanos != 0 && max > 0 && current < max;
         }
     }
 

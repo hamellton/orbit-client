@@ -2,6 +2,8 @@
 Cubikon
 Palladium
 Galaxy Gates ABG
+Galaxy Gates Zeta
+Galaxy Gates Kappa
 Behemoth
 Behemoth Train
 Behemoth Avoid Trains v1
