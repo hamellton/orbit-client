@@ -117,8 +117,8 @@ final class MinimapPanel extends JPanel {
         }
         MapCatalog.MapInfo map = catalog.info(hero.mapId());
         Projection p = projection(map);
-        double mx = (x - p.ox()) / p.scale();
-        double my = (y - p.oy()) / p.scale();
+        double mx = (x - p.ox()) / p.sx();
+        double my = (y - p.oy()) / p.sy();
         if (mx < 0 || my < 0 || mx > map.width() || my > map.height()) {
             return null;
         }
@@ -165,12 +165,30 @@ final class MinimapPanel extends JPanel {
         int pad = compact || mapOnly ? 0 : 8; // only the map: edge to edge
         double sx = (getWidth() - 2.0 * pad) / map.width();
         double sy = (getHeight() - 2.0 * pad) / map.height();
+        if (mapOnly && fullScreen()) {
+            // only the map on the whole screen: the screen is wider than the map (16:9 against 1.6:1), the map is
+            // stretched to it, nothing cut and no bands (the user, 2026-11-20: «растянуть по ширине»)
+            return new Projection(0, 0, sx, sy);
+        }
         // only the map: it always covers the window (a sliver cut off while the window is being resized, until
         // the window takes the map's shape), so no empty band shows
         double scale = mapOnly ? Math.max(sx, sy) : Math.min(sx, sy);
         double ox = (getWidth() - map.width() * scale) / 2;
         double oy = (getHeight() - map.height() * scale) / 2;
-        return new Projection(ox, oy, scale);
+        return new Projection(ox, oy, scale, scale);
+    }
+
+    /** The panel's window maximized or over the whole screen (macOS full screen keeps the state NORMAL). */
+    private boolean fullScreen() {
+        java.awt.Window win = javax.swing.SwingUtilities.getWindowAncestor(this);
+        if (win == null || !win.isShowing()) {
+            return false;
+        }
+        if (win instanceof java.awt.Frame f && (f.getExtendedState() & java.awt.Frame.MAXIMIZED_BOTH) == java.awt.Frame.MAXIMIZED_BOTH) {
+            return true;
+        }
+        java.awt.Rectangle screen = win.getGraphicsConfiguration().getBounds();
+        return win.getWidth() >= screen.width - 2 && win.getHeight() >= screen.height - 2;
     }
 
     /** Draws the minimap of the feed's current state into an image (no window needed). */
@@ -208,8 +226,8 @@ final class MinimapPanel extends JPanel {
         double ox = p.ox();
         double oy = p.oy();
         double scale = p.scale();
-        double mw = map.width() * scale;
-        double mh = map.height() * scale;
+        double mw = map.width() * p.sx();
+        double mh = map.height() * p.sy();
         // marks grow a little with the map: readable on a big screen, not blobs in the overview
         double u = Math.max(0.8, Math.min(1.5, mw / 900));
 
@@ -251,7 +269,7 @@ final class MinimapPanel extends JPanel {
                     ? ZONE_BLOCKED : ZONE_OTHER);
             if (z.inverted()) {
                 Path2D.Double outside = new Path2D.Double(Path2D.WIND_EVEN_ODD);
-                outside.append(new Rectangle2D.Double(ox, oy, map.width() * scale, map.height() * scale), false);
+                outside.append(new Rectangle2D.Double(ox, oy, mw, mh), false);
                 outside.append(s, false);
                 g.fill(outside);
             } else {
@@ -296,8 +314,9 @@ final class MinimapPanel extends JPanel {
             double mx = p.x(m.x());
             double my = p.y(m.y());
             double mr = Math.abs(p.x(m.x() + orbit.bot.nav.PathFinder.MINE_RADIUS) - mx);
+            double mry = Math.abs(p.y(m.y() + orbit.bot.nav.PathFinder.MINE_RADIUS) - my);
             g.setColor(new Color(230, 70, 60, 70));
-            g.draw(new Ellipse2D.Double(mx - mr, my - mr, 2 * mr, 2 * mr));
+            g.draw(new Ellipse2D.Double(mx - mr, my - mry, 2 * mr, 2 * mry));
             g.setColor(new Color(230, 70, 60));
             g.draw(new java.awt.geom.Line2D.Double(mx - 2.5, my - 2.5, mx + 2.5, my + 2.5));
             g.draw(new java.awt.geom.Line2D.Double(mx - 2.5, my + 2.5, mx + 2.5, my - 2.5));
@@ -311,11 +330,12 @@ final class MinimapPanel extends JPanel {
                 double cx = p.x(c.x());
                 double cy = p.y(c.y());
                 double cr = Math.abs(p.x(c.x() + c.radius()) - cx);
+                double cry = Math.abs(p.y(c.y() + c.radius()) - cy);
                 g.setColor(OFFENDER_FILL);
-                g.fill(new Ellipse2D.Double(cx - cr, cy - cr, 2 * cr, 2 * cr));
+                g.fill(new Ellipse2D.Double(cx - cr, cy - cry, 2 * cr, 2 * cry));
                 g.setColor(OFFENDER);
                 g.setStroke(new BasicStroke(1.5f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND, 1f, new float[] {5f, 4f}, 0f));
-                g.draw(new Ellipse2D.Double(cx - cr, cy - cr, 2 * cr, 2 * cr));
+                g.draw(new Ellipse2D.Double(cx - cr, cy - cry, 2 * cr, 2 * cry));
                 g.setStroke(new BasicStroke(1f));
                 String label = "обидчик: " + c.name();
                 int lw = g.getFontMetrics().stringWidth(label);
@@ -1049,10 +1069,11 @@ final class MinimapPanel extends JPanel {
     /** The game's box check: its circle on the map and the task with the time left, big, over the map. */
     private void boxCheck(Graphics2D g, WorldSnapshot w, Projection p, double vx, double vy, double vw) {
         WorldSnapshot.BoxCheck c = w.boxCheck();
-        double r = c.radius() * p.scale();
+        double rx = c.radius() * p.sx();
+        double ry = c.radius() * p.sy();
         g.setColor(BOX_CHECK);
         g.setStroke(new BasicStroke(2f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND, 1f, new float[] {6f, 5f}, 0f));
-        g.draw(new Ellipse2D.Double(p.x(c.x()) - r, p.y(c.y()) - r, 2 * r, 2 * r));
+        g.draw(new Ellipse2D.Double(p.x(c.x()) - rx, p.y(c.y()) - ry, 2 * rx, 2 * ry));
         g.setStroke(new BasicStroke(1f));
         double s = compact ? 3 : 4;
         for (WorldSnapshot.BoxCheck.CheckBox b : c.boxes()) {
@@ -1162,8 +1183,8 @@ final class MinimapPanel extends JPanel {
         MapCatalog.MapInfo map = catalog.info(hero.mapId());
         Projection pr = projection(map);
         double scale = pr.scale();
-        double mx = (e.getX() - pr.ox()) / scale;
-        double my = (e.getY() - pr.oy()) / scale;
+        double mx = (e.getX() - pr.ox()) / pr.sx();
+        double my = (e.getY() - pr.oy()) / pr.sy();
         double reach = 8 / scale;
         Ship best = null;
         double bestD = reach;
@@ -1234,8 +1255,9 @@ final class MinimapPanel extends JPanel {
             if (c.size() < 3) {
                 return null;
             }
-            double r = c.get(2) * p.scale();
-            return new Ellipse2D.Double(p.x(c.get(0)) - r, p.y(c.get(1)) - r, 2 * r, 2 * r);
+            double rx = c.get(2) * p.sx();
+            double ry = c.get(2) * p.sy();
+            return new Ellipse2D.Double(p.x(c.get(0)) - rx, p.y(c.get(1)) - ry, 2 * rx, 2 * ry);
         }
         if (c.size() < 4) {
             return null;
@@ -1251,7 +1273,7 @@ final class MinimapPanel extends JPanel {
                 minY = Math.min(minY, c.get(i + 1));
                 maxY = Math.max(maxY, c.get(i + 1));
             }
-            return new Rectangle2D.Double(p.x(minX), p.y(minY), (maxX - minX) * p.scale(), (maxY - minY) * p.scale());
+            return new Rectangle2D.Double(p.x(minX), p.y(minY), (maxX - minX) * p.sx(), (maxY - minY) * p.sy());
         }
         Path2D.Double poly = new Path2D.Double();
         poly.moveTo(p.x(c.get(0)), p.y(c.get(1)));
@@ -1262,13 +1284,19 @@ final class MinimapPanel extends JPanel {
         return poly;
     }
 
-    private record Projection(double ox, double oy, double scale) {
+    /** {@code sx} and {@code sy} differ only for the map stretched over the whole screen. */
+    private record Projection(double ox, double oy, double sx, double sy) {
         double x(double mapX) {
-            return ox + mapX * scale;
+            return ox + mapX * sx;
         }
 
         double y(double mapY) {
-            return oy + mapY * scale;
+            return oy + mapY * sy;
+        }
+
+        /** Game units to pixels for sizes (the smaller of the two when stretched). */
+        double scale() {
+            return Math.min(sx, sy);
         }
     }
 
