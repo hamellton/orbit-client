@@ -53,7 +53,9 @@ Status: Stage 2 done; stage 3 in progress (login, game connection, vault, client
   recording: `client-profile` → `local/client-profile.json`), `game-check` live tool.
 - `bot` — the bot: `BotRunner` (safety, revive, pet, buying, travel to the module's map) and the modules
   (`orbit.bot.mod`: `KillModule` kill & collect, `CubikonModule`, `BehemothModule` Mindfire Behemoth on the BL maps as
-  AstraBot's module — timers in `SpawnMemory`, `PalladiumModule`, `QuestModule` (season: cargo boxes, `QuestCrafts` cheap crafts for built-recipe
+  AstraBot's module — timers in `SpawnMemory`; among trains `modules.behemoth.trainStyle` "v1" (none = the restore point
+  `best-2026-11-20`) or "v2" (offenders, backing out of circles, «напролом» by the locator), defaults «Behemoth Avoid Trains
+  v1/v2», `docs/BLACKLIGHT.md`; `PalladiumModule`, `QuestModule` (season: cargo boxes, `QuestCrafts` cheap crafts for built-recipe
   conditions, meta missions never rerolled; `QuestsAlongside` = `modules.quests.alongside`, passes and crafts beside
   another module); fights by `Attacker`). Behemoth stage,
   what is not done and what comes next (farming among trains like CARNAGE, groups): `docs/BLACKLIGHT.md`, stage D.
