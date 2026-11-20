@@ -32,6 +32,18 @@ assemblyItemFilters=[ammunition|weapons|extras|…]}` — только вид о
 | RSB-75 | `recipe_blueprint-rsb75-blacklight` |
 | A-BL | `recipe_blueprint-a-bl-laser-ammo` |
 
+Ещё о сборке (запись 2026-11-14 и gb2 вживую 2026-11-20):
+- состояние всех рецептов игра присылает только при входе (`AssemblyRecipeContentModule` со всеми рецептами);
+  открытие окна `assembly` не присылает ничего. Если сразу после запуска сборки бот сменил карту (переход на другой
+  сервер), «готово» (`AssemblyRecipeReadyToCollectStatusModule`) до него не доходит: партия оплачена и лежит в сборке.
+  `CraftWatch`: сборка, которая через минуту после своего времени всё ещё «строится», забирается вслепую
+  (`AssemblyCollectRequest`, раз в минуту), игра отвечает новым статусом;
+- «Сепром (BL)» `recipe_blueprint-seprom-blacklight` (клиент `ItemDataProvider`): 5 с, на выходе 5000
+  `resource_ore_seprom` за 10 000 уридия, 1250 Rinusk и 250 Blacklight Trace. Сепром ложится в трюм, и игра считает его
+  только как руду трюма (`AttributeOreCountUpdateCommand`), не как предмет: крафт считает `resource_ore_<руда>` по
+  трюму (иначе «игра не прислала количество resource_ore_seprom — не крафчу»). «Если меньше» у сепрома — порог в трюме;
+  обогащение (`Enricher`) забирает сепром из трюма в лазеры, и следующая партия крафтится, когда его снова мало.
+
 ## Сборщики (окно `dispatch`)
 
 - `DispatchGetRetrieverListRequest{statusType=1}` — список;

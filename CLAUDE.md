@@ -77,7 +77,7 @@ Status: Stage 2 done; stage 3 in progress (login, game connection, vault, client
   grid; `MainWindow.snapshot` renders it offscreen; modes bot / observe / replay / render; `--headless`). Logging config `orbit/app/logback-app.xml` (masking, `logs/orbit.log`,
   per account `logs/orbit-<a>.log` and the journal `logs/journal-<a>.log`, daily rotation to `logs/archive/`).
   `orbit.app.log`: `LogStore` folds repeats (×N), `LogRules` gives a line its subject and journal flag; `LogPanel` is the
-  window's log (Журнал / Всё / Проблемы, subjects, account, period, search); `HourlyReport` logs «Сводка» each hour.
+  window's log (Журнал / Всё / Проблемы, subjects, account, period, search); `HourlyReport` logs «Сводка» each hour. Buttons «Ангар», «Итоги» (`InfoWindows.totals`: picked by kind, loot, income — session / per hour / today), «Скайлаб», «Обогащение» open windows per account.
 - `sniffer` — SOCKS5 + direct-port relay, session recording, `session-report` tool; uses generated classes.
 
 ## Build
