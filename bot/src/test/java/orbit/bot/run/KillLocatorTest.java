@@ -93,4 +93,39 @@ class KillLocatorTest {
             }
         }
     }
+
+    private static void listed(Sim sim, Integer... npcs) {
+        orbit.protocol.gen.PetLocatorGearInitializationCommand l = new orbit.protocol.gen.PetLocatorGearInitializationCommand();
+        l.possibleTargetValues = java.util.List.of(npcs);
+        sim.world.apply(l, sim.now);
+    }
+
+    private static void point(Sim sim, int x, int y) {
+        PetGearLocatorUpdate p = new PetGearLocatorUpdate();
+        p.x = x;
+        p.y = y;
+        sim.world.apply(p, sim.now);
+    }
+
+    @Test
+    void aNewInvokeNearTheEmptyPlaceOfTheLastIsFlownTo() throws Exception {
+        // live 2026-11-20 on gb2: the point of the invoke just killed was marked empty; a new one near it 29 s later was
+        // left alone for the rest of the mark's 60 s and somebody else killed it
+        Sim sim = new Sim(config(false), 307, 10_000, 6_000);
+        petLocating(sim);
+        KillModule m = new KillModule(sim.ctx, true, false);
+        listed(sim, 175, 177);
+        sim.run(m::tick, 2_000);
+        point(sim, 10_100, 6_000); // the dead one's place, where the ship is
+        sim.run(m::tick, 500);
+        listed(sim, 175); // gone from the map's list
+        sim.run(m::tick, 20_000);
+        listed(sim, 175, 177); // a new one came
+        sim.run(m::tick, 500);
+        point(sim, 10_500, 6_200); // near the old place, out of sight beyond it? still within the empty mark's 600
+        sim.ctx.nav().moveTo(20_000, 12_000, false); // roaming off meanwhile
+        sim.run(m::tick, 300);
+        var d = sim.ctx.nav().destination();
+        assertTrue(Math.hypot(d.x() - 10_500, d.y() - 6_200) < 300, "to the new invoke: " + d);
+    }
 }

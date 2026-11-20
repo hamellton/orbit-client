@@ -120,6 +120,7 @@ public final class KillModule implements BotModule {
         if (c.moduleSettings("kill").path("useCloak").asBoolean(false)) {
             cloaker.tick(attacker.targetId() != 0);
         }
+        newSpawn(w);
         if (kill && attacker.targetId() != 0 && !keepTarget) {
             // one of a higher priority came in sight (an invoke while an Impulse is fought): to it at once, unless the
             // one fought is nearly dead or shoots the ship — with the drop-everything option in any case
@@ -146,10 +147,12 @@ public final class KillModule implements BotModule {
         }
         if (collect && attacker.targetId() != 0 && fightBox(c, w)) {
             status = "Бой · подбираю " + boxes.currentName();
+            busy(w, "подбираю ящик в бою");
             return;
         }
         if (attacker.targetId() != 0 && attacker.tick(true)) {
             status = "Бой";
+            busy(w, "бой с " + attacker.targetName());
             return;
         }
         // IGNORE_BOXES counts in the fight only, as DarkBot's: once it is dead its boxes are taken like any (exactly
@@ -157,6 +160,7 @@ public final class KillModule implements BotModule {
         // no fight: any box in sight (DarkBot's collector); its radius only counts next to a target
         if (collect && boxes.tickAnywhere()) {
             status = "Подбираю " + boxes.currentName();
+            busy(w, "подбираю " + boxes.currentName());
             return;
         }
         if (kill) {
@@ -168,6 +172,7 @@ public final class KillModule implements BotModule {
                 return;
             }
             if (t != null) {
+                busy(w, "беру " + t.name() + (t.attackTargetId() == w.hero().id() ? " — он бьёт нас" : ""));
                 roamTo = null;
                 attacker.target(t);
                 attacker.tick(true);
@@ -264,13 +269,16 @@ public final class KillModule implements BotModule {
     static final double LEAD_REACHED = 600;
     private int[] emptyLead;
     private long emptyLeadAt;
-    private int leadFor;
+    /** The locator's NPC was in the game's list of those on the map at the last look. */
+    private boolean leadListed;
+    /** The last locator decision logged: its point and what the bot did. */
+    private int[] notedLead;
+    private String notedWhy;
 
     /** No target in sight: fly to where the pet's locator shows the wanted NPC. */
     private boolean followLocator(BotConfig c, WorldSnapshot w) {
         int target = petLocator();
         if (target == 0) {
-            leadFor = 0;
             return false;
         }
         WorldSnapshot.Pet pet = w.pet();
@@ -282,6 +290,7 @@ public final class KillModule implements BotModule {
         int[] lead = {pet.locatorX(), pet.locatorY()};
         if (emptyLead != null && now - emptyLeadAt < LEAD_EMPTY_MS * 1_000_000
                 && Math.hypot(lead[0] - emptyLead[0], lead[1] - emptyLead[1]) < LEAD_REACHED) {
+            note(target, lead, "не лечу: там уже было пусто " + (now - emptyLeadAt) / 1_000_000_000L + " с назад");
             return false;
         }
         WorldSnapshot.Hero h = w.hero();
@@ -291,13 +300,10 @@ public final class KillModule implements BotModule {
             log.info("Пеленгатор: долетел до {}/{}, но {} там нет — ищу дальше", lead[0] / 100, lead[1] / 100, name);
             emptyLead = lead;
             emptyLeadAt = now;
+            notedLead = null;
             return false;
         }
-        if (leadFor != target) {
-            leadFor = target;
-            log.info("Пеленгатор нашёл {} на {}/{}, в {} от нас — лечу", name, lead[0] / 100, lead[1] / 100,
-                    String.format("%,d", (int) dist).replace(',', ' '));
-        }
+        note(target, lead, "лечу, в " + String.format("%,d", (int) dist).replace(',', ' ') + " от нас");
         boolean rush = locatorRush(c, w);
         if (rush) {
             leadRushAt = now; // the run mode, and nothing turns the ship off its way to it
@@ -309,6 +315,52 @@ public final class KillModule implements BotModule {
         ctx.nav().tick();
         status = "Лечу к " + name + " по пеленгатору";
         return true;
+    }
+
+    /**
+     * The locator's NPC back in the game's list of those on the map: a new one came, so the place found empty after
+     * the last one died says nothing of it (2026-11-20 on gb2: a new invoke near the old one's place was left alone for
+     * the 60 s of the empty mark and somebody else killed it).
+     */
+    private void newSpawn(WorldSnapshot w) {
+        int target = petLocator();
+        if (target == 0 || w.pet() == null) {
+            return;
+        }
+        boolean listed = w.pet().locatorTargets().contains(target);
+        if (listed && !leadListed) {
+            emptyLead = null;
+            notedLead = null;
+        }
+        leadListed = listed;
+    }
+
+    /** A fresh locator point the bot does not fly to now, and why (logged once a point and reason). */
+    private void busy(WorldSnapshot w, String why) {
+        int target = petLocator();
+        if (target == 0 || !locatorFresh(w)) {
+            return;
+        }
+        String name = npcName(target);
+        if (name != null && stripped(name).equals(stripped(attacker.targetName()))) {
+            return; // it is the one fought
+        }
+        note(target, new int[] {w.pet().locatorX(), w.pet().locatorY()}, "не лечу: " + why);
+    }
+
+    private static String stripped(String shipName) {
+        return shipName == null ? null : shipName.replaceAll("[^A-Za-z0-9 ]", "").trim();
+    }
+
+    private void note(int target, int[] lead, String why) {
+        String kind = why.replaceAll("[0-9][0-9  ]*", "#"); // the same decision with another distance or age
+        if (notedLead != null && kind.equals(notedWhy)
+                && Math.hypot(lead[0] - notedLead[0], lead[1] - notedLead[1]) < LEAD_REACHED) {
+            return;
+        }
+        notedLead = lead;
+        notedWhy = kind;
+        log.info("Пеленгатор: {} на {}/{} — {}", npcName(target), lead[0] / 100, lead[1] / 100, why);
     }
 
     /** DarkBot's Kill &amp; Collect leaves the boxes to a target this weak: it is finished first. */

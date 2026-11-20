@@ -213,6 +213,11 @@ public final class Attacker {
         return targetId;
     }
 
+    /** The name of the NPC fought, {@code null} when none. */
+    public String targetName() {
+        return targetId == 0 ? null : targetName;
+    }
+
     /** How long the current target has been the target (ms). */
     public long targetAgeMs() {
         return targetId == 0 ? 0 : (ctx.now() - watchedSince) / 1_000_000;
