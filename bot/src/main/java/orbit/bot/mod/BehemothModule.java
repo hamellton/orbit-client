@@ -1608,13 +1608,13 @@ public final class BehemothModule implements BotModule {
 
     /**
      * {@code trainStyle} (the user, 2026-11-20: keep both behaviours of the farm among trains, switched in the config):
-     * {@code "v1"} — as the restore point {@code best-2026-11-20} (the wait's dodge only from another company's
+     * {@code "v1"} or none (every other behemoth config stays as it was) — as the restore point {@code best-2026-11-20} (the wait's dodge only from another company's
      * players, where they stand, rings of 300 within 1 200, no backing out of circles on the way, the way to the behemoth
-     * through them only once flying to it); {@code "v2"} or none — the current one (offenders of any company, their flight
+     * through them only once flying to it); {@code "v2"} — the current one (offenders of any company, their flight
      * reckoned ahead, {@code dodgeMax}/{@code dodgeMargin}, {@link #around}, «напролом» once the locator has found it).
      */
     public static boolean newStyle(JsonNode s) {
-        return !"v1".equals(s.path("trainStyle").asText(""));
+        return "v2".equals(s.path("trainStyle").asText(""));
     }
 
     /** An enemy flying on is reckoned this much ahead (1.5 s of a ship's flight) when the ship steps aside. */

@@ -103,7 +103,7 @@ final class BehemothSection implements Section {
     private final JSpinner huntRadius = Form.number(300, 5_000, 100);
     private final javax.swing.JTextField blacklist = new javax.swing.JTextField(24);
     private final JComboBox<String> trainStyle = new JComboBox<>(new String[] {
-            "v2 — обидчики, назад из их круга, напролом по пеленгатору", "v1 — как в точке отката 20.11"});
+            "v1 — как в точке отката 20.11", "v2 — обидчики, назад из их круга, напролом по пеленгатору"});
     private final JComboBox<String> focus = new JComboBox<>(new String[] {"Сначала бегемот", "Сначала враги"});
     private final ItemBox pvpAmmo = new ItemBox(ItemCatalog.LASERS, true);
     // the group (AstraBot's followLeader / leaderId)
@@ -208,8 +208,9 @@ final class BehemothSection implements Section {
                 + " до 10 врагов награда приходила, при 13–15 — смерть без награды");
         deathsPerSpawn.setToolTipText("Погиб у бегемота столько раз — эту карту пропустить до следующего бегемота; 0 — нет");
         blacklist.setToolTipText("Имена игроков через запятую — их бить всегда, когда видны (как BLACKLIST в AstraBot)");
-        trainStyle.setToolTipText("v2 — отходить и от обидчиков любой компании с учётом их полёта, из их круга на пути"
-                + " к точке — назад, напролом, как только пеленгатор нашёл бегемота; v1 — как в точке отката, как было до этого");
+        trainStyle.setToolTipText("v1 — как в точке отката, как было до этого (и у всех конфигов, где не выбрано);"
+                + " v2 — отходить и от обидчиков любой компании с учётом их полёта, из их круга на пути к точке — назад,"
+                + " напролом, как только пеленгатор нашёл бегемота");
         focus.setToolTipText("Сначала бегемот — игроков только пока его нет; сначала враги — даже когда бегемот рядом");
         pvpAmmo.setToolTipText("Патроны по игрокам; не выбраны — те, что стоят в игре");
         leader.setToolTipText("Имя или номер лидера в группе; пусто — лидер группы");
@@ -493,7 +494,7 @@ final class BehemothSection implements Section {
         java.util.List<String> names = new java.util.ArrayList<>();
         m.path("blacklist").forEach(n -> names.add(n.asText()));
         blacklist.setText(String.join(", ", names));
-        trainStyle.setSelectedIndex("v1".equals(m.path("trainStyle").asText("")) ? 1 : 0);
+        trainStyle.setSelectedIndex("v2".equals(m.path("trainStyle").asText("")) ? 1 : 0);
         focus.setSelectedIndex("ENEMY".equals(m.path("enemyFocus").asText("BEHEMOTH")) ? 1 : 0);
         String pa = m.path("pvpAmmo").asText("");
         pvpAmmo.set(pa.isBlank() ? null : pa);
@@ -615,9 +616,9 @@ final class BehemothSection implements Section {
             }
         }
         if (trainStyle.getSelectedIndex() == 1) {
-            m.put("trainStyle", "v1");
-        } else if (m.has("trainStyle")) {
             m.put("trainStyle", "v2");
+        } else if (m.has("trainStyle")) {
+            m.put("trainStyle", "v1"); // none = v1: configs that never chose are not written to
         }
         m.put("enemyFocus", focus.getSelectedIndex() == 1 ? "ENEMY" : "BEHEMOTH");
         m.put("pvpAmmo", pvpAmmo.get() != null ? pvpAmmo.get() : "");

@@ -1098,7 +1098,7 @@ class BehemothModuleTest {
     @Test
     void anOffenderOfOurOwnCompanyMovesTheShipAsideToo() throws Exception {
         // the user, 2026-11-20: «обидчиком может быть любой абсолютно» — one who attacked the ship, whatever his company
-        Sim sim = new Sim(config(300), 307, 5_200, 5_000);
+        Sim sim = new Sim(with(config(300), "{\"trainStyle\": \"v2\"}"), 307, 5_200, 5_000);
         BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
         com.fasterxml.jackson.databind.JsonNode s = sim.ctx.config().get().moduleSettings("behemoth");
         int[] p = {5_200, 5_000};
@@ -1119,7 +1119,7 @@ class BehemothModuleTest {
     @Test
     void theStepAsideKeepsTheMarginAndWhereTheEnemyFliesTo() throws Exception {
         // the user, 2026-11-20: out of the circle by 100–200 (near the behemoth), away from a train coming at the ship
-        Sim sim = new Sim(with(config(300), "{\"dodgeMargin\": 150}"), 307, 5_200, 5_000);
+        Sim sim = new Sim(with(config(300), "{\"trainStyle\": \"v2\", \"dodgeMargin\": 150}"), 307, 5_200, 5_000);
         BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
         com.fasterxml.jackson.databind.JsonNode s = sim.ctx.config().get().moduleSettings("behemoth");
         int[] p = {5_200, 5_000};
@@ -1150,7 +1150,7 @@ class BehemothModuleTest {
     void inAnOffendersCircleOnTheWayTheShipBacksAwayThenGoesOnToThePoint() throws Exception {
         // the user, 2026-11-20: «не облетать, а двигаться в противоположном направлении, и если вышел из круга — бежать на
         // точку, и так всё время»
-        Sim sim = new Sim(with(config(300), "{\"dodgeMargin\": 150}"), 307, 5_200, 5_000);
+        Sim sim = new Sim(with(config(300), "{\"trainStyle\": \"v2\", \"dodgeMargin\": 150}"), 307, 5_200, 5_000);
         BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
         com.fasterxml.jackson.databind.JsonNode s = sim.ctx.config().get().moduleSettings("behemoth");
         int[] point = {9_000, 5_000};
@@ -1180,7 +1180,7 @@ class BehemothModuleTest {
     @Test
     void theRollbackStyleIgnoresOffendersOfOurCompanyAndDoesNotBackAway() throws Exception {
         // the user, 2026-11-20: both behaviours kept, «v1» = as the restore point best-2026-11-20
-        Sim sim = new Sim(with(config(300), "{\"trainStyle\": \"v1\", \"dodgeMargin\": 150}"), 307, 5_200, 5_000);
+        Sim sim = new Sim(with(config(300), "{\"dodgeMargin\": 150}"), 307, 5_200, 5_000);
         BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
         com.fasterxml.jackson.databind.JsonNode s = sim.ctx.config().get().moduleSettings("behemoth");
         assertFalse(BehemothModule.newStyle(s));
@@ -1202,7 +1202,7 @@ class BehemothModuleTest {
     @Test
     void theStepAsideGoesAsFarAsTheConfigLets() throws Exception {
         // the user, 2026-11-20: «не дальше 1 200 — сделать настраиваемым», up to the corner
-        Sim sim = new Sim(with(config(300), "{\"dodgeMax\": 2400}"), 307, 5_200, 5_000);
+        Sim sim = new Sim(with(config(300), "{\"trainStyle\": \"v2\", \"dodgeMax\": 2400}"), 307, 5_200, 5_000);
         BehemothModule m = new BehemothModule(sim.ctx, SpawnMemory.inMemory());
         com.fasterxml.jackson.databind.JsonNode s = sim.ctx.config().get().moduleSettings("behemoth");
         int[] p = {5_200, 5_000};
