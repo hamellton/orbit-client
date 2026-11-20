@@ -142,6 +142,9 @@ public final class Safety {
         checkJump(w, h, now);
         heal(w, s, now, hp, attacked);
         noteHp(hp, now);
+        if (!repairing) {
+            repairBestHp = -1; // each repair counts its own growth
+        }
         boolean gate = orbit.config.GateCatalog.instanced(h.mapId());
         if (!repairing && gate) {
             // SharedPlugin's needsRepairing: below the range's min, or below «no NPC» with no target or one above 90 %
@@ -194,7 +197,16 @@ public final class Safety {
             repairing = false;
             blOrigin = 0;
             blReturned = false;
-            log.info("Отремонтирован: HP {}%", pct(hp));
+            log.info("Отремонтирован: {}", health(h));
+            return false;
+        }
+        if (stalled(h, s, hp, attacked, now)) {
+            repairing = false;
+            blOrigin = 0;
+            blReturned = false;
+            log.warn("Ремонт не идёт: {} — {} с не растут, по кораблю не стреляют; цель HP {}%{} — продолжаю без ремонта",
+                    health(h), STALL_MS / 1000, pct(s.repairHpMax()),
+                    s.repairToShield() > 0 ? ", щит " + pct(s.repairToShield()) + "%" : "");
             return false;
         }
         ctx.ship().want(s.repairMode());
@@ -259,6 +271,55 @@ public final class Safety {
             }
         }
         return true;
+    }
+
+    /**
+     * A repair whose hull and shield stop growing ends after this long out of fire (live 2026-11-19 on the VPS: daredevil
+     * an hour at the 4-2 portal at 59 % of a 60 % target, dr strange 40 min at the 2-BL portal waiting for the shield,
+     * killed there five times — both in the repair configuration 2; the user, 2026-11-20: «да делай»).
+     */
+    static final long STALL_MS = 60_000;
+    private long repairGrewAt;
+    private double repairBestHp = -1;
+    private double repairBestShield = -1;
+
+    /**
+     * True when the repair stands still: not attacked, standing, the hull and the shield not above their best of the
+     * repair for {@link #STALL_MS}, and the hull high enough that the repair would not start again at once.
+     */
+    private boolean stalled(WorldSnapshot.Hero h, BotConfig.Safety s, double hp, boolean attacked, long now) {
+        double shield = h.health().shieldPercent();
+        if (repairBestHp < 0 || attacked || h.moving() || ctx.stats().deaths.get() != repairDeaths
+                || orbit.config.GateCatalog.instanced(h.mapId())) {
+            repairGrewAt = now;
+            repairBestHp = hp;
+            repairBestShield = shield;
+            repairDeaths = ctx.stats().deaths.get();
+            return false;
+        }
+        if (hp > repairBestHp + 0.002 || shield > repairBestShield + 0.002) {
+            repairGrewAt = now;
+            repairBestHp = Math.max(repairBestHp, hp);
+            repairBestShield = Math.max(repairBestShield, shield);
+            return false;
+        }
+        return now - repairGrewAt > STALL_MS * 1_000_000 && hp >= Math.max(s.repairHpMin(), s.repairHpNoNpc());
+    }
+
+    private int repairDeaths;
+
+    /** «HP 59% (412 000 из 698 000), щит 30% (…), конфигурация 2» — the numbers to see what a repair waits for. */
+    private static String health(WorldSnapshot.Hero h) {
+        orbit.world.Health x = h.health();
+        StringBuilder b = new StringBuilder("HP ").append(pct(x.hpPercent())).append("% (").append((long) x.hp())
+                .append(" из ").append((long) x.hpMax()).append(")");
+        if (x.shieldMax() > 0) {
+            b.append(", щит ").append(pct(x.shieldPercent())).append("% (").append(x.shield()).append(" из ")
+                    .append(x.shieldMax()).append(")");
+        } else {
+            b.append(", щита нет");
+        }
+        return b.append(", конфигурация ").append(h.config()).toString();
     }
 
     /** The BL map a repair jump left (DarkBot's prevMap), 0 none; {@link #blReturned} — back on it already. */
@@ -518,7 +579,7 @@ public final class Safety {
         }
         WorldSnapshot.Item bot = w.items().get(REPAIR_BOT);
         if (bot != null && bot.available() && bot.remainingMs(now) == 0) {
-            log.info("Ремонт роботом (HP {}%)", pct(hp));
+            log.info("Ремонт роботом ({})", health(w.hero()));
             ctx.actions().useItem(REPAIR_BOT);
             healedAt = now;
         }

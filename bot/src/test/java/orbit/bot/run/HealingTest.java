@@ -248,6 +248,50 @@ class HealingTest {
         assertTrue(sim.sent.stream().noneMatch(p -> p instanceof orbit.protocol.gen.JumpRequest));
     }
 
+    @Test
+    void aRepairWhoseHullStopsGrowingEndsAfterAMinute() {
+        // live 2026-11-19 on the VPS: daredevil an hour at the 4-2 portal at 59 % of a 60 % target
+        Sim sim = lowHp(308, 19_400, 11_854);
+        hp(sim, 28_000);
+        Safety s = new Safety(sim.ctx);
+        for (int t = 0; t < 50; t++) {
+            s.tick(false);
+            sim.now += 100 * Sim.MS;
+        }
+        assertTrue(s.repairing(), "below the start: off to repair");
+        hp(sim, 59_000); // healed to 59 % of a 90 % target, then nothing grows
+        for (int t = 0; t < 3_000 && (t < 20 || sim.world.snapshot(sim.now).hero().moving()); t++) {
+            s.tick(false); // on the way to the repair place nothing counts
+            sim.now += 100 * Sim.MS;
+        }
+        assertTrue(s.repairing(), "arrived: still repairing");
+        for (int t = 0; t < 550; t++) {
+            s.tick(false);
+            sim.now += 100 * Sim.MS;
+        }
+        assertTrue(s.repairing(), "55 s still: the repair goes on");
+        for (int t = 0; t < 100; t++) {
+            s.tick(false);
+            sim.now += 100 * Sim.MS;
+        }
+        assertTrue(!s.repairing(), "over a minute with nothing growing: the repair ends");
+    }
+
+    @Test
+    void aRepairStillGrowingIsNotCutShort() {
+        Sim sim = lowHp(308, 19_400, 11_854);
+        hp(sim, 28_000);
+        Safety s = new Safety(sim.ctx);
+        double hull = 28_000;
+        for (int t = 0; t < 1_500; t++) { // 150 s, a slow repair: +40 a tick
+            hull += 40;
+            hp(sim, Math.min(hull, 89_000));
+            s.tick(false);
+            sim.now += 100 * Sim.MS;
+        }
+        assertTrue(s.repairing(), "the hull keeps growing: still repairing, 150 s on");
+    }
+
     static void onMap(Sim sim, int map, int x, int y) {
         orbit.protocol.gen.ShipInitializationCommand si = new orbit.protocol.gen.ShipInitializationCommand();
         si.userId = 1;
