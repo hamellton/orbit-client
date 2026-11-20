@@ -103,7 +103,7 @@ final class InfoWindows {
         HangarWindow.Rows picked = new HangarWindow.Rows(name("Что подобрано", cols));
         HangarWindow.Rows loot = new HangarWindow.Rows(name("Добыча", cols));
         HangarWindow.Rows deeds = new HangarWindow.Rows(name("Доход и дела", cols));
-        HangarWindow.Rows spent = new HangarWindow.Rows("Патроны и ракеты", "За сессию", "В час", "На куб", "Сегодня");
+        HangarWindow.Rows spent = new HangarWindow.Rows(name("Патроны и ракеты", cols));
         JTabbedPane tabs = new JTabbedPane();
         tabs.addTab("Подобрано", HangarWindow.table(picked));
         tabs.addTab("Добыча", HangarWindow.table(loot));
@@ -160,18 +160,16 @@ final class InfoWindows {
             d.add(row("Потрачено уридия", r.spentUridium(), day.spentUridium(), hours, false));
             d.add(row("Потрачено кредитов", r.spentCredits(), day.spentCredits(), hours, false));
             deeds.setRows(d);
-            // the ammunition spent (the item bar's counts going down): the session, an hour, a Cubikon killed, today
+            // the ammunition spent (the item bar's counts going down): the session, an hour, today
             Map<String, Double> used = st == null ? Map.of() : st.ammoSpent();
-            int cubesNow = st == null ? 0 : st.cubesKilled.get();
             java.util.Set<String> ammoIds = new java.util.LinkedHashSet<>(used.keySet());
             ammoIds.addAll(day.ammo().keySet());
             java.util.List<String[]> a = new java.util.ArrayList<>();
             for (String id : ammoIds.stream().sorted(java.util.Comparator.<String>comparingDouble(
                     id -> -used.getOrDefault(id, 0.0)).thenComparingDouble(id -> -day.ammo().getOrDefault(id, 0.0)))
                     .toList()) {
-                double n = used.getOrDefault(id, 0.0);
-                String[] r0 = row(orbit.app.SessionSummary.clientName(id), n, day.ammo().getOrDefault(id, 0.0), hours, true);
-                a.add(new String[] {r0[0], r0[1], r0[2], cubesNow > 0 && n > 0 ? exact(n / cubesNow) : "—", r0[3]});
+                a.add(row(orbit.app.SessionSummary.clientName(id), used.getOrDefault(id, 0.0),
+                        day.ammo().getOrDefault(id, 0.0), hours, true));
             }
             spent.setRows(a);
             // the NPCs killed by kind: the session, an hour, the average fight (from the pick to the kill), today
