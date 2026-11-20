@@ -63,4 +63,20 @@ class BootyKeysTest {
         org.junit.jupiter.api.Assertions.assertEquals(Map.of("BK", 1), s.keysSpent(Map.of("BK", 20)),
                 "one opened chest; keys bought later spend nothing");
     }
+
+    @Test
+    void ammunitionIsCountedSpentWhenItsNumberDrops() {
+        Stats s = new Stats();
+        s.ammoSeen(Map.of("ammunition_laser_ucb-100", 1_000.0, "ammunition_laser_rsb-75", 500.0, "drone_x", 3.0));
+        s.ammoSeen(Map.of("ammunition_laser_ucb-100", 965.0, "ammunition_laser_rsb-75", 465.0));
+        s.ammoSeen(Map.of("ammunition_laser_ucb-100", 1_965.0)); // a box: nothing spent
+        s.ammoSeen(Map.of("ammunition_laser_ucb-100", 1_930.0));
+        s.ammoSeen(Map.of("ammunition_laser_ucb-100", 0.0)); // the bar sent anew empty: no 1 930 spent at once
+        org.junit.jupiter.api.Assertions.assertEquals(
+                Map.of("ammunition_laser_ucb-100", 70.0, "ammunition_laser_rsb-75", 35.0), s.ammoSpent());
+        Stats base = s.copy();
+        s.ammoSeen(Map.of("ammunition_laser_rsb-75", 430.0));
+        org.junit.jupiter.api.Assertions.assertEquals(Map.of("ammunition_laser_rsb-75", 35.0), s.since(base).ammoSpent(),
+                "after a reset of the window's statistics");
+    }
 }

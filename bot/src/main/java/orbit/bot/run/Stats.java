@@ -53,6 +53,36 @@ public final class Stats {
         return java.util.Map.copyOf(keysSpent);
     }
 
+    /** Ammunition counts as last seen (item id → count) and how much of each went this session. */
+    private final java.util.Map<String, Double> ammoSeen = new java.util.HashMap<>();
+    private final java.util.Map<String, Double> ammoSpent = new java.util.TreeMap<>();
+    /**
+     * A drop bigger than this between two looks is no shooting (35 lasers fire 35 rounds a second; the bot looks ~10
+     * times a second) but the item bar sent anew — not counted.
+     */
+    static final double AMMO_STEP_MAX = 1_000;
+
+    /**
+     * The ammunition spent this session brought up to date with the item bar's counts ({@code ammunition_*} items): a
+     * count lower than the last one seen is that many spent, a higher one (picked up, bought) spends nothing.
+     */
+    public synchronized void ammoSeen(java.util.Map<String, Double> counts) {
+        counts.forEach((id, n) -> {
+            if (!id.startsWith("ammunition_")) {
+                return;
+            }
+            Double was = ammoSeen.put(id, n);
+            if (was != null && n < was && was - n <= AMMO_STEP_MAX) {
+                ammoSpent.merge(id, was - n, Double::sum);
+            }
+        });
+    }
+
+    /** The ammunition spent this session: item id → rounds. */
+    public synchronized java.util.Map<String, Double> ammoSpent() {
+        return java.util.Map.copyOf(ammoSpent);
+    }
+
     /** A full hold is being sold right now ({@code CargoCare}): the modules may wait for the room it makes. */
     public volatile boolean selling;
     /** The way a full hold is handled now (the module's or the config's), for the box picker; null = the config's. */
@@ -107,6 +137,13 @@ public final class Stats {
             int n = v - was.getOrDefault(k, 0);
             if (n > 0) {
                 d.picked.put(k, new AtomicInteger(n));
+            }
+        });
+        java.util.Map<String, Double> spentBefore = base.ammoSpent();
+        ammoSpent().forEach((k, v) -> {
+            double n = v - spentBefore.getOrDefault(k, 0.0);
+            if (n > 0) {
+                d.ammoSpent.put(k, n);
             }
         });
         d.selling = selling;

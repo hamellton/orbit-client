@@ -23,11 +23,19 @@ public final class HourlyReport {
     static final int MIN_FIRST_MINUTES = 15;
 
     /** The counters an hour is told by (rewards, the bot's own counts). */
+    /** @param ammo the ammunition spent: item id → rounds */
     public record Totals(double uridium, double credits, double experience, double honor, int kills, int cubes,
                          int repairs, int deaths, Map<String, Integer> picked, Map<String, Double> items,
-                         double spentUridium, double spentCredits) {
+                         double spentUridium, double spentCredits, Map<String, Double> ammo) {
 
         public static final Totals NONE = new Totals(0, 0, 0, 0, 0, 0, 0, 0, Map.of(), Map.of());
+
+        public Totals(double uridium, double credits, double experience, double honor, int kills, int cubes,
+                      int repairs, int deaths, Map<String, Integer> picked, Map<String, Double> items,
+                      double spentUridium, double spentCredits) {
+            this(uridium, credits, experience, honor, kills, cubes, repairs, deaths, picked, items, spentUridium,
+                    spentCredits, Map.of());
+        }
 
         public Totals(double uridium, double credits, double experience, double honor, int kills, int cubes,
                       int repairs, int deaths, Map<String, Integer> picked, Map<String, Double> items) {
@@ -40,7 +48,8 @@ public final class HourlyReport {
             return new Totals(r.uridium(), r.credits(), r.experience(), r.honor(),
                     s == null ? 0 : s.kills.get(), s == null ? 0 : s.cubesKilled.get(),
                     s == null ? 0 : s.repairs.get(), s == null ? 0 : s.deaths.get(),
-                    s == null ? Map.of() : s.pickedSoFar(), Map.copyOf(r.items()), r.spentUridium(), r.spentCredits());
+                    s == null ? Map.of() : s.pickedSoFar(), Map.copyOf(r.items()), r.spentUridium(), r.spentCredits(),
+                    s == null ? Map.of() : s.ammoSpent());
         }
     }
 

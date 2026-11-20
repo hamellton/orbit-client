@@ -95,6 +95,7 @@ public final class DailyTotals {
         double spentCr = 0;
         Map<String, Integer> picked = new TreeMap<>();
         Map<String, Double> items = new TreeMap<>();
+        Map<String, Double> ammo = new TreeMap<>();
         for (HourlyReport.Totals[] r : runs.values()) {
             HourlyReport.Totals a = r[0];
             HourlyReport.Totals b = r[1];
@@ -110,10 +111,13 @@ public final class DailyTotals {
             spentCr += Math.max(0, b.spentCredits() - a.spentCredits());
             b.picked().forEach((k, v) -> picked.merge(k, v - a.picked().getOrDefault(k, 0), Integer::sum));
             b.items().forEach((k, v) -> items.merge(k, v - a.items().getOrDefault(k, 0.0), Double::sum));
+            b.ammo().forEach((k, v) -> ammo.merge(k, v - a.ammo().getOrDefault(k, 0.0), Double::sum));
         }
         picked.values().removeIf(v -> v <= 0);
         items.values().removeIf(v -> v <= 0);
-        return new HourlyReport.Totals(uri, cr, xp, hon, kills, cubes, repairs, deaths, picked, items, spentUri, spentCr);
+        ammo.values().removeIf(v -> v <= 0);
+        return new HourlyReport.Totals(uri, cr, xp, hon, kills, cubes, repairs, deaths, picked, items, spentUri, spentCr,
+                ammo);
     }
 
     /** Lines for the window's card. */
@@ -197,6 +201,8 @@ public final class DailyTotals {
         t.picked().forEach(picked::put);
         ObjectNode items = n.putObject("items");
         t.items().forEach(items::put);
+        ObjectNode ammo = n.putObject("ammo");
+        t.ammo().forEach(ammo::put);
         return n;
     }
 
@@ -205,9 +211,11 @@ public final class DailyTotals {
         n.path("picked").properties().forEach(e -> picked.put(e.getKey(), e.getValue().asInt()));
         Map<String, Double> items = new TreeMap<>();
         n.path("items").properties().forEach(e -> items.put(e.getKey(), e.getValue().asDouble()));
+        Map<String, Double> ammo = new TreeMap<>();
+        n.path("ammo").properties().forEach(e -> ammo.put(e.getKey(), e.getValue().asDouble()));
         return new HourlyReport.Totals(n.path("uridium").asDouble(), n.path("credits").asDouble(),
                 n.path("experience").asDouble(), n.path("honor").asDouble(), n.path("kills").asInt(),
                 n.path("cubes").asInt(), n.path("repairs").asInt(), n.path("deaths").asInt(), picked, items,
-                n.path("spentUridium").asDouble(), n.path("spentCredits").asDouble());
+                n.path("spentUridium").asDouble(), n.path("spentCredits").asDouble(), ammo);
     }
 }

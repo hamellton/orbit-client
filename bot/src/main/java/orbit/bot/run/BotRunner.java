@@ -471,6 +471,16 @@ public final class BotRunner {
         logoutAt = 0;
     }
 
+    /** The ammunition spent, from the item bar's counts (the Totals window's «Расход»). */
+    private void countAmmo(WorldSnapshot w) {
+        if (w.items().isEmpty()) {
+            return;
+        }
+        java.util.Map<String, Double> counts = new java.util.HashMap<>();
+        w.items().forEach((id, i) -> counts.put(id, i.counter()));
+        ctx.stats().ammoSeen(counts);
+    }
+
     public void tick() {
         if (state == State.STOPPED || state == State.FAILED) {
             return;
@@ -497,6 +507,7 @@ public final class BotRunner {
             offline = false;
             log.info("Связь восстановлена — продолжаю");
         }
+        countAmmo(w);
         // the game's box check: drop everything and pick the boxes it asks for, as a player does with the client
         // (live 2026-11-12 on gb2: the bot kept flying at the circle's edge while the timer ran)
         if (w.boxCheck() != null) {
