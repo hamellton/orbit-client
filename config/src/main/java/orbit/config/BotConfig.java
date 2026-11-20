@@ -797,10 +797,16 @@ public record BotConfig(
      * @param cargoFullAt the hold counts as full at this much free space or less
      * @param sellOres the ores sold ({@code OreTypeModule} numbers: 0 prometium, 1 endurium, 2 terbium, 4 prometid,
      *                 5 duranium, 6 promerium, 7 seprom…)
+     * @param bootyKeys DmPlugin's {@code BootyKeyCollectorManager} ({@code bootyKeysToMonitor}): booty keys by DarkBot's
+     *                  names ({@code GREEN}, {@code BLUE}…, {@link BoxCatalog#bootyKeys()}) whose chest is collected
+     *                  exactly while the account has such a key, whatever its row in {@code boxes} says
+     * @param keyLimits for a watched key (DarkBot's name): how many to keep and how many at most to spend in a session
+     *                  (our addition to DmPlugin's; none — all are spent)
      */
     @JsonInclude(JsonInclude.Include.NON_EMPTY)
     public record Collect(Map<String, BoxRule> boxes, int radius, boolean stayAwayFromEnemies,
-                          boolean ignoreContested, String cargo, int cargoFullAt, List<Integer> sellOres) {
+                          boolean ignoreContested, String cargo, int cargoFullAt, List<Integer> sellOres,
+                          List<String> bootyKeys, Map<String, KeyLimit> keyLimits) {
 
         public static final String CARGO_NONE = "NONE";
         public static final String CARGO_STOP = "STOP";
@@ -815,10 +821,49 @@ public record BotConfig(
             radius = radius <= 0 ? 400 : radius;
             cargo = cargo == null || cargo.isBlank() ? CARGO_NONE : cargo;
             sellOres = sellOres == null ? DEFAULT_SELL : List.copyOf(sellOres);
+            bootyKeys = bootyKeys == null ? List.of() : List.copyOf(bootyKeys);
+            keyLimits = keyLimits == null ? Map.of() : sorted(keyLimits);
+        }
+
+        public Collect(Map<String, BoxRule> boxes, int radius, boolean stayAwayFromEnemies, boolean ignoreContested,
+                       String cargo, int cargoFullAt, List<Integer> sellOres, List<String> bootyKeys) {
+            this(boxes, radius, stayAwayFromEnemies, ignoreContested, cargo, cargoFullAt, sellOres, bootyKeys, null);
+        }
+
+        public Collect(Map<String, BoxRule> boxes, int radius, boolean stayAwayFromEnemies, boolean ignoreContested,
+                       String cargo, int cargoFullAt, List<Integer> sellOres) {
+            this(boxes, radius, stayAwayFromEnemies, ignoreContested, cargo, cargoFullAt, sellOres, null);
         }
 
         public Collect(Map<String, BoxRule> boxes, int radius, boolean stayAwayFromEnemies, boolean ignoreContested) {
             this(boxes, radius, stayAwayFromEnemies, ignoreContested, CARGO_NONE, 0, null);
+        }
+
+        /** The same with other box rules (a module's own list), the rest kept. */
+        public Collect withBoxes(Map<String, BoxRule> rules) {
+            return new Collect(rules, radius, stayAwayFromEnemies, ignoreContested, cargo, cargoFullAt, sellOres, bootyKeys,
+                    keyLimits);
+        }
+
+        /**
+         * DmPlugin's {@code BootyKeyCollectorManager}: for a chest whose key is in {@link #bootyKeys}, whether to collect
+         * it — while the account has at least one such key ({@code keys}: the server's key code → count) beyond the
+         * key's reserve and fewer than its limit are spent ({@code spent}: the key's spent this session, by code);
+         * {@code null} for any other box (its row decides).
+         */
+        public Boolean byKeys(String boxType, Map<String, Integer> keys, Map<String, Integer> spent) {
+            BoxCatalog.BootyKey k = BoxCatalog.keyFor(boxType);
+            if (k == null || !bootyKeys.contains(k.name())) {
+                return null;
+            }
+            KeyLimit l = keyLimits.getOrDefault(k.name(), KeyLimit.NONE);
+            int have = keys == null ? 0 : keys.getOrDefault(k.code(), 0);
+            int used = spent == null ? 0 : spent.getOrDefault(k.code(), 0);
+            return have > Math.max(0, l.keep()) && (l.spend() <= 0 || used < l.spend());
+        }
+
+        public Boolean byKeys(String boxType, Map<String, Integer> keys) {
+            return byKeys(boxType, keys, null);
         }
 
         /**
@@ -836,6 +881,14 @@ public record BotConfig(
         private static final java.util.Set<String> CARGO_ORES = java.util.Set.of("PROMETIUM", "ENDURIUM", "TERBIUM",
                 "XENOMIT", "PROMETID", "DURANIUM", "PROMERIUM", "SEPROM", "PALLADIUM", "MUCOSUM", "BOLTRUM", "SCRAPIUM",
                 "PRISMATIUM", "LUMINIUM", "BIFENON", "OSMIUM", "CHROMIN");
+    }
+
+    /**
+     * @param keep  keys never spent (the chest is left while the account has this many or fewer)
+     * @param spend at most this many spent in a session; 0 — no limit
+     */
+    public record KeyLimit(int keep, int spend) {
+        public static final KeyLimit NONE = new KeyLimit(0, 0);
     }
 
     /** @param waitMs wait on the box this long before the pickup (some boxes need it) */

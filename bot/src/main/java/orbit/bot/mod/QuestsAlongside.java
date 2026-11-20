@@ -92,8 +92,7 @@ public final class QuestsAlongside {
         if (!added) {
             return c;
         }
-        return c.withCollect(new BotConfig.Collect(rules, k.radius(), k.stayAwayFromEnemies(), k.ignoreContested(),
-                k.cargo(), k.cargoFullAt(), k.sellOres()));
+        return c.withCollect(k.withBoxes(rules));
     }
 
     /** An open «pick up cargo boxes» condition among the taken quests. */

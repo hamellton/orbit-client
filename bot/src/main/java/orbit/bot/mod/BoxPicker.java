@@ -231,8 +231,7 @@ public final class BoxPicker {
             if (collectAt == 0) {
                 collectAt = now + ctx.react(100, 300) + 1; // never 0: 0 is «not yet»
             }
-            BotConfig.BoxRule r = rule(c, key(box));
-            long stay = Math.max(MIN_STAY_MS, (r == null ? 0 : r.waitMs()) + Math.min(1_000, tries * 100L)) * 1_000_000L;
+            long stay = Math.max(MIN_STAY_MS, waitMs(c, key(box)) + Math.min(1_000, tries * 100L)) * 1_000_000L;
             if (now >= collectAt && (collectedAt == 0 || now - collectedAt > stay)) {
                 if (tries >= MAX_TRIES) {
                     ignored.put(hash, now);
@@ -281,13 +280,11 @@ public final class BoxPicker {
                     if (anyType) {
                         // the behemoth's own boxes and the config's — not a pirate booty a key opens (live 2026-11-14
                         // on the VPS, 1-BL: PIRATE_BOOTY by the spawn, five keys spent)
-                        BotConfig.BoxRule rule = rule(c, key(b));
                         return orbit.config.BoxCatalog.collectable(key(b))
-                                && (key(b).startsWith(BEHEMOTH_BOX) || rule != null && rule.collect());
+                                && (key(b).startsWith(BEHEMOTH_BOX) || collects(c, w, key(b)));
                     }
-                    BotConfig.BoxRule r = rule(c, key(b));
                     // mines and fireworks show among the resources but are no boxes (list as of 2026-11-12)
-                    return r != null && r.collect() && orbit.config.BoxCatalog.collectable(key(b));
+                    return collects(c, w, key(b)) && orbit.config.BoxCatalog.collectable(key(b));
                 })
                 // not where an NPC flagged IGNORE_BOXES died a moment ago
                 // not inside a no-access zone (the ship cannot get there)
@@ -334,6 +331,27 @@ public final class BoxPicker {
             }
         }
         return true;
+    }
+
+    /**
+     * Whether the config takes boxes of this type: its rule, or — for a chest whose key the config watches
+     * ({@code collect.bootyKeys}, DmPlugin's {@code BootyKeyCollectorManager}) — whether the account has such a key
+     * beyond the reserve and has not spent the session's limit ({@code collect.keyLimits}).
+     */
+    private boolean collects(BotConfig c, WorldSnapshot w, String type) {
+        java.util.Map<String, Integer> keys = w.inventory() == null ? null : w.inventory().bootyKeys();
+        Boolean byKeys = c.collect().byKeys(type, keys, ctx.stats().keysSpent(keys));
+        if (byKeys != null) {
+            return byKeys;
+        }
+        BotConfig.BoxRule r = rule(c, type);
+        return r != null && r.collect();
+    }
+
+    /** The wait on a box: its rule's, else (a chest taken by its keys with no row) the one DarkBot users set for it. */
+    static int waitMs(BotConfig c, String type) {
+        BotConfig.BoxRule r = rule(c, type);
+        return r != null ? r.waitMs() : orbit.config.BoxCatalog.waitMs(type);
     }
 
     /** The config's rule of a type: its own, else the one of DarkBot's name for it ({@code SOLAR_CLASH}). */

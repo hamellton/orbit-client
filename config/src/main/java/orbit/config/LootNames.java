@@ -20,7 +20,7 @@ public final class LootNames {
             Map.entry("PIRATE_BOOTY", "пиратский ящик (зелёный)"),
             Map.entry("PIRATE_BOOTY_BLUE", "пиратский ящик (синий)"),
             Map.entry("PIRATE_BOOTY_RED", "пиратский ящик (красный)"),
-            Map.entry("PIRATE_BOOTY_GOLD", "пиратский ящик (золотой)"),
+            Map.entry("PIRATE_BOOTY_GOLD", "пиратский ящик (жёлтый, золотой)"),
             Map.entry("BLACK_BOOTY_BOX", "чёрный бути-ящик"),
             Map.entry("ASTRAL_BOOTY_BOX", "астральный бути-ящик"),
             Map.entry("ASTRAL_PRIME_BOOTY_BOX", "астральный прайм бути-ящик"),

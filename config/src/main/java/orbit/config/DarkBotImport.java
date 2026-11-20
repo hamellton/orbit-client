@@ -112,7 +112,7 @@ public final class DarkBotImport {
         Map<String, BotConfig.NpcRule> npcs = npcs(root.path("LOOT").path("NPC_INFOS"),
                 root.path("LOOT").path("SAB").path("ENABLED").asBoolean(false));
         BotConfig.Loot loot = loot(root.path("LOOT"));
-        BotConfig.Collect collect = collect(root.path("COLLECT"));
+        BotConfig.Collect collect = collect(root.path("COLLECT"), root.path("CUSTOM_CONFIGS"), enabled);
         BotConfig.Pet pet = new BotConfig.Pet(root.path("PET").path("ENABLED").asBoolean(false),
                 petGear(textOrNull(root.path("PET").path("MODULE_ID"))));
         BotConfig.Safety safety = safety(general.path("SAFETY"), root.path("CUSTOM_CONFIGS"), enabled);
@@ -277,13 +277,24 @@ public final class DarkBotImport {
                 l.has("MAX_CIRCLE_ITERATIONS") ? l.path("MAX_CIRCLE_ITERATIONS").asInt() : null);
     }
 
-    private static BotConfig.Collect collect(JsonNode c) {
+    /** DmPlugin's behaviour that turns a chest's collecting on and off by the account's keys. */
+    static final String BOOTY_KEYS = "com.deeme.behaviours.bootykeymanager.BootyKeyCollectorManager";
+
+    private static BotConfig.Collect collect(JsonNode c, JsonNode custom, Set<String> enabled) {
         Map<String, BotConfig.BoxRule> boxes = new LinkedHashMap<>();
         c.path("BOX_INFOS").properties().forEach(e -> boxes.put(e.getKey(), new BotConfig.BoxRule(
                 e.getValue().path("collect").asBoolean(false), e.getValue().path("waitTime").asInt(0),
                 e.getValue().path("priority").asInt(0))));
+        List<String> keys = new ArrayList<>();
+        if (enabled.contains(BOOTY_KEYS)) {
+            custom.path(BOOTY_KEYS).path("bootyKeysToMonitor").forEach(k -> {
+                if (BoxCatalog.bootyKey(k.asText()) != null) {
+                    keys.add(k.asText());
+                }
+            });
+        }
         return new BotConfig.Collect(boxes, c.path("RADIUS").asInt(400), c.path("STAY_AWAY_FROM_ENEMIES").asBoolean(true),
-                c.path("IGNORE_CONTESTED_BOXES").asBoolean(true));
+                c.path("IGNORE_CONTESTED_BOXES").asBoolean(true), BotConfig.Collect.CARGO_NONE, 0, null, keys);
     }
 
     private static BotConfig.Safety safety(JsonNode s, JsonNode custom, Set<String> enabled) {
@@ -418,7 +429,7 @@ public final class DarkBotImport {
     /** Everything else worth keeping: settings of enabled DarkBot features and the small global sections. */
     private void keepRest(JsonNode root, Set<String> enabled, String moduleClass) {
         Set<String> handled = Set.of(moduleClass, "dev.shared.do_gamer.behaviour.SimpleHealing",
-                "ge5.cubi_camp", "eu.ge5.cubicamp.CubiCampModule");
+                "ge5.cubi_camp", "eu.ge5.cubicamp.CubiCampModule", BOOTY_KEYS);
         List<String> kept = new ArrayList<>();
         root.path("CUSTOM_CONFIGS").properties().forEach(e -> {
             if (enabled.contains(e.getKey()) && !handled.contains(e.getKey())) {

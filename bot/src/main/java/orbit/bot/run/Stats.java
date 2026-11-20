@@ -33,6 +33,26 @@ public final class Stats {
         }
         return out;
     }
+    /** Booty keys as last seen (server code → count) and how many of each went this session (every drop counted). */
+    private final java.util.Map<String, Integer> keysSeen = new java.util.HashMap<>();
+    private final java.util.Map<String, Integer> keysSpent = new java.util.HashMap<>();
+
+    /**
+     * The booty keys spent this session (server code → count), brought up to date with the counts the server sends now:
+     * a count lower than the last one seen is that many spent, a higher one (keys bought or won) spends nothing.
+     */
+    public synchronized java.util.Map<String, Integer> keysSpent(java.util.Map<String, Integer> now) {
+        if (now != null) {
+            now.forEach((code, n) -> {
+                Integer was = keysSeen.put(code, n);
+                if (was != null && n < was) {
+                    keysSpent.merge(code, was - n, Integer::sum);
+                }
+            });
+        }
+        return java.util.Map.copyOf(keysSpent);
+    }
+
     /** A full hold is being sold right now ({@code CargoCare}): the modules may wait for the room it makes. */
     public volatile boolean selling;
     /** The way a full hold is handled now (the module's or the config's), for the box picker; null = the config's. */

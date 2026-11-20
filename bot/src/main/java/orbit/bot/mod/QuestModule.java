@@ -1140,8 +1140,7 @@ public final class QuestModule implements BotModule {
                     BotConfig.BoxRule own = k.boxes().get(b);
                     rules.put(b, new BotConfig.BoxRule(true, own != null ? own.waitMs() : 0, own != null ? own.priority() : 0));
                 }
-                out = out.withCollect(new BotConfig.Collect(rules, k.radius(), k.stayAwayFromEnemies(), k.ignoreContested(),
-                        k.cargo(), k.cargoFullAt(), k.sellOres()));
+                out = out.withCollect(k.withBoxes(rules));
             }
         } else if (wk.kind() == Kind.BOX || wk.kind() == Kind.ORE) {
             BotConfig.Collect k = c.collect();
@@ -1151,8 +1150,7 @@ public final class QuestModule implements BotModule {
                 picks.put(n, new BotConfig.BoxRule(true, own != null ? own.waitMs() : n.startsWith("ore_") ? 800 : 0,
                         own != null ? own.priority() : 0));
             }
-            out = out.withNpcs(Map.of()).withCollect(new BotConfig.Collect(picks, k.radius(), k.stayAwayFromEnemies(),
-                    k.ignoreContested(), k.cargo(), k.cargoFullAt(), k.sellOres()));
+            out = out.withNpcs(Map.of()).withCollect(k.withBoxes(picks));
         }
         BotConfig.General g = c.general();
         return out.withGeneral(new BotConfig.General(wk.map(), g.offensive(), g.roam(), g.run(),
