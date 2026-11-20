@@ -53,6 +53,8 @@ final class AccountDialog {
     private final JComboBox<ShipItem> sellShip = new JComboBox<>();
     private final JComboBox<ShipItem> serviceShip = new JComboBox<>();
     private int serviceInitial;
+    private final JComboBox<ShipItem> startShip = new JComboBox<>();
+    private int startInitial;
     private final JLabel shipsResult = new JLabel(" ");
     private final char echo;
     private boolean saved;
@@ -81,6 +83,7 @@ final class AccountDialog {
                 String c = entry.config();
                 config.setSelectedItem(c == null ? NO_CONFIG : c);
                 serviceInitial = entry.serviceShip();
+                startInitial = entry.startShip();
                 fillShips(entry.ships(), entry.palladium());
                 clickHold.setValue(entry.clickHold() / 1000.0);
             } catch (java.io.IOException ignored) {
@@ -114,6 +117,11 @@ final class AccountDialog {
         row = row(form, row, "Конфиг", config, "Что бот делает в игре");
         row = row(form, row, "После клика по карте ждать, с", clickHold,
                 "Корабль долетел, куда вы кликнули, — столько стоит, потом бот продолжает (по умолчанию 1 с)");
+        JLabel start = new JLabel("Запуск");
+        start.setFont(start.getFont().deriveFont(java.awt.Font.BOLD));
+        row = row(form, row, "", start, null);
+        row = row(form, row, "Запускать на", startShip, "Бот сам сделает этот корабль активным на сайте при запуске"
+                + " (выход, смена, вход). В палладии с двумя кораблями главнее корабль сбора. «Не выбран» — на текущем");
         JLabel palladium = new JLabel("Палладий, два корабля");
         palladium.setFont(palladium.getFont().deriveFont(java.awt.Font.BOLD));
         row = row(form, row, "", palladium, null);
@@ -317,6 +325,7 @@ final class AccountDialog {
             var all = AccountSettings.load(file);
             var entry = all.account(n);
             var next = entry.withConfig(cfg).withPalladium(pair).withServiceShip(idOf(serviceShip))
+                    .withStartShip(idOf(startShip))
                     .withClickHold((int) Math.round(((Number) clickHold.getValue()).doubleValue() * 1000));
             if (!next.equals(entry) || !all.accounts().containsKey(n)) {
                 all.with(n, next).save(file);
@@ -341,23 +350,25 @@ final class AccountDialog {
         int collect = chosen != null ? chosen.collect() : idOf(collectShip);
         int sell = chosen != null ? chosen.sell() : idOf(sellShip);
         int service = idOf(serviceShip) != 0 ? idOf(serviceShip) : serviceInitial;
+        int startOn = idOf(startShip) != 0 ? idOf(startShip) : startInitial;
         java.util.List<ShipItem> items = new java.util.ArrayList<>();
         items.add(NO_SHIP);
         for (int i = 0; i < ships.size(); i++) {
             items.add(new ShipItem(ships.get(i).id(), "Ангар " + (i + 1) + ": " + ships.get(i).label()));
         }
-        for (int want : new int[] {collect, sell, service}) {
+        for (int want : new int[] {collect, sell, service, startOn}) {
             if (want > 0 && items.stream().noneMatch(s -> s.id() == want)) {
                 items.add(new ShipItem(want, "ангар " + want + " (нет в списке с сайта)"));
             }
         }
-        for (JComboBox<ShipItem> box : java.util.List.of(collectShip, sellShip, serviceShip)) {
+        for (JComboBox<ShipItem> box : java.util.List.of(collectShip, sellShip, serviceShip, startShip)) {
             box.removeAllItems();
             items.forEach(box::addItem);
         }
         select(collectShip, collect);
         select(sellShip, sell);
         select(serviceShip, service);
+        select(startShip, startOn);
         if (ships.isEmpty()) {
             shipsResult.setForeground(Hud.DIM);
             shipsResult.setText(editing == null ? "Сохраните аккаунт, потом откройте снова" : "Нажмите «Обновить с сайта»");

@@ -275,7 +275,7 @@ class PalladiumModuleTest {
     }
 
     /** A real profile: collect ship 500101 on 5-3, sell ship 500102 parked at 5-2; no portal before a switch. */
-    private static BotConfig twoShips() throws Exception {
+    static BotConfig twoShips() throws Exception {
         return config().withModuleSettings("palladium", orbit.config.Json.MAPPER.readTree(
                 "{\"goPortalChange\": false, \"sellOnDie\": true, \"collectHangar\": 500101, \"sellHangar\": 500102,"
                         + " \"aditionalWaitingTime\": 5}"));

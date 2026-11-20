@@ -9,6 +9,19 @@ public final class AccountShips {
     private volatile int palladiumCollect;
     private volatile int palladiumSell;
     private volatile int serviceShip;
+    private volatile int startShip;
+
+    /**
+     * The ship to start on ({@code 0} = the one active on the site): the runner switches to it at the session's start,
+     * unless the two-ship palladium's collect ship rules.
+     */
+    public void setStartShip(int hangar) {
+        startShip = hangar;
+    }
+
+    public int startShip() {
+        return startShip;
+    }
 
     /** The ship for the Skylab and the enrichment (a big hold, e.g. the Citadel); {@code 0} = none chosen. */
     public void setServiceShip(int hangar) {

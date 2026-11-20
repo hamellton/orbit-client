@@ -734,6 +734,9 @@ public final class OrbitMain {
                         conn.run();
                     });
                     orbit.bot.run.AccountShips ships = accountShips(accountName);
+                    if (previous != null) {
+                        ships.setStartShip(0); // after a ship change: on the ship the change chose, not back to the start one
+                    }
                     ModuleRun run = startModule(feed, conn, cfgName, cfg, end, why, profile, stopFile,
                             shopFor(auth, conn), () -> !game.isAlive(), ships, previous, override);
                     current.set(run);
@@ -1106,6 +1109,7 @@ public final class OrbitMain {
                 ships.setPalladium(p.collect(), p.sell());
             }
             ships.setServiceShip(entry.serviceShip());
+            ships.setStartShip(entry.startShip());
         } catch (java.io.IOException e) {
             log.warn("Настройки аккаунта не прочитать: {}", e.getMessage());
         }

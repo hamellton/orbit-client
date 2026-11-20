@@ -67,6 +67,8 @@ public final class BotRunner {
     private volatile int activeHangar;
     private volatile int hangarRequest;
     private boolean logoutHere;
+    /** The start ship was looked at this session (once). */
+    private boolean startChecked;
     /** Honor by the reward log and the pilot's total at the last tick ({@code NaN} before the first). */
     private double honorGained = Double.NaN;
     private double honorTotal = Double.NaN;
@@ -668,6 +670,21 @@ public final class BotRunner {
             state = State.WORKING;
             show(visit.status());
             return;
+        }
+        // the account's start ship (account settings «Запускать на»): once, as soon as the site's active ship is known;
+        // the two-ship palladium's collect ship rules over it there (user's choice)
+        int startShip = ctx.ships().startShip();
+        if (!startChecked && startShip != 0 && activeHangar != 0 && hangarRequest == 0 && !ownShipChanges
+                && service.phase() == ServiceVisit.Phase.IDLE) {
+            startChecked = true;
+            if (startShip != activeHangar) {
+                log.info("Меняю корабль: ангар {} → {} (корабль запуска из настроек аккаунта)", activeHangar, startShip);
+                hangarRequest = startShip;
+                logoutHere = true; // just logged in: out where it stands
+                module.pause();
+                stop("смена корабля (корабль запуска)");
+                return;
+            }
         }
         int wantHangar = hangarRequest == 0 && !module.busy() && service.phase() == ServiceVisit.Phase.IDLE
                 ? module.hangarWanted(activeHangar, w) : 0;
