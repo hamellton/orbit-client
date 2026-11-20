@@ -131,6 +131,25 @@ class CargoCareTest {
     }
 
     @Test
+    void anotherTradersPricesDoNotHidePalladium() throws Exception {
+        // live 2026-11-20 on the Windows laptop: 3-1's window kept over the ship change, the sell ship stood at 5-2
+        Sim sim = new Sim(config(BotConfig.Collect.CARGO_BASE), 92, 9_900, 6_600);
+        orbit.protocol.gen.AttributeOreCountUpdateCommand o = new orbit.protocol.gen.AttributeOreCountUpdateCommand();
+        o.oreCountList = List.of(ore(8, 1_248), ore(6, 121));
+        sim.world.apply(o, sim.now);
+        prices(sim); // a refinery's window: palladium −1
+        CargoPlan plan = new CargoPlan(BotConfig.Collect.CARGO_BASE, 92, List.of(8), true);
+        List<int[]> sell = CargoCare.sellable(plan, sim.world.snapshot(sim.now));
+        assertEquals(1, sell.size(), "palladium still to exchange");
+        assertEquals(1_248, sell.get(0)[1]);
+        orbit.protocol.gen.OreTradeInfoCommand r = new orbit.protocol.gen.OreTradeInfoCommand();
+        r.palladiumExchangeRate = 15;
+        r.type = 1;
+        sim.world.apply(r, sim.now); // 5-2's window: whole parts of the rate
+        assertEquals(1_245, CargoCare.sellable(plan, sim.world.snapshot(sim.now)).get(0)[1]);
+    }
+
+    @Test
     void nothingToSellMeansNoTripJustNoMoreCargo() throws Exception {
         Sim sim = new Sim(config(BotConfig.Collect.CARGO_BASE), 26, 10_000, 6_000);
         orbit.protocol.gen.LegacyModule cap = new orbit.protocol.gen.LegacyModule();

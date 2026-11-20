@@ -94,8 +94,11 @@ final class CargoCare {
                 int rate = prices.get(PALLADIUM);
                 n -= n % rate;
             }
-            // a trade window seen: only what it buys
-            if (n > 0 && (prices.isEmpty() || prices.getOrDefault(ore, 0) > 0)) {
+            // a trade window seen: only what it buys — but palladium is exchanged only at 5-2's trader, so a window of
+            // another (no rate in it) says nothing of it (live 2026-11-19/20 on the Windows laptop, account 4: 3-1's
+            // prices kept over the ship change, the sell ship stood 5 h at 5-2's trader with 1 248 palladium, «nothing
+            // to sell»)
+            if (n > 0 && (prices.isEmpty() || prices.getOrDefault(ore, 0) > 0 || ore == PALLADIUM)) {
                 out.add(new int[] {ore, (int) Math.min(Integer.MAX_VALUE, n)});
             }
         }
