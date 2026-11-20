@@ -109,4 +109,14 @@ class CraftWatchTest {
         assertTrue(sim.sent.stream().noneMatch(AssemblyBuildRequest.class::isInstance),
                 "the game has not told how many: nothing crafted");
     }
+
+    @Test
+    void anOreIsCountedInTheHold() {
+        // «Сепром (BL)» counts resource_ore_seprom: the game tells it only as the hold's ore (gb2, 2026-11-20)
+        Sim sim = sim(1_000);
+        assertEquals(-1, CraftWatch.count(sim.world.snapshot(sim.now), "resource_ore_seprom"), "the hold not told yet");
+        EnricherTest.hold(sim, new int[] {7, 1_200}, new int[] {6, 50});
+        assertEquals(1_200, CraftWatch.count(sim.world.snapshot(sim.now), "resource_ore_seprom"));
+        assertEquals(0, CraftWatch.count(sim.world.snapshot(sim.now), "resource_ore_prometid"), "told, none of it");
+    }
 }

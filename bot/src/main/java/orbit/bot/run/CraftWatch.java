@@ -229,8 +229,24 @@ public final class CraftWatch {
             return i.counter();
         }
         Double inv = w.inventory().resources().get(item);
-        return inv == null ? -1 : inv;
+        if (inv != null) {
+            return inv;
+        }
+        // an ore (resource_ore_seprom: what «Сепром (BL)» makes) lies in the hold, the game counts it there only
+        // (the user, 2026-11-20 on gb2: «Крафт: игра не прислала количество resource_ore_seprom — не крафчу»)
+        Integer ore = item.startsWith(ORE_PREFIX) ? HOLD_ORES.get(item.substring(ORE_PREFIX.length())) : null;
+        if (ore != null && !w.inventory().ores().isEmpty() && w.inventory().oresSinceLogin()) {
+            return w.inventory().ore(ore);
+        }
+        return -1;
     }
+
+    private static final String ORE_PREFIX = "resource_ore_";
+
+    /** The hold's ores by their item name ({@code OreTypeModule} numbers). */
+    private static final java.util.Map<String, Integer> HOLD_ORES = java.util.Map.of("prometium", 0, "endurium", 1,
+            "terbium", 2, "xenomit", 3, "prometid", 4, "duranium", 5, "promerium", 6, "seprom", 7, "palladium", 8,
+            "osmium", 28);
 
     private static String name(BotConfig.CraftRule r) {
         return r.item() != null && !r.item().isBlank() ? ItemCatalog.label(r.item()) : r.recipe();
