@@ -48,6 +48,7 @@ final class AccountDialog {
     private final ConfigBox config = new ConfigBox();
     private final javax.swing.JSpinner clickHold = new javax.swing.JSpinner(
             new javax.swing.SpinnerNumberModel(1.0, 0.0, 30.0, 0.5));
+    private final JCheckBox calendar = new JCheckBox("забирать награду календаря входа", true);
     private final JLabel error = new JLabel(" ");
     private final JComboBox<ShipItem> collectShip = new JComboBox<>();
     private final JComboBox<ShipItem> sellShip = new JComboBox<>();
@@ -86,6 +87,7 @@ final class AccountDialog {
                 startInitial = entry.startShip();
                 fillShips(entry.ships(), entry.palladium());
                 clickHold.setValue(entry.clickHold() / 1000.0);
+                calendar.setSelected(entry.claimsCalendar());
             } catch (java.io.IOException ignored) {
                 // stays «—»
                 fillShips(java.util.List.of(), null);
@@ -117,6 +119,8 @@ final class AccountDialog {
         row = row(form, row, "Конфиг", config, "Что бот делает в игре");
         row = row(form, row, "После клика по карте ждать, с", clickHold,
                 "Корабль долетел, куда вы кликнули, — столько стоит, потом бот продолжает (по умолчанию 1 с)");
+        row = row(form, row, "Календарь", calendar,
+                "Раз в игровые сутки бот отмечает вход на сайте (как AstraBot): пропущенный день — потерянная награда");
         JLabel start = new JLabel("Запуск");
         start.setFont(start.getFont().deriveFont(java.awt.Font.BOLD));
         row = row(form, row, "", start, null);
@@ -325,7 +329,7 @@ final class AccountDialog {
             var all = AccountSettings.load(file);
             var entry = all.account(n);
             var next = entry.withConfig(cfg).withPalladium(pair).withServiceShip(idOf(serviceShip))
-                    .withStartShip(idOf(startShip))
+                    .withStartShip(idOf(startShip)).withCalendar(calendar.isSelected())
                     .withClickHold((int) Math.round(((Number) clickHold.getValue()).doubleValue() * 1000));
             if (!next.equals(entry) || !all.accounts().containsKey(n)) {
                 all.with(n, next).save(file);

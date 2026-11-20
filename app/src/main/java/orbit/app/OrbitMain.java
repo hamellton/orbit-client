@@ -748,6 +748,7 @@ public final class OrbitMain {
                     // for palladium only, and the ship list stayed empty otherwise)
                     watchHangar(auth, conn, run.runner(), lastHost, accountName, cfg, ships);
                     watchSkylab(auth, conn, feed, game);
+                    watchCalendar(auth, conn, accountName, game);
                     watchLab(conn, game);
                     feed.setRefreshInfo(() -> refreshInfo(auth, conn, feed));
                     planRefresh(conn, run.runner(), game);
@@ -948,6 +949,100 @@ public final class OrbitMain {
                 }
             }
         };
+    }
+
+    /** Where the server day of each account's last claimed login calendar reward is kept. */
+    static final Path CALENDAR_FILE = Path.of("local", "calendar.properties");
+    /** The calendar is looked at this often while the game runs (a new server day, a failed claim). */
+    static final long CALENDAR_EVERY_MS = 10 * 60_000L;
+    static final long CALENDAR_RETRY_MS = 30 * 60_000L;
+
+    /**
+     * The daily login calendar (as AstraBot right after its login): once the game session is known, and again after
+     * every server midnight while the game thread lives, the site books the day — unless the account's settings turn it
+     * off. The day claimed is remembered in {@link #CALENDAR_FILE}, so relogins and restarts do not ask again.
+     */
+    private static void watchCalendar(AuthClient auth, GameConnection conn, String accountName, Thread game) {
+        java.util.Map<String, String> ctx = org.slf4j.MDC.getCopyOfContextMap();
+        Thread.ofVirtual().name("calendar").start(() -> {
+            if (ctx != null) {
+                org.slf4j.MDC.setContextMap(ctx);
+            }
+            java.util.Random random = new java.util.Random();
+            try {
+                Thread.sleep(30_000 + random.nextInt(60_000)); // after the login's own pages, not in their burst
+                while (game.isAlive()) {
+                    long next = CALENDAR_EVERY_MS;
+                    String today = orbit.auth.DailyLogin.serverToday().toString();
+                    var session = conn.session();
+                    if (session != null && session.host() != null && claimsCalendar(accountName)
+                            && !today.equals(calendarClaimed(accountName))) {
+                        try {
+                            var r = new orbit.auth.DailyLogin(auth.http(), session.host()).claim();
+                            if (r.ok()) {
+                                rememberCalendar(accountName, today);
+                                log.info("Календарь входа: день {} отмечен на сайте — ответ: {}", today,
+                                        r.answer().isEmpty() ? "пусто" : r.answer());
+                            } else {
+                                log.warn("Календарь входа: сайт ответил {} — повторю через 30 мин", r.status());
+                                next = CALENDAR_RETRY_MS;
+                            }
+                        } catch (java.io.IOException | RuntimeException e) {
+                            log.warn("Календарь входа: не вышло ({}) — повторю через 30 мин", e.getMessage());
+                            next = CALENDAR_RETRY_MS;
+                        }
+                    }
+                    Thread.sleep(next + random.nextInt(60_000));
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        });
+    }
+
+    private static boolean claimsCalendar(String accountName) {
+        try {
+            return orbit.config.AccountSettings.load(orbit.config.AccountSettings.DEFAULT_FILE).account(accountName)
+                    .claimsCalendar();
+        } catch (java.io.IOException | RuntimeException e) {
+            return true;
+        }
+    }
+
+    private static final Object CALENDAR_LOCK = new Object();
+
+    /** The server day last claimed for the account, {@code null} = never. */
+    static String calendarClaimed(String accountName) {
+        synchronized (CALENDAR_LOCK) {
+            return readCalendar().getProperty(accountName);
+        }
+    }
+
+    static void rememberCalendar(String accountName, String day) {
+        synchronized (CALENDAR_LOCK) {
+            java.util.Properties p = readCalendar();
+            p.setProperty(accountName, day);
+            try {
+                java.nio.file.Files.createDirectories(CALENDAR_FILE.getParent());
+                try (var w = java.nio.file.Files.newBufferedWriter(CALENDAR_FILE)) {
+                    p.store(w, "server day of the last claimed login calendar reward, per account");
+                }
+            } catch (java.io.IOException e) {
+                log.warn("Календарь входа: день не записан ({})", e.getMessage());
+            }
+        }
+    }
+
+    private static java.util.Properties readCalendar() {
+        java.util.Properties p = new java.util.Properties();
+        if (java.nio.file.Files.exists(CALENDAR_FILE)) {
+            try (var r = java.nio.file.Files.newBufferedReader(CALENDAR_FILE)) {
+                p.load(r);
+            } catch (java.io.IOException e) {
+                // unreadable: claimed again, which is harmless
+            }
+        }
+        return p;
     }
 
     /** The lab's enrichment is asked this often (the client asks it whenever the cargo window opens). */

@@ -43,6 +43,8 @@ Status: Stage 2 done; stage 3 in progress (login, game connection, vault, client
   `ORBIT_MASTER_PASSWORD` for headless), `SecretMask` + logback converters, `vault` CLI.
 - `auth` — website login (`AuthClient`), `AccountLogin` (per server: its saved dosid, else another server's
   dosid + the site's server switch, the password last; stores every new dosid). Accounts `name@server`.
+  `DailyLogin`: the login calendar booked on the site (`flashAPI/dailyLogin.php?doBook=1`, as AstraBot) once a
+  server day (Europe/Berlin) by `OrbitMain.watchCalendar`; claimed days in `local/calendar.properties`, off per account.
   `orbit.auth.proxy`: per-account `ProxyRoute` — own SOCKS5/HTTP CONNECT `ProxyConnector` (proxy resolves
   names) for game sockets, `LocalProxy` loopback relay for `HttpURLConnection`/`HttpClient`, `verify()`
   before every login (no proxy reachable = no login, never direct). `ProxySpec` (parsing) is in `secrets`.
