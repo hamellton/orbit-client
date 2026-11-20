@@ -93,7 +93,96 @@ final class InfoWindows {
         });
     }
 
+    /**
+     * «Итоги» in full (the user, 2026-11-20: «подобрано — не понятно чего; кнопку детали, окно как ангар»): what was
+     * picked by its kind (the behemoth's, the invokes' and other boxes, the ore), the loot by item, the income and
+     * the deeds — the session, per hour and today over all runs, exact numbers.
+     */
+    static void totals(WorldFeed feed) {
+        String[] cols = {"", "За сессию", "В час", "Сегодня"};
+        HangarWindow.Rows picked = new HangarWindow.Rows(name("Что подобрано", cols));
+        HangarWindow.Rows loot = new HangarWindow.Rows(name("Добыча", cols));
+        HangarWindow.Rows deeds = new HangarWindow.Rows(name("Доход и дела", cols));
+        JTabbedPane tabs = new JTabbedPane();
+        tabs.addTab("Подобрано", HangarWindow.table(picked));
+        tabs.addTab("Добыча", HangarWindow.table(loot));
+        tabs.addTab("Доход и дела", HangarWindow.table(deeds));
+        JLabel note = new JLabel();
+        open(feed, "Итоги", tabs, note, false, () -> {
+            WorldSnapshot.Rewards r = feed.sessionRewards();
+            orbit.bot.run.Stats st = feed.sessionStats();
+            double hours = feed.sessionHours();
+            orbit.app.HourlyReport.Totals day = orbit.app.DailyTotals.of(feed.account()).today();
+            Map<String, Integer> pickedNow = st == null ? Map.of() : st.pickedSoFar();
+            java.util.Set<String> kinds = new java.util.LinkedHashSet<>(pickedNow.keySet());
+            kinds.addAll(day.picked().keySet());
+            java.util.List<String[]> p = new java.util.ArrayList<>();
+            int sum = 0;
+            int sumDay = 0;
+            for (String k : kinds.stream().sorted(java.util.Comparator.<String>comparingInt(
+                    k -> -pickedNow.getOrDefault(k, 0)).thenComparingInt(k -> -day.picked().getOrDefault(k, 0))).toList()) {
+                int n = pickedNow.getOrDefault(k, 0);
+                int d = day.picked().getOrDefault(k, 0);
+                sum += n;
+                sumDay += d;
+                p.add(row(cap(k), n, d, hours, true));
+            }
+            if (kinds.size() > 1) {
+                p.add(row("Всего", sum, sumDay, hours, true));
+            }
+            picked.setRows(p);
+            java.util.Set<String> ids = new java.util.LinkedHashSet<>(r.items().keySet());
+            ids.addAll(day.items().keySet());
+            java.util.List<String[]> l = new java.util.ArrayList<>();
+            for (String id : ids.stream().sorted(java.util.Comparator.<String>comparingDouble(
+                    id -> -r.items().getOrDefault(id, 0.0)).thenComparingDouble(id -> -day.items().getOrDefault(id, 0.0)))
+                    .toList()) {
+                l.add(row(orbit.app.SessionSummary.displayName(id), r.items().getOrDefault(id, 0.0),
+                        day.items().getOrDefault(id, 0.0), hours, true));
+            }
+            loot.setRows(l);
+            java.util.List<String[]> d = new java.util.ArrayList<>();
+            d.add(row("Уридий", r.uridium(), day.uridium(), hours, true));
+            d.add(row("Кредиты", r.credits(), day.credits(), hours, true));
+            d.add(row("Опыт", r.experience(), day.experience(), hours, true));
+            d.add(row("Честь", r.honor(), day.honor(), hours, true));
+            d.add(row("Убито NPC", st == null ? 0 : st.kills.get(), day.kills(), hours, true));
+            if (st != null && st.cubesFought() > 0 || day.cubes() > 0) {
+                d.add(row("Кубиконов добито", st == null ? 0 : st.cubesKilled.get(), day.cubes(), hours, true));
+            }
+            d.add(row("Подобрано всего", sum, sumDay, hours, true));
+            d.add(row("Ремонтов", st == null ? 0 : st.repairs.get(), day.repairs(), hours, false));
+            d.add(row("Смертей", st == null ? 0 : st.deaths.get(), day.deaths(), hours, false));
+            d.add(row("Потрачено уридия", r.spentUridium(), day.spentUridium(), hours, false));
+            d.add(row("Потрачено кредитов", r.spentCredits(), day.spentCredits(), hours, false));
+            deeds.setRows(d);
+            note.setText(feed.sessionStartNanos() == 0 ? "сессия ещё не началась"
+                    : "Сессия " + Hud.clock(java.time.Duration.ofNanos(feed.sessionNanos()))
+                    + " · «сегодня» — за все запуски с полуночи · раз в секунду");
+        });
+    }
+
+    private static String[] name(String first, String[] cols) {
+        String[] c = cols.clone();
+        c[0] = first;
+        return c;
+    }
+
+    private static String[] row(String label, double session, double today, double hours, boolean perHour) {
+        String h = perHour && session != 0 && hours >= 1.0 / 60 ? exact(session / hours) : "—";
+        return new String[] {label, exact(session), h, exact(today)};
+    }
+
+    private static String exact(double v) {
+        return Math.abs(v) < 0.5 ? "—" : orbit.app.SessionSummary.number(v);
+    }
+
     private static void open(WorldFeed feed, String what, JTabbedPane tabs, JLabel note, Runnable refresh) {
+        open(feed, what, tabs, note, true, refresh);
+    }
+
+    private static void open(WorldFeed feed, String what, JTabbedPane tabs, JLabel note, boolean refreshButton,
+                             Runnable refresh) {
         String key = what + "|" + (feed.account() == null ? feed.title() : feed.account());
         JFrame shown = OPEN.get(key);
         if (shown != null) {
@@ -111,7 +200,9 @@ final class InfoWindows {
             }
         });
         JPanel top = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 6));
-        top.add(now);
+        if (refreshButton) {
+            top.add(now);
+        }
         top.add(note);
         Timer timer = new Timer(1_000, e -> refresh.run());
         refresh.run();

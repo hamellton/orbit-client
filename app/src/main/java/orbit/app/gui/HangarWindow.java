@@ -194,14 +194,16 @@ final class HangarWindow {
         t.setAutoCreateRowSorter(true);
         DefaultTableCellRenderer right = new DefaultTableCellRenderer();
         right.setHorizontalAlignment(SwingConstants.RIGHT);
-        t.getColumnModel().getColumn(1).setCellRenderer(right);
+        for (int c = 1; c < model.getColumnCount(); c++) {
+            t.getColumnModel().getColumn(c).setCellRenderer(right);
+        }
         t.getColumnModel().getColumn(0).setPreferredWidth(320);
         JScrollPane sp = new JScrollPane(t);
         sp.setBorder(BorderFactory.createEmptyBorder());
         return sp;
     }
 
-    /** Two columns: a name and its value. */
+    /** A name and its values (two columns, or as many as given). */
     static final class Rows extends AbstractTableModel {
         private final String[] columns;
         private List<String[]> rows = List.of();
@@ -210,9 +212,18 @@ final class HangarWindow {
             this.columns = new String[] {name, value};
         }
 
+        Rows(String... columns) {
+            this.columns = columns.clone();
+        }
+
         void set(Map<String, String> data) {
             List<String[]> next = new ArrayList<>();
             data.forEach((k, v) -> next.add(new String[] {k, v}));
+            setRows(next);
+        }
+
+        /** Whole rows, a cell per column. */
+        void setRows(List<String[]> next) {
             boolean same = next.size() == rows.size();
             for (int i = 0; same && i < next.size(); i++) {
                 same = java.util.Arrays.equals(next.get(i), rows.get(i));
@@ -230,7 +241,7 @@ final class HangarWindow {
 
         @Override
         public int getColumnCount() {
-            return 2;
+            return columns.length;
         }
 
         @Override
