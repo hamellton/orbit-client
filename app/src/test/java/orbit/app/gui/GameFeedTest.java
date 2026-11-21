@@ -70,14 +70,15 @@ class GameFeedTest {
     }
 
     @Test
-    void theAllGridShowsTheGamesLinesInABigCellOnly() throws Exception {
+    void theAllGridShowsTheGamesLinesAsTheAccountsTab() throws Exception {
         java.awt.image.BufferedImage big = cell(640, 400, true);
         if (Boolean.getBoolean("orbit.saveCells")) {
             javax.imageio.ImageIO.write(big, "png", new java.io.File("build/cell-big.png"));
             javax.imageio.ImageIO.write(cell(800, 560, true), "png", new java.io.File("build/cell-tall.png"));
         }
         org.junit.jupiter.api.Assertions.assertTrue(differing(big, cell(640, 400, false)) > 200, "lines in a big cell");
-        assertEquals(0, differing(cell(420, 262, true), cell(420, 262, false)), "none in a small one");
+        org.junit.jupiter.api.Assertions.assertTrue(differing(cell(420, 262, true), cell(420, 262, false)) > 200,
+                "and in a small one");
     }
 
     @Test

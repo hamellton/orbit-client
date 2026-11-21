@@ -54,34 +54,33 @@ final class MinimapPanel extends JPanel {
     private final WorldFeed feed;
     private final MapCatalog catalog = MapCatalog.bundled();
     private final Hud hud;
-    private final Hud compactHud;
     /** The cards over the map: see-through and short (the side panel keeps the full ones). */
     private final Hud mapHud;
-    private final Hud mapCompactHud;
     /** Where the blocks on the map were drawn last, for the right-click menu. */
     private volatile java.util.Map<java.awt.Rectangle, ViewSettings.Block> cardsAt = java.util.Map.of();
-    /** A small map in the overview: a strip with the account instead of the map's own labels. */
-    private final boolean compact;
+    /**
+     * A map of the «Все» grid: drawn as the account's own tab (user's choice 2026-11-21), but a click opens the
+     * account instead of giving orders, and the map-only mode is the account tab's.
+     */
+    private final boolean overview;
     private final java.util.function.Supplier<String> config;
 
     MinimapPanel(WorldFeed feed) {
         this(feed, false, () -> null);
     }
 
-    MinimapPanel(WorldFeed feed, boolean compact, java.util.function.Supplier<String> config) {
+    MinimapPanel(WorldFeed feed, boolean overview, java.util.function.Supplier<String> config) {
         this.feed = feed;
-        this.compact = compact;
+        this.overview = overview;
         this.config = config;
         setBackground(BACKGROUND);
         setToolTipText(""); // enables getToolTipText(MouseEvent)
         Font f = javax.swing.UIManager.getFont("Label.font");
         hud = new Hud(f != null ? f : getFont());
-        compactHud = new Hud(f != null ? f : getFont(), true);
         mapHud = new Hud(f != null ? f : getFont(), false, true);
-        mapCompactHud = new Hud(f != null ? f : getFont(), true, true);
-        setPreferredSize(compact ? new Dimension(420, 262) : new Dimension(840, 524));
+        setPreferredSize(overview ? new Dimension(420, 262) : new Dimension(840, 524));
         setMinimumSize(new Dimension(240, 150));
-        if (!compact) {
+        if (!overview) {
             BlockMenu.attach(this, p -> SidePanel.blockAt(cardsAt, p), this::orders);
             addMouseListener(new java.awt.event.MouseAdapter() {
                 @Override
@@ -161,8 +160,8 @@ final class MinimapPanel extends JPanel {
 
     /** Where the map sits in the panel, keeping its proportions (21000:13100 for most maps). */
     private Projection projection(MapCatalog.MapInfo map) {
-        boolean mapOnly = !compact && ViewSettings.shared().mapOnlyNow();
-        int pad = compact || mapOnly ? 0 : 8; // only the map: edge to edge
+        boolean mapOnly = !overview && ViewSettings.shared().mapOnlyNow();
+        int pad = overview || mapOnly ? 0 : 8; // only the map: edge to edge
         double sx = (getWidth() - 2.0 * pad) / map.width();
         double sy = (getHeight() - 2.0 * pad) / map.height();
         if (mapOnly && fullScreen()) {
@@ -239,7 +238,7 @@ final class MinimapPanel extends JPanel {
         String title = w.jumpingTo() != 0 && w.jumpingTo() != map.id() && hero.id() != 0
                 ? map.name() + "→" + catalog.info(w.jumpingTo()).name() : map.name();
         BackKey key = new BackKey(getWidth(), getHeight(), dpi, ox, oy, mw, mh, map.id(), title, ground, bg,
-                hero.id() != 0 && !compact);
+                hero.id() != 0);
         if (!key.equals(backKey) || back == null) {
             back = background(key, p, map);
             backKey = key;
@@ -300,7 +299,7 @@ final class MinimapPanel extends JPanel {
             if (label == null && known != null) {
                 label = known.toName();
             }
-            if (label != null && !compact) {
+            if (label != null) {
                 int tw = g.getFontMetrics().stringWidth(label);
                 placeLabel(g, label, px - tw / 2.0, py - 9 * u, PORTAL_LABEL, false);
             }
@@ -368,7 +367,7 @@ final class MinimapPanel extends JPanel {
             boolean fighting = s.id() == hero.selectedId() || s.id() == hero.attackTargetId()
                     || (hero.attackers().size() <= MAX_ATTACKER_LABELS && hero.attackers().contains(s.id()));
             boolean target = s.id() == hero.attackTargetId() || s.id() == hero.selectedId();
-            if (compact ? target : (fighting || s.kind() == ShipKind.PLAYER && named.contains(s.id()))) {
+            if (fighting || s.kind() == ShipKind.PLAYER && named.contains(s.id())) {
                 g.setFont(labelFont);
                 placeLabel(g, label(s), sx + 6 * u, sy - 4 * u, c, target);
             }
@@ -451,8 +450,8 @@ final class MinimapPanel extends JPanel {
         // the map's bottom strip as DarkBot's too: the ship's name and
         // bars on the left half, the target's on the right, the pet over the ship's, the configuration in the corner
         int bottom = (int) Math.round(vy + vh);
-        int stripTop = bottom - (compact ? 80 : 96); // over the ship's bars and the pet's
-        boolean roomForBlocks = vh >= (compact ? 300 : 260);
+        int stripTop = bottom - 96; // over the ship's bars and the pet's
+        boolean roomForBlocks = vh >= 260;
         if (hero.id() != 0 && roomForBlocks) {
             dbStats(g, vx, vy, vh, stripTop, w);
             dbBoosters(g, vx + vw, vy, vh, stripTop, w);
@@ -469,15 +468,11 @@ final class MinimapPanel extends JPanel {
             g.drawString(state, (float) (vx + 10), bottom - 12);
         }
         int statusBottom = mapStatus(g, vx, vy, vw);
-        if (!compact) {
-            menuHint(g, vx, statusBottom, vw);
-            gameFeed(g, vx, (int) Math.round(vy) + 8, vw, FEED_LINES);
-            cardsAt = java.util.Map.of();
-        } else if (getWidth() >= FEED_CELL_W && getHeight() >= FEED_CELL_H) {
-            // the «Все» grid: the game's lines too once a cell is big enough (user's choice 2026-11-20), by its size,
-            // not by the number of accounts — 2 lines, 3 in a tall cell
-            gameFeed(g, vx, statusBottom + 4, vw, getHeight() >= FEED_CELL_TALL ? 3 : 2);
+        if (!overview) {
+            menuHint(g, vx, statusBottom, vw); // the overview has no menu
         }
+        gameFeed(g, vx, (int) Math.round(vy) + 8, vw, FEED_LINES);
+        cardsAt = java.util.Map.of();
         if (w.boxCheck() != null) {
             boxCheck(g, w, p, vx, vy, vw);
         }
@@ -489,10 +484,6 @@ final class MinimapPanel extends JPanel {
     static final int NAMED_PLAYERS = 3;
     /** The game's lines over the map: the last few, each fully seen this long, then fading out. */
     static final int FEED_LINES = 4;
-    /** A cell of the «Все» grid this big or bigger shows the game's lines; this tall, three of them. */
-    static final int FEED_CELL_W = 560;
-    static final int FEED_CELL_H = 350;
-    static final int FEED_CELL_TALL = 500;
     static final long FEED_SHOW_NS = 4_000_000_000L;
     static final long FEED_FADE_NS = 1_500_000_000L;
 
@@ -628,14 +619,14 @@ final class MinimapPanel extends JPanel {
     private int mapStatus(Graphics2D g, double vx, double vy, double vw) {
         AccountStatus st = AccountStatus.of(feed);
         String action = feed.action();
-        g.setFont(hud.font(Font.PLAIN, compact ? 10f : 12f));
+        g.setFont(hud.font(Font.PLAIN, 12f));
         java.awt.FontMetrics fm = g.getFontMetrics();
         int x = (int) Math.round(vx) + 8;
         int y = (int) Math.round(vy) + 8;
         int h = fm.getHeight() + 6;
-        int dot = compact ? 6 : 8;
+        int dot = 8;
         String text = Hud.clip(g, st.label + (action == null || action.isBlank() ? "" : "  ·  " + action) + fightAmmo(),
-                (int) (vw * (compact ? 0.7 : 0.45)));
+                (int) (vw * 0.45));
         int width = dot + 8 + fm.stringWidth(text) + 10;
         g.setColor(DB_BACK);
         g.fillRect(x, y, width, h);
@@ -726,10 +717,10 @@ final class MinimapPanel extends JPanel {
      * thin line between groups; centred on the map's height like {@link #backgrounded}.
      */
     private void statsTable(Graphics2D g, java.util.List<String[]> rows, double edge, double vy, double vh, int bottom) {
-        g.setFont(hud.font(Font.PLAIN, compact ? 10f : 11f));
+        g.setFont(hud.font(Font.PLAIN, 11f));
         java.awt.FontMetrics fm = g.getFontMetrics();
-        int line = compact ? 13 : 15;
-        int gapRow = compact ? 5 : 7;
+        int line = 15;
+        int gapRow = 7;
         int pad = 4;
         int titles = 0;
         int values = 0;
@@ -743,7 +734,7 @@ final class MinimapPanel extends JPanel {
             values = Math.max(values, fm.stringWidth(row[1]));
             height += line;
         }
-        int width = pad + titles + (compact ? 10 : 14) + values + pad;
+        int width = pad + titles + 14 + values + pad;
         int top = (int) Math.round(vy + vh / 2 - height / 2.0);
         top = Math.max((int) Math.round(vy) + 4, Math.min(top, bottom - height - 4)); // clear of the bottom strip
         int left = (int) Math.round(edge);
@@ -842,9 +833,9 @@ final class MinimapPanel extends JPanel {
         if (rows.isEmpty()) {
             return;
         }
-        g.setFont(hud.font(Font.PLAIN, compact ? 10f : 11f));
+        g.setFont(hud.font(Font.PLAIN, 11f));
         java.awt.FontMetrics fm = g.getFontMetrics();
-        int line = compact ? 13 : 15;
+        int line = 15;
         int width = rows.stream().mapToInt(fm::stringWidth).max().orElse(0) + 8;
         int height = rows.size() * line + 4;
         int top = (int) Math.round(vy + vh / 2 - height / 2.0);
@@ -869,9 +860,9 @@ final class MinimapPanel extends JPanel {
         if (t == null) {
             return;
         }
-        int bar = compact ? 9 : 12;
+        int bar = 12;
         int barsTop = bottom - 2 * bar; // DarkBot's place: the shield row under it, there or not
-        g.setFont(hud.font(Font.PLAIN, compact ? 11f : 12f));
+        g.setFont(hud.font(Font.PLAIN, 12f));
         g.setColor(shipColor(t, h, w.group()));
         String name = Hud.clip(g, label(t), (int) width);
         g.drawString(name, (float) (x + (width - g.getFontMetrics().stringWidth(name)) / 2), barsTop - 6);
@@ -887,9 +878,9 @@ final class MinimapPanel extends JPanel {
      */
     private int dbHero(Graphics2D g, double x, double width, int bottom, WorldSnapshot w) {
         WorldSnapshot.Hero h = w.hero();
-        int bar = compact ? 9 : 12;
+        int bar = 12;
         int barsTop = bottom - 2 * bar;
-        g.setFont(hud.font(Font.PLAIN, compact ? 11f : 12f));
+        g.setFont(hud.font(Font.PLAIN, 12f));
         java.awt.FontMetrics fm = g.getFontMetrics();
         int baseline = barsTop - 6;
         String config = "конф. " + h.config();
@@ -918,7 +909,7 @@ final class MinimapPanel extends JPanel {
         int bar = 6;
         int fuelTop = bottom - bar;
         int hullTop = fuelTop - 2 * bar; // DarkBot: the hull at −52, the fuel at −40
-        g.setFont(hud.font(Font.PLAIN, compact ? 9f : 10f));
+        g.setFont(hud.font(Font.PLAIN, 10f));
         if (pet.health().known()) {
             dbBars(g, x, hullTop, width, bar, pet.health().hp(), pet.health().hpMax(), 0, 0, false);
         }
@@ -955,7 +946,7 @@ final class MinimapPanel extends JPanel {
         g.fillRect(ix, y, iw, height);
         g.setColor(DB_HEALTH);
         g.fillRect(ix, y, hpMax <= 0 ? 0 : (int) Math.round(iw * Math.max(0, Math.min(1, hp / hpMax))), height);
-        Font font = hud.font(Font.PLAIN, compact ? 8f : 10f);
+        Font font = hud.font(Font.PLAIN, 10f);
         if (numbers && height >= 8) {
             g.setFont(font);
             dbNumber(g, group(hp) + "/" + group(hpMax), ix, iw, y + height - 2);
@@ -1083,7 +1074,7 @@ final class MinimapPanel extends JPanel {
         g.setStroke(new BasicStroke(2f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND, 1f, new float[] {6f, 5f}, 0f));
         g.draw(new Ellipse2D.Double(p.x(c.x()) - rx, p.y(c.y()) - ry, 2 * rx, 2 * ry));
         g.setStroke(new BasicStroke(1f));
-        double s = compact ? 3 : 4;
+        double s = 4;
         for (WorldSnapshot.BoxCheck.CheckBox b : c.boxes()) {
             if (b.picked()) {
                 continue;
@@ -1095,13 +1086,13 @@ final class MinimapPanel extends JPanel {
             g.draw(box);
         }
         String text = c.text(w.nanos());
-        g.setFont(hud.font(Font.BOLD, compact ? 13f : 18f));
+        g.setFont(hud.font(Font.BOLD, 18f));
         java.awt.FontMetrics fm = g.getFontMetrics();
-        int pad = compact ? 6 : 10;
+        int pad = 10;
         int width = Math.min((int) vw - 20, fm.stringWidth(text) + 2 * pad);
         int height = fm.getHeight() + 2 * pad - 4;
         int x = (int) Math.round(vx + (vw - width) / 2);
-        int y = (int) Math.round(vy) + (compact ? 30 : 52);
+        int y = (int) Math.round(vy) + 52;
         g.setColor(new Color(120, 10, 10, 225));
         g.fill(new java.awt.geom.RoundRectangle2D.Double(x, y, width, height, 10, 10));
         g.setColor(BOX_CHECK);
@@ -1141,7 +1132,7 @@ final class MinimapPanel extends JPanel {
         g.setStroke(new BasicStroke((float) (1.5 * u)));
         g.draw(new Ellipse2D.Double(cx - r, cy - r, 2 * r, 2 * r));
         g.setStroke(new BasicStroke(1f));
-        if (!onTarget && !compact) {
+        if (!onTarget) {
             g.setFont(labelFont);
             drawLabel(g, "пеленгатор", cx + r + 4 * u, cy + 4 * u, LOCATOR);
         }
@@ -1213,7 +1204,7 @@ final class MinimapPanel extends JPanel {
                         return "Портал: " + gl + "  (" + portal.x() / 100 + "/" + portal.y() / 100 + ")";
                     }
                     return "Портал" + (known != null ? " на " + known.toName() : "") + "  (" + portal.x() / 100 + "/"
-                            + portal.y() / 100 + ")" + (!compact && known != null && r != null && r.takesOrders()
+                            + portal.y() / 100 + ")" + (!overview && known != null && r != null && r.takesOrders()
                             ? " — правый клик: прыгнуть" : "");
                 }
             }
