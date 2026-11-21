@@ -183,6 +183,8 @@ public final class World {
     private final Map<Integer, Double> ores = new LinkedHashMap<>();
     private long oresNanos;
     private long loginNanos;
+    /** Our {@code LoginRequest} went out since the last {@code ShipInitializationCommand}: a new connection. */
+    private boolean newConnection = true;
     /** The lab's enrichment (kept over map changes: the ship's). */
     private WorldSnapshot.Lab lab = WorldSnapshot.Lab.NONE;
     /** The trade window's prices (the ores it buys) and when they came; the pet trade pod's window. */
@@ -659,7 +661,9 @@ public final class World {
 
     /** Applies a packet the bot sent at {@code nanos}; only the hero's movement matters. */
     public synchronized void applyOutgoing(Packet packet, long nanos) {
-        if (packet instanceof MoveRequest m) {
+        if (packet instanceof orbit.protocol.gen.LoginRequest) {
+            newConnection = true;
+        } else if (packet instanceof MoveRequest m) {
             // the client starts from where it shows the ship, which is what it reports as position
             hero.motion = Motion.fromAtSpeed(m.positionX, m.positionY, m.targetX, m.targetY, hero.speed, nanos);
         } else if (packet instanceof orbit.protocol.gen.PetGearActivationRequest r && r.gearTypeToActivate != null) {
@@ -988,15 +992,21 @@ public final class World {
     }
 
     private void initHero(ShipInitializationCommand p, long nanos) {
+        boolean revived = death != null || !hero.alive;
         death = null;
         pet = petLocator(0, 0, 0); // the locator's point was on the old map
         pet = petTargets(List.of(), 0); // and its targets
-        // every login (a jump, a revive, a reconnect) starts with the pet in: the real client launches it again and the
-        // server answers PetHeroActivationCommand (the recordings). Kept «out» when the line dropped and no
-        // PetDeactivationCommand came, the bot never launched it again (live 2026-11-17 on gb2: dead during a
-        // reconnect at 01:45, the pet shown working and its locator silent for 9 hours)
-        pet = pet(pet.owned(), pet.alive(), pet.hasFuel(), false, pet.id(), pet.name(), pet.level(), pet.health(),
-                pet.fuel(), pet.fuelMax(), pet.heat(), pet.heatMax(), pet.gear());
+        // a login on a new connection (a map change, a reconnect) and a revive start with the pet in: the real client
+        // launches it again and the server answers PetHeroActivationCommand (the recordings). Kept «out» when the line
+        // dropped and no PetDeactivationCommand came, the bot never launched it again (live 2026-11-17 on gb2: dead
+        // during a reconnect at 01:45, the pet shown working and its locator silent for 9 hours). A jump on the same
+        // connection (a gate's next part) leaves it out: taken for in there, the launch got no answer and the kamikaze
+        // waited for it for half an hour (live 2026-11-21 on gb2, α)
+        if (newConnection || revived) {
+            pet = pet(pet.owned(), pet.alive(), pet.hasFuel(), false, pet.id(), pet.name(), pet.level(), pet.health(),
+                    pet.fuel(), pet.fuelMax(), pet.heat(), pet.heatMax(), pet.gear());
+        }
+        newConnection = false;
         // sent on every login (and on respawn); the server then lists the map contents again
         clearMap();
         hero.id = p.userId;

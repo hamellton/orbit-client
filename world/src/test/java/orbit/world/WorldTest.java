@@ -260,6 +260,7 @@ class WorldTest {
         out.ownerId = HERO;
         w.apply(out, 0);
         assertTrue(w.snapshot(0).pet().active());
+        w.applyOutgoing(new orbit.protocol.gen.LoginRequest(), 1); // the new connection's login
         ShipInitializationCommand again = new ShipInitializationCommand();
         again.userId = HERO;
         again.mapId = 308;
@@ -273,6 +274,24 @@ class WorldTest {
         assertTrue(w.snapshot(1).pet().owned() && w.snapshot(1).pet().alive(), "still owned and alive: launched again");
         w.apply(out, 2);
         assertTrue(w.snapshot(2).pet().active(), "out again by the server's word");
+    }
+
+    @Test
+    void aJumpOnTheSameConnectionLeavesThePetOutAndARevivePutsItIn() {
+        // live 2026-11-21 on gb2: α's next part, no login, the server kept the pet out and never answered a launch
+        World w = withHero();
+        PetHeroActivationCommand out = new PetHeroActivationCommand();
+        out.petId = 55;
+        out.ownerId = HERO;
+        w.apply(out, 0);
+        ShipInitializationCommand part = new ShipInitializationCommand();
+        part.userId = HERO;
+        part.mapId = 51;
+        w.apply(part, 1);
+        assertTrue(w.snapshot(1).pet().active(), "still out after the gate's jump");
+        w.apply(new orbit.protocol.gen.KillScreenPostCommand(), 2);
+        w.apply(part, 3);
+        assertFalse(w.snapshot(3).pet().active(), "in after a revive");
     }
 
     @Test
