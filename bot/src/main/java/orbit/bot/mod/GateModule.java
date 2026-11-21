@@ -693,6 +693,9 @@ public final class GateModule implements BotModule {
         if (gates.setupNanos() > placeAskedAt && gates.setupGate() == g.builderId()) {
             if (gates.setupError() != 0) {
                 skip(g, "не ставятся (ошибка " + gates.setupError() + ")");
+            } else if (placedCounted != placeAskedAt) {
+                placedCounted = placeAskedAt;
+                ctx.stats().gate(g.name(), "placed", 1);
             }
             return; // the answer is in the gate's lives
         }
@@ -846,11 +849,15 @@ public final class GateModule implements BotModule {
         ctx.actions().gateBuyLife(g.builderId());
         lifeAskedAt = now;
         livesBought.merge(g.key(), 1, Integer::sum);
+        ctx.stats().gate(g.name(), "lives", 1);
         return true;
     }
 
     private long lifeAskedAt = Long.MIN_VALUE / 2;
     private final Map<String, Integer> livesBought = new HashMap<>();
+    /** The placing answered (counted once per request) and the account's deaths when the gate was entered. */
+    private long placedCounted = Long.MIN_VALUE;
+    private int deathsAtEnter;
 
     /** To the gate's portal on x-1 and into it. */
     private void enter(GateCatalog.Gate g, WorldSnapshot w, long now) {
@@ -975,6 +982,7 @@ public final class GateModule implements BotModule {
         if (!g.key().equals(inGate)) {
             inGate = g.key();
             enteredAt = now;
+            deathsAtEnter = ctx.stats().deaths.get();
             quietSince = 0;
             completedSeen = 0;
             WorldSnapshot.Gate st = w.gates().gate(g.builderId());
@@ -989,6 +997,8 @@ public final class GateModule implements BotModule {
         if (completed && completedSeen == 0) {
             completedSeen = now;
             log.info("Врата {} пройдены за {} мин", g.name(), ms(now - enteredAt) / 60_000);
+            ctx.stats().gate(g.name(), "done", 1);
+            ctx.stats().gate(g.name(), "seconds", (int) (ms(now - enteredAt) / 1000));
         }
         buyLives(settings(), g, w.gates(), now); // a life lost in the gate: the stock again (the request goes on aside)
         BotConfig c = config();
@@ -1225,6 +1235,7 @@ public final class GateModule implements BotModule {
         WorldSnapshot.Gate st = g != null && g.builderId() != 0 ? w.gates().gate(g.builderId()) : null;
         chromin.left(st != null && st.completedNanos() > enteredAt);
         if (g != null) {
+            ctx.stats().gate(g.name(), "deaths", ctx.stats().deaths.get() - deathsAtEnter);
             if (st != null && st.completedNanos() > enteredAt) {
                 log.info("Из врат {} вышел — пройдены", g.name());
             } else if (st != null && st.lives() > 0) {

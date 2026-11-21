@@ -26,12 +26,21 @@ public final class HourlyReport {
     /**
      * @param ammo   the ammunition spent: item id → rounds
      * @param killed NPCs killed: name → count
+     * @param gates  galaxy gates' counters: {@code "<gate>|<what>"} → count ({@code orbit.bot.run.Stats#gates})
      */
     public record Totals(double uridium, double credits, double experience, double honor, int kills, int cubes,
                          int repairs, int deaths, Map<String, Integer> picked, Map<String, Double> items,
-                         double spentUridium, double spentCredits, Map<String, Double> ammo, Map<String, Integer> killed) {
+                         double spentUridium, double spentCredits, Map<String, Double> ammo, Map<String, Integer> killed,
+                         Map<String, Integer> gates) {
 
         public static final Totals NONE = new Totals(0, 0, 0, 0, 0, 0, 0, 0, Map.of(), Map.of());
+
+        public Totals(double uridium, double credits, double experience, double honor, int kills, int cubes,
+                      int repairs, int deaths, Map<String, Integer> picked, Map<String, Double> items,
+                      double spentUridium, double spentCredits, Map<String, Double> ammo, Map<String, Integer> killed) {
+            this(uridium, credits, experience, honor, kills, cubes, repairs, deaths, picked, items, spentUridium,
+                    spentCredits, ammo, killed, Map.of());
+        }
 
         public Totals(double uridium, double credits, double experience, double honor, int kills, int cubes,
                       int repairs, int deaths, Map<String, Integer> picked, Map<String, Double> items,
@@ -52,7 +61,8 @@ public final class HourlyReport {
                     s == null ? 0 : s.kills.get(), s == null ? 0 : s.cubesKilled.get(),
                     s == null ? 0 : s.repairs.get(), s == null ? 0 : s.deaths.get(),
                     s == null ? Map.of() : s.pickedSoFar(), Map.copyOf(r.items()), r.spentUridium(), r.spentCredits(),
-                    s == null ? Map.of() : s.ammoSpent(), s == null ? Map.of() : s.killedBy());
+                    s == null ? Map.of() : s.ammoSpent(), s == null ? Map.of() : s.killedBy(),
+                    s == null ? Map.of() : s.gates());
         }
     }
 

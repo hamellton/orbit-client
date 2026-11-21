@@ -97,6 +97,7 @@ public final class DailyTotals {
         Map<String, Double> items = new TreeMap<>();
         Map<String, Double> ammo = new TreeMap<>();
         Map<String, Integer> killed = new TreeMap<>();
+        Map<String, Integer> gates = new TreeMap<>();
         for (HourlyReport.Totals[] r : runs.values()) {
             HourlyReport.Totals a = r[0];
             HourlyReport.Totals b = r[1];
@@ -114,13 +115,15 @@ public final class DailyTotals {
             b.items().forEach((k, v) -> items.merge(k, v - a.items().getOrDefault(k, 0.0), Double::sum));
             b.ammo().forEach((k, v) -> ammo.merge(k, v - a.ammo().getOrDefault(k, 0.0), Double::sum));
             b.killed().forEach((k, v) -> killed.merge(k, v - a.killed().getOrDefault(k, 0), Integer::sum));
+            b.gates().forEach((k, v) -> gates.merge(k, v - a.gates().getOrDefault(k, 0), Integer::sum));
         }
         killed.values().removeIf(v -> v <= 0);
+        gates.values().removeIf(v -> v <= 0);
         picked.values().removeIf(v -> v <= 0);
         items.values().removeIf(v -> v <= 0);
         ammo.values().removeIf(v -> v <= 0);
         return new HourlyReport.Totals(uri, cr, xp, hon, kills, cubes, repairs, deaths, picked, items, spentUri, spentCr,
-                ammo, killed);
+                ammo, killed, gates);
     }
 
     /** Lines for the window's card. */
@@ -208,6 +211,8 @@ public final class DailyTotals {
         t.ammo().forEach(ammo::put);
         ObjectNode killed = n.putObject("killed");
         t.killed().forEach(killed::put);
+        ObjectNode gates = n.putObject("gates");
+        t.gates().forEach(gates::put);
         return n;
     }
 
@@ -220,9 +225,11 @@ public final class DailyTotals {
         n.path("ammo").properties().forEach(e -> ammo.put(e.getKey(), e.getValue().asDouble()));
         Map<String, Integer> killed = new TreeMap<>();
         n.path("killed").properties().forEach(e -> killed.put(e.getKey(), e.getValue().asInt()));
+        Map<String, Integer> gates = new TreeMap<>();
+        n.path("gates").properties().forEach(e -> gates.put(e.getKey(), e.getValue().asInt()));
         return new HourlyReport.Totals(n.path("uridium").asDouble(), n.path("credits").asDouble(),
                 n.path("experience").asDouble(), n.path("honor").asDouble(), n.path("kills").asInt(),
                 n.path("cubes").asInt(), n.path("repairs").asInt(), n.path("deaths").asInt(), picked, items,
-                n.path("spentUridium").asDouble(), n.path("spentCredits").asDouble(), ammo, killed);
+                n.path("spentUridium").asDouble(), n.path("spentCredits").asDouble(), ammo, killed, gates);
     }
 }

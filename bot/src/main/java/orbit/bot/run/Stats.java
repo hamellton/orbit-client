@@ -81,6 +81,24 @@ public final class Stats {
         return out;
     }
 
+    /**
+     * Galaxy gates by name: {@code "<gate>|placed"}, {@code "|done"}, {@code "|seconds"} (the runs' length summed),
+     * {@code "|deaths"}, {@code "|lives"} (bought) → count.
+     */
+    private final java.util.Map<String, Integer> gates = new java.util.TreeMap<>();
+
+    /** Adds {@code n} to one of a gate's counters ({@link #gates()}). */
+    public synchronized void gate(String name, String what, int n) {
+        if (n > 0) {
+            gates.merge((name == null || name.isBlank() ? "?" : name) + "|" + what, n, Integer::sum);
+        }
+    }
+
+    /** The gates' counters this session ({@code "<gate>|<what>"} → count). */
+    public synchronized java.util.Map<String, Integer> gates() {
+        return java.util.Map.copyOf(gates);
+    }
+
     /** Ammunition counts as last seen (item id → count) and how much of each went this session. */
     private final java.util.Map<String, Double> ammoSeen = new java.util.HashMap<>();
     private final java.util.Map<String, Double> ammoSpent = new java.util.TreeMap<>();
@@ -172,6 +190,13 @@ public final class Stats {
             int n = v - killedBefore.getOrDefault(k, 0);
             if (n > 0) {
                 d.killedBy.put(k, n);
+            }
+        });
+        java.util.Map<String, Integer> gatesBefore = base.gates();
+        gates().forEach((k, v) -> {
+            int n = v - gatesBefore.getOrDefault(k, 0);
+            if (n > 0) {
+                d.gates.put(k, n);
             }
         });
         synchronized (this) {

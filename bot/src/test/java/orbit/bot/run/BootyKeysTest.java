@@ -98,4 +98,17 @@ class BootyKeysTest {
         org.junit.jupiter.api.Assertions.assertEquals(Map.of("-=[ Cubikon ]=-", 1), d.killedBy());
         org.junit.jupiter.api.Assertions.assertEquals(40.0, d.fightSeconds().get("-=[ Cubikon ]=-"));
     }
+
+    @Test
+    void gatesAreCountedByNameAndSinceAReset() {
+        Stats s = new Stats();
+        s.gate("α", "done", 1);
+        s.gate("α", "seconds", 600);
+        s.gate("α", "deaths", 0); // nothing
+        Stats base = s.copy();
+        s.gate("α", "done", 1);
+        s.gate("β", "lives", 2);
+        org.junit.jupiter.api.Assertions.assertEquals(Map.of("α|done", 2, "α|seconds", 600, "β|lives", 2), s.gates());
+        org.junit.jupiter.api.Assertions.assertEquals(Map.of("α|done", 1, "β|lives", 2), s.since(base).gates());
+    }
 }

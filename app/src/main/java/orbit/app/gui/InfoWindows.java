@@ -111,6 +111,9 @@ final class InfoWindows {
         tabs.addTab("Расход", HangarWindow.table(spent));
         HangarWindow.Rows npcs = new HangarWindow.Rows("NPC", "За сессию", "В час", "Бой, ср.", "Сегодня");
         tabs.addTab("NPC", HangarWindow.table(npcs));
+        HangarWindow.Rows gateRows = new HangarWindow.Rows("Врата", "Поставлено", "Пройдено", "В час", "Проход, ср.",
+                "Смертей", "Жизней куплено", "Пройдено сегодня");
+        tabs.addTab("Врата", HangarWindow.table(gateRows));
         JLabel note = new JLabel();
         open(feed, "Итоги", tabs, note, false, () -> {
             WorldSnapshot.Rewards r = feed.sessionRewards();
@@ -195,10 +198,40 @@ final class InfoWindows {
                 k.add(new String[] {r0[0], r0[1], r0[2], "", r0[3]});
             }
             npcs.setRows(k);
+            gateRows.setRows(gateRows(st == null ? Map.of() : st.gates(), day.gates(), hours));
             note.setText(feed.sessionStartNanos() == 0 ? "сессия ещё не началась"
                     : "Сессия " + Hud.clock(java.time.Duration.ofNanos(feed.sessionNanos()))
                     + " · «сегодня» — за все запуски с полуночи · раз в секунду");
         });
+    }
+
+    /**
+     * The galaxy gates: placed, done (the session, an hour), the average run (from the entry to the gate done, the last
+     * life's), deaths and lives bought in the session, done today.
+     */
+    static java.util.List<String[]> gateRows(Map<String, Integer> now, Map<String, Integer> day, double hours) {
+        java.util.Set<String> names = new java.util.TreeSet<>();
+        for (String k : now.keySet()) {
+            names.add(k.substring(0, k.lastIndexOf('|')));
+        }
+        for (String k : day.keySet()) {
+            names.add(k.substring(0, k.lastIndexOf('|')));
+        }
+        java.util.List<String[]> out = new java.util.ArrayList<>();
+        for (String g : names) {
+            int done = now.getOrDefault(g + "|done", 0);
+            int sec = now.getOrDefault(g + "|seconds", 0);
+            String[] r = row(g, done, day.getOrDefault(g + "|done", 0), hours, true);
+            out.add(new String[] {g, exact(now.getOrDefault(g + "|placed", 0)), r[1], r[2],
+                    done > 0 ? minutes(sec / done) : "—", exact(now.getOrDefault(g + "|deaths", 0)),
+                    exact(now.getOrDefault(g + "|lives", 0)), r[3]});
+        }
+        return out;
+    }
+
+    /** «12 мин 05 с», «45 с». */
+    static String minutes(int seconds) {
+        return seconds >= 60 ? seconds / 60 + " мин " + String.format("%02d", seconds % 60) + " с" : seconds + " с";
     }
 
     private static String[] name(String first, String[] cols) {
