@@ -764,6 +764,7 @@ public final class GateModule implements BotModule {
 
     /** One spin (or a batch) of the builder for {@code g} when it may. */
     private boolean spin(JsonNode s, GateCatalog.Gate g, WorldSnapshot.Gate st, WorldSnapshot.Gates gates, long now) {
+        countSpin(gates);
         int[] option = spinOption(s, progress(g, gates));
         int amount = option[0];
         if (!canSpin(s, gates, amount)) {
@@ -795,6 +796,10 @@ public final class GateModule implements BotModule {
             }
             ctx.actions().gateSpin(g.builderId(), amount, useMultiplier(s, st.multiplier()));
             spinAskedAt = now;
+            spinFor = g.name();
+            spinSamples = gates.samples();
+            spinMoney = gates.money();
+            spinMaxUridium = (long) gates.energyCost() * amount;
             spinAt = now + ctx.pause(option[1], option[1] + 300);
             spins += amount;
         }
@@ -803,6 +808,27 @@ public final class GateModule implements BotModule {
     }
 
     private long spins;
+    /** The spin asked last: its gate and the builder's energy and uridium then, the most uridium it can cost. */
+    private String spinFor;
+    private double spinSamples;
+    private double spinMoney;
+    private long spinMaxUridium;
+
+    /**
+     * The builder's answer to the last spin: the extra energy and the uridium it took, for the Totals (the uridium no more
+     * than the spin's price — the rest of a drop went elsewhere meanwhile).
+     */
+    private void countSpin(WorldSnapshot.Gates gates) {
+        if (spinFor == null || gates.spinNanos() <= spinAskedAt) {
+            return;
+        }
+        if (gates.spinError() == 0) {
+            ctx.stats().gate(spinFor, "energy", (int) Math.max(0, Math.round(spinSamples - gates.samples())));
+            ctx.stats().gate(spinFor, "uridium",
+                    (int) Math.min(spinMaxUridium, Math.max(0, Math.round(spinMoney - gates.money()))));
+        }
+        spinFor = null;
+    }
 
     /** Parts / all of the gate; for ABG the least of the three (DarkBot builds them together). */
     private static double progress(GateCatalog.Gate g, WorldSnapshot.Gates gates) {
@@ -850,6 +876,7 @@ public final class GateModule implements BotModule {
         lifeAskedAt = now;
         livesBought.merge(g.key(), 1, Integer::sum);
         ctx.stats().gate(g.name(), "lives", 1);
+        ctx.stats().gate(g.name(), "uridium", st.lifePrice());
         return true;
     }
 

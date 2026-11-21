@@ -112,7 +112,7 @@ final class InfoWindows {
         HangarWindow.Rows npcs = new HangarWindow.Rows("NPC", "За сессию", "В час", "Бой, ср.", "Сегодня");
         tabs.addTab("NPC", HangarWindow.table(npcs));
         HangarWindow.Rows gateRows = new HangarWindow.Rows("Врата", "Поставлено", "Пройдено", "В час", "Проход, ср.",
-                "Смертей", "Жизней куплено", "Пройдено сегодня");
+                "Смертей", "Жизней куплено", "Доп. энергии", "Уридия", "Пройдено сегодня");
         tabs.addTab("Врата", HangarWindow.table(gateRows));
         JLabel note = new JLabel();
         open(feed, "Итоги", tabs, note, false, () -> {
@@ -207,7 +207,7 @@ final class InfoWindows {
 
     /**
      * The galaxy gates: placed, done (the session, an hour), the average run (from the entry to the gate done, the last
-     * life's), deaths and lives bought in the session, done today.
+     * life's), deaths, lives bought, the extra energy and the uridium spent (spins and lives) in the session, done today.
      */
     static java.util.List<String[]> gateRows(Map<String, Integer> now, Map<String, Integer> day, double hours) {
         java.util.Set<String> names = new java.util.TreeSet<>();
@@ -224,7 +224,8 @@ final class InfoWindows {
             String[] r = row(g, done, day.getOrDefault(g + "|done", 0), hours, true);
             out.add(new String[] {g, exact(now.getOrDefault(g + "|placed", 0)), r[1], r[2],
                     done > 0 ? minutes(sec / done) : "—", exact(now.getOrDefault(g + "|deaths", 0)),
-                    exact(now.getOrDefault(g + "|lives", 0)), r[3]});
+                    exact(now.getOrDefault(g + "|lives", 0)), exact(now.getOrDefault(g + "|energy", 0)),
+                    exact(now.getOrDefault(g + "|uridium", 0)), r[3]});
         }
         return out;
     }

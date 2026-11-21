@@ -401,6 +401,46 @@ class GateModuleTest {
         assertEquals(900, m.fightTarget());
     }
 
+    private static int counted(Sim sim, String what) {
+        return sim.ctx.stats().gates().entrySet().stream().filter(e -> e.getKey().endsWith("|" + what))
+                .mapToInt(java.util.Map.Entry::getValue).sum();
+    }
+
+    @Test
+    void theSpinsExtraEnergyAndUridiumAreCountedByTheBuildersAnswers() throws Exception {
+        Sim sim = new Sim(config("{\"gates\":[\"alpha\"],\"build\":true,\"energyOnly\":false,\"minUridium\":0}"),
+                home(), 10_000, 6_000);
+        info(sim, 2, new int[] {1, 5, -1});
+        GateModule m = new GateModule(sim.ctx);
+        double[] left = {2, 300_000};
+        int answers = 0;
+        for (int i = 0; i < 60 && answers < 4; i++) {
+            int before = sim.sent.size();
+            run(sim, m, 100);
+            if (sim.sent.subList(before, sim.sent.size()).stream()
+                    .anyMatch(p -> p instanceof orbit.protocol.gen.GalaxyGateBuilderMultiEnergyRequest)) {
+                // two spins on the extra energy, then each for 100 uridium; 5 000 more gone elsewhere meanwhile
+                if (left[0] > 0) {
+                    left[0]--;
+                } else {
+                    left[1] -= 100 + (answers == 3 ? 5_000 : 0);
+                }
+                orbit.protocol.gen.GalaxyGateBuilderMultiEnergyCommand a = new orbit.protocol.gen.GalaxyGateBuilderMultiEnergyCommand();
+                a.gateMode = "alpha";
+                a.samples = left[0];
+                a.money = left[1];
+                a.spinamount_selected = 1;
+                a.gatePartIds = new ArrayList<>(List.of((short) 1, (short) 2, (short) 3, (short) 4, (short) 5, (short) 6));
+                sim.world.apply(a, sim.now);
+                answers++;
+            }
+        }
+        run(sim, m, 1_000);
+        assertEquals(4, answers);
+        assertEquals(2, counted(sim, "energy"));
+        assertEquals(200, counted(sim, "uridium"), "no more than a spin's price each");
+    }
+
     @Test
     void twoLivesLeftOneMoreIsBoughtWhileTheUridiumLasts() throws Exception {
         // two lives left: one more is bought for uridium while there is enough
@@ -410,6 +450,7 @@ class GateModuleTest {
         run(sim, m, 1_000);
         assertEquals(1, sim.sent.stream().filter(p -> p instanceof orbit.protocol.gen.GalaxyGateBuilderBuyLifeRequest r
                 && r.gateId == 1).count());
+        assertEquals(10_000, counted(sim, "uridium"), "the life's price");
         Sim enough = new Sim(config("{\"gates\":[\"alpha\"],\"buyLives\":true}"), home(), 10_000, 6_000);
         info(enough, 0, new int[] {1, 0, 3});
         run(enough, new GateModule(enough.ctx), 1_000);

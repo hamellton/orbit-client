@@ -13,10 +13,11 @@ class TotalsGatesTest {
     @Test
     void aGateRowSaysPlacedDoneTheAverageRunDeathsLivesAndToday() {
         List<String[]> rows = InfoWindows.gateRows(
-                Map.of("α|placed", 3, "α|done", 2, "α|seconds", 1_530, "α|deaths", 1, "α|lives", 4),
+                Map.of("α|placed", 3, "α|done", 2, "α|seconds", 1_530, "α|deaths", 1, "α|lives", 4, "α|energy", 340,
+                        "α|uridium", 12_000),
                 Map.of("α|done", 5, "β|done", 1), 2.0);
         assertEquals(2, rows.size());
-        assertArrayEquals(new String[] {"α", "3", "2", "1", "12 мин 45 с", "1", "4", "5"}, rows.get(0));
-        assertArrayEquals(new String[] {"β", "—", "—", "—", "—", "—", "—", "1"}, rows.get(1), "only today's");
+        assertArrayEquals(new String[] {"α", "3", "2", "1", "12 мин 45 с", "1", "4", "340", "12 000", "5"}, rows.get(0));
+        assertArrayEquals(new String[] {"β", "—", "—", "—", "—", "—", "—", "—", "—", "1"}, rows.get(1), "only today's");
     }
 }
