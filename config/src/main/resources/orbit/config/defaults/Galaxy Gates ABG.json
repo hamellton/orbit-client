@@ -266,7 +266,7 @@
       "maps": [
         51
       ],
-      "ammo": "ammunition_laser_mcb-50",
+      "ammo": "ammunition_laser_mcb-25",
       "sab": false
     },
     "-=[ Devolarium ]=- α18": {
@@ -279,7 +279,7 @@
       "maps": [
         51
       ],
-      "ammo": "ammunition_laser_mcb-50",
+      "ammo": "ammunition_laser_mcb-25",
       "sab": false
     },
     "-=[ Devolarium ]=- α19": {
@@ -292,7 +292,7 @@
       "maps": [
         51
       ],
-      "ammo": "ammunition_laser_mcb-50",
+      "ammo": "ammunition_laser_mcb-25",
       "sab": false
     },
     "-=[ Devolarium ]=- α20": {
@@ -305,7 +305,7 @@
       "maps": [
         51
       ],
-      "ammo": "ammunition_laser_mcb-50",
+      "ammo": "ammunition_laser_mcb-25",
       "sab": false
     },
     "-=[ Devolarium ]=- β17": {
@@ -318,7 +318,7 @@
       "maps": [
         52
       ],
-      "ammo": "ammunition_laser_mcb-50",
+      "ammo": "ammunition_laser_mcb-25",
       "sab": false
     },
     "-=[ Devolarium ]=- β18": {
@@ -331,7 +331,7 @@
       "maps": [
         52
       ],
-      "ammo": "ammunition_laser_mcb-50",
+      "ammo": "ammunition_laser_mcb-25",
       "sab": false
     },
     "-=[ Devolarium ]=- β19": {
@@ -344,7 +344,7 @@
       "maps": [
         52
       ],
-      "ammo": "ammunition_laser_mcb-50",
+      "ammo": "ammunition_laser_mcb-25",
       "sab": false
     },
     "-=[ Devolarium ]=- β20": {
@@ -357,7 +357,7 @@
       "maps": [
         52
       ],
-      "ammo": "ammunition_laser_mcb-50",
+      "ammo": "ammunition_laser_mcb-25",
       "sab": false
     },
     "-=[ Devolarium ]=- γ17": {
@@ -370,7 +370,6 @@
       "maps": [
         53
       ],
-      "ammo": "ammunition_laser_mcb-50",
       "sab": false
     },
     "-=[ Devolarium ]=- γ18": {
@@ -383,7 +382,6 @@
       "maps": [
         53
       ],
-      "ammo": "ammunition_laser_mcb-50",
       "sab": false
     },
     "-=[ Devolarium ]=- γ19": {
@@ -396,7 +394,6 @@
       "maps": [
         53
       ],
-      "ammo": "ammunition_laser_mcb-50",
       "sab": false
     },
     "-=[ Devolarium ]=- γ20": {
@@ -409,7 +406,6 @@
       "maps": [
         53
       ],
-      "ammo": "ammunition_laser_mcb-50",
       "sab": false
     },
     "-=[ Impulse II ]=-": {
@@ -465,7 +461,6 @@
       "maps": [
         51
       ],
-      "ammo": "ammunition_laser_mcb-50",
       "sab": false
     },
     "-=[ Kristallin ]=- α22": {
@@ -479,7 +474,6 @@
       "maps": [
         51
       ],
-      "ammo": "ammunition_laser_mcb-50",
       "sab": false
     },
     "-=[ Kristallin ]=- α23": {
@@ -493,7 +487,6 @@
       "maps": [
         51
       ],
-      "ammo": "ammunition_laser_mcb-50",
       "sab": false
     },
     "-=[ Kristallin ]=- α24": {
@@ -507,7 +500,6 @@
       "maps": [
         51
       ],
-      "ammo": "ammunition_laser_mcb-50",
       "sab": false
     },
     "-=[ Kristallin ]=- β21": {
@@ -521,7 +513,6 @@
       "maps": [
         52
       ],
-      "ammo": "ammunition_laser_mcb-50",
       "sab": false
     },
     "-=[ Kristallin ]=- β22": {
@@ -535,7 +526,6 @@
       "maps": [
         52
       ],
-      "ammo": "ammunition_laser_mcb-50",
       "sab": false
     },
     "-=[ Kristallin ]=- β23": {
@@ -549,7 +539,6 @@
       "maps": [
         52
       ],
-      "ammo": "ammunition_laser_mcb-50",
       "sab": false
     },
     "-=[ Kristallin ]=- β24": {
@@ -563,7 +552,6 @@
       "maps": [
         52
       ],
-      "ammo": "ammunition_laser_mcb-50",
       "sab": false
     },
     "-=[ Kristallin ]=- γ21": {
@@ -577,7 +565,6 @@
       "maps": [
         53
       ],
-      "ammo": "ammunition_laser_mcb-50",
       "sab": false
     },
     "-=[ Kristallin ]=- γ22": {
@@ -591,7 +578,6 @@
       "maps": [
         53
       ],
-      "ammo": "ammunition_laser_mcb-50",
       "sab": false
     },
     "-=[ Kristallin ]=- γ23": {
@@ -605,7 +591,6 @@
       "maps": [
         53
       ],
-      "ammo": "ammunition_laser_mcb-50",
       "sab": false
     },
     "-=[ Kristallin ]=- γ24": {
@@ -619,7 +604,6 @@
       "maps": [
         53
       ],
-      "ammo": "ammunition_laser_mcb-50",
       "sab": false
     },
     "-=[ Kristallon ]=-": {
@@ -643,7 +627,6 @@
       "maps": [
         51
       ],
-      "ammo": "ammunition_laser_mcb-50",
       "sab": false
     },
     "-=[ Kristallon ]=- α34": {
@@ -656,7 +639,6 @@
       "maps": [
         51
       ],
-      "ammo": "ammunition_laser_mcb-50",
       "sab": false
     },
     "-=[ Kristallon ]=- α35": {
@@ -669,7 +651,6 @@
       "maps": [
         51
       ],
-      "ammo": "ammunition_laser_mcb-50",
       "sab": false
     },
     "-=[ Kristallon ]=- α36": {
@@ -682,7 +663,6 @@
       "maps": [
         51
       ],
-      "ammo": "ammunition_laser_mcb-50",
       "sab": false
     },
     "-=[ Kristallon ]=- β33": {
@@ -695,7 +675,6 @@
       "maps": [
         52
       ],
-      "ammo": "ammunition_laser_mcb-50",
       "sab": false
     },
     "-=[ Kristallon ]=- β34": {
@@ -708,7 +687,6 @@
       "maps": [
         52
       ],
-      "ammo": "ammunition_laser_mcb-50",
       "sab": false
     },
     "-=[ Kristallon ]=- β35": {
@@ -721,7 +699,6 @@
       "maps": [
         52
       ],
-      "ammo": "ammunition_laser_mcb-50",
       "sab": false
     },
     "-=[ Kristallon ]=- β36": {
@@ -734,7 +711,6 @@
       "maps": [
         52
       ],
-      "ammo": "ammunition_laser_mcb-50",
       "sab": false
     },
     "-=[ Kristallon ]=- γ33": {
@@ -747,7 +723,6 @@
       "maps": [
         53
       ],
-      "ammo": "ammunition_laser_mcb-50",
       "sab": false
     },
     "-=[ Kristallon ]=- γ34": {
@@ -760,7 +735,6 @@
       "maps": [
         53
       ],
-      "ammo": "ammunition_laser_mcb-50",
       "sab": false
     },
     "-=[ Kristallon ]=- γ35": {
@@ -773,7 +747,6 @@
       "maps": [
         53
       ],
-      "ammo": "ammunition_laser_mcb-50",
       "sab": false
     },
     "-=[ Kristallon ]=- γ36": {
@@ -786,7 +759,6 @@
       "maps": [
         53
       ],
-      "ammo": "ammunition_laser_mcb-50",
       "sab": false
     },
     "-=[ Lordakia ]=-": {
@@ -814,7 +786,7 @@
       "maps": [
         51
       ],
-      "ammo": "ammunition_laser_mcb-50",
+      "ammo": "ammunition_laser_mcb-25",
       "sab": false
     },
     "-=[ Lordakia ]=- α6": {
@@ -827,7 +799,7 @@
       "maps": [
         51
       ],
-      "ammo": "ammunition_laser_mcb-50",
+      "ammo": "ammunition_laser_mcb-25",
       "sab": false
     },
     "-=[ Lordakia ]=- α7": {
@@ -840,7 +812,7 @@
       "maps": [
         51
       ],
-      "ammo": "ammunition_laser_mcb-50",
+      "ammo": "ammunition_laser_mcb-25",
       "sab": false
     },
     "-=[ Lordakia ]=- α8": {
@@ -853,7 +825,7 @@
       "maps": [
         51
       ],
-      "ammo": "ammunition_laser_mcb-50",
+      "ammo": "ammunition_laser_mcb-25",
       "sab": false
     },
     "-=[ Lordakia ]=- β5": {
@@ -866,7 +838,7 @@
       "maps": [
         52
       ],
-      "ammo": "ammunition_laser_mcb-50",
+      "ammo": "ammunition_laser_mcb-25",
       "sab": false
     },
     "-=[ Lordakia ]=- β6": {
@@ -879,7 +851,7 @@
       "maps": [
         52
       ],
-      "ammo": "ammunition_laser_mcb-50",
+      "ammo": "ammunition_laser_mcb-25",
       "sab": false
     },
     "-=[ Lordakia ]=- β7": {
@@ -892,7 +864,7 @@
       "maps": [
         52
       ],
-      "ammo": "ammunition_laser_mcb-50",
+      "ammo": "ammunition_laser_mcb-25",
       "sab": false
     },
     "-=[ Lordakia ]=- β8": {
@@ -905,7 +877,7 @@
       "maps": [
         52
       ],
-      "ammo": "ammunition_laser_mcb-50",
+      "ammo": "ammunition_laser_mcb-25",
       "sab": false
     },
     "-=[ Lordakia ]=- γ5": {
@@ -918,7 +890,7 @@
       "maps": [
         53
       ],
-      "ammo": "ammunition_laser_mcb-50",
+      "ammo": "ammunition_laser_mcb-25",
       "sab": false
     },
     "-=[ Lordakia ]=- γ6": {
@@ -931,7 +903,7 @@
       "maps": [
         53
       ],
-      "ammo": "ammunition_laser_mcb-50",
+      "ammo": "ammunition_laser_mcb-25",
       "sab": false
     },
     "-=[ Lordakia ]=- γ7": {
@@ -944,7 +916,7 @@
       "maps": [
         53
       ],
-      "ammo": "ammunition_laser_mcb-50",
+      "ammo": "ammunition_laser_mcb-25",
       "sab": false
     },
     "-=[ Lordakia ]=- γ8": {
@@ -957,7 +929,7 @@
       "maps": [
         53
       ],
-      "ammo": "ammunition_laser_mcb-50",
+      "ammo": "ammunition_laser_mcb-25",
       "sab": false
     },
     "-=[ Lordakium ]=-": {
@@ -990,7 +962,7 @@
       "maps": [
         51
       ],
-      "ammo": "ammunition_laser_mcb-50",
+      "ammo": "ammunition_laser_mcb-25",
       "sab": false
     },
     "-=[ Mordon ]=- α11": {
@@ -1003,7 +975,7 @@
       "maps": [
         51
       ],
-      "ammo": "ammunition_laser_mcb-50",
+      "ammo": "ammunition_laser_mcb-25",
       "sab": false
     },
     "-=[ Mordon ]=- α12": {
@@ -1016,7 +988,7 @@
       "maps": [
         51
       ],
-      "ammo": "ammunition_laser_mcb-50",
+      "ammo": "ammunition_laser_mcb-25",
       "sab": false
     },
     "-=[ Mordon ]=- α9": {
@@ -1029,7 +1001,7 @@
       "maps": [
         51
       ],
-      "ammo": "ammunition_laser_mcb-50",
+      "ammo": "ammunition_laser_mcb-25",
       "sab": false
     },
     "-=[ Mordon ]=- β10": {
@@ -1042,7 +1014,7 @@
       "maps": [
         52
       ],
-      "ammo": "ammunition_laser_mcb-50",
+      "ammo": "ammunition_laser_mcb-25",
       "sab": false
     },
     "-=[ Mordon ]=- β11": {
@@ -1055,7 +1027,7 @@
       "maps": [
         52
       ],
-      "ammo": "ammunition_laser_mcb-50",
+      "ammo": "ammunition_laser_mcb-25",
       "sab": false
     },
     "-=[ Mordon ]=- β12": {
@@ -1068,7 +1040,7 @@
       "maps": [
         52
       ],
-      "ammo": "ammunition_laser_mcb-50",
+      "ammo": "ammunition_laser_mcb-25",
       "sab": false
     },
     "-=[ Mordon ]=- β9": {
@@ -1081,7 +1053,7 @@
       "maps": [
         52
       ],
-      "ammo": "ammunition_laser_mcb-50",
+      "ammo": "ammunition_laser_mcb-25",
       "sab": false
     },
     "-=[ Mordon ]=- γ10": {
@@ -1094,7 +1066,7 @@
       "maps": [
         53
       ],
-      "ammo": "ammunition_laser_mcb-50",
+      "ammo": "ammunition_laser_mcb-25",
       "sab": false
     },
     "-=[ Mordon ]=- γ11": {
@@ -1107,7 +1079,7 @@
       "maps": [
         53
       ],
-      "ammo": "ammunition_laser_mcb-50",
+      "ammo": "ammunition_laser_mcb-25",
       "sab": false
     },
     "-=[ Mordon ]=- γ12": {
@@ -1120,7 +1092,7 @@
       "maps": [
         53
       ],
-      "ammo": "ammunition_laser_mcb-50",
+      "ammo": "ammunition_laser_mcb-25",
       "sab": false
     },
     "-=[ Mordon ]=- γ9": {
@@ -1133,7 +1105,7 @@
       "maps": [
         53
       ],
-      "ammo": "ammunition_laser_mcb-50",
+      "ammo": "ammunition_laser_mcb-25",
       "sab": false
     },
     "-=[ Plagued Kristallin ]=-": {
@@ -1166,7 +1138,6 @@
       "maps": [
         51
       ],
-      "ammo": "ammunition_laser_mcb-50",
       "sab": false
     },
     "-=[ Protegit ]=- α38": {
@@ -1179,7 +1150,6 @@
       "maps": [
         51
       ],
-      "ammo": "ammunition_laser_mcb-50",
       "sab": false
     },
     "-=[ Protegit ]=- α39": {
@@ -1192,7 +1162,6 @@
       "maps": [
         51
       ],
-      "ammo": "ammunition_laser_mcb-50",
       "sab": false
     },
     "-=[ Protegit ]=- α40": {
@@ -1205,7 +1174,6 @@
       "maps": [
         51
       ],
-      "ammo": "ammunition_laser_mcb-50",
       "sab": false
     },
     "-=[ Protegit ]=- β37": {
@@ -1218,7 +1186,6 @@
       "maps": [
         52
       ],
-      "ammo": "ammunition_laser_mcb-50",
       "sab": false
     },
     "-=[ Protegit ]=- β38": {
@@ -1231,7 +1198,6 @@
       "maps": [
         52
       ],
-      "ammo": "ammunition_laser_mcb-50",
       "sab": false
     },
     "-=[ Protegit ]=- β39": {
@@ -1244,7 +1210,6 @@
       "maps": [
         52
       ],
-      "ammo": "ammunition_laser_mcb-50",
       "sab": false
     },
     "-=[ Protegit ]=- β40": {
@@ -1257,7 +1222,6 @@
       "maps": [
         52
       ],
-      "ammo": "ammunition_laser_mcb-50",
       "sab": false
     },
     "-=[ Protegit ]=- γ37": {
@@ -1270,7 +1234,6 @@
       "maps": [
         53
       ],
-      "ammo": "ammunition_laser_mcb-50",
       "sab": false
     },
     "-=[ Protegit ]=- γ38": {
@@ -1283,7 +1246,6 @@
       "maps": [
         53
       ],
-      "ammo": "ammunition_laser_mcb-50",
       "sab": false
     },
     "-=[ Protegit ]=- γ39": {
@@ -1296,7 +1258,6 @@
       "maps": [
         53
       ],
-      "ammo": "ammunition_laser_mcb-50",
       "sab": false
     },
     "-=[ Protegit ]=- γ40": {
@@ -1309,7 +1270,6 @@
       "maps": [
         53
       ],
-      "ammo": "ammunition_laser_mcb-50",
       "sab": false
     },
     "-=[ Rabbit ]=-": {
@@ -1344,7 +1304,7 @@
       "maps": [
         51
       ],
-      "ammo": "ammunition_laser_mcb-50",
+      "ammo": "ammunition_laser_mcb-25",
       "sab": false
     },
     "-=[ Saimon ]=- α14": {
@@ -1358,7 +1318,7 @@
       "maps": [
         51
       ],
-      "ammo": "ammunition_laser_mcb-50",
+      "ammo": "ammunition_laser_mcb-25",
       "sab": false
     },
     "-=[ Saimon ]=- α15": {
@@ -1372,7 +1332,7 @@
       "maps": [
         51
       ],
-      "ammo": "ammunition_laser_mcb-50",
+      "ammo": "ammunition_laser_mcb-25",
       "sab": false
     },
     "-=[ Saimon ]=- α16": {
@@ -1386,7 +1346,7 @@
       "maps": [
         51
       ],
-      "ammo": "ammunition_laser_mcb-50",
+      "ammo": "ammunition_laser_mcb-25",
       "sab": false
     },
     "-=[ Saimon ]=- β13": {
@@ -1400,7 +1360,7 @@
       "maps": [
         52
       ],
-      "ammo": "ammunition_laser_mcb-50",
+      "ammo": "ammunition_laser_mcb-25",
       "sab": false
     },
     "-=[ Saimon ]=- β14": {
@@ -1414,7 +1374,7 @@
       "maps": [
         52
       ],
-      "ammo": "ammunition_laser_mcb-50",
+      "ammo": "ammunition_laser_mcb-25",
       "sab": false
     },
     "-=[ Saimon ]=- β15": {
@@ -1428,7 +1388,7 @@
       "maps": [
         52
       ],
-      "ammo": "ammunition_laser_mcb-50",
+      "ammo": "ammunition_laser_mcb-25",
       "sab": false
     },
     "-=[ Saimon ]=- β16": {
@@ -1442,7 +1402,7 @@
       "maps": [
         52
       ],
-      "ammo": "ammunition_laser_mcb-50",
+      "ammo": "ammunition_laser_mcb-25",
       "sab": false
     },
     "-=[ Saimon ]=- γ13": {
@@ -1456,7 +1416,7 @@
       "maps": [
         53
       ],
-      "ammo": "ammunition_laser_mcb-50",
+      "ammo": "ammunition_laser_mcb-25",
       "sab": false
     },
     "-=[ Saimon ]=- γ14": {
@@ -1470,7 +1430,7 @@
       "maps": [
         53
       ],
-      "ammo": "ammunition_laser_mcb-50",
+      "ammo": "ammunition_laser_mcb-25",
       "sab": false
     },
     "-=[ Saimon ]=- γ15": {
@@ -1484,7 +1444,7 @@
       "maps": [
         53
       ],
-      "ammo": "ammunition_laser_mcb-50",
+      "ammo": "ammunition_laser_mcb-25",
       "sab": false
     },
     "-=[ Saimon ]=- γ16": {
@@ -1498,7 +1458,7 @@
       "maps": [
         53
       ],
-      "ammo": "ammunition_laser_mcb-50",
+      "ammo": "ammunition_laser_mcb-25",
       "sab": false
     },
     "-=[ Sibelon ]=- α25": {
@@ -1511,7 +1471,6 @@
       "maps": [
         51
       ],
-      "ammo": "ammunition_laser_mcb-50",
       "sab": false
     },
     "-=[ Sibelon ]=- α26": {
@@ -1524,7 +1483,6 @@
       "maps": [
         51
       ],
-      "ammo": "ammunition_laser_mcb-50",
       "sab": false
     },
     "-=[ Sibelon ]=- α27": {
@@ -1537,7 +1495,6 @@
       "maps": [
         51
       ],
-      "ammo": "ammunition_laser_mcb-50",
       "sab": false
     },
     "-=[ Sibelon ]=- α28": {
@@ -1550,7 +1507,6 @@
       "maps": [
         51
       ],
-      "ammo": "ammunition_laser_mcb-50",
       "sab": false
     },
     "-=[ Sibelon ]=- β25": {
@@ -1563,7 +1519,6 @@
       "maps": [
         52
       ],
-      "ammo": "ammunition_laser_mcb-50",
       "sab": false
     },
     "-=[ Sibelon ]=- β26": {
@@ -1576,7 +1531,6 @@
       "maps": [
         52
       ],
-      "ammo": "ammunition_laser_mcb-50",
       "sab": false
     },
     "-=[ Sibelon ]=- β27": {
@@ -1589,7 +1543,6 @@
       "maps": [
         52
       ],
-      "ammo": "ammunition_laser_mcb-50",
       "sab": false
     },
     "-=[ Sibelon ]=- β28": {
@@ -1602,7 +1555,6 @@
       "maps": [
         52
       ],
-      "ammo": "ammunition_laser_mcb-50",
       "sab": false
     },
     "-=[ Sibelon ]=- γ25": {
@@ -1615,7 +1567,6 @@
       "maps": [
         53
       ],
-      "ammo": "ammunition_laser_mcb-50",
       "sab": false
     },
     "-=[ Sibelon ]=- γ26": {
@@ -1628,7 +1579,6 @@
       "maps": [
         53
       ],
-      "ammo": "ammunition_laser_mcb-50",
       "sab": false
     },
     "-=[ Sibelon ]=- γ27": {
@@ -1641,7 +1591,6 @@
       "maps": [
         53
       ],
-      "ammo": "ammunition_laser_mcb-50",
       "sab": false
     },
     "-=[ Sibelon ]=- γ28": {
@@ -1654,7 +1603,6 @@
       "maps": [
         53
       ],
-      "ammo": "ammunition_laser_mcb-50",
       "sab": false
     },
     "-=[ Sibelonit ]=-": {
@@ -1677,7 +1625,6 @@
       "maps": [
         51
       ],
-      "ammo": "ammunition_laser_mcb-50",
       "sab": false
     },
     "-=[ Sibelonit ]=- α30": {
@@ -1691,7 +1638,6 @@
       "maps": [
         51
       ],
-      "ammo": "ammunition_laser_mcb-50",
       "sab": false
     },
     "-=[ Sibelonit ]=- α31": {
@@ -1705,7 +1651,6 @@
       "maps": [
         51
       ],
-      "ammo": "ammunition_laser_mcb-50",
       "sab": false
     },
     "-=[ Sibelonit ]=- α32": {
@@ -1719,7 +1664,6 @@
       "maps": [
         51
       ],
-      "ammo": "ammunition_laser_mcb-50",
       "sab": false
     },
     "-=[ Sibelonit ]=- β29": {
@@ -1733,7 +1677,6 @@
       "maps": [
         52
       ],
-      "ammo": "ammunition_laser_mcb-50",
       "sab": false
     },
     "-=[ Sibelonit ]=- β30": {
@@ -1747,7 +1690,6 @@
       "maps": [
         52
       ],
-      "ammo": "ammunition_laser_mcb-50",
       "sab": false
     },
     "-=[ Sibelonit ]=- β31": {
@@ -1761,7 +1703,6 @@
       "maps": [
         52
       ],
-      "ammo": "ammunition_laser_mcb-50",
       "sab": false
     },
     "-=[ Sibelonit ]=- β32": {
@@ -1775,7 +1716,6 @@
       "maps": [
         52
       ],
-      "ammo": "ammunition_laser_mcb-50",
       "sab": false
     },
     "-=[ Sibelonit ]=- γ29": {
@@ -1789,7 +1729,6 @@
       "maps": [
         53
       ],
-      "ammo": "ammunition_laser_mcb-50",
       "sab": false
     },
     "-=[ Sibelonit ]=- γ30": {
@@ -1803,7 +1742,6 @@
       "maps": [
         53
       ],
-      "ammo": "ammunition_laser_mcb-50",
       "sab": false
     },
     "-=[ Sibelonit ]=- γ31": {
@@ -1817,7 +1755,6 @@
       "maps": [
         53
       ],
-      "ammo": "ammunition_laser_mcb-50",
       "sab": false
     },
     "-=[ Sibelonit ]=- γ32": {
@@ -1831,7 +1768,6 @@
       "maps": [
         53
       ],
-      "ammo": "ammunition_laser_mcb-50",
       "sab": false
     },
     "-=[ Steadfast III ]=-": {
@@ -1873,7 +1809,7 @@
       "maps": [
         51
       ],
-      "ammo": "ammunition_laser_mcb-50",
+      "ammo": "ammunition_laser_mcb-25",
       "sab": false
     },
     "-=[ Streuner ]=- α2": {
@@ -1886,7 +1822,7 @@
       "maps": [
         51
       ],
-      "ammo": "ammunition_laser_mcb-50",
+      "ammo": "ammunition_laser_mcb-25",
       "sab": false
     },
     "-=[ Streuner ]=- α3": {
@@ -1899,7 +1835,7 @@
       "maps": [
         51
       ],
-      "ammo": "ammunition_laser_mcb-50",
+      "ammo": "ammunition_laser_mcb-25",
       "sab": false
     },
     "-=[ Streuner ]=- α4": {
@@ -1912,7 +1848,7 @@
       "maps": [
         51
       ],
-      "ammo": "ammunition_laser_mcb-50",
+      "ammo": "ammunition_laser_mcb-25",
       "sab": false
     },
     "-=[ Streuner ]=- β1": {
@@ -1925,7 +1861,7 @@
       "maps": [
         52
       ],
-      "ammo": "ammunition_laser_mcb-50",
+      "ammo": "ammunition_laser_mcb-25",
       "sab": false
     },
     "-=[ Streuner ]=- β2": {
@@ -1938,7 +1874,7 @@
       "maps": [
         52
       ],
-      "ammo": "ammunition_laser_mcb-50",
+      "ammo": "ammunition_laser_mcb-25",
       "sab": false
     },
     "-=[ Streuner ]=- β3": {
@@ -1951,7 +1887,7 @@
       "maps": [
         52
       ],
-      "ammo": "ammunition_laser_mcb-50",
+      "ammo": "ammunition_laser_mcb-25",
       "sab": false
     },
     "-=[ Streuner ]=- β4": {
@@ -1964,7 +1900,7 @@
       "maps": [
         52
       ],
-      "ammo": "ammunition_laser_mcb-50",
+      "ammo": "ammunition_laser_mcb-25",
       "sab": false
     },
     "-=[ Streuner ]=- γ1": {
@@ -1977,7 +1913,7 @@
       "maps": [
         53
       ],
-      "ammo": "ammunition_laser_mcb-50",
+      "ammo": "ammunition_laser_mcb-25",
       "sab": false
     },
     "-=[ Streuner ]=- γ2": {
@@ -1990,7 +1926,7 @@
       "maps": [
         53
       ],
-      "ammo": "ammunition_laser_mcb-50",
+      "ammo": "ammunition_laser_mcb-25",
       "sab": false
     },
     "-=[ Streuner ]=- γ3": {
@@ -2003,7 +1939,7 @@
       "maps": [
         53
       ],
-      "ammo": "ammunition_laser_mcb-50",
+      "ammo": "ammunition_laser_mcb-25",
       "sab": false
     },
     "-=[ Streuner ]=- γ4": {
@@ -2016,7 +1952,7 @@
       "maps": [
         53
       ],
-      "ammo": "ammunition_laser_mcb-50",
+      "ammo": "ammunition_laser_mcb-25",
       "sab": false
     },
     "-=[ Strokelight Barrage ]=-": {

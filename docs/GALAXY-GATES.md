@@ -106,6 +106,9 @@ CARNAGE `ABG.json`: α приоритет 3, β 2, γ −1; ремонт 0,3–0
 - ABG (номера волн): Streuner 1–4 (450), Lordakia 5–8 (500), Mordon 9–12 (550), Saimon 13–16 (580), Devolarium 17–20 (560),
   Kristallin 21–24 (605), Sibelon 25–28 (570), Sibelonit 29–32 (605), Kristallon 33–36 (610), Protegit 37–40 (630).
   Камикадзе питомца — на Kristallin, Saimon, Sibelonit.
+  Патроны в ABG (Default «Galaxy Gates ABG», с 2026-11-21, выбор пользователя): MCB-25 у Streuner, Lordakia, Mordon, Saimon
+  во всех трёх вратах и у Devolarium в α и β. Остальные, Devolarium в γ тоже, бьются общим патроном конфига
+  (`loot.ammo`); раньше у всех был MCB-50.
 - ζ: Infernal 550, Scorcher 590, Melter 590, Devourer 590 (приоритет), Streuner/StreuneR/Boss/Uber 550–590, Lordakia,
   Saimon, Sibelonit, Kristallin (Boss/Uber) 550–590.
 - κ: Streuner, Vagrant, Infernal, Marauder, Scorcher, Boss Mordon, Outcast, Devolarium, Icy, Boss Sibelonit, Corsair,
