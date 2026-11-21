@@ -690,7 +690,10 @@ public final class GateModule implements BotModule {
     }
 
     private void place(GateCatalog.Gate g, WorldSnapshot.Gates gates, long now) {
-        if (gates.setupNanos() > placeAskedAt && gates.setupGate() == g.builderId()) {
+        // only the answer to this ask, for 10 s: the answer to the gate's earlier placement stays in the world (also
+        // over a restart of the account) and kept the next one from being asked for at all (live 2026-11-21 on gb2 and
+        // ru5: β, then α built again and the ship idle on the base for hours); with no lives by then it is asked again
+        if (gates.setupNanos() > placeAskedAt && gates.setupGate() == g.builderId() && ms(now - placeAskedAt) <= 10_000) {
             if (gates.setupError() != 0) {
                 skip(g, "не ставятся (ошибка " + gates.setupError() + ")");
             } else if (placedCounted != placeAskedAt) {

@@ -114,6 +114,21 @@ class GateModuleTest {
     }
 
     @Test
+    void theAnswerToAnEarlierPlacementDoesNotStopTheNextOne() throws Exception {
+        Sim sim = new Sim(config("{\"gates\":[\"alpha\"]}"), home(), 10_000, 6_000);
+        sim.now = 1_000 * Sim.MS;
+        orbit.protocol.gen.GalaxyGateBuilderSetupGateCommand old = new orbit.protocol.gen.GalaxyGateBuilderSetupGateCommand();
+        old.id = 1; // α placed an hour ago, run and done since
+        sim.world.apply(old, sim.now);
+        sim.now += 3_600_000 * Sim.MS;
+        info(sim, 0, new int[] {1, 34, -1});
+        GateModule m = new GateModule(sim.ctx);
+        run(sim, m, 2_000);
+        assertTrue(sim.sent.stream().anyMatch(p -> p instanceof orbit.protocol.gen.GalaxyGateBuilderSetupGateRequest r
+                && r.gateId == 1), "«prepare jump» for α again");
+    }
+
+    @Test
     void partsMissingItSpinsWithTheFreeEnergyOnly() throws Exception {
         Sim sim = new Sim(config("{\"gates\":[\"alpha\"],\"build\":true}"), home(), 10_000, 6_000);
         info(sim, 50, new int[] {1, 5, -1});
