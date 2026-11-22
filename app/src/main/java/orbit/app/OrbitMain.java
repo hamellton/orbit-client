@@ -768,9 +768,13 @@ public final class OrbitMain {
                     int wantHangar = run.runner().hangarRequest();
                     if (wantHangar != 0 && !closed.get() && lastHost.get() != null) {
                         // the module asked for another ship (two-ship palladium): switch it on the site, log in again
-                        if (!switchHangar(auth, source, lastHost.get(), wantHangar, cfg, feed)) {
-                            log.error("Корабль на сайте не сменился — аккаунт остановлен, чтобы не входить и выходить"
-                                    + " по кругу; проверьте корабли палладия в настройках аккаунта");
+                        if (!switchHangar(auth, source, lastHost.get(), wantHangar, cfg, feed,
+                                () -> closed.get() || java.nio.file.Files.exists(stopFile), SWITCH_GAP_MS,
+                                SWITCH_REFUSED_FIRST_MS)) {
+                            if (!closed.get() && !java.nio.file.Files.exists(stopFile)) {
+                                log.error("Корабль на сайте не сменился — аккаунт остановлен, чтобы не входить и выходить"
+                                        + " по кругу; проверьте корабли палладия в настройках аккаунта");
+                            }
                             break;
                         }
                         failures = 0;
@@ -1250,25 +1254,46 @@ public final class OrbitMain {
         return lootId == null || lootId.isBlank() ? "?" : lootId.replaceFirst("^ship_", "");
     }
 
-    /** Attempts at a refused switch, and the pause between them (DarkBot keeps 12 s between hangar actions). */
+    /** Attempts at a failed switch, and the pause between them (DarkBot keeps 12 s between hangar actions). */
     static final int SWITCH_TRIES = 3;
     static final long SWITCH_GAP_MS = 15_000;
+    /**
+     * A switch the site refuses with its own text («можно ещё раз через …») is asked again this long at most — DarkBot
+     * asks again till it passes (live 2026-11-22 on int1: three tries within a minute, the account stopped).
+     */
+    static final long SWITCH_REFUSED_MAX_MS = 15 * 60_000;
+    /** The pause after a refusal whose text names no wait: doubled each time, from 30 s up to 5 min. */
+    static final long SWITCH_REFUSED_FIRST_MS = 30_000;
+    static final long SWITCH_REFUSED_CAP_MS = 5 * 60_000;
 
     /**
      * Makes {@code want} the active ship on the site, then waits the module's extra pause (DmPlugin's 5 s); a ship
-     * the account does not have is never asked for. A refusal («too short a time between two actions») is tried
-     * again after a pause, a few times. A stale site login (a page instead of the list, after a long session) is
+     * the account does not have is never asked for. A failure is tried again after a pause, a few times; the site's
+     * own refusal ({@link orbit.auth.Hangars.Refused}, «можно ещё раз через …») is asked again after the wait it names
+     * (else a growing pause) for up to {@link #SWITCH_REFUSED_MAX_MS}, the stop of the account ending it. A stale site login (a page instead of the list, after a long session) is
      * renewed once by a new site login, the same one a game login does.
      *
      * @return false when the ship could not be made active (the account then stops: no log in/out loop)
      */
     static boolean switchHangar(AuthClient auth, SessionSource source, String host, int want, orbit.config.BotConfig cfg,
             WorldFeed feed) throws InterruptedException {
+        return switchHangar(auth, source, host, want, cfg, feed, () -> false, SWITCH_GAP_MS, SWITCH_REFUSED_FIRST_MS);
+    }
+
+    static boolean switchHangar(AuthClient auth, SessionSource source, String host, int want, orbit.config.BotConfig cfg,
+            WorldFeed feed, java.util.function.BooleanSupplier stopped, long gapMs, long refusedFirstMs)
+            throws InterruptedException {
         var hangars = new orbit.auth.Hangars(auth.http(), host);
         feed.setState("Смена корабля");
         boolean renewed = false;
+        long refusedSince = 0;
+        long refusedPause = refusedFirstMs;
+        long next = Math.min(3_000, gapMs);
         for (int attempt = 1; ; attempt++) {
-            Thread.sleep(attempt == 1 ? 3_000 : SWITCH_GAP_MS);
+            if (!pause(next, stopped)) {
+                return false;
+            }
+            next = gapMs;
             try {
                 var list = hangars.list();
                 if (list.stream().noneMatch(h -> h.id() == want)) {
@@ -1278,7 +1303,9 @@ public final class OrbitMain {
                 int active = list.stream().filter(orbit.auth.Hangars.Hangar::active).mapToInt(orbit.auth.Hangars.Hangar::id)
                         .findFirst().orElse(0);
                 if (active != want) {
-                    Thread.sleep(SWITCH_GAP_MS); // the list and the switch are two actions for the site
+                    if (!pause(gapMs, stopped)) { // the list and the switch are two actions for the site
+                        return false;
+                    }
                     hangars.activate(active, want);
                     log.info("Корабль сменён на сайте: ангар {} → {}", active, want);
                 }
@@ -1297,18 +1324,48 @@ public final class OrbitMain {
                     return false;
                 }
                 attempt = 0; // the tries start again with the new login
+            } catch (orbit.auth.Hangars.Refused e) {
+                // the site's own «not yet»: its wait (or a growing pause), again and again, as DarkBot
+                long now = System.currentTimeMillis();
+                refusedSince = refusedSince == 0 ? now : refusedSince;
+                long named = e.waitSeconds();
+                long wait = named >= 0 ? named * 1_000 + Math.min(3_000, gapMs) : refusedPause;
+                if (named < 0) {
+                    refusedPause = Math.min(refusedPause * 2, SWITCH_REFUSED_CAP_MS);
+                }
+                if (now - refusedSince + wait > SWITCH_REFUSED_MAX_MS) {
+                    log.warn("Корабль не сменить: сайт отказывает {} мин — «{}»", (now - refusedSince) / 60_000,
+                            e.siteMessage());
+                    return false;
+                }
+                log.warn("Сайт пока не даёт сменить корабль: «{}» — ещё раз через {} с", e.siteMessage(), wait / 1000);
+                feed.setState("Смена корабля: сайт просит подождать");
+                next = wait;
+                attempt = 0; // a refusal is no failed try
             } catch (java.io.IOException e) {
                 if (attempt >= SWITCH_TRIES) {
                     log.warn("Корабль не сменить: {}", e.getMessage());
                     return false;
                 }
-                log.warn("Корабль не сменить: {} — ещё раз через {} с", e.getMessage(), SWITCH_GAP_MS / 1000);
+                log.warn("Корабль не сменить: {} — ещё раз через {} с", e.getMessage(), gapMs / 1000);
             }
         }
         var s = cfg.modules().get(orbit.config.BotConfig.Module.PALLADIUM.key());
         long extra = s == null ? 5 : Math.max(0, s.path("aditionalWaitingTime").asInt(5));
         Thread.sleep(2_000 + extra * 1_000);
         return true;
+    }
+
+    /** Sleeps {@code ms} in steps of a second; false as soon as the account is being stopped. */
+    private static boolean pause(long ms, java.util.function.BooleanSupplier stopped) throws InterruptedException {
+        long end = System.currentTimeMillis() + ms;
+        while (System.currentTimeMillis() < end) {
+            if (stopped.getAsBoolean()) {
+                return false;
+            }
+            Thread.sleep(Math.min(1_000, Math.max(1, end - System.currentTimeMillis())));
+        }
+        return !stopped.getAsBoolean();
     }
 
     /** After this many sessions in a row without a game connection the account stops. */

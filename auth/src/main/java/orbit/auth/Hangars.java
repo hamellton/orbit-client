@@ -43,6 +43,45 @@ public final class Hangars {
         }
     }
 
+    /**
+     * The site refused the switch with its own text (live 2026-11-22 on int1: «Переключаться между кораблями можно ещё
+     * раз через …», though a switch back 53 s after the last one had always passed before).
+     */
+    public static final class Refused extends IOException {
+
+        private final String siteMessage;
+
+        Refused(String siteMessage) {
+            super("сайт не сменил корабль: " + siteMessage);
+            this.siteMessage = siteMessage;
+        }
+
+        /** The site's own text, as it sent it. */
+        public String siteMessage() {
+            return siteMessage;
+        }
+
+        /** The wait the site's text names, in seconds ({@code через 15 с}, {@code 2 мин}); -1 when it names none. */
+        public long waitSeconds() {
+            return waitSeconds(siteMessage);
+        }
+
+        static long waitSeconds(String text) {
+            java.util.regex.Matcher m = java.util.regex.Pattern
+                    .compile("(\\d+)\\s*(сек|с\\b|с$|s\\b|sec|мин|min|m\\b|час|h\\b)", java.util.regex.Pattern.UNICODE_CHARACTER_CLASS
+                            | java.util.regex.Pattern.CASE_INSENSITIVE)
+                    .matcher(text == null ? "" : text);
+            long total = -1;
+            while (m.find()) {
+                long n = Long.parseLong(m.group(1));
+                String u = m.group(2).toLowerCase(java.util.Locale.ROOT);
+                long s = u.startsWith("м") || u.startsWith("m") ? n * 60 : u.startsWith("ч") || u.startsWith("h") ? n * 3600 : n;
+                total = Math.max(total, 0) + s;
+            }
+            return total;
+        }
+    }
+
     private static volatile String lastShape = "";
 
     /** The field names (no values) of the last list's first hangar: to learn where the site puts the design. */
@@ -139,7 +178,19 @@ public final class Hangars {
         HttpSession.Response r = http.postForm(origin + PATH, form, origin + Shop.START_PAGE);
         String answer = new String(decodeBytes(r.body()), StandardCharsets.UTF_8);
         if (!answer.contains("\"isError\":0")) {
-            throw new IOException("сайт не сменил корабль: " + answer.substring(0, Math.min(200, answer.length())));
+            String message = null;
+            try {
+                JsonNode root = JSON.readTree(answer);
+                JsonNode m = root.path("error").path("message");
+                message = m.isTextual() && !m.asText().isBlank() ? m.asText() : null;
+            } catch (IOException | RuntimeException ignored) {
+                // not JSON: the raw start below
+            }
+            if (message != null) {
+                throw new Refused(orbit.secrets.SecretMask.mask(message));
+            }
+            throw new IOException("сайт не сменил корабль: "
+                    + orbit.secrets.SecretMask.mask(answer.substring(0, Math.min(200, answer.length()))));
         }
     }
 

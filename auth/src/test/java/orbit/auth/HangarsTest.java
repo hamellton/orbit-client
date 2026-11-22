@@ -54,4 +54,12 @@ class HangarsTest {
         var lasers = Hangars.petItems(new ObjectMapper().readTree(json), 700, "lasers");
         assertEquals(java.util.Map.of(1, java.util.List.of("21", "22")), lasers, "config 2 has none, 701 is not ours");
     }
+
+    @Test
+    void theWaitTheSitesRefusalNamesIsRead() {
+        assertEquals(15, Hangars.Refused.waitSeconds("Переключаться между кораблями можно ещё раз через 15 с"));
+        assertEquals(120, Hangars.Refused.waitSeconds("можно не чаще, чем раз в 2 мин."));
+        assertEquals(90, Hangars.Refused.waitSeconds("через 1 мин 30 сек"));
+        assertEquals(-1, Hangars.Refused.waitSeconds("Переключаться между кораблями пока нельзя"));
+    }
 }

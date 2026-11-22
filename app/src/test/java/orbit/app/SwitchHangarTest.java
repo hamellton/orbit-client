@@ -59,4 +59,66 @@ class SwitchHangarTest {
             server.stop(0);
         }
     }
+
+    @Test
+    void theSitesNotYetIsWaitedOutNotTheAccountStopped() throws Exception {
+        // live 2026-11-22 on int1: «Переключаться между кораблями можно ещё раз через …» three times, the account stopped
+        AtomicInteger switches = new AtomicInteger();
+        String list = "{\"isError\":0,\"data\":{\"ret\":{\"hangars\":[{\"hangarID\":7,\"hangar_is_active\":false,"
+                + "\"general\":{\"ship\":{\"L\":0}}},{\"hangarID\":8,\"hangar_is_active\":true,\"general\":{\"ship\":{\"L\":0}}}]},"
+                + "\"map\":{\"lootIds\":[\"ship_goliath\"]}}}";
+        String refused = "{\"isError\":1,\"data\":{\"ret\":0},\"error\":{\"message\":"
+                + "\"\\u041f\\u0435\\u0440\\u0435\\u043a\\u043b\\u044e\\u0447\\u0430\\u0442\\u044c\\u0441\\u044f "
+                + "\\u043c\\u043e\\u0436\\u043d\\u043e \\u0447\\u0435\\u0440\\u0435\\u0437 1 \\u0441\"}}";
+        HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/flashAPI/inventory.php", ex -> {
+            String form = new String(ex.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+            String json = !form.contains("activateShip") ? list
+                    : switches.incrementAndGet() <= 2 ? refused : "{\"isError\":0,\"data\":{\"ret\":1}}";
+            byte[] b = Base64.getEncoder().encodeToString(json.getBytes(StandardCharsets.UTF_8)).getBytes(StandardCharsets.UTF_8);
+            ex.sendResponseHeaders(200, b.length);
+            ex.getResponseBody().write(b);
+            ex.close();
+        });
+        server.start();
+        try {
+            AuthClient auth = new AuthClient(new HttpSession("", java.net.Proxy.NO_PROXY), AuthClient.Endpoints.production());
+            String host = "http://127.0.0.1:" + server.getAddress().getPort();
+            boolean ok = OrbitMain.switchHangar(auth, null, host, 7, BotConfig.empty(), new WorldFeed("тест", "t"),
+                    () -> false, 10, 10);
+            assertTrue(ok, "the third ask passes");
+            assertEquals(3, switches.get());
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
+    void aStopEndsTheWaitForTheSite() throws Exception {
+        String refused = "{\"isError\":1,\"error\":{\"message\":\"wait 600 s\"}}";
+        String list = "{\"isError\":0,\"data\":{\"ret\":{\"hangars\":[{\"hangarID\":7,\"hangar_is_active\":false,"
+                + "\"general\":{\"ship\":{\"L\":0}}},{\"hangarID\":8,\"hangar_is_active\":true,\"general\":{\"ship\":{\"L\":0}}}]},"
+                + "\"map\":{\"lootIds\":[\"ship_goliath\"]}}}";
+        HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/flashAPI/inventory.php", ex -> {
+            String form = new String(ex.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+            String json = form.contains("activateShip") ? refused : list;
+            byte[] b = Base64.getEncoder().encodeToString(json.getBytes(StandardCharsets.UTF_8)).getBytes(StandardCharsets.UTF_8);
+            ex.sendResponseHeaders(200, b.length);
+            ex.getResponseBody().write(b);
+            ex.close();
+        });
+        server.start();
+        try {
+            AuthClient auth = new AuthClient(new HttpSession("", java.net.Proxy.NO_PROXY), AuthClient.Endpoints.production());
+            String host = "http://127.0.0.1:" + server.getAddress().getPort();
+            long until = System.currentTimeMillis() + 2_000;
+            long t0 = System.currentTimeMillis();
+            boolean ok = OrbitMain.switchHangar(auth, null, host, 7, BotConfig.empty(), new WorldFeed("тест", "t"),
+                    () -> System.currentTimeMillis() > until, 10, 10);
+            assertTrue(!ok && System.currentTimeMillis() - t0 < 10_000, "the stop ends the 600 s wait");
+        } finally {
+            server.stop(0);
+        }
+    }
 }
