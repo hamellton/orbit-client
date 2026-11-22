@@ -2790,7 +2790,7 @@
     }
   },
   "loot": {
-    "ammo": "ammunition_laser_ucb-100",
+    "ammo": "ammunition_laser_mcb-50",
     "sabBelow": 0.87,
     "sabNpcShieldMin": 120000,
     "groupNpcs": true,
@@ -2799,7 +2799,7 @@
     "fireRockets": false,
     "circle": false,
     "fallback": [
-      "ammunition_laser_mcb-50"
+      "ammunition_laser_ucb-100"
     ],
     "launcher": "ammunition_rocketlauncher_eco-10",
     "fireLauncher": false,

@@ -33,7 +33,8 @@ class ConfigFoldersTest {
         }
         assertEquals(BotConfig.Module.GALAXY_GATE, store.load("Galaxy Gates ABG").module());
         BotConfig zeta = store.load("Galaxy Gates Zeta");
-        assertEquals("ammunition_laser_ucb-100", zeta.loot().ammo());
+        assertEquals("ammunition_laser_mcb-50", zeta.loot().ammo());
+        assertEquals(java.util.List.of("ammunition_laser_ucb-100"), zeta.loot().fallback());
         assertEquals(590, zeta.npc("-=[ StreuneR ]=- ζ31").radius(), 0.1, "SharedPlugin's ZetaGate, case kept");
         assertEquals(550, zeta.npc("-=[ Streuner ]=- ζ30").radius(), 0.1);
         assertEquals("kappa", store.load("Galaxy Gates Kappa").modules().get("gate").path("gates").get(0).path("gate").asText());
