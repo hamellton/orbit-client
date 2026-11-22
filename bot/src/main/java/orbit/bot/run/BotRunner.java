@@ -182,7 +182,7 @@ public final class BotRunner {
     /** A quiet moment for a planned new login: working (not dead, fleeing, repairing, travelling), the module calm. */
     public boolean calm() {
         BotModule m = module;
-        return state == State.WORKING && !paused && current == null && m != null && m.calm();
+        return state == State.WORKING && !paused && !offline && current == null && m != null && m.calm();
     }
 
     public State state() {

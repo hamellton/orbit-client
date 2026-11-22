@@ -69,6 +69,30 @@ class ZetaKappaTest {
     }
 
     @Test
+    void noPlannedLoginOnAGatesMap() throws Exception {
+        // SharedPlugin's canRefresh: false while isMapGG (live 2026-11-22: planned logins inside ζ on int1 and int7)
+        Sim sim = new Sim(GateModuleTest.config("{\"gates\":[\"zeta\"]}"), ZETA1, 10_000, 6_000);
+        GateModule m = new GateModule(sim.ctx);
+        m.tick();
+        assertFalse(m.calm(), "in ζ");
+        Sim home = new Sim(GateModuleTest.config("{\"gates\":[\"zeta\"]}"), GateModuleTest.home(), 10_000, 6_000);
+        assertTrue(new GateModule(home.ctx).calm(), "at home, nothing under way");
+    }
+
+    @Test
+    void aMissingPortalsLoginsComeEverMoreRarely() throws Exception {
+        // live 2026-11-22 on int1: «3 lives», no portal on 3-1 for 11 minutes, a new login every 30 s
+        Sim sim = new Sim(GateModuleTest.config("{\"gates\":[\"zeta\"]}"), GateModuleTest.home(), 10_000, 6_000);
+        GateModuleTest.info(sim, 0, new int[] {6, 0, 3});
+        GateModule m = new GateModule(sim.ctx);
+        java.util.concurrent.atomic.AtomicInteger logins = new java.util.concurrent.atomic.AtomicInteger();
+        m.useRefresh(logins::incrementAndGet);
+        GateModuleTest.run(sim, m, 480_000);
+        Thread.sleep(200); // the login runs on its own thread
+        assertEquals(4, logins.get(), "30, 60, 120, 240 s apart, not every 30 s");
+    }
+
+    @Test
     void zetaIsEnteredByItsType54PortalNotTheEscortsAtTheCentre() throws Exception {
         Sim sim = new Sim(GateModuleTest.config("{\"gates\":[\"zeta\"]}"), GateModuleTest.home(), 10_000, 6_000);
         GateModuleTest.info(sim, 0, new int[] {6, 0, 3});

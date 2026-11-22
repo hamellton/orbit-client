@@ -34,8 +34,13 @@ public final class GateModule implements BotModule {
     static final long INFO_MS = 120_000;
     /** The builder window closes this long after its last call. */
     static final long WINDOW_MS = 4_000;
-    /** A placed gate whose portal is not seen on x-1 this long: a new login (DarkBot's builder does so). */
+    /**
+     * A placed gate whose portal is not seen on x-1 this long: a new login (DarkBot's builder does so); each next
+     * login for the same gate waits twice as long, up to {@link #PORTAL_WAIT_MAX_MS} (live 2026-11-22 on int1: after
+     * a death in ζ's last stage the builder said «3 lives» for 11 minutes with no portal, 22 logins 30 s apart).
+     */
     static final long PORTAL_WAIT_MS = 30_000;
+    static final long PORTAL_WAIT_MAX_MS = 300_000;
     /** Nothing to fight or pick up this long before a gate's portal is taken. */
     static final long QUIET_MS = 3_000;
     /** A completed gate with no portal home this long: a new login. */
@@ -79,6 +84,8 @@ public final class GateModule implements BotModule {
     private long pressedAt = Long.MIN_VALUE / 2;
     private int placedPortalFor;
     private long placedAt;
+    /** New logins made for {@link #placedPortalFor}'s missing portal. */
+    private int portalLogins;
     private long trinityAskedAt = Long.MIN_VALUE / 2;
     private long trinityEnterAt = Long.MIN_VALUE / 2;
 
@@ -146,6 +153,12 @@ public final class GateModule implements BotModule {
     @Override
     public boolean busy() {
         return attacker.targetId() != 0;
+    }
+
+    /** No planned new login on a gate's map (SharedPlugin's canRefresh: false while isMapGG). */
+    @Override
+    public boolean calm() {
+        return !busy() && GateCatalog.byMap(ctx.world().get().hero().mapId()) == null;
     }
 
     @Override
@@ -906,9 +919,12 @@ public final class GateModule implements BotModule {
             if (placedPortalFor != g.builderId()) {
                 placedPortalFor = g.builderId();
                 placedAt = now;
+                portalLogins = 0;
             }
-            if (ms(now - placedAt) > PORTAL_WAIT_MS) {
+            if (ms(now - placedAt) > Math.min(PORTAL_WAIT_MAX_MS, PORTAL_WAIT_MS << Math.min(portalLogins, 4))) {
                 placedAt = now;
+                portalLogins++;
+                infoNow = true; // the builder's word again: the gate may be over
                 Runnable r = refresh;
                 if (r != null) {
                     log.warn("Врата {} поставлены, а портала (тип {}) на {} нет — перевхожу", g.name(), g.portal(),
