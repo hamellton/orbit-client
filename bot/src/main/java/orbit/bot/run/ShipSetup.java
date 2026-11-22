@@ -138,14 +138,18 @@ public final class ShipSetup {
             // «selected» may come much later, so the answer counts — asking again every few seconds did not help
             if (asked != null && h.formationNanos() > formationAt) {
                 Integer table = formationId(asked);
-                if (table != null && table != h.formation()) {
-                    log.warn("Формация {}: сервер называет её №{}, а не №{} — запомнил", asked, h.formation(), table);
+                // only a formation the table does not know is learned from the answer; a known one answered with
+                // another number was not this request's answer (live 2026-11-22 on gb2: Moth asked, the link reset,
+                // the login's Ring came back, Moth was taken for 14 and the ship flew Ring on Devolarium for hours)
+                if (table == null || table == h.formation()) {
+                    if (table == null) {
+                        ids.put(asked, h.formation());
+                    }
+                    log.debug("Формация {}: сервер подтвердил (№{})", asked, h.formation());
+                    asked = null;
+                    unanswered = 0;
+                    readyTold = false;
                 }
-                ids.put(asked, h.formation()); // the server's answer wins over the table
-                log.debug("Формация {}: сервер подтвердил (№{})", asked, h.formation());
-                asked = null;
-                unanswered = 0;
-                readyTold = false;
             }
             if (asked != null && !asked.equals(f)) {
                 asked = null; // another formation is wanted now: a later request for the old one is new, not a repeat

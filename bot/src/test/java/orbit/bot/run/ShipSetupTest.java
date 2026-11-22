@@ -107,6 +107,24 @@ class ShipSetupTest {
     }
 
     @Test
+    void anotherFormationsNumberIsNotLearnedForTheOneAsked() {
+        // live 2026-11-22 on gb2 (Moth there, Drill here): asked, the link reset, the login reported the old Ring (14);
+        // Moth was then taken for 14 and never asked again while the ship flew Ring
+        ShipSetup ship = setup();
+        answers = false;
+        run(ship, new BotConfig.ShipMode(1, DRILL), 1_500);
+        assertEquals(List.of(DRILL), asked);
+        DroneFormationChangeCommand d = new DroneFormationChangeCommand();
+        d.uid = 1;
+        d.selectedFormationId = 14; // Ring, not this request's answer
+        world.apply(d, now);
+        answers = true;
+        run(ship, new BotConfig.ShipMode(1, DRILL), 60_000);
+        assertEquals(DRILL, asked.get(asked.size() - 1));
+        assertEquals(15, world.snapshot(now).hero().formation(), "Drill is asked again till the ship has it");
+    }
+
+    @Test
     void formationNumbers() {
         assertEquals(11, ShipSetup.formationId("drone_formation_f-11-he"));
         assertEquals(1, ShipSetup.formationId("drone_formation_f-01-tu"));
