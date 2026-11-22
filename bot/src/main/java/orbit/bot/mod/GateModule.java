@@ -1107,6 +1107,9 @@ public final class GateModule implements BotModule {
         }
         kamikaze.waiting(); // between waves: the next one's start is primed (SharedPlugin)
         boolean quiet = ms(now - quietSince) > QUIET_MS;
+        // ζ as SharedPlugin's SimpleGalaxyGate: the portal taken at once when no NPC at all is on the map (not only
+        // none to attack) and no box is left — no quiet wait
+        boolean ready = "zeta".equals(g.key()) ? w.ships().values().stream().noneMatch(WorldSnapshot.Ship::npc) : quiet;
         if (ebgGate) {
             // EBG between the waves: the boosters (SharedPlugin selectBestBooster); the brake's exit — home portal
             eternal.boosters(ebg(), w);
@@ -1132,7 +1135,7 @@ public final class GateModule implements BotModule {
             // SharedPlugin's findNextPortal: one portal — that one (κ's way out, its type unknown)
             home = w.portals().values().iterator().next();
         }
-        if (quiet && next != null && !done && on(settings(), "holdBeforePortal", false)) {
+        if (ready && next != null && !done && on(settings(), "holdBeforePortal", false)) {
             // a safe moment for a new build: the stage over, nothing about, the next not begun (between the
             // waves, before the jump into the portal, is the ideal place for a restart)
             tellOnce("Врата " + g.name() + ": этап пройден — жду перед порталом (держать перед порталом)");
@@ -1140,13 +1143,13 @@ public final class GateModule implements BotModule {
             status = "Врата " + g.name() + ": жду перед порталом";
             return;
         }
-        if (quiet && next != null && !done) {
+        if (ready && next != null && !done) {
             tellOnce("Врата " + g.name() + ": портал (тип " + next.designId() + ") — дальше");
             jumpInto(w, next, now);
             status = "Врата " + g.name() + ": в следующий портал";
             return;
         }
-        if (quiet && done) {
+        if (ready && done) {
             if (home != null) {
                 tellOnce("Врата " + g.name() + ": пройдены — домой порталом");
                 jumpInto(w, home, now);

@@ -143,6 +143,22 @@ class ZetaKappaTest {
     }
 
     @Test
+    void zetasNextMapPortalIsTakenAtOnceWhenNoNpcIsOnTheMap() throws Exception {
+        Sim sim = new Sim(GateModuleTest.config("{\"gates\":[\"zeta\"],\"boxRadius\":10000}"), ZETA1, 10_000, 6_000);
+        GateModuleTest.info(sim, 0, new int[] {6, 0, 3});
+        sim.npc(910, "-=[ Streuner ]=-", 16_000, 9_000); // no gate NPC: not attacked, yet on the map
+        GateModuleTest.portal(sim, 720, 55, 10_100, 6_000);
+        GateModule m = new GateModule(sim.ctx);
+        GateModuleTest.run(sim, m, 5_000);
+        assertFalse(sim.sent.stream().anyMatch(p -> p instanceof JumpRequest), "an NPC on the map: no jump, " + m.status());
+        orbit.protocol.gen.ShipRemoveCommand gone = new orbit.protocol.gen.ShipRemoveCommand();
+        gone.userId = 910;
+        sim.world.apply(gone, sim.now);
+        GateModuleTest.run(sim, m, 1_500);
+        assertTrue(sim.sent.stream().anyMatch(p -> p instanceof JumpRequest), "no quiet wait: " + m.status());
+    }
+
+    @Test
     void kappaAsAnyGateWaitsWhereItIsAndLeavesByItsOnlyPortal() throws Exception {
         String s = "{\"gates\":[\"kappa\"],\"anyGate\":{\"npcRadius\":560,\"killAllNpcs\":true,\"jumpToNextMap\":true,"
                 + "\"moveToCenter\":false}}";
