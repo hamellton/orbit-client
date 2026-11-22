@@ -291,6 +291,11 @@ public final class World {
             case orbit.protocol.gen.VisualModifierCommand p
                     when p.modifier == orbit.protocol.gen.VisualModifierCommand.VISUALMODIFIER_HP_LINK
                     && (p.userId == pet.id() || p.userId == hero.id || p.attribute == hero.id) -> hpLink = p.activated;
+            // the invincibility shield as the server sends it now (the client's VisualModifierHandler turns modifier 33
+            // into «fx|start|INVINCIBILITY»; live 2026-11-22 on int1 the Devourer ζ25 wore it, no text command came)
+            case orbit.protocol.gen.VisualModifierCommand p
+                    when p.modifier == orbit.protocol.gen.VisualModifierCommand.VISUALMODIFIER_INVINCIBILITY ->
+                    invincible(ships.get(p.userId), p.activated);
             case PetLevelUpdateCommand p -> pet = pet(pet.owned(), pet.alive(), pet.hasFuel(), pet.active(), pet.id(),
                     pet.name(), p.petLevel, pet.health(), pet.fuel(), pet.fuelMax(), pet.heat(), pet.heatMax(), pet.gear());
             case PetStatusCommand p -> petStatus(p);
@@ -1091,6 +1096,23 @@ public final class World {
         s.relation = p.clanDiplomacy != null ? p.clanDiplomacy.type : 0;
         s.cloaked = p.cloaked;
         ships.put(s.id, s);
+        // a ship already shielded when it comes into view carries the modifier with it
+        for (orbit.protocol.gen.VisualModifierCommand m : p.modifier) {
+            if (m.modifier == orbit.protocol.gen.VisualModifierCommand.VISUALMODIFIER_INVINCIBILITY) {
+                invincible(s, m.activated);
+            }
+        }
+    }
+
+    private void invincible(ShipState s, boolean on) {
+        if (s == null) {
+            return;
+        }
+        boolean was = s.invincibleUntil == Long.MAX_VALUE;
+        s.invincibleUntil = on ? Long.MAX_VALUE : Long.MIN_VALUE;
+        if (was != on && s.kind == ShipKind.NPC) {
+            log.info("Щит неуязвимости у {}: {}", s.name, on ? "включён — бью других, пока они есть" : "снят");
+        }
     }
 
     /** {@code AssetTypeModule.ASSETTYPE_RELAY_STATION}: the LoW gate's relay stations (docs/LOW.md). */
@@ -1473,10 +1495,8 @@ public final class World {
                     case "fx" -> {
                         ShipState s = a.length >= 6 ? ships.get(parseInt(a[5], 0)) : null;
                         if (s != null && ("INVINCIBILITY".equals(a[4]) || "RESPAWN_PROTECTION".equals(a[4]))) {
-                            if ("start".equals(a[3])) {
-                                s.invincibleUntil = Long.MAX_VALUE;
-                            } else if ("end".equals(a[3])) {
-                                s.invincibleUntil = Long.MIN_VALUE;
+                            if ("start".equals(a[3]) || "end".equals(a[3])) {
+                                invincible(s, "start".equals(a[3]));
                             }
                         }
                     }

@@ -169,6 +169,34 @@ class ZetaKappaTest {
     }
 
     @Test
+    void theShieldComesAsAVisualModifierAndWithTheShip() throws Exception {
+        Sim sim = new Sim(GateModuleTest.config("{\"gates\":[\"zeta\"]}"), ZETA3, 10_000, 6_000);
+        sim.npc(900, "-=[ Devourer ]=- ζ25", 10_400, 6_000);
+        orbit.protocol.gen.VisualModifierCommand v = new orbit.protocol.gen.VisualModifierCommand();
+        v.userId = 900;
+        v.modifier = orbit.protocol.gen.VisualModifierCommand.VISUALMODIFIER_INVINCIBILITY;
+        v.activated = true;
+        sim.world.apply(v, sim.now);
+        assertTrue(sim.world.snapshot(sim.now).ships().get(900).invincible(), "the modifier on");
+        v.activated = false;
+        sim.world.apply(v, sim.now);
+        assertFalse(sim.world.snapshot(sim.now).ships().get(900).invincible(), "the modifier off");
+        orbit.protocol.gen.ShipCreateCommand c = new orbit.protocol.gen.ShipCreateCommand();
+        c.userId = 902;
+        c.npc = true;
+        c.userName = "-=[ Devourer ]=- ζ27";
+        c.x = 10_500;
+        c.y = 6_000;
+        orbit.protocol.gen.VisualModifierCommand on = new orbit.protocol.gen.VisualModifierCommand();
+        on.userId = 902;
+        on.modifier = orbit.protocol.gen.VisualModifierCommand.VISUALMODIFIER_INVINCIBILITY;
+        on.activated = true;
+        c.modifier.add(on);
+        sim.world.apply(c, sim.now);
+        assertTrue(sim.world.snapshot(sim.now).ships().get(902).invincible(), "shielded when it comes into view");
+    }
+
+    @Test
     void aShieldedNpcAloneIsShotAsBefore() throws Exception {
         Sim sim = new Sim(GateModuleTest.config("{\"gates\":[\"zeta\"]}"), ZETA3, 10_000, 6_000);
         sim.lasers("ammunition_laser_ucb-100");
