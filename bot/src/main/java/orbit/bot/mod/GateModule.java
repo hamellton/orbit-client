@@ -236,6 +236,14 @@ public final class GateModule implements BotModule {
                 && !Targets.rule(c, t, mapId).flags().contains(BotConfig.NpcFlag.IGNORE_BOXES.name());
     }
 
+    /**
+     * SharedPlugin's CustomLootModule.shouldKill: an NPC behind its invincibility shield (NPC_ISH / ISH) is not shot
+     * while any NPC on the map is without one; when all wear it, it is shot as before.
+     */
+    static boolean shieldedWhileOthers(WorldSnapshot w, WorldSnapshot.Ship s) {
+        return s.invincible() && w.ships().values().stream().anyMatch(n -> n.npc() && !n.invincible());
+    }
+
     /** SharedPlugin's collect.radius from the owner's profile: boxes this close are taken in a fight. */
     static final double FIGHT_BOX_RADIUS = 400;
 
@@ -265,6 +273,7 @@ public final class GateModule implements BotModule {
         List<WorldSnapshot.Ship> all = w.ships().values().stream()
                 .filter(s -> Targets.attackable(c, s, h.mapId()) && !Targets.taken(c, w, s) && !attacker.gaveUp(s.id()))
                 .filter(s -> !farm || !chromin.held(gs, s)) // the chromin farmer keeps the Devourer alive
+                .filter(s -> !shieldedWhileOthers(w, s))
                 .toList();
         WorldSnapshot.Ship best = all.stream().min(java.util.Comparator
                         .<WorldSnapshot.Ship>comparingInt(s -> Targets.rule(c, s, h.mapId()).priority())

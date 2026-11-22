@@ -1605,7 +1605,8 @@ public final class Attacker {
 
     /** True (and the target dropped) when the ship has shot at an NPC for a while without it losing anything. */
     private boolean noDamage(WorldSnapshot.Ship t, long now) {
-        if (!t.health().known() || t0Cubikon) {
+        // DarkBot's AttackAPI counts a target behind its invincibility shield as hit (no bugged target)
+        if (!t.health().known() || t0Cubikon || t.invincible()) {
             healthDropAt = now;
             return false;
         }

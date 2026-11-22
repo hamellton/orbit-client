@@ -142,6 +142,43 @@ class ZetaKappaTest {
         assertFalse(n.status().contains("жду гибели"), "the last life is never spent: " + n.status());
     }
 
+    static void fx(Sim sim, String phase, int id) {
+        orbit.protocol.gen.LegacyModule m = new orbit.protocol.gen.LegacyModule();
+        m.message = "0|n|fx|" + phase + "|INVINCIBILITY|" + id;
+        sim.world.apply(m, sim.now);
+    }
+
+    @Test
+    void aShieldedDevourerIsLeftForTheNpcsWithoutTheShield() throws Exception {
+        // live 2026-11-22 on int1: the Devourer ζ25 shot at for two hours without losing anything, an Infernal beside it
+        Sim sim = new Sim(GateModuleTest.config("{\"gates\":[\"zeta\"]}"), ZETA3, 10_000, 6_000);
+        sim.lasers("ammunition_laser_ucb-100");
+        sim.npc(900, "-=[ Devourer ]=- ζ25", 10_400, 6_000);
+        sim.npc(901, "-=[ Infernal ]=- ζ26", 11_500, 6_000);
+        fx(sim, "start", 900);
+        assertTrue(sim.world.snapshot(sim.now).ships().get(900).invincible());
+        GateModule m = new GateModule(sim.ctx);
+        GateModuleTest.run(sim, m, 3_000);
+        assertEquals(901, m.fightTarget(), "the Infernal, not the shielded Devourer");
+        fx(sim, "end", 900);
+        orbit.protocol.gen.ShipRemoveCommand gone = new orbit.protocol.gen.ShipRemoveCommand();
+        gone.userId = 901;
+        sim.world.apply(gone, sim.now);
+        GateModuleTest.run(sim, m, 3_000);
+        assertEquals(900, m.fightTarget(), "the shield down: the Devourer");
+    }
+
+    @Test
+    void aShieldedNpcAloneIsShotAsBefore() throws Exception {
+        Sim sim = new Sim(GateModuleTest.config("{\"gates\":[\"zeta\"]}"), ZETA3, 10_000, 6_000);
+        sim.lasers("ammunition_laser_ucb-100");
+        sim.npc(900, "-=[ Devourer ]=- ζ25", 10_400, 6_000);
+        fx(sim, "start", 900);
+        GateModule m = new GateModule(sim.ctx);
+        GateModuleTest.run(sim, m, 3_000);
+        assertEquals(900, m.fightTarget(), "SharedPlugin shoots it when no other NPC is there");
+    }
+
     @Test
     void zetasNextMapPortalIsTakenAtOnceWhenNoNpcIsOnTheMap() throws Exception {
         Sim sim = new Sim(GateModuleTest.config("{\"gates\":[\"zeta\"],\"boxRadius\":10000}"), ZETA1, 10_000, 6_000);

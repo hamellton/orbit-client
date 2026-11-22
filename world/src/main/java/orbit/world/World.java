@@ -113,6 +113,8 @@ public final class World {
         Health health = Health.UNKNOWN;
         int attackTargetId;
         boolean lockedByOther;
+        /** Shot at to no avail until then (nanos): the client's INVINCIBILITY effect, DarkBot's NPC_ISH / ISH. */
+        long invincibleUntil = Long.MIN_VALUE;
 
         ShipState(int id, ShipKind kind, Motion motion) {
             this.id = id;
@@ -734,7 +736,8 @@ public final class World {
             shipViews.put(s.id, new WorldSnapshot.Ship(s.id, s.kind, s.name, s.typeId, s.factionId, s.clanId,
                     s.clanTag, s.relation, s.cloaked, (int) Math.round(s.motion.x(nanos)),
                     (int) Math.round(s.motion.y(nanos)), s.motion.moving(nanos), (int) Math.round(s.motion.toX()),
-                    (int) Math.round(s.motion.toY()), s.health, s.attackTargetId, s.ownerId, s.lockedByOther));
+                    (int) Math.round(s.motion.toY()), s.health, s.attackTargetId, s.ownerId, s.lockedByOther,
+                    s.invincibleUntil > nanos));
         }
         return new WorldSnapshot(nanos, h, Map.copyOf(shipViews), Map.copyOf(collectables), Map.copyOf(portals),
                 Map.copyOf(assets), Map.copyOf(zones), group, Map.copyOf(items),
@@ -1359,6 +1362,9 @@ public final class World {
 
     // ---- legacy text commands ("0|A|c|1600"), see docs/recon/STAGE3.md ----
 
+    /** How long an insta-shield's flash keeps a ship unhurt. */
+    static final long ISH_NANOS = 3_000_000_000L;
+
     private void legacy(String message, long nanos) {
         noteNanos = nanos;
         String[] a = message.split("\\|", -1);
@@ -1459,6 +1465,26 @@ public final class World {
                         ShipState s = ships.get(parseInt(a[3], 0));
                         if (s != null) {
                             s.lockedByOther = false;
+                        }
+                    }
+                    // the shield no laser goes through (the client's MapEventsAssembly: «0|n|fx|start|INVINCIBILITY|<id>»,
+                    // RESPAWN_PROTECTION alike, the effect 16 DarkBot calls NPC_ISH, till «fx|end»; the Zeta Devourer
+                    // wears it — live 2026-11-22 on int1 it was shot at for two hours without losing anything)
+                    case "fx" -> {
+                        ShipState s = a.length >= 6 ? ships.get(parseInt(a[5], 0)) : null;
+                        if (s != null && ("INVINCIBILITY".equals(a[4]) || "RESPAWN_PROTECTION".equals(a[4]))) {
+                            if ("start".equals(a[3])) {
+                                s.invincibleUntil = Long.MAX_VALUE;
+                            } else if ("end".equals(a[3])) {
+                                s.invincibleUntil = Long.MIN_VALUE;
+                            }
+                        }
+                    }
+                    // the insta-shield's flash (INSTA_SHIELD 84, DarkBot's ISH: a passing effect, ISH-01 holds ~3 s)
+                    case "ISH" -> {
+                        ShipState s = ships.get(parseInt(a[3], 0));
+                        if (s != null) {
+                            s.invincibleUntil = Math.max(s.invincibleUntil, nanos + ISH_NANOS);
                         }
                     }
                     default -> {

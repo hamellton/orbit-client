@@ -743,7 +743,15 @@ public record WorldSnapshot(long nanos, Hero hero, Map<Integer, Ship> ships, Map
      */
     public record Ship(int id, ShipKind kind, String name, String typeId, int factionId, int clanId, String clanTag,
                        int relation, boolean cloaked, int x, int y, boolean moving, int targetX, int targetY,
-                       Health health, int attackTargetId, int ownerId, boolean lockedByOther) {
+                       Health health, int attackTargetId, int ownerId, boolean lockedByOther, boolean invincible) {
+
+        /** A ship without the invincibility shield. */
+        public Ship(int id, ShipKind kind, String name, String typeId, int factionId, int clanId, String clanTag,
+                    int relation, boolean cloaked, int x, int y, boolean moving, int targetX, int targetY,
+                    Health health, int attackTargetId, int ownerId, boolean lockedByOther) {
+            this(id, kind, name, typeId, factionId, clanId, clanTag, relation, cloaked, x, y, moving, targetX, targetY,
+                    health, attackTargetId, ownerId, lockedByOther, false);
+        }
 
         public boolean npc() {
             return kind == ShipKind.NPC;
