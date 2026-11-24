@@ -651,13 +651,15 @@ public final class OrbitMain {
                 try {
                     Thread.sleep(1_000);
                 } catch (InterruptedException e) {
-                    daily.flush();
-                    return;
+                    break;
                 }
                 long nowMs = System.currentTimeMillis();
                 hourly.tick(nowMs, feed.sessionStartNanos() != 0 && !feed.loggedOut());
                 daily.update(HourlyReport.Totals.of(feed), nowMs); // the Today totals over all runs
             }
+            long endMs = System.currentTimeMillis();
+            hourly.finish(endMs, false); // the hour begun so far, not lost with the stop
+            daily.update(HourlyReport.Totals.of(feed), endMs);
             daily.flush();
         });
         Thread sessions = Thread.ofPlatform().name("sessions-" + accountName).start(() -> {

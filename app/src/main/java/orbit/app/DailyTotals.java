@@ -17,9 +17,11 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * What an account earned today over all its runs (the session's card starts from nothing at each start of the
- * bot). Each run keeps its own totals in {@code local/today-<account>.json}, written every
- * {@link #SAVE_MS}; today is their sum. A run's counters going down (a new login in the same program) starts a new
- * run; at midnight the day starts anew, the running one counting from there.
+ * bot), kept in {@code local/today-<account>.json} and written every {@link #SAVE_MS}. Each look adds what every
+ * counter gained since the last look; a counter that went down was started anew and all of it is new. The counters
+ * come from two places that start anew at different times — the world's rewards run on over the account's whole stay
+ * in the program, the bot's own counters start from nothing at each login — so each counter is followed on its own
+ * (a new login must not count the stay's rewards again). At midnight the day starts anew.
  */
 public final class DailyTotals {
 
@@ -29,12 +31,11 @@ public final class DailyTotals {
 
     private final Path file;
     private final ZoneId zone;
-    private final String runPrefix = Long.toString(System.currentTimeMillis(), 36);
     private LocalDate day;
-    /** run → {totals at the day's start (or the run's), totals now}. */
-    private final Map<String, HourlyReport.Totals[]> runs = new LinkedHashMap<>();
-    private String run;
-    private int runIndex;
+    /** Today's gains so far. */
+    private HourlyReport.Totals today = HourlyReport.Totals.NONE;
+    /** The counters at the last look in this program ({@code NONE} before the first: the program's start from nothing). */
+    private HourlyReport.Totals last = HourlyReport.Totals.NONE;
     private long savedAt;
 
     DailyTotals(Path file, ZoneId zone, LocalDate today) {
@@ -51,79 +52,80 @@ public final class DailyTotals {
                 ZoneId.systemDefault(), LocalDate.now()));
     }
 
-    /** The running session's totals now; saved now and then. */
+    /** The counters now (the world's rewards and the running session's own); saved now and then. */
     public synchronized void update(HourlyReport.Totals now, long nowMillis) {
-        LocalDate today = LocalDate.ofInstant(java.time.Instant.ofEpochMilli(nowMillis), zone);
-        if (!today.equals(day)) {
-            // a new day: the earlier runs were yesterday's; the running one counts from here
-            day = today;
-            runs.keySet().removeIf(k -> !k.equals(run));
-            HourlyReport.Totals[] mine = runs.get(run);
-            if (mine != null) {
-                mine[0] = mine[1];
-            }
+        LocalDate date = LocalDate.ofInstant(java.time.Instant.ofEpochMilli(nowMillis), zone);
+        if (!date.equals(day)) {
+            day = date; // a new day: only what comes from here
+            today = HourlyReport.Totals.NONE;
         }
-        HourlyReport.Totals[] mine = run == null ? null : runs.get(run);
-        if (mine == null || wentDown(mine[1], now)) {
-            run = runPrefix + "-" + (++runIndex);
-            mine = new HourlyReport.Totals[] {HourlyReport.Totals.NONE, now};
-            runs.put(run, mine);
-        }
-        mine[1] = now;
+        today = plus(today, gain(last, now));
+        last = now;
         if (nowMillis - savedAt >= SAVE_MS) {
             savedAt = nowMillis;
             save();
         }
     }
 
-    private static boolean wentDown(HourlyReport.Totals before, HourlyReport.Totals now) {
-        return now.kills() < before.kills() || now.uridium() < before.uridium() || now.credits() < before.credits()
-                || now.experience() < before.experience();
+    /** What each counter gained from {@code a} to {@code b}; a counter that went down started anew: all of it. */
+    static HourlyReport.Totals gain(HourlyReport.Totals a, HourlyReport.Totals b) {
+        // honour may fall for real (the server's negative notices): it starts anew only with the world's other rewards
+        boolean worldAnew = b.uridium() < a.uridium() || b.credits() < a.credits() || b.experience() < a.experience();
+        return new HourlyReport.Totals(d(a.uridium(), b.uridium()), d(a.credits(), b.credits()),
+                d(a.experience(), b.experience()), worldAnew ? b.honor() : b.honor() - a.honor(), (int) d(a.kills(), b.kills()),
+                (int) d(a.cubes(), b.cubes()), (int) d(a.repairs(), b.repairs()), (int) d(a.deaths(), b.deaths()),
+                ints(a.picked(), b.picked()), doubles(a.items(), b.items()), d(a.spentUridium(), b.spentUridium()),
+                d(a.spentCredits(), b.spentCredits()), doubles(a.ammo(), b.ammo()), ints(a.killed(), b.killed()),
+                ints(a.gates(), b.gates()));
     }
 
-    /** Today's totals: every run's gain summed. */
+    private static double d(double before, double now) {
+        return now >= before ? now - before : now;
+    }
+
+    private static Map<String, Integer> ints(Map<String, Integer> a, Map<String, Integer> b) {
+        Map<String, Integer> out = new TreeMap<>();
+        b.forEach((k, v) -> {
+            int n = (int) d(a.getOrDefault(k, 0), v);
+            if (n > 0) {
+                out.put(k, n);
+            }
+        });
+        return out;
+    }
+
+    private static Map<String, Double> doubles(Map<String, Double> a, Map<String, Double> b) {
+        Map<String, Double> out = new TreeMap<>();
+        b.forEach((k, v) -> {
+            double n = d(a.getOrDefault(k, 0.0), v);
+            if (n > 0) {
+                out.put(k, n);
+            }
+        });
+        return out;
+    }
+
+    /** Two gains summed. */
+    static HourlyReport.Totals plus(HourlyReport.Totals a, HourlyReport.Totals b) {
+        Map<String, Integer> picked = new TreeMap<>(a.picked());
+        b.picked().forEach((k, v) -> picked.merge(k, v, Integer::sum));
+        Map<String, Double> items = new TreeMap<>(a.items());
+        b.items().forEach((k, v) -> items.merge(k, v, Double::sum));
+        Map<String, Double> ammo = new TreeMap<>(a.ammo());
+        b.ammo().forEach((k, v) -> ammo.merge(k, v, Double::sum));
+        Map<String, Integer> killed = new TreeMap<>(a.killed());
+        b.killed().forEach((k, v) -> killed.merge(k, v, Integer::sum));
+        Map<String, Integer> gates = new TreeMap<>(a.gates());
+        b.gates().forEach((k, v) -> gates.merge(k, v, Integer::sum));
+        return new HourlyReport.Totals(a.uridium() + b.uridium(), a.credits() + b.credits(),
+                a.experience() + b.experience(), a.honor() + b.honor(), a.kills() + b.kills(), a.cubes() + b.cubes(),
+                a.repairs() + b.repairs(), a.deaths() + b.deaths(), picked, items,
+                a.spentUridium() + b.spentUridium(), a.spentCredits() + b.spentCredits(), ammo, killed, gates);
+    }
+
+    /** Today's totals over every run. */
     public synchronized HourlyReport.Totals today() {
-        double uri = 0;
-        double cr = 0;
-        double xp = 0;
-        double hon = 0;
-        int kills = 0;
-        int cubes = 0;
-        int repairs = 0;
-        int deaths = 0;
-        double spentUri = 0;
-        double spentCr = 0;
-        Map<String, Integer> picked = new TreeMap<>();
-        Map<String, Double> items = new TreeMap<>();
-        Map<String, Double> ammo = new TreeMap<>();
-        Map<String, Integer> killed = new TreeMap<>();
-        Map<String, Integer> gates = new TreeMap<>();
-        for (HourlyReport.Totals[] r : runs.values()) {
-            HourlyReport.Totals a = r[0];
-            HourlyReport.Totals b = r[1];
-            uri += b.uridium() - a.uridium();
-            cr += b.credits() - a.credits();
-            xp += b.experience() - a.experience();
-            hon += b.honor() - a.honor();
-            kills += b.kills() - a.kills();
-            cubes += b.cubes() - a.cubes();
-            repairs += b.repairs() - a.repairs();
-            deaths += b.deaths() - a.deaths();
-            spentUri += Math.max(0, b.spentUridium() - a.spentUridium());
-            spentCr += Math.max(0, b.spentCredits() - a.spentCredits());
-            b.picked().forEach((k, v) -> picked.merge(k, v - a.picked().getOrDefault(k, 0), Integer::sum));
-            b.items().forEach((k, v) -> items.merge(k, v - a.items().getOrDefault(k, 0.0), Double::sum));
-            b.ammo().forEach((k, v) -> ammo.merge(k, v - a.ammo().getOrDefault(k, 0.0), Double::sum));
-            b.killed().forEach((k, v) -> killed.merge(k, v - a.killed().getOrDefault(k, 0), Integer::sum));
-            b.gates().forEach((k, v) -> gates.merge(k, v - a.gates().getOrDefault(k, 0), Integer::sum));
-        }
-        killed.values().removeIf(v -> v <= 0);
-        gates.values().removeIf(v -> v <= 0);
-        picked.values().removeIf(v -> v <= 0);
-        items.values().removeIf(v -> v <= 0);
-        ammo.values().removeIf(v -> v <= 0);
-        return new HourlyReport.Totals(uri, cr, xp, hon, kills, cubes, repairs, deaths, picked, items, spentUri, spentCr,
-                ammo, killed, gates);
+        return today;
     }
 
     /** Lines for the window's card. */
@@ -159,11 +161,42 @@ public final class DailyTotals {
             if (!day.toString().equals(root.path("day").asText())) {
                 return; // another day's
             }
-            root.path("runs").properties().forEach(e -> runs.put(e.getKey(), new HourlyReport.Totals[] {
-                    totals(e.getValue().path("from")), totals(e.getValue().path("to"))}));
+            if (root.has("today")) {
+                today = totals(root.path("today"));
+            } else {
+                today = fromRuns(root.path("runs"));
+            }
         } catch (IOException e) {
             // started anew
         }
+    }
+
+    /**
+     * Today from the earlier file of runs (each run its counters at the day's start and at the end). A run started
+     * by a new login in the same program began from nothing, while the world's rewards had run on: they are counted
+     * from where the program's run before it ended, not from nothing (it counted the stay's rewards twice).
+     */
+    static HourlyReport.Totals fromRuns(JsonNode runs) {
+        HourlyReport.Totals sum = HourlyReport.Totals.NONE;
+        Map<String, HourlyReport.Totals> lastOfProgram = new LinkedHashMap<>();
+        for (Map.Entry<String, JsonNode> e : runs.properties()) {
+            String program = e.getKey().contains("-") ? e.getKey().substring(0, e.getKey().indexOf('-')) : e.getKey();
+            HourlyReport.Totals from = totals(e.getValue().path("from"));
+            HourlyReport.Totals to = totals(e.getValue().path("to"));
+            HourlyReport.Totals before = lastOfProgram.get(program);
+            if (before != null && isNone(from)) {
+                from = new HourlyReport.Totals(before.uridium(), before.credits(), before.experience(), before.honor(),
+                        0, 0, 0, 0, Map.of(), before.items(), before.spentUridium(), before.spentCredits(), Map.of(),
+                        Map.of(), Map.of());
+            }
+            sum = plus(sum, gain(from, to));
+            lastOfProgram.put(program, to);
+        }
+        return sum;
+    }
+
+    private static boolean isNone(HourlyReport.Totals t) {
+        return t.uridium() == 0 && t.credits() == 0 && t.experience() == 0 && t.kills() == 0 && t.items().isEmpty();
     }
 
     private synchronized void save() {
@@ -172,12 +205,7 @@ public final class DailyTotals {
         }
         ObjectNode root = JSON.createObjectNode();
         root.put("day", day.toString());
-        ObjectNode rs = root.putObject("runs");
-        runs.forEach((k, r) -> {
-            ObjectNode n = rs.putObject(k);
-            n.set("from", node(r[0]));
-            n.set("to", node(r[1]));
-        });
+        root.set("today", node(today));
         try {
             Files.createDirectories(file.toAbsolutePath().getParent());
             JSON.writerWithDefaultPrettyPrinter().writeValue(file.toFile(), root);
@@ -218,7 +246,8 @@ public final class DailyTotals {
 
     private static HourlyReport.Totals totals(JsonNode n) {
         Map<String, Integer> picked = new TreeMap<>();
-        n.path("picked").properties().forEach(e -> picked.put(e.getKey(), e.getValue().asInt()));
+        n.path("picked").properties().forEach(e ->
+                picked.merge(orbit.config.LootNames.renamed(e.getKey()), e.getValue().asInt(), Integer::sum));
         Map<String, Double> items = new TreeMap<>();
         n.path("items").properties().forEach(e -> items.put(e.getKey(), e.getValue().asDouble()));
         Map<String, Double> ammo = new TreeMap<>();

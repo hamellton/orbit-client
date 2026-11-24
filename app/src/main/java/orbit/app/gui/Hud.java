@@ -1358,6 +1358,10 @@ final class Hud {
         List<StatRow> rows = new ArrayList<>();
         rows.add(StatRow.group("Доход"));
         rows.add(new StatRow("Уридий", r.uridium(), day.uridium(), true));
+        if (r.spentUridium() > 0 || day.spentUridium() > 0) {
+            rows.add(new StatRow("Уридий чистыми", r.uridium() - r.spentUridium(),
+                    day.uridium() - day.spentUridium(), true));
+        }
         rows.add(new StatRow("Кредиты", r.credits(), day.credits(), true));
         rows.add(new StatRow("Опыт", r.experience(), day.experience(), true));
         rows.add(new StatRow("Честь", r.honor(), day.honor(), true));

@@ -112,6 +112,29 @@ public final class HourlyReport {
         return text;
     }
 
+    /**
+     * The account stops: the hour begun so far is logged at once (a stop before the hour's end lost it — live
+     * 2026-11-24, 13:00–13:40 missing from the summaries), when it had any time in game.
+     *
+     * @return the line logged, or {@code null}
+     */
+    public String finish(long nowMillis, boolean online) {
+        if (online) {
+            onlineMs += Math.max(0, Math.min(nowMillis - lastTick, 60_000));
+        }
+        lastTick = nowMillis;
+        if (onlineMs < 60_000 || nowMillis <= from) {
+            return null;
+        }
+        Totals now = totals.get();
+        String text = text(from, nowMillis, base, now, onlineMs);
+        log.info(text);
+        base = now;
+        from = nowMillis;
+        onlineMs = 0;
+        return text;
+    }
+
     /** The uridium and credits spent as one phrase, {@code null} when nothing. */
     static String spent(double uridium, double credits) {
         List<String> p = new ArrayList<>();

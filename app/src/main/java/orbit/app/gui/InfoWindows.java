@@ -105,9 +105,10 @@ final class InfoWindows {
         HangarWindow.Rows deeds = new HangarWindow.Rows(name("Доход и дела", cols));
         HangarWindow.Rows spent = new HangarWindow.Rows(name("Патроны и ракеты", cols));
         JTabbedPane tabs = new JTabbedPane();
+        // the income first: what the user looks for first
+        tabs.addTab("Доход и дела", HangarWindow.table(deeds));
         tabs.addTab("Подобрано", HangarWindow.table(picked));
         tabs.addTab("Добыча", HangarWindow.table(loot));
-        tabs.addTab("Доход и дела", HangarWindow.table(deeds));
         tabs.addTab("Расход", HangarWindow.table(spent));
         HangarWindow.Rows npcs = new HangarWindow.Rows("NPC", "За сессию", "В час", "Бой, ср.", "Сегодня");
         tabs.addTab("NPC", HangarWindow.table(npcs));
@@ -150,7 +151,16 @@ final class InfoWindows {
             loot.setRows(l);
             java.util.List<String[]> d = new java.util.ArrayList<>();
             d.add(row("Уридий", r.uridium(), day.uridium(), hours, true));
+            if (r.spentUridium() > 0 || day.spentUridium() > 0) {
+                // the gain less the spending (ammunition, boosters, lives): what the account really earned
+                d.add(row("Уридий чистыми", r.uridium() - r.spentUridium(), day.uridium() - day.spentUridium(),
+                        hours, true));
+            }
             d.add(row("Кредиты", r.credits(), day.credits(), hours, true));
+            if (r.spentCredits() > 0 || day.spentCredits() > 0) {
+                d.add(row("Кредиты чистыми", r.credits() - r.spentCredits(), day.credits() - day.spentCredits(),
+                        hours, true));
+            }
             d.add(row("Опыт", r.experience(), day.experience(), hours, true));
             d.add(row("Честь", r.honor(), day.honor(), hours, true));
             d.add(row("Убито NPC", st == null ? 0 : st.kills.get(), day.kills(), hours, true));

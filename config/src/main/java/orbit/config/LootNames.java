@@ -41,6 +41,30 @@ public final class LootNames {
             Map.entry("BOLTRUM", "болтрум"),
             Map.entry("SCRAPIUM", "скрапиум"));
 
+    private static final String MIMESIS = "MIMESIS_AI_";
+
+    /** {@code MINI_BOSS} → «Mini Boss». */
+    private static String title(String words) {
+        StringBuilder sb = new StringBuilder();
+        for (String w : words.toLowerCase(Locale.ROOT).split("_")) {
+            if (!w.isEmpty()) {
+                sb.append(sb.isEmpty() ? "" : " ").append(Character.toUpperCase(w.charAt(0))).append(w.substring(1));
+            }
+        }
+        return sb.toString();
+    }
+
+    /**
+     * The name a picked box was counted under before its type had a name of its own ({@code "mimesis ai medic box"}
+     * from {@code MIMESIS_AI_MEDIC_BOX}) → the name it has now; other names as they are.
+     */
+    public static String renamed(String counted) {
+        if (counted != null && counted.startsWith("mimesis ai ") && counted.endsWith(" box")) {
+            return of(counted.toUpperCase(Locale.ROOT).replace(' ', '_'));
+        }
+        return counted;
+    }
+
     /** The ore's name by the game's number. */
     public static String ore(int type) {
         return switch (type) {
@@ -76,6 +100,10 @@ public final class LootNames {
             }
         }
         String known = BOXES.get(key);
+        if (known == null && key.startsWith(MIMESIS) && key.endsWith("_BOX") && key.length() > MIMESIS.length() + 4) {
+            // the escort's boxes by the NPC that left them: MIMESIS_AI_MINI_BOSS_BOX → «ящик Mimesis: Mini Boss»
+            known = "ящик Mimesis: " + title(key.substring(MIMESIS.length(), key.length() - 4));
+        }
         if (known == null && BoxCatalog.of(key) != null) {
             known = BoxCatalog.of(key).name();
         }
