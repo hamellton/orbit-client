@@ -20,4 +20,16 @@ class TotalsGatesTest {
         assertArrayEquals(new String[] {"α", "3", "2", "1", "12 мин 45 с", "1", "4", "340", "12 000", "5"}, rows.get(0));
         assertArrayEquals(new String[] {"β", "—", "—", "—", "—", "—", "—", "—", "—", "1"}, rows.get(1), "only today's");
     }
+
+    @Test
+    void theAbgSpinsAreOneLineAndAGateKeepsItsLives() {
+        List<String[]> rows = InfoWindows.gateRows(
+                Map.of("ABG (α β γ)|energy", 500, "ABG (α β γ)|uridium", 3_000, "β|lives", 1, "β|uridium", 5_000,
+                        "β|placed", 1),
+                Map.of(), 1.0);
+        assertEquals(2, rows.size());
+        assertArrayEquals(new String[] {"ABG (α β γ)", "—", "—", "—", "—", "—", "—", "500", "3 000", "—"}, rows.get(0),
+                "the shared builder first");
+        assertArrayEquals(new String[] {"β", "1", "—", "—", "—", "—", "1", "—", "5 000", "—"}, rows.get(1));
+    }
 }

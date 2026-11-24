@@ -821,15 +821,37 @@ public final class GateModule implements BotModule {
             }
             ctx.actions().gateSpin(g.builderId(), amount, useMultiplier(s, st.multiplier()));
             spinAskedAt = now;
-            spinFor = g.name();
+            spinFor = abg(g) ? ABG_SPINS : g.name();
             spinSamples = gates.samples();
             spinMoney = gates.money();
             spinMaxUridium = (long) gates.energyCost() * amount;
             spinAt = now + ctx.pause(option[1], option[1] + 300);
             spins += amount;
         }
-        show("Врата " + g.name() + ": спины по " + amount + ", частей " + Math.max(0, st.parts()) + " из " + g.parts());
+        if (abg(g)) {
+            // one builder for the three: a spin's part goes to any of them, the server's answer says which
+            StringBuilder parts = new StringBuilder();
+            for (String key : new String[] {"alpha", "beta", "gamma"}) {
+                GateCatalog.Gate x = GateCatalog.byKey(key);
+                WorldSnapshot.Gate xs = gates.gate(x.builderId());
+                parts.append(parts.isEmpty() ? "" : ", ").append(x.symbol()).append(' ')
+                        .append(xs == null ? 0 : Math.max(0, xs.parts())).append('/').append(x.parts());
+            }
+            show("Врата ABG: спины по " + amount + " (генератор общий), частей " + parts);
+        } else {
+            show("Врата " + g.name() + ": спины по " + amount + ", частей " + Math.max(0, st.parts()) + " из " + g.parts());
+        }
         return true;
+    }
+
+    /**
+     * The Totals' line of the spins for α, β and γ together: they have one builder (a spin gives a part to any of the
+     * three), so its energy and uridium are no one gate's.
+     */
+    public static final String ABG_SPINS = "ABG (α β γ)";
+
+    private static boolean abg(GateCatalog.Gate g) {
+        return g.builderId() >= 1 && g.builderId() <= 3;
     }
 
     private long spins;
@@ -861,7 +883,7 @@ public final class GateModule implements BotModule {
             WorldSnapshot.Gate st = gates.gate(x.builderId());
             return st == null || x.parts() == 0 ? 0 : Math.max(0, st.parts()) / (double) x.parts();
         };
-        if (g.builderId() >= 1 && g.builderId() <= 3) {
+        if (abg(g)) {
             return java.util.stream.Stream.of("alpha", "beta", "gamma").map(GateCatalog::byKey).mapToDouble(of).min().orElse(0);
         }
         return of.applyAsDouble(g);

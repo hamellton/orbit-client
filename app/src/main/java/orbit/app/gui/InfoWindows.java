@@ -113,7 +113,7 @@ final class InfoWindows {
         HangarWindow.Rows npcs = new HangarWindow.Rows("NPC", "За сессию", "В час", "Бой, ср.", "Сегодня");
         tabs.addTab("NPC", HangarWindow.table(npcs));
         HangarWindow.Rows gateRows = new HangarWindow.Rows("Врата", "Поставлено", "Пройдено", "В час", "Проход, ср.",
-                "Смертей", "Жизней куплено", "Доп. энергии", "Уридия", "Пройдено сегодня");
+                "Смертей", "Жизней куплено", "Энергии на спины", "Уридия потрачено", "Пройдено сегодня");
         tabs.addTab("Врата", HangarWindow.table(gateRows));
         JLabel note = new JLabel();
         open(feed, "Итоги", tabs, note, false, () -> {
@@ -218,6 +218,8 @@ final class InfoWindows {
     /**
      * The galaxy gates: placed, done (the session, an hour), the average run (from the entry to the gate done, the last
      * life's), deaths, lives bought, the extra energy and the uridium spent (spins and lives) in the session, done today.
+     * The spins of α, β and γ are one line of their own ({@code GateModule.ABG_SPINS}): one builder serves the three, so
+     * a gate's own line keeps only its lives' uridium.
      */
     static java.util.List<String[]> gateRows(Map<String, Integer> now, Map<String, Integer> day, double hours) {
         java.util.Set<String> names = new java.util.TreeSet<>();
