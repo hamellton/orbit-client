@@ -299,11 +299,6 @@ public final class QuestGiverVisit {
         if (qs != null && qs.path("highLevelFirst").asBoolean(false)) {
             offers.sort(java.util.Comparator.comparingInt(Quests.Offer::minLevel).reversed());
         }
-        // «starterFirst» (the leveling configs): the starter chain taken before the rest — it takes a mission slot (live
-        // 2026-11-26 on int1: with the slots filled by four level-7 missions the server left 20008 unanswered)
-        if (qs != null && qs.path("starterFirst").asBoolean(false)) {
-            offers.sort(java.util.Comparator.comparingInt(o -> o.is(Quests.STARTER) ? 0 : 1));
-        }
         for (Quests.Offer o : offers) {
             if (o.status() == Quests.ACCEPTABLE && (always.contains(o.questId()) || types.stream().anyMatch(o::is))
                     && (level <= 0 || o.minLevel() <= level) && slotFor(o)) {
@@ -392,8 +387,8 @@ public final class QuestGiverVisit {
             if (q.active().containsKey(taking)) {
                 taken.add(taking);
                 Quests.Offer o = q.offers().stream().filter(x -> x.questId() == taking).findFirst().orElse(null);
-                if (o != null && (o.is(Quests.MISSION) || o.is(Quests.CHALLENGE) || o.is(Quests.STARTER))) {
-                    missionSlots--; // a starter quest takes a mission slot too (20008, 2026-11-26)
+                if (o != null && (o.is(Quests.MISSION) || o.is(Quests.CHALLENGE))) {
+                    missionSlots--;
                 } else if (o != null && o.is(Quests.EVENT)) {
                     eventSlots--;
                 }
