@@ -49,6 +49,9 @@ class TravelerTest {
         final Map<Integer, MapCatalog.Portal> portalById = new HashMap<>();
         final Map<Integer, Boolean> offered = new HashMap<>();
         long now;
+        /** The portals let nobody through (a map closed to the pilot's level), the presses are still counted. */
+        boolean refuse;
+        int level;
         long jumpAt;
         int jumpTo;
         int fromMap;
@@ -58,6 +61,7 @@ class TravelerTest {
             si.userId = 1;
             si.mapId = mapId;
             si.factionId = 3;
+            si.level = level;
             si.x = (int) x;
             si.y = (int) y;
             si.speed = 400;
@@ -93,6 +97,9 @@ class TravelerTest {
                     if (d <= 500) {
                         Long since = world.snapshot(now).activatable().get(e.getKey());
                         jumpRequests.add(new long[] {now, (long) d, since == null ? -1 : now - since});
+                        if (refuse) {
+                            return;
+                        }
                         JumpInitiatedCommand ji = new JumpInitiatedCommand();
                         ji.mapId = e.getValue().toId();
                         world.apply(ji, now);
@@ -150,6 +157,38 @@ class TravelerTest {
             assertTrue(j[1] <= Traveler.JUMP_RANGE + 1, "pressed close to the portal: " + j[1]);
             assertTrue(j[2] >= Traveler.PRESS_MIN_MS * MS, "after the server offered the jump, like a reaction");
         }
+    }
+
+    @Test
+    void aPortalThatLetsNobodyThroughIsGivenUpAndRemembered() {
+        Server server = new Server();
+        server.refuse = true;
+        server.level = 1;
+        server.enterMap(9, 18800, 12500);
+        Navigator nav = new Navigator(() -> server.world.snapshot(server.now), server::receive, catalog, new Random(3),
+                () -> server.now);
+        Traveler t = new Traveler(() -> server.world.snapshot(server.now), server::receive, nav, catalog, new Random(5),
+                () -> server.now);
+        t.travel(12, Double.NaN, Double.NaN);
+        for (long ms = 0; ms < 600_000 && t.state() == Traveler.State.TRAVELLING; ms += 100) {
+            server.step();
+            t.tick();
+            server.now += 100 * MS;
+        }
+        assertEquals(Traveler.State.FAILED, t.state());
+        assertEquals(Traveler.REFUSED_PRESSES, server.jumpRequests.size(), "gave up after the refused presses: " + t.failure());
+        int shut = catalog.portals(9).stream().filter(p -> Router.route(catalog, 9, 18800, 12500, 12, 3).getFirst().toId() == p.toId())
+                .findFirst().orElseThrow().toId();
+        assertTrue(Traveler.closed(shut, 1), "remembered as closed to level 1");
+        assertTrue(!Traveler.closed(shut, 2), "a higher level tries again");
+        t.travel(12, Double.NaN, Double.NaN);
+        for (int i = 0; i < 40 && t.state() == Traveler.State.TRAVELLING; i++) {
+            server.step();
+            t.tick();
+            server.now += 100 * MS;
+        }
+        assertEquals(Traveler.State.FAILED, t.state(), "known closed: no more presses");
+        assertEquals(Traveler.REFUSED_PRESSES, server.jumpRequests.size());
     }
 
     @Test

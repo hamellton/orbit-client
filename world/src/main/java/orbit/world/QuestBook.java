@@ -254,6 +254,17 @@ final class QuestBook {
         return snapshot;
     }
 
+    /**
+     * A step worth a log line: every one of a small target; of a big one (distance 15 000 000, shots 250 000 — live
+     * 2026-11-25: a line every 1.5 s) only a new whole percent.
+     */
+    static boolean worthTelling(Quests.Condition was, Quests.Condition now) {
+        if (now.target() <= 1_000) {
+            return true;
+        }
+        return (long) (was.current() * 100 / now.target()) != (long) (now.current() * 100 / now.target());
+    }
+
     private void update(int conditionId, double current, boolean on, boolean completed) {
         for (Map.Entry<Integer, Quests.Quest> e : active.entrySet()) {
             Quests.Quest q = e.getValue();
@@ -264,7 +275,7 @@ final class QuestBook {
                 Quests.Condition was = find(q.conditions(), conditionId);
                 Quests.Condition now = find(changed, conditionId);
                 if (was != null && now != null && now.target() > 0 && !QuestTexts.isTime(now)
-                        && (long) was.current() != (long) now.current()) {
+                        && (long) was.current() != (long) now.current() && worthTelling(was, now)) {
                     log.info("Квест {}: {}", QuestTitles.label(q.id()), describe(now));
                 }
                 if (was != null && now != null && !was.completed() && now.completed() && !now.bound()) {

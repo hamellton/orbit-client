@@ -452,7 +452,9 @@
         "WEEKLY",
         "EVENT"
       ],
-      "easyFirst": true
+      "easyFirst": true,
+      "oreAsLoot": true,
+      "ownMapsOnly": true
     }
   }
 }

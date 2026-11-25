@@ -639,6 +639,28 @@ public final class QuestModule implements BotModule {
     }
 
     private Work work(Quests.Quest quest, Quests.Condition c, WorldSnapshot w) {
+        Work wk = workAnywhere(quest, c, w);
+        // «ownMapsOnly» (the leveling configs): a new ship only on its company's maps — another company's map has its
+        // stations and players shooting (live 2026-11-25 on int1: an MMO Liberator of level 1 sent to EIC's 2-2)
+        if (wk != null && ownMapsOnly() && wk.map() > 0 && (!ownMap(wk.map(), w.hero().factionId())
+                || orbit.bot.nav.Traveler.closed(wk.map(), w.hero().level()))) {
+            return null; // also a map a portal would not let this level into
+        }
+        return wk;
+    }
+
+    /** A map of the hero's own company ({@code 1-x} for MMO, {@code 2-x} EIC, {@code 3-x} VRU). */
+    private boolean ownMap(int map, int faction) {
+        String name = ctx.maps().info(map).name();
+        return name != null && name.matches("\\d-\\d+") && name.charAt(0) - '0' == faction;
+    }
+
+    /** {@code ownMapsOnly}: quests worked on the own company's maps only ({@code false} by default). */
+    boolean ownMapsOnly() {
+        return settings().path("ownMapsOnly").asBoolean(false);
+    }
+
+    private Work workAnywhere(Quests.Quest quest, Quests.Condition c, WorldSnapshot w) {
         WorldSnapshot.Hero h = w.hero();
         Set<String> doing = kinds();
         if (QuestTargets.killing(c) && doing.contains("KILL") || QuestTargets.damaging(c) && doing.contains("DAMAGE")) {
@@ -674,6 +696,14 @@ public final class QuestModule implements BotModule {
             int map = ctx.config().get().general().workingMap();
             return new Work(quest.id(), c.id(), Kind.BOX, map > 0 ? map : h.mapId(), Set.of(BONUS_BOX), Double.NaN,
                     Double.NaN, -1);
+        }
+        if (c.type() == Quests.COLLECT_LOOT && doing.contains("ORE") && oreAsLoot()) {
+            // an ore named as loot («resource_ore_prometium», the starter quest 20003, live 2026-11-25 on int1): collected as
+            // ore — only with «oreAsLoot» (the leveling configs)
+            int ore = lootOre(c);
+            if (ore >= 0) {
+                return RECIPES.containsKey(ore) ? refinedWork(quest, c, ore, ore, w) : oreWork(quest, c, ore, w);
+            }
         }
         if (c.type() == Quests.COLLECT_LOOT && doing.contains("SALVAGE")) {
             return lootWork(quest, c, w);
@@ -1264,6 +1294,21 @@ public final class QuestModule implements BotModule {
             }
         }
         return n;
+    }
+
+    /** The ore types ({@code OreTypeModule}) by the loot id's name: {@code resource_ore_<name>}. */
+    static final Map<String, Integer> ORE_LOOT = Map.of("prometium", 0, "endurium", 1, "terbium", 2, "xenomit", 3,
+            "prometid", 4, "duranium", 5, "promerium", 6, "seprom", 7, "palladium", 8);
+
+    /** The ore a «collect loot» condition names ({@code resource_ore_prometium} → 0); {@code -1} not an ore. */
+    static int lootOre(Quests.Condition c) {
+        String id = c.matches().isEmpty() ? "" : c.matches().getFirst().toLowerCase(java.util.Locale.ROOT).strip();
+        return id.startsWith("resource_ore_") ? ORE_LOOT.getOrDefault(id.substring("resource_ore_".length()), -1) : -1;
+    }
+
+    /** {@code oreAsLoot}: an ore named as loot is collected as ore ({@code false} by default). */
+    boolean oreAsLoot() {
+        return settings().path("oreAsLoot").asBoolean(false);
     }
 
     /** {@code easyFirst}: of one type, the quest with the least left first ({@code false} by default). */

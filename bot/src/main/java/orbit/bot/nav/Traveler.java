@@ -46,6 +46,19 @@ public final class Traveler {
     static final long DECIDE_MAX_MS = 1_200;
     /** A catalog portal and the server's portal object are the same within this distance. */
     static final double PORTAL_MATCH = 60;
+    /**
+     * Presses at one portal with no jump: the map behind it is closed to the pilot's level (live 2026-11-25 on int1: a
+     * level-1 Liberator pressed for 1-3 35 times in three minutes, the server saying nothing).
+     */
+    static final int REFUSED_PRESSES = 6;
+    /** Maps a portal would not let in, by map → the highest pilot level refused (for this program run). */
+    private static final java.util.Map<Integer, Integer> CLOSED = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /** The map would not let a pilot of {@code level} in (seen at a portal in this run). */
+    public static boolean closed(int map, int level) {
+        Integer refused = CLOSED.get(map);
+        return refused != null && level <= refused;
+    }
 
     public enum State { IDLE, TRAVELLING, ARRIVED, FAILED }
 
@@ -67,6 +80,8 @@ public final class Traveler {
     private long pressedAtNanos;
     private boolean finalLeg;
     private int jumps;
+    /** Presses at the current portal since the ship came to this map. */
+    private int presses;
 
     public Traveler(Supplier<WorldSnapshot> world, Consumer<Packet> sender, Navigator nav, MapCatalog catalog,
                     Random random, LongSupplier clock) {
@@ -89,6 +104,7 @@ public final class Traveler {
         pressAtNanos = 0;
         pressedAtNanos = 0;
         jumps = 0;
+        presses = 0;
         nav.stop();
         // a moment to decide, like a player choosing the next destination
         resumeAtNanos = Math.max(resumeAtNanos, clock.getAsLong() + ms(DECIDE_MIN_MS, DECIDE_MAX_MS));
@@ -124,6 +140,7 @@ public final class Traveler {
             }
             lastMap = h.mapId();
             nav.stop();
+            presses = 0;
             pressAtNanos = 0;
             pressedAtNanos = 0;
             finalLeg = false;
@@ -158,6 +175,11 @@ public final class Traveler {
             return;
         }
         MapCatalog.Portal portal = route.getFirst();
+        if (h.level() > 0 && (closed(targetMap, h.level()) || closed(portal.toId(), h.level()))) {
+            int shut = closed(targetMap, h.level()) ? targetMap : portal.toId();
+            fail("карта " + catalog.info(shut).name() + " не пускает пилота уровня " + h.level() + " (портал не пускал)");
+            return;
+        }
         double dist = Math.hypot(portal.x() - h.x(), portal.y() - h.y());
         WorldSnapshot.Portal object = serverPortal(w, portal);
         boolean offered = object != null && w.activatable().containsKey(object.id());
@@ -168,7 +190,14 @@ public final class Traveler {
             if (pressAtNanos == 0) {
                 pressAtNanos = now + ms(PRESS_MIN_MS, PRESS_MAX_MS);
             }
+            if (now >= pressAtNanos && presses >= REFUSED_PRESSES && h.level() > 0) {
+                CLOSED.merge(portal.toId(), h.level(), Math::max);
+                fail("портал на " + portal.toName() + " не пускает после " + presses + " нажатий — карта, видимо, закрыта для "
+                        + "уровня " + h.level());
+                return;
+            }
             if (now >= pressAtNanos) {
+                presses++;
                 sender.accept(new JumpRequest());
                 jumps++;
                 pressedAtNanos = now;
