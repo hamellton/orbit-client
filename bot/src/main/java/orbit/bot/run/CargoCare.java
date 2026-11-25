@@ -157,17 +157,19 @@ final class CargoCare {
                 // 2026-11-25: prometid for the lasers, promerium for the drives)
                 keep.addAll(java.util.List.of(Refiner.PROMETIUM, Refiner.ENDURIUM, Refiner.TERBIUM, Refiner.PROMETID,
                         Refiner.DURANIUM, Refiner.PROMERIUM));
-                double endurium = ores.getOrDefault(Refiner.ENDURIUM, 0.0);
-                for (int raw : new int[] {Refiner.PROMETIUM, Refiner.TERBIUM}) {
-                    if (ores.getOrDefault(raw, 0.0) > endurium * RAW_PER_ENDURIUM + RAW_SPARE) {
-                        keep.remove(raw); // more than the endurium can ever refine: sold
-                    }
-                }
             }
             if (enrichmentLow(e, lab)) {
                 keep.addAll(java.util.List.of(Refiner.PROMETID, Refiner.DURANIUM));
                 if (xenomit != 0) {
                     keep.addAll(java.util.List.of(Refiner.PROMETIUM, Refiner.ENDURIUM, Refiner.TERBIUM));
+                }
+            }
+            // last, over every rule above: raw ore the endurium can never refine is sold (live 2026-11-25: the rule
+            // for xenomit aboard took the terbium back and the hold stayed full)
+            double endurium = ores.getOrDefault(Refiner.ENDURIUM, 0.0);
+            for (int raw : new int[] {Refiner.PROMETIUM, Refiner.TERBIUM}) {
+                if (ores.getOrDefault(raw, 0.0) > endurium * RAW_PER_ENDURIUM + RAW_SPARE) {
+                    keep.remove(raw);
                 }
             }
         }
