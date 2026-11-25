@@ -26,7 +26,14 @@
       "equipment_generator_speed_g3n-3310",
       "equipment_generator_speed_g3n-3210",
       "equipment_generator_speed_g3n-2010",
-      "equipment_generator_speed_g3n-1010"
+      "equipment_generator_speed_g3n-1010",
+      "equipment_generator_shield_sg3n-b02",
+      "equipment_generator_shield_fs-02",
+      "equipment_generator_shield_fs-01",
+      "equipment_generator_shield_sg3n-b01",
+      "equipment_generator_shield_sg3n-a03",
+      "equipment_generator_shield_sg3n-a02",
+      "equipment_generator_shield_sg3n-a01"
     ]
   },
   "goals": [

@@ -81,4 +81,21 @@ class FitTest {
         assertTrue(FitPlanner.plan(h, 5, Map.of("lasers", 4, "generators", 6), LevelPlan.bundled()).isEmpty(),
                 "a Liberator with one LF-1 and two engines has nothing better to fit");
     }
+
+    @Test
+    void aShieldFillsAGeneratorSlotOnlyWhileEnginesAreShort() {
+        String b01 = "equipment_generator_shield_sg3n-b01";
+        var h = view(List.of(own("21", G79, 7), own("22", G79, 7), own("23", b01, 0)),
+                Map.of("generators", List.of("21", "22")), Map.of("generators", List.of("21", "22")));
+        List<FitPlanner.Move> m = FitPlanner.plan(h, 7, Map.of("generators", 3), LevelPlan.bundled());
+        assertEquals(List.of("поставить equipment_generator_shield_sg3n-b01 (23) в конфиг 1 generators",
+                "поставить equipment_generator_shield_sg3n-b01 (23) в конфиг 2 generators"),
+                m.stream().map(FitPlanner.Move::describe).toList(), "two engines for three slots: the shield takes the third");
+        var more = view(List.of(own("21", G79, 7), own("22", G79, 7), own("23", b01, 7), own("24", G79, 0)),
+                Map.of("generators", List.of("21", "22", "23")), Map.of("generators", List.of("21", "22", "23")));
+        List<String> c1 = FitPlanner.plan(more, 7, Map.of("generators", 3), LevelPlan.bundled()).stream()
+                .filter(x -> x.config() == 1).map(FitPlanner.Move::describe).toList();
+        assertEquals(List.of("снять equipment_generator_shield_sg3n-b01 (23) из конфиг 1 generators",
+                "поставить equipment_generator_speed_g3n-7900 (24) в конфиг 1 generators"), c1, "an engine comes, the shield goes");
+    }
 }

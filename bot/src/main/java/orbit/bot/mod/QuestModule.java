@@ -47,12 +47,8 @@ public final class QuestModule implements BotModule {
     private static final Logger log = LoggerFactory.getLogger(QuestModule.class);
 
     static final long DEFAULT_REVISIT_MIN = 360;
-    /**
-     * Type order of the work: the starter quests first (a new account's tutorial gives its first equipment; none are active
-     * on an older account, so the order of the others is as before), then what resets soonest.
-     */
-    static final List<Integer> ORDER = List.of(Quests.STARTER, Quests.DAILY, Quests.WEEKLY, Quests.EVENT, Quests.CHALLENGE,
-            Quests.MISSION);
+    /** Type order of the work: what resets soonest first. */
+    static final List<Integer> ORDER = List.of(Quests.DAILY, Quests.WEEKLY, Quests.EVENT, Quests.CHALLENGE, Quests.MISSION);
     static final String BONUS_BOX = "BONUS_BOX";
     /** On the work's map this long without one of its NPCs in sight: try another map (the table can be wrong). */
     static final long NOT_THERE_MS = 10 * 60_000;

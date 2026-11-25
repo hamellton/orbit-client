@@ -33,7 +33,7 @@ final class LevelWatch {
 
     /** Starts the advisor's thread for this game connection; it ends with the game thread. */
     static void start(AuthClient auth, GameConnection conn, WorldFeed feed, String account, Supplier<String> config,
-                      BooleanSupplier alive) {
+                      BooleanSupplier alive, Supplier<String> status) {
         java.util.Map<String, String> ctx = org.slf4j.MDC.getCopyOfContextMap();
         Thread.ofVirtual().name("leveling").start(() -> {
             if (ctx != null) {
@@ -41,13 +41,15 @@ final class LevelWatch {
             }
             java.util.Random random = new java.util.Random();
             boolean shapeLogged = false;
+            Meter meter = new Meter();
             try {
                 Thread.sleep(FIRST_MS + random.nextInt(60_000));
                 LevelPlan plan = LevelPlan.bundled();
                 while (alive.getAsBoolean()) {
                     String cfg = config.get();
                     if (cfg != null && ConfigStore.LEVELING_FOLDER.equals(ConfigStore.openDefault().folderOf(cfg))) {
-                        shapeLogged |= round(auth, conn, feed, account, cfg, plan, !shapeLogged);
+                        meter.sample(feed, cfg);
+                        shapeLogged |= round(auth, conn, feed, account, cfg, plan, !shapeLogged, status, meter);
                     }
                     Thread.sleep(EVERY_MS + random.nextInt(120_000));
                 }
@@ -57,6 +59,58 @@ final class LevelWatch {
                 LOG.error("советчик остановлен: {}", e.toString(), e);
             }
         });
+    }
+
+    /**
+     * Earning per hour by the kind of config played (quests or farm), from the session's rewards (earned only, spending
+     * left out): each sample adds the earning since the last one to the kind the account played then.
+     */
+    static final class Meter {
+
+        private long at;
+        private double credits = Double.NaN;
+        private double uridium;
+        private String kind;
+        private final double[] hours = new double[2];
+        private final double[] earnedCredits = new double[2];
+        private final double[] earnedUridium = new double[2];
+        /** Less than this measured — no rate yet. */
+        static final double MIN_HOURS = 0.5;
+
+        void sample(WorldFeed feed, String cfg) {
+            var r = feed.sessionRewards();
+            long now = System.currentTimeMillis();
+            String k = cfg.endsWith(" Quests") ? "q" : cfg.matches(".* x-\\d$") ? "f" : null;
+            if (r != null && !Double.isNaN(credits) && kind != null && kind.equals(k) && r.credits() >= credits) {
+                int i = "q".equals(kind) ? 0 : 1;
+                hours[i] += (now - at) / 3_600_000.0;
+                earnedCredits[i] += r.credits() - credits;
+                earnedUridium[i] += Math.max(0, r.uridium() - uridium);
+            }
+            at = now;
+            credits = r == null ? Double.NaN : r.credits();
+            uridium = r == null ? 0 : r.uridium();
+            kind = k;
+        }
+
+        orbit.bot.level.Strategy.Rates rates() {
+            return new orbit.bot.level.Strategy.Rates(rate(earnedCredits, 0), rate(earnedCredits, 1), rate(earnedUridium, 0),
+                    rate(earnedUridium, 1));
+        }
+
+        private double rate(double[] earned, int i) {
+            return hours[i] < MIN_HOURS ? Double.NaN : earned[i] / hours[i];
+        }
+
+        String describe() {
+            return String.format(java.util.Locale.ROOT, "квесты %.1f ч — %s кр/ч, %s ури/ч; фарм %.1f ч — %s кр/ч, %s ури/ч",
+                    hours[0], fmt(rate(earnedCredits, 0)), fmt(rate(earnedUridium, 0)), hours[1], fmt(rate(earnedCredits, 1)),
+                    fmt(rate(earnedUridium, 1)));
+        }
+
+        private static String fmt(double v) {
+            return Double.isNaN(v) ? "?" : String.valueOf(Math.round(v));
+        }
     }
 
     /** The leveling folder's start config for a faction (1 MMO, 2 EIC, 3 VRU); {@code null} unknown. */
@@ -129,7 +183,8 @@ final class LevelWatch {
 
     /** One look: the site's list and active hangar, the game's level and money, the advice. True when the shape was logged. */
     private static boolean round(AuthClient auth, GameConnection conn, WorldFeed feed, String account, String cfg,
-                                 LevelPlan plan, boolean logShape) throws InterruptedException {
+                                 LevelPlan plan, boolean logShape, Supplier<String> status, Meter meter)
+            throws InterruptedException {
         var session = conn.session();
         if (session == null || session.host() == null) {
             LOG.info("советчик: нет игровой сессии — пропускаю");
@@ -173,6 +228,14 @@ final class LevelWatch {
             LOG.info("раскладка (режим советчика — не перекладываю): {}", moves.isEmpty() ? "всё на местах"
                     : String.join("; ", moves.stream().map(orbit.bot.level.FitPlanner.Move::describe).toList()));
         }
+        String moduleStatus = status.get();
+        boolean idle = moduleStatus != null && moduleStatus.contains("нечего делать");
+        String mapName = snap == null || snap.hero() == null ? null
+                : orbit.world.maps.MapCatalog.bundled().info(snap.hero().mapId()).name();
+        var rates = meter.rates();
+        var decision = orbit.bot.level.Strategy.decide(state, plan, advice, faction, mapName, idle, rates);
+        LOG.info("стратег (режим советчика — конфиг не меняю): {} «{}» — {}; модуль: «{}»; карта {}; заработок в час: {}",
+                decision.mode(), decision.config(), decision.reason(), moduleStatus, mapName, meter.describe());
         String start = startConfig(faction);
         if (start != null && !start.equals(cfg)) {
             LOG.info("фракция {}: стартовый конфиг — «{}», сейчас «{}»", faction, start, cfg);
