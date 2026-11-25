@@ -169,6 +169,7 @@ class TravelerTest {
                 () -> server.now);
         Traveler t = new Traveler(() -> server.world.snapshot(server.now), server::receive, nav, catalog, new Random(5),
                 () -> server.now);
+        t.setClosedMaps(() -> true);
         t.travel(12, Double.NaN, Double.NaN);
         for (long ms = 0; ms < 600_000 && t.state() == Traveler.State.TRAVELLING; ms += 100) {
             server.step();
@@ -192,10 +193,10 @@ class TravelerTest {
     }
 
     @Test
-    void aHighPilotKeepsPressingAsBefore() {
+    void outsideTheLevelingModeItKeepsPressingAsBefore() {
         Server server = new Server();
         server.refuse = true;
-        server.level = 20;
+        server.level = 1;
         server.enterMap(9, 18800, 12500);
         Navigator nav = new Navigator(() -> server.world.snapshot(server.now), server::receive, catalog, new Random(3),
                 () -> server.now);
@@ -207,7 +208,7 @@ class TravelerTest {
             t.tick();
             server.now += 100 * MS;
         }
-        assertEquals(Traveler.State.TRAVELLING, t.state(), "level 20: no closed-map verdict, it keeps trying");
+        assertEquals(Traveler.State.TRAVELLING, t.state(), "not a leveling config: no closed-map verdict, it keeps trying");
         assertTrue(server.jumpRequests.size() > Traveler.REFUSED_PRESSES);
     }
 

@@ -1484,6 +1484,17 @@ public final class OrbitMain {
         feed.setStats(stats);
         orbit.bot.run.ConfigWatch watch = new orbit.bot.run.ConfigWatch(orbit.config.ConfigStore.openDefault(), configName,
                 config, catalog, override);
+        // the closed-map verdict only on a leveling config (a start account); other configs travel as at the stable point
+        java.util.concurrent.atomic.AtomicReference<String> leveled = new java.util.concurrent.atomic.AtomicReference<>("");
+        java.util.concurrent.atomic.AtomicBoolean leveling = new java.util.concurrent.atomic.AtomicBoolean();
+        traveler.setClosedMaps(() -> {
+            String n = watch.name();
+            if (!java.util.Objects.equals(n, leveled.get())) {
+                leveled.set(n);
+                leveling.set(levelingConfig(n));
+            }
+            return leveling.get();
+        });
         nav.setAvoidMines(() -> watch.current().general().avoidMines());
         nav.setAvoidBases(() -> watch.current().general().baseRadius());
         nav.setAvoidedZones(map -> {
