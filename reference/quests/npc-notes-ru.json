@@ -1,0 +1,42 @@
+{
+ "_about": "Ручные заметки для docs/QUESTS.md (tools/quest_doc.py): особые случаи квестов и NPC — кто появляется только из другого NPC, кто живёт только на особых картах, что с кого падает. Только проверенное (живые логи, доки проекта); источник в поле source.",
+ "cases": [
+  {"title": "NPC, которые появляются только из другого NPC",
+   "text": "Такого NPC нет в обычном спавне карты: чтобы набить его для квеста, нужно бить «родителя». Protegit — выходят из Кубикона, пока его бьют (у куба они стреляют всё время, бот их не бьёт, пока добивает куб); во вратах Protegit — отдельные волны. Cloned Mimesis — Cloning Mimesis выпускает трёх, один раз за жизнь. Kamikaze Mimesis — Terror Mimesis выпускает до 3×2 ниже 50 % HP и до 3×3 ниже 25 %. Значит, квест на 500 Cloned — это около 170 Cloning, а на Kamikaze — бой с Terror до конца, не убивая его быстро.",
+   "source": "docs/MIMESIS.md; docs/FIGHT-MOVEMENT.md; docs/GALAXY-GATES.md"},
+  {"title": "NPC только на особых картах",
+   "text": "Raider, Assailant, Medic, Hardy, Piercing, Obscured, Hounding, Mirror, Sniper, Marker Mimesis и Mimesis Turret живут только на картах эскорта Mimesis Mutiny (вход раз в час, ключ на вход, рейс до 45 мин). Квест «урон по Hardy 70 млн» при 3 млн HP Hardy — это около 23 Hardy, а их в рейсе мало: такой квест за событие реален не всегда. NPC Black Light (Impulse II, Attend IX, Invoke XVI, Mindfire Behemoth) — только на BL-картах. Uber-NPC — на 4-5 и в своих местах (по условиям квестов сервера).",
+   "source": "docs/MIMESIS.md; docs/BLACKLIGHT.md; local/quests-seen.json"},
+  {"title": "Ресурс с NPC: сколько NPC нужно",
+   "text": "Квест «собрать N ресурса» с NPC — это N, делённое на выпадение с одного NPC. Byte Remnant: Hexor 5, Raging 10, Cloning 25, Terror 35, Reflector 50 за убийство — 40 000 Byte это ~4 000 Raging или ~800 Reflector. Груз (руды и ресурсы) падает в грузовом ящике корабля (FROM_SHIP): его надо подобрать, иначе он не засчитан; квест 700037 «1 500 грузовых ящиков» считает подобранные ящики FROM_SHIP (в логах ботов +1 к квесту на каждый подобранный). Палладий собирается только на 5-1 и 5-3.",
+   "source": "docs/MIMESIS.md; живые логи ботов 2026-11-25"},
+  {"title": "Квест на урон, а не на убийства",
+   "text": "Урон засчитывается и без убийства, но только по тем NPC, что названы (Raider или Assailant и т. п.). Чужой NPC (первым ударил другой игрок) урон даёт, но награду — по урону; на эскорте бот бьёт всех (`IGNORE_OWNERSHIP`). Быстрее всего урон идёт EMAA-20 по Мимесисам (×7).",
+   "source": "docs/MIMESIS.md"},
+  {"title": "Условия «по порядку» и «без смерти»",
+   "text": "У части миссий задачи идут по порядку: следующая не считается, пока не сделана предыдущая. Условие «не умереть» / таймер — смерть или конец времени проваливают квест целиком, прогресс теряется. Посещения «чужой x-1 у 107/67» — карты чужих фирм, там тебя бьют станции и игроки.",
+   "source": "docs/recon/MISSIONS-100.md; docs/PLAN.md"},
+  {"title": "Что бот не делает",
+   "text": "Убийства игроков и урон игрокам (KILL_PLAYERS), прохождение врат по квесту там, где нет модуля, — бот такие квесты не берёт или отменяет. Квесты Battle Pass / Season Pass не берутся у квестодателя: они идут сами, награду забирают кнопкой.",
+   "source": "docs/PLAN.md"}
+ ],
+ "npcs": {
+  "Protegit": {"spawn": "из Кубикона, пока его бьют; во вратах — волны 37–40", "source": "docs/FIGHT-MOVEMENT.md; docs/GALAXY-GATES.md"},
+  "Cubikon": {"spawn": "свой спавн на карте; из него выходят Protegit", "source": "docs/PLAN.md"},
+  "Cloned": {"spawn": "только из Cloning Mimesis (3 штуки, один раз)", "source": "docs/MIMESIS.md"},
+  "Kamikaze": {"spawn": "только из Terror Mimesis (ниже 50 % и 25 % HP)", "source": "docs/MIMESIS.md"},
+  "Hexor": {"drops": "Byte Remnant 5 (в событие Mimesis)", "maps": "x-3, x-4, 4-1…4-4", "source": "docs/MIMESIS.md"},
+  "Raging": {"drops": "Byte Remnant 10", "maps": "x-3, x-4, 4-1…4-4", "source": "docs/MIMESIS.md"},
+  "Cloning": {"drops": "Byte Remnant 25", "maps": "x-3, x-4, 4-1…4-4", "source": "docs/MIMESIS.md"},
+  "Terror": {"drops": "Byte Remnant 35; ящик тройке по урону (ключ эскорта, Byte, EMAA-20, PLD-8)", "maps": "x-3, x-4, 4-1…4-4", "source": "docs/MIMESIS.md"},
+  "Reflector": {"drops": "Byte Remnant 50; ящик тройке по урону", "maps": "x-3, x-4, 4-1…4-4", "source": "docs/MIMESIS.md"},
+  "Raider": {"maps": "только карты эскорта Mimesis", "source": "docs/MIMESIS.md"},
+  "Assailant": {"maps": "только карты эскорта Mimesis", "source": "docs/MIMESIS.md"},
+  "Medic": {"maps": "только карты эскорта Mimesis", "source": "docs/MIMESIS.md"},
+  "Hardy": {"maps": "только карты эскорта Mimesis (3 млн HP, 6 млн щита, не стреляет)", "source": "docs/MIMESIS.md"},
+  "Impulse": {"drops": "ринуск 15–25", "maps": "BL-карты", "source": "docs/BLACKLIGHT.md"},
+  "Attend": {"drops": "ринуск 80–90, капсулы Black Light 5–15", "maps": "BL-карты", "source": "docs/BLACKLIGHT.md"},
+  "Invoke": {"drops": "ринуск, капсулы Black Light, фрагменты вечности", "maps": "BL-карты", "source": "docs/BLACKLIGHT.md"},
+  "Mindfire Behemoth": {"drops": "ринуск, капсулы, фрагменты вечности, нейроплата Mindfire (восьмёрке по урону)", "maps": "BL-карты", "source": "docs/BLACKLIGHT.md"}
+ }
+}
