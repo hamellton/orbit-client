@@ -458,11 +458,22 @@ final class CargoCare {
     }
 
     private void tell(String s) {
-        if (!s.equals(told)) {
+        // the same message with other amounts in brackets (the hold's contents) is the same news: once in a while
+        // (live 2026-11-25: «hold full, nothing to sell (…)» every few seconds while the refining changed the counts)
+        String key = s.replaceAll("\\(.*\\)", "()");
+        long now = System.currentTimeMillis();
+        if (!s.equals(told) && (!key.equals(toldKey) || now - toldAt >= SAME_NEWS_MS)) {
             told = s;
+            toldKey = key;
+            toldAt = now;
             log.info(s);
         }
     }
+
+    private String toldKey = "";
+    private long toldAt;
+    /** The same message, other amounts, said again at most this often. */
+    static final long SAME_NEWS_MS = 10 * 60_000L;
 
     private static long ms(long nanos) {
         return nanos / 1_000_000;
