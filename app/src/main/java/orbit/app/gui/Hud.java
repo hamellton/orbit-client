@@ -384,8 +384,24 @@ final class Hud {
     static String formation(Map<String, WorldSnapshot.Item> items) {
         return items.values().stream()
                 .filter(i -> i.selected() && i.id().startsWith("drone_formation_"))
-                .map(i -> orbit.config.ItemCatalog.label(i.id()))
+                .map(i -> formationName(i.id()))
                 .findFirst().orElse("—");
+    }
+
+    /**
+     * A formation's name as the game names it; the default one (no formation bought, live 2026-11-25: the card showed
+     * {@code drone_formation_default}) — «стандартная».
+     */
+    static String formationName(String id) {
+        if ("drone_formation_default".equals(id)) {
+            return "стандартная";
+        }
+        String label = orbit.config.ItemCatalog.label(id);
+        if (!label.equals(id)) {
+            return label;
+        }
+        String name = orbit.world.ItemNames.of(id);
+        return name == null || name.isBlank() ? id : name;
     }
 
     static final Color QUEST_BAR = new Color(0x9071cf);

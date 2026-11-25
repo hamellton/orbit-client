@@ -155,22 +155,9 @@ final class CargoCare {
                 plan.always());
     }
 
-    /** An enriched item of the config below its threshold ({@code below}); an unread lab counts as below. */
+    /** An enriched item of the config below its threshold ({@link Enricher#low}). */
     static boolean enrichmentLow(com.fasterxml.jackson.databind.JsonNode e, WorldSnapshot.Lab lab) {
-        if (lab == null || lab.items().isEmpty() && lab.nanos() == 0) {
-            return true;
-        }
-        for (int item = 0; item < Enricher.ITEMS.length; item++) {
-            com.fasterxml.jackson.databind.JsonNode it = e.path("items").path(Enricher.ITEMS[item]);
-            if (!it.path("on").asBoolean(false)) {
-                continue;
-            }
-            WorldSnapshot.Enrichment en = lab.items().get(item);
-            if ((en == null ? 0 : en.left()) < it.path("below").asLong(50_000)) {
-                return true;
-            }
-        }
-        return false;
+        return Enricher.low(e, lab);
     }
 
     /**

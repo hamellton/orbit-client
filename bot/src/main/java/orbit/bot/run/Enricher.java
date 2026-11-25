@@ -50,6 +50,27 @@ public final class Enricher {
         return s == null ? com.fasterxml.jackson.databind.node.MissingNode.getInstance() : s;
     }
 
+    /**
+     * An item the enrichment settings {@code e} turn on is below its threshold in the lab ({@code lab} {@code null} or not
+     * read yet: below). The cargo's keeping and picking of ore for promerium go by it (the leveling configs).
+     */
+    public static boolean low(JsonNode e, WorldSnapshot.Lab lab) {
+        if (lab == null || lab.items().isEmpty() && lab.nanos() == 0) {
+            return true;
+        }
+        for (int item = 0; item < ITEMS.length; item++) {
+            JsonNode it = e.path("items").path(ITEMS[item]);
+            if (!it.path("on").asBoolean(false)) {
+                continue;
+            }
+            WorldSnapshot.Enrichment en = lab.items().get(item);
+            if ((en == null ? 0 : en.left()) < it.path("below").asLong(50_000)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public boolean enabled() {
         return settings().path("enabled").asBoolean(false);
     }

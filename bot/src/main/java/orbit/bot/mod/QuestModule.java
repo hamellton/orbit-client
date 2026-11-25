@@ -1294,6 +1294,12 @@ public final class QuestModule implements BotModule {
             out = out.withNpcs(Map.of()).withCollect(k.withBoxes(picks));
         }
         BotConfig.General g = c.general();
+        com.fasterxml.jackson.databind.JsonNode enrich = out.modules().get("enrich");
+        if (wk.kind() == Kind.SALVAGE && enrich != null && enrich.path("cargoWhenLow").asBoolean(false)) {
+            // a quest that counts cargo picks it whatever the drives need
+            out = out.withModuleSettings("enrich", ((com.fasterxml.jackson.databind.node.ObjectNode) enrich.deepCopy())
+                    .put("cargoWhenLow", false));
+        }
         return out.withGeneral(new BotConfig.General(wk.map(), g.offensive(), g.roam(), g.run(),
                 g.runFromEnemies(), g.runFromEnemiesInSight(), g.rememberEnemiesSec(), g.roamSequential(), false,
                 g.runModeTravel(), g.runModeChase(), g.avoidMines(), g.baseRadius()));

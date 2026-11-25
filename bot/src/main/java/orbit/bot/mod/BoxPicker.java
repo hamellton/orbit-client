@@ -294,6 +294,8 @@ public final class BoxPicker {
                 .filter(b -> !avoidedDeep(c, w, b.x(), b.y()))
                 // a full hold (the config does something about it): no more boxes that fill it
                 .filter(b -> !BotConfig.Collect.fillsCargo(key(b)) || !cargoFull(c, w))
+                // NPC cargo only while the enrichment lacks ore (modules.enrich.cargoWhenLow, the leveling quests config)
+                .filter(b -> !"FROM_SHIP".equals(key(b)) || cargoWanted(c, w))
                 .filter(b -> reach != null ? reach.test(b.x(), b.y()) : Double.isNaN(anchorX)
                         ? Math.hypot(b.x() - h.x(), b.y() - h.y()) <= c.collect().radius()
                         : Math.hypot(b.x() - anchorX, b.y() - anchorY) <= (within > 0 ? within : c.collect().radius()))
@@ -346,6 +348,18 @@ public final class BoxPicker {
         }
         BotConfig.BoxRule r = rule(c, type);
         return r != null && r.collect();
+    }
+
+    /**
+     * NPC cargo is wanted: always, unless {@code modules.enrich.cargoWhenLow} (the leveling quests config, a user's choice
+     * 2026-11-25) — then only while an enriched item is below its threshold ({@code Enricher.low}).
+     */
+    static boolean cargoWanted(BotConfig c, WorldSnapshot w) {
+        com.fasterxml.jackson.databind.JsonNode e = c.modules().get("enrich");
+        if (e == null || !e.path("enabled").asBoolean(false) || !e.path("cargoWhenLow").asBoolean(false)) {
+            return true;
+        }
+        return orbit.bot.run.Enricher.low(e, w.inventory().lab());
     }
 
     /** The wait on a box: its rule's, else (a chest taken by its keys with no row) the one DarkBot users set for it. */

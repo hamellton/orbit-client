@@ -467,10 +467,11 @@
         "drive": {
           "on": true,
           "ore": "PROMERIUM",
-          "below": 50000,
+          "below": 5000,
           "load": 500
         }
-      }
+      },
+      "cargoWhenLow": true
     }
   }
 }
