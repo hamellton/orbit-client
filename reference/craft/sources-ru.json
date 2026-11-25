@@ -1,0 +1,494 @@
+{
+ "currency_credits": {
+  "where": "Награды за NPC, продажа руды, задания.",
+  "event": "",
+  "confidence": "high",
+  "source": ""
+ },
+ "currency_uridium": {
+  "where": "Награды за NPC (пришельцы, пираты, BL), врата, события, покупка.",
+  "event": "",
+  "confidence": "high",
+  "source": ""
+ },
+ "resource_beacon-crystal": {
+  "where": "Фрагмент гравитронной хронолинзы: врата события Voyagers Ascent и его VIP-пропуск, акции магазина.",
+  "event": "Voyagers Ascent",
+  "confidence": "medium",
+  "source": "https://darkorbitwiki.com/resources/"
+ },
+ "resource_blueprint_apis-part": {
+  "where": "Зелёные и золотые пиратские трофеи на x-2…x-8, 4-x, 5-x (зелёный ключ); часть можно купить в Сборке за 24 000 уридия; на дроида 45 частей.",
+  "event": "",
+  "confidence": "medium",
+  "source": "https://darkorbitwiki.com/drones/"
+ },
+ "resource_blueprint_zeus-part": {
+  "where": "Золотые пиратские трофеи на x-2…x-8, 4-x, 5-x (зелёный ключ); часть можно купить в Сборке за 33 000 уридия; на дроида 45 частей.",
+  "event": "",
+  "confidence": "medium",
+  "source": "https://darkorbitwiki.com/drones/"
+ },
+ "resource_booty-key": {
+  "where": "Магазин (1 500 уридия), ежедневные миссии, награды врат (Hades 4, Epsilon/Kappa/Lambda 5, Kronos 10, Zeta 25). Открывает зелёные и золотые трофеи на x-2…x-8, 4-x, 5-x.",
+  "event": "",
+  "confidence": "high",
+  "source": "https://darkorbitwiki.com/boxes/green-box/"
+ },
+ "resource_booty-key-astral": {
+  "where": "Собирается в Сборке из 500 астралита (Врата Астрального вознесения). Открывает астральные трофеи на x-2…x-8 и 4-x.",
+  "event": "",
+  "confidence": "high",
+  "source": "https://darkorbitwiki.com/boxes/astral-box/"
+ },
+ "resource_booty-key-blue": {
+  "where": "Собирается в Сборке из скрапиума (20), Aurus (10) и схизмокристаллов (5); акции магазина. Открывает синие трофеи на x-2…x-8, 4-x, 5-x.",
+  "event": "",
+  "confidence": "high",
+  "source": "https://darkorbitwiki.com/boxes/blue-box/"
+ },
+ "resource_booty-key-red": {
+  "where": "Собирается в Сборке из скрапиума (10), Aurus (5) и схизмокристаллов (3); акции магазина. Открывает красные трофеи на x-2…x-8, 4-x, 5-x.",
+  "event": "",
+  "confidence": "high",
+  "source": "https://darkorbitwiki.com/boxes/red-box/"
+ },
+ "resource_booty-key-silver": {
+  "where": "Собирается в Сборке из 25 монет Darksilver; акции магазина. Серебряные трофеи — только на 5-4.",
+  "event": "",
+  "confidence": "high",
+  "source": "https://darkorbitwiki.com/boxes/silver-box/"
+ },
+ "resource_collectable_agate-splinter": {
+  "where": "Событие Agatus Breach: со Spinel на x-3…x-8, после Spinel приходит Agatus — его ящик тройке лучших по урону. Осколки остаются до следующего раза.",
+  "event": "Agatus Breach (повторяется)",
+  "confidence": "high",
+  "source": "https://darkorbitwiki.com/events/agatus-breach/"
+ },
+ "resource_collectable_astralite": {
+  "where": "Только Врата Астрального вознесения (пространственные разломы); 500 — астральный ключ.",
+  "event": "",
+  "confidence": "high",
+  "source": "https://darkorbitwiki.com/resources/"
+ },
+ "resource_collectable_atlas-shard": {
+  "where": "Награда во Вратах Астрального вознесения.",
+  "event": "",
+  "confidence": "high",
+  "source": "https://darkorbitwiki.com/resources/"
+ },
+ "resource_collectable_aurus": {
+  "where": "Пираты Interceptor, Saboteur, Barracuda, Annihilator, Battleray (у нас на 5-1…5-3, Battleray ещё на 4-4, 4-5).",
+  "event": "",
+  "confidence": "high",
+  "source": "https://darkorbitwiki.com/resources/; reference/maps/npc-maps.json"
+ },
+ "resource_collectable_axion-beam-regulator": {
+  "where": "Карантинная зона, галактические врата, календарь входа, магазин Vortex of Greed и Vanguard Market, события, красные и синие трофеи.",
+  "event": "",
+  "confidence": "high",
+  "source": "https://darkorbitwiki.com/resources/"
+ },
+ "resource_collectable_bifenon": {
+  "where": "Пираты Interceptor, Barracuda, Saboteur, Annihilator, Battleray, Кубикон, Uber Kristallin/Kristallon; календарь входа, сборщики, события.",
+  "event": "",
+  "confidence": "high",
+  "source": "https://darkorbitwiki.com/resources/"
+ },
+ "resource_collectable_blacklight-shard": {
+  "where": "Врата вечности Black Light (ЕБГ), календарь входа; на нестабильные модули.",
+  "event": "",
+  "confidence": "high",
+  "source": "docs/EBG.md; https://darkorbitwiki.com/resources/"
+ },
+ "resource_collectable_blacklight-trace": {
+  "where": "Attend IX (5–15 за убийство), Invoke XVI и Mindfire Behemoth на BL-картах; календарь входа.",
+  "event": "",
+  "confidence": "high",
+  "source": "docs/BLACKLIGHT.md; https://darkorbitwiki.com/resources/"
+ },
+ "resource_collectable_boltrum": {
+  "where": "Плазмид: Devolarium и Sibelon (и их Boss/Uber).",
+  "event": "",
+  "confidence": "high",
+  "source": "https://darkorbitwiki.com/resources/"
+ },
+ "resource_collectable_byte-remnant": {
+  "where": "Мимесисы на x-3, x-4, 4-1…4-4 (Hexor 5, Raging 10, Cloning 25, Terror 35, Reflector 50), их ящики, награды эскорта. Удаляются через сутки после конца события.",
+  "event": "Mimesis Mutiny",
+  "confidence": "high",
+  "source": "docs/MIMESIS.md"
+ },
+ "resource_collectable_candy-corn": {
+  "where": "Хэллоуин, Trial of Terrors: Curcubitor на x-2…x-8 (2–162 за убийство), Boss Curcubitor (62–4 482, ящик пятёрке лучших по урону).",
+  "event": "Trial of Terrors (Хэллоуин)",
+  "confidence": "high",
+  "source": "https://darkorbitwiki.com/events/trial-of-terrors/"
+ },
+ "resource_collectable_champion-token": {
+  "where": "Ежемесячный рейтинг: 1-е место 100, 2–5 — 80, 6–10 — 60, 11–25 — 40, 26–50 — 20. На дизайны кораблей, питомцев, дронов.",
+  "event": "",
+  "confidence": "medium",
+  "source": "https://board-en.darkorbit.com/threads/monthly-ranking-faq.125867/"
+ },
+ "resource_collectable_chaos-fragment": {
+  "where": "Событие Protegit Pandemonium: Chaos Protegit на x-2…x-8 (1–30 за убийство); в прологе Chaos Omen — сборщики. Удаляются после события.",
+  "event": "Protegit Pandemonium",
+  "confidence": "high",
+  "source": "https://darkorbitwiki.com/events/protegit-pandemonium/"
+ },
+ "resource_collectable_charopos-shard": {
+  "where": "Февральское событие Immortal Union: Lanatum на x-2…x-8, за их убийства — боссы Charopos и Styxus; осколки с Charopos (ящик пятёрке лучших), иногда с Lanatum.",
+  "event": "Immortal Union (февраль)",
+  "confidence": "medium",
+  "source": "https://darkorbitwiki.com/events/immortal-union/"
+ },
+ "resource_collectable_chromin": {
+  "where": "Хроминовая лихорадка: NPC во вратах Delta, Epsilon, Kappa, Zeta, Kuiper, Kronos роняют ящики с хромином; лимит 160 000, остаток после события — в честь. Бот фармит в ζ (ZetaChromin).",
+  "event": "Chromin Rush (периодически)",
+  "confidence": "high",
+  "source": "https://darkorbitwiki.com/events/chromin-rush/; docs/GALAXY-GATES.md"
+ },
+ "resource_collectable_cryo-nano-coolant": {
+  "where": "Магазин врат Vortex of Greed.",
+  "event": "",
+  "confidence": "medium",
+  "source": "https://darkorbitwiki.com/resources/"
+ },
+ "resource_collectable_darksilver-coin": {
+  "where": "Uber-пираты (Uber Interceptor, Saboteur, Barracuda, Annihilator; у нас на 5-2, 5-3) и «рыбы» Spookfish, Lanternfish, Barb, Pike, Stinger; календарь входа. 25 монет — серебряный ключ.",
+  "event": "",
+  "confidence": "medium",
+  "source": "https://darkorbitwiki.com/resources/; reference/maps/npc-maps.json"
+ },
+ "resource_collectable_diametrion": {
+  "where": "Сборщики диспетчера, галактические врата, Vanguard Market (Vortex of Greed).",
+  "event": "",
+  "confidence": "medium",
+  "source": "https://darkorbitwiki.com/resources/"
+ },
+ "resource_collectable_duothrin": {
+  "where": "Собирается в Сборке на первой ступени рецептов Permafrost Fissure, идёт на вторую (по FAQ 2017).",
+  "event": "Permafrost Fissure",
+  "confidence": "low",
+  "source": "https://board-en.darkorbit.com/threads/permafrost-fissure-faq.117725/"
+ },
+ "resource_collectable_eternal-fragment": {
+  "where": "Invoke XVI и Mindfire Behemoth на BL-картах, календарь входа; процессор ЕБГ — 500 фрагментов, 500 ринуска, 150 000 кредитов.",
+  "event": "",
+  "confidence": "high",
+  "source": "docs/EBG.md; https://darkorbitwiki.com/resources/"
+ },
+ "resource_collectable_ether-shard": {
+  "where": "Награды сезонного пропуска, акции магазина.",
+  "event": "",
+  "confidence": "medium",
+  "source": "https://darkorbitwiki.com/resources/"
+ },
+ "resource_collectable_flower-token": {
+  "where": "Цветочные трофеи (акция для клиента-приложения 2020–2021) и календарь входа; сейчас на картах нет, в 2025–2026 не подтверждено.",
+  "event": "Цветочные трофеи",
+  "confidence": "low",
+  "source": "https://board-en.darkorbit.com/threads/exclusive-halloween-calendar-and-flower-boxes-for-beta-client-users.126567/"
+ },
+ "resource_collectable_glacial-fragment": {
+  "where": "Permafrost Fissure: собирается в Сборке (20 мьюкосума, 4 плазмида, 24 скрапиума, 1 ч) или покупается за 5 000 уридия, за миссию «Собрать 200 Proxium»; 4 фрагмента — подледниковый процессор для входа.",
+  "event": "Permafrost Fissure",
+  "confidence": "medium",
+  "source": "https://board-en.darkorbit.com/threads/permafrost-fissure-faq.117725/"
+ },
+ "resource_collectable_golden-candy-corn": {
+  "where": "Хэллоуин, Trial of Terrors: Frightful Curcubitor (босс последней карты врат), задания события (по 25).",
+  "event": "Trial of Terrors (Хэллоуин)",
+  "confidence": "medium",
+  "source": "https://darkorbitwiki.com/events/trial-of-terrors/"
+ },
+ "resource_collectable_hybrid-alloy": {
+  "where": "Blighted Gygerthrall (у нас видели на 1-7, 2-7, 3-7); на процессор «Иммунизатор» для Карантинной зоны.",
+  "event": "",
+  "confidence": "high",
+  "source": "https://darkorbitwiki.com/resources/; reference/maps/npc-maps.json"
+ },
+ "resource_collectable_hydra-alloy": {
+  "where": "Сборщики диспетчера, серебряные трофеи на 5-4 (2–15), календарь входа.",
+  "event": "",
+  "confidence": "high",
+  "source": "https://darkorbitwiki.com/boxes/silver-box/"
+ },
+ "resource_collectable_indoctrine-accelerator": {
+  "where": "Врата вечности Black Light (ЕБГ, по тексту игры), календарь входа, события.",
+  "event": "",
+  "confidence": "medium",
+  "source": "https://darkorbitwiki.com/resources/"
+ },
+ "resource_collectable_indoctrineoil": {
+  "where": "Карантинная зона и Gygerim Overlord; календарь входа, события, красные и синие трофеи, сезонные квесты.",
+  "event": "",
+  "confidence": "high",
+  "source": "https://darkorbitwiki.com/resources/"
+ },
+ "resource_collectable_infiltrator-fragment": {
+  "where": "Событие Treacherous Domain: бои с боссом на карте события (вход с x-1 и x-8) — ежедневные награды, ступени урона, рейтинг топ-100 (100–500).",
+  "event": "Treacherous Domain",
+  "confidence": "high",
+  "source": "https://darkorbitwiki.com/events/treacherous-domain/"
+ },
+ "resource_collectable_kyhalon": {
+  "where": "Еженедельные миссии, календарь входа, галактические врата, сборщики, события, красные и синие трофеи.",
+  "event": "",
+  "confidence": "high",
+  "source": "https://darkorbitwiki.com/resources/"
+ },
+ "resource_collectable_luminium": {
+  "where": "Событие Empyrian March: со всех NPC (больше с сильных), ящики люминиума во вратах α, β, γ, на x-2…x-8, 4-1…4-5 и BL-картах; сборщики не приносят.",
+  "event": "Empyrian March",
+  "confidence": "high",
+  "source": "https://darkorbitwiki.com/events/empyrian-march/"
+ },
+ "resource_collectable_mindfire-cerebrum": {
+  "where": "Mindfire Behemoth на BL-картах (восьмёрке лучших по урону), календарь входа; на шифр Black Light (Unstable Cache).",
+  "event": "",
+  "confidence": "high",
+  "source": "docs/BLACKLIGHT.md; https://darkorbitwiki.com/resources/"
+ },
+ "resource_collectable_mucosum": {
+  "where": "Груз со всех Lordakia и Lordakium (обычные, Boss, Uber) и с Sibelonit; также Astral Box, ресурсные сборщики, события.",
+  "event": "",
+  "confidence": "high",
+  "source": "docs/recon/MISSIONS-100.md; https://darkorbitwiki.com/resources/"
+ },
+ "resource_collectable_neptune-alloy": {
+  "where": "Сборщики диспетчера, серебряные трофейные ящики (Silver Box), календарь входа.",
+  "event": "",
+  "confidence": "medium",
+  "source": "https://darkorbitwiki.com/resources/"
+ },
+ "resource_collectable_neu": {
+  "where": "Падает во вратах Delta, Epsilon, Lambda и Kuiper только в выходные N.O.V.A. (сборщик на врата их не приносит); 500 чипов — случайный N.O.V.A. «Нео» в Сборке.",
+  "event": "Выходные N.O.V.A.",
+  "confidence": "medium",
+  "source": "https://darkorbitwiki.com/guides/n-o-v-a/; https://board-en.darkorbit.com/threads/n-o-v-a-weekend.129634/"
+ },
+ "resource_collectable_neutron-shards": {
+  "where": "Связан с лазером LF-5 (по тексту игры); вероятно, Vortex of Greed, как другие детали LF-5 — не подтверждено.",
+  "event": "",
+  "confidence": "low",
+  "source": ""
+ },
+ "resource_collectable_opitite": {
+  "where": "Из наградных ящиков NPC Plutus в событии «Эксперименты Plutus», вместе с тарномом; только на рецепты этого события.",
+  "event": "Эксперименты Plutus",
+  "confidence": "medium",
+  "source": "https://darkorbit.fandom.com/wiki/Tarnom_and_Opitite_Ore"
+ },
+ "resource_collectable_ouroboros-alloy": {
+  "where": "Сборщики диспетчера и награды событий.",
+  "event": "",
+  "confidence": "medium",
+  "source": "https://darkorbitwiki.com/resources/"
+ },
+ "resource_collectable_plasmatic-equalization-plate": {
+  "where": "Магазин события Vortex of Greed за Stellar Coins (100 за штуку), награды сезонного пропуска; для крафта и улучшения LF-5.",
+  "event": "Vortex of Greed",
+  "confidence": "medium",
+  "source": "https://darkorbitwiki.com/galaxy-gates/vortex-of-greed/; https://board-en.darkorbit.com/threads/faq-vortex-of-greed.129870"
+ },
+ "resource_collectable_plasmatic-stabilizer": {
+  "where": "Vanguard Market события Vortex of Greed за 5 500 Stellar Coins, не больше одного; только на элитные лазеры.",
+  "event": "Vortex of Greed",
+  "confidence": "medium",
+  "source": "https://darkorbitwiki.com/galaxy-gates/vortex-of-greed/"
+ },
+ "resource_collectable_polychromium": {
+  "where": "Сборщики диспетчера и награды событий; с каких NPC падает — не подтверждено.",
+  "event": "",
+  "confidence": "low",
+  "source": "https://darkorbitwiki.com/resources/"
+ },
+ "resource_collectable_prismatium": {
+  "where": "Груз со всех Kristallin и Kristallon (обычные, Boss, Uber); также события.",
+  "event": "",
+  "confidence": "high",
+  "source": "docs/recon/MISSIONS-100.md; https://darkorbitwiki.com/resources/"
+ },
+ "resource_collectable_proxium": {
+  "where": "Из особых ящиков UFO и Ufonit во вратах Permafrost Fissure; основа цепочки дуотрин → триттотрин → квадротрин.",
+  "event": "Permafrost Fissure",
+  "confidence": "medium",
+  "source": "https://board-en.darkorbit.com/threads/permafrost-fissure-faq.117725/"
+ },
+ "resource_collectable_pulse-core": {
+  "where": "За Fiesta Gate летнего события (вход с x-1 за Galaxy Coupon, 5 сложностей), за уровни активности события, в платных пакетах.",
+  "event": "Fiesta Gate (летний фестиваль)",
+  "confidence": "high",
+  "source": "https://board-en.darkorbit.com/threads/faq-fiesta-gate.130034/"
+ },
+ "resource_collectable_quadrothrin": {
+  "where": "Собирается в Сборке на третьей ступени рецептов Permafrost Fissure (триттотрин + проксий + боеприпасы).",
+  "event": "Permafrost Fissure",
+  "confidence": "medium",
+  "source": "https://darkorbit.fandom.com/wiki/Permafrost_Fissure"
+ },
+ "resource_collectable_rinusk": {
+  "where": "Пришельцы Black Light на BL-картах: Impulse II 15–25, Attend IX 80–90, также Invoke и Mindfire Behemoth; бывает в календаре входа.",
+  "event": "",
+  "confidence": "high",
+  "source": "docs/BLACKLIGHT.md; https://darkorbitwiki.com/resources/"
+ },
+ "resource_collectable_schism": {
+  "where": "За полное прохождение врат: по тексту игры Delta, Kuiper и Kronos, по журналу бота 12 за γ; также календарь входа и события.",
+  "event": "",
+  "confidence": "high",
+  "source": "docs/GALAXY-GATES.md; https://darkorbitwiki.com/resources/"
+ },
+ "resource_collectable_scrapium": {
+  "where": "Груз со всех Saimon и Mordon (обычные, Boss, Uber); также Astral Box, сборщики, ящики, события.",
+  "event": "",
+  "confidence": "high",
+  "source": "docs/recon/MISSIONS-100.md; https://darkorbitwiki.com/resources/"
+ },
+ "resource_collectable_solidus": {
+  "where": "Только сборщики диспетчера.",
+  "event": "",
+  "confidence": "medium",
+  "source": "https://darkorbitwiki.com/resources/"
+ },
+ "resource_collectable_spvoucher": {
+  "where": "За уровни сезонного пропуска (в основном золотая ветка), не сгорает после сезона; на эксклюзивные рецепты пропуска.",
+  "event": "Сезонный пропуск",
+  "confidence": "medium",
+  "source": "https://board-en.darkorbit.com/threads/faq-season-pass.130346/"
+ },
+ "resource_collectable_styxus-shard": {
+  "where": "Февральское событие Immortal Union: Lanatum на картах, после числа убийств — боссы Styxus и Charopos; осколок со Styxus, иногда с Lanatum.",
+  "event": "Immortal Union (февраль)",
+  "confidence": "medium",
+  "source": "https://darkorbitwiki.com/events/immortal-union/; https://darkorbitwiki.com/aliens/lanatum/"
+ },
+ "resource_collectable_tarnom": {
+  "where": "Из наградных ящиков NPC Plutus в событии «Эксперименты Plutus» (в 2023 и за бонусные волны); на рецепты события.",
+  "event": "Эксперименты Plutus",
+  "confidence": "medium",
+  "source": "https://board-en.darkorbit.com/threads/plutus-experiments.123675/"
+ },
+ "resource_collectable_tetrathrin": {
+  "where": "С Uber Interceptor, Uber Barracuda, Uber Saboteur, Uber Annihilator; также ежедневные задания, календарь, трофейные ящики, сборщики, события.",
+  "event": "",
+  "confidence": "high",
+  "source": "https://darkorbitwiki.com/resources/"
+ },
+ "resource_collectable_triskelion-alloy": {
+  "where": "Сборщики диспетчера, серебряные трофейные ящики, календарь входа.",
+  "event": "",
+  "confidence": "medium",
+  "source": "https://darkorbitwiki.com/resources/"
+ },
+ "resource_collectable_trittothrin": {
+  "where": "Собирается в Сборке на второй ступени рецептов Permafrost Fissure (дуотрин + проксий + Extra Energy).",
+  "event": "Permafrost Fissure",
+  "confidence": "medium",
+  "source": "https://darkorbit.fandom.com/wiki/Permafrost_Fissure"
+ },
+ "resource_high-frequency-cable": {
+  "where": "Зелёные и золотые трофейные ящики (Green/Gold Booty), магазин; собирается в Сборке.",
+  "event": "",
+  "confidence": "medium",
+  "source": "https://darkorbitwiki.com/resources/"
+ },
+ "resource_hybrid-processor": {
+  "where": "Зелёные и золотые трофейные ящики, магазин; собирается в Сборке.",
+  "event": "",
+  "confidence": "medium",
+  "source": "https://darkorbitwiki.com/resources/"
+ },
+ "resource_ignishard-l01": {
+  "where": "По вики (Singularity Drive Fragment) — врата Voyagers Ascent, их VIP-пропуск, платные пакеты; сами врата не подтверждены.",
+  "event": "Voyagers Ascent",
+  "confidence": "low",
+  "source": "https://darkorbitwiki.com/resources/"
+ },
+ "resource_logfile": {
+  "where": "За прохождение врат (по журналу бота 10 за γ, около 100 за Zeta), сборщики, ежедневные задания, магазин, события.",
+  "event": "",
+  "confidence": "high",
+  "source": "docs/GALAXY-GATES.md; docs/LEVELING.md"
+ },
+ "resource_micro-transistors": {
+  "where": "Зелёные и золотые трофейные ящики, магазин; собирается в Сборке.",
+  "event": "",
+  "confidence": "medium",
+  "source": "https://darkorbitwiki.com/resources/"
+ },
+ "resource_nano-case": {
+  "where": "Зелёные и золотые трофейные ящики, магазин; собирается в Сборке.",
+  "event": "",
+  "confidence": "medium",
+  "source": "https://darkorbitwiki.com/resources/"
+ },
+ "resource_nano-condenser": {
+  "where": "Зелёные и золотые трофейные ящики, магазин; собирается в Сборке.",
+  "event": "",
+  "confidence": "medium",
+  "source": "https://darkorbitwiki.com/resources/"
+ },
+ "resource_ore_duranium": {
+  "where": "Перерабатывается на корабле или в Скайлэбе из эндуриума (10) и тербиума (20); доставка со Скайлэба.",
+  "event": "",
+  "confidence": "high",
+  "source": "текст игры; docs/SKYLAB.md"
+ },
+ "resource_ore_endurium": {
+  "where": "Базовая руда: ресурсные ящики на картах, груз с NPC, добыча в Скайлэбе.",
+  "event": "",
+  "confidence": "medium",
+  "source": "текст игры"
+ },
+ "resource_ore_palladium": {
+  "where": "Собирается на 5-1 и 5-3 (бот берёт ящики ore_8 на 5-3); на 5-2 меняется на энергию для врат.",
+  "event": "",
+  "confidence": "high",
+  "source": "текст игры; docs/PLAN.md"
+ },
+ "resource_ore_promerium": {
+  "where": "Перерабатывается из прометида (10) и дураниума (10) с ксеномитом, на корабле или в Скайлэбе; падает и с некоторых NPC.",
+  "event": "",
+  "confidence": "high",
+  "source": "текст игры; https://darkorbitwiki.com/resources/"
+ },
+ "resource_ore_prometid": {
+  "where": "Перерабатывается на корабле или в Скайлэбе из прометиума (20) и эндуриума (10).",
+  "event": "",
+  "confidence": "high",
+  "source": "текст игры"
+ },
+ "resource_ore_prometium": {
+  "where": "Базовая руда: ресурсные ящики на картах, груз с NPC, добыча в Скайлэбе.",
+  "event": "",
+  "confidence": "medium",
+  "source": "текст игры"
+ },
+ "resource_ore_seprom": {
+  "where": "Скайлэб (промериум + ксено-модуль); рецепт «Сепром (BL)» в Сборке — 5 000 за 10 000 уридия, 1 250 ринуска и 250 капсул Black Light; падает с некоторых NPC во вратах, в наградах.",
+  "event": "",
+  "confidence": "high",
+  "source": "docs/recon/ASSEMBLY.md; docs/SKYLAB.md"
+ },
+ "resource_ore_terbium": {
+  "where": "Базовая руда: ресурсные ящики на картах, груз с NPC, добыча в Скайлэбе.",
+  "event": "",
+  "confidence": "medium",
+  "source": "текст игры"
+ },
+ "resource_ore_xenomit": {
+  "where": "С Uber-пришельцев и боссов, в Egg Box и Pumpkin Box; за врата (по журналу бота 600 за γ).",
+  "event": "",
+  "confidence": "high",
+  "source": "https://darkorbitwiki.com/resources/; docs/GALAXY-GATES.md"
+ },
+ "resource_prismatic-socket": {
+  "where": "Зелёные и золотые трофейные ящики, магазин; собирается в Сборке.",
+  "event": "",
+  "confidence": "medium",
+  "source": "https://darkorbitwiki.com/resources/"
+ }
+}

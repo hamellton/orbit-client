@@ -104,6 +104,8 @@ Gradle needs JDK 21 (`export JAVA_HOME=$(/usr/libexec/java_home -v 21)`; the def
   client's `resource_quest.xml` on the CDN; the server sends none).
 - `scripts/update-item-names.sh [lang]` — refresh `reference/maps/item-names-ru.json` (item names as the client shows
   them, `items_<lootId>_fullname` from `resource_items.xml` on the CDN; `orbit.world.ItemNames`, the Totals window).
+- `scripts/update-craft-doc.sh` — regenerate `docs/CRAFT.md` (every Assembly recipe from the decompiled client's
+  `ItemDataProvider.as`, names from the game's texts, where each ingredient comes from in `reference/craft/sources-ru.json`).
 - `scripts/update-protocol.sh [--force]` — after a game patch: download swf, decompile selected
   packages, parse, validate, diff, regenerate, build. Logic in `tools/update_protocol.py`.
 - `RecordedTrafficTest` reads `recordings/` (local only) and requires byte-exact round trips.
