@@ -33,6 +33,8 @@ public final class QuestGiverVisit {
     static final double NEAR = 250;
     /** No answer from the server this long: the step is given up. */
     static final long ANSWER_MS = 8_000;
+    /** Offers asked about a second time in this visit. */
+    private final java.util.Set<Integer> askedAgain = new java.util.HashSet<>();
     /** Waited at the giver this long for the server to switch it on: closer, then give up. */
     static final long SWITCH_ON_MS = 20_000;
 
@@ -287,8 +289,16 @@ public final class QuestGiverVisit {
             Quests.Quest d = w.quests().details().get(reading);
             if (d == null) {
                 if (now - at > ANSWER_MS * 1_000_000) {
-                    log.warn("Квест {}: сервер не прислал условия", reading);
+                    // asked once more at the end (live 2026-11-25 on int1: no answer for 20003 while the server moved the
+                    // ship twice; it had answered for the same quest before)
+                    if (askedAgain.add(reading)) {
+                        log.info("Квест {}: сервер не прислал условия — спрошу ещё раз", reading);
+                        toRead.addLast(reading);
+                    } else {
+                        log.warn("Квест {}: сервер не прислал условия", reading);
+                    }
                     reading = 0;
+                    at = now + ctx.pause(1_000, 3_000);
                 }
                 return true;
             }

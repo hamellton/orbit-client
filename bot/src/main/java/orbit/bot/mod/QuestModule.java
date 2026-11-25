@@ -641,7 +641,16 @@ public final class QuestModule implements BotModule {
     private Work work(Quests.Quest quest, Quests.Condition c, WorldSnapshot w) {
         Work wk = workAnywhere(quest, c, w);
         // «ownMapsOnly» (the leveling configs): a new ship only on its company's maps — another company's map has its
-        // stations and players shooting (live 2026-11-25 on int1: an MMO Liberator of level 1 sent to EIC's 2-2)
+        // stations and players shooting (live 2026-11-25 on int1: an MMO Liberator of level 1 sent to EIC's 2-2). The
+        // companies' 1-x, 2-x, 3-x are alike: an NPC known only on another's x-N lives on the own x-N too (Aider Streuner,
+        // seen on 2-2 by other accounts, was on 1-1 and 1-2 as well)
+        if (wk != null && ownMapsOnly() && wk.map() > 0 && !ownMap(wk.map(), w.hero().factionId())) {
+            int mirror = ownTwin(wk.map(), w.hero().factionId());
+            if (mirror > 0) {
+                wk = new Work(wk.quest(), wk.condition(), wk.kind(), mirror, wk.names(), wk.x(), wk.y(), wk.ore(), wk.want(),
+                        wk.npc());
+            }
+        }
         if (wk != null && ownMapsOnly() && wk.map() > 0 && (!ownMap(wk.map(), w.hero().factionId())
                 || orbit.bot.nav.Traveler.closed(wk.map(), w.hero().level()))) {
             return null; // also a map a portal would not let this level into
@@ -653,6 +662,16 @@ public final class QuestModule implements BotModule {
     private boolean ownMap(int map, int faction) {
         String name = ctx.maps().info(map).name();
         return name != null && name.matches("\\d-\\d+") && name.charAt(0) - '0' == faction;
+    }
+
+    /** The own company's map of the same number ({@code 2-2} → {@code 1-2} for MMO); {@code -1} none (4-x, BL, gates). */
+    private int ownTwin(int map, int faction) {
+        String name = ctx.maps().info(map).name();
+        if (faction < 1 || faction > 3 || name == null || !name.matches("[123]-\\d+")) {
+            return -1;
+        }
+        var twin = ctx.maps().byName(faction + name.substring(1));
+        return twin == null ? -1 : twin.id();
     }
 
     /** {@code ownMapsOnly}: quests worked on the own company's maps only ({@code false} by default). */
