@@ -891,6 +891,20 @@ public final class QuestModule implements BotModule {
             // with SLOTBAR listed in «do» (the leveling configs)
             return new Work(quest.id(), c.id(), Kind.SLOTBAR, h.mapId(), Set.of(), Double.NaN, Double.NaN, -1);
         }
+        if (c.type() == Quests.VISIT_MAP_ASSET && doing.contains("VISITASSET") && h.factionId() >= 1 && h.factionId() <= 3) {
+            // «visit a map object» (the starter quest 20008, live 2026-11-26 on int1: 75:[48] = the home station's hangar):
+            // the company's x-1, there the object of that type, else the station — only with VISITASSET listed in «do»
+            int home = HOME_MAPS[h.factionId()];
+            if (h.mapId() != home) {
+                return new Work(quest.id(), c.id(), Kind.MAP, home, Set.of(), Double.NaN, Double.NaN, -1);
+            }
+            int type = (int) c.match(0);
+            WorldSnapshot.Asset a = w.assets().values().stream().filter(x -> x.type() == type).findFirst()
+                    .or(() -> w.assets().values().stream().filter(x -> STATION_ASSETS.contains(x.type()))
+                            .min(java.util.Comparator.comparingDouble(x -> Math.hypot(x.x() - h.x(), x.y() - h.y()))))
+                    .orElse(null);
+            return a == null ? null : new Work(quest.id(), c.id(), Kind.MAP, home, Set.of(), a.x(), a.y(), -1);
+        }
         if (c.type() == Quests.VISIT_MAP_TYPE && doing.contains("VISITMAPS")) {
             // «visit maps» (the starter quest 20006, live 2026-11-25 on int1): the nearest of the maps it names — only
             // with VISITMAPS listed in «do» (the leveling configs)
@@ -1143,6 +1157,11 @@ public final class QuestModule implements BotModule {
         }
         return ores.entrySet().stream().anyMatch(e -> e.getKey() != WorldSnapshot.Inventory.XENOMIT && e.getValue() >= 1);
     }
+
+    /** The companies' x-1 by faction (1 MMO 1-1, 2 EIC 2-1, 3 VRU 3-1). */
+    static final int[] HOME_MAPS = {0, 1, 5, 9};
+    /** The home station's parts ({@code AssetTypeModule}: 46 company HQ, 48 hangar, 50 ore trade, 53 instant repair). */
+    static final Set<Integer> STATION_ASSETS = Set.of(46, 48, 50, 53);
 
     private Integer nearest(java.util.Collection<Integer> maps, WorldSnapshot.Hero h) {
         return nearest(maps, h, m -> 0);

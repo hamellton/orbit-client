@@ -439,6 +439,7 @@
         "MAP",
         "GIVER",
         "VISITMAPS",
+        "VISITASSET",
         "SLOTBAR"
       ],
       "revisitMinutes": 60,

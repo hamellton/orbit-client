@@ -53,6 +53,13 @@ public final class QuestTexts {
             case Quests.VISIT_MAP_TYPE -> "побывать на " + String.join(" или ", c.matches().stream()
                     .map(m -> { try { return map(Integer.parseInt(m.strip())); } catch (RuntimeException e) { return m; } })
                     .toList());
+            case Quests.VISIT_MAP_ASSET -> "посетить " + switch (c.match(0)) {
+                case 46 -> "штаб компании";
+                case 48 -> "ангар станции";
+                case 50 -> "торговлю рудой";
+                case 53 -> "ремонт станции";
+                default -> "объект карты";
+            };
             case Quests.PUT_ITEM_IN_SLOT_BAR -> "положить на панель " + (c.matches().isEmpty() ? "предмет"
                     : item(c.matches().get(c.matches().size() - 1)));
             case Quests.SELL_ORE -> "продать " + ore(c.match(0));
