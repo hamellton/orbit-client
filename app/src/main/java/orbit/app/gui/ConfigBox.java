@@ -57,7 +57,7 @@ public final class ConfigBox extends JComboBox<String> {
 
     /** The folder as the config window names it. */
     static String folderLabel(String folder) {
-        return folder.isEmpty() ? "Без папки" : orbit.config.ConfigStore.DEFAULT_FOLDER.equals(folder)
+        return folder.isEmpty() ? "Без папки" : orbit.config.ConfigStore.isProgramFolder(folder)
                 ? "🔒 " + folder + " (программы)" : "📁 " + folder;
     }
 

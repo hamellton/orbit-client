@@ -103,6 +103,11 @@ public final class Hangars {
 
     /** All hangars of the account. */
     public List<Hangar> list() throws IOException {
+        return parse(listJson());
+    }
+
+    /** The hangar list's whole answer, decoded ({@code getHangarList}: hangars, money, ships, slotsets). */
+    public JsonNode listJson() throws IOException {
         HttpSession.Response r = http.get(origin + PATH + "?action=getHangarList", origin + Shop.START_PAGE);
         keep(r);
         String body = r.body() == null ? "" : r.body().strip();
@@ -121,7 +126,12 @@ public final class Hangars {
         if (root.path("isError").asInt(1) != 0) {
             throw new IOException("сайт вернул ошибку (isError " + root.path("isError").asText("?") + ")");
         }
-        return parse(root);
+        return root;
+    }
+
+    /** One hangar's whole view, decoded ({@code getHangar}: items, what each config fits). */
+    public JsonNode hangarJson(int hangarId) throws IOException {
+        return call("getHangar", "{\"params\":{\"hi\":" + hangarId + "}}");
     }
 
     static List<Hangar> parse(JsonNode root) {

@@ -53,7 +53,7 @@ public final class ConfigWindow {
             if (name != null) {
                 return name;
             }
-            return folder.isEmpty() ? "Без папки" : ConfigStore.DEFAULT_FOLDER.equals(folder) ? "🔒 " + folder : folder;
+            return folder.isEmpty() ? "Без папки" : ConfigStore.isProgramFolder(folder) ? "🔒 " + folder : folder;
         }
     }
     private final List<Section> sections = new ArrayList<>();
@@ -459,7 +459,7 @@ public final class ConfigWindow {
                 for (String n : e.getValue()) {
                     f.add(new javax.swing.tree.DefaultMutableTreeNode(new Node(e.getKey(), n)));
                     names.add(n);
-                    if (first == null && !ConfigStore.DEFAULT_FOLDER.equals(e.getKey())) {
+                    if (first == null && !ConfigStore.isProgramFolder(e.getKey())) {
                         first = n;
                     }
                 }
@@ -697,7 +697,7 @@ public final class ConfigWindow {
     /** The folder a new config or a copy goes to: the selected one unless it is the defaults' («» = no folder). */
     private String targetFolder() {
         String f = selectedFolder();
-        return f == null || ConfigStore.DEFAULT_FOLDER.equals(f) ? "" : f;
+        return f == null || ConfigStore.isProgramFolder(f) ? "" : f;
     }
 
     /** The own folders to pick from (no folder first, the defaults' never). */
@@ -706,7 +706,7 @@ public final class ConfigWindow {
         out.add("");
         try {
             for (String f : store.folders().keySet()) {
-                if (!f.isEmpty() && !ConfigStore.DEFAULT_FOLDER.equals(f)) {
+                if (!f.isEmpty() && !ConfigStore.isProgramFolder(f)) {
                     out.add(f);
                 }
             }
@@ -761,7 +761,7 @@ public final class ConfigWindow {
             return;
         }
         String from = store.folderOf(current);
-        String folder = askFolder("В какую папку положить «" + n + "»:", ConfigStore.DEFAULT_FOLDER.equals(from) ? ""
+        String folder = askFolder("В какую папку положить «" + n + "»:", ConfigStore.isProgramFolder(from) ? ""
                 : from);
         if (folder == null) {
             return;
@@ -840,7 +840,7 @@ public final class ConfigWindow {
     }
 
     private void renameFolder(String folder) {
-        if (folder.isEmpty() || ConfigStore.DEFAULT_FOLDER.equals(folder)) {
+        if (folder.isEmpty() || ConfigStore.isProgramFolder(folder)) {
             return;
         }
         String to = (String) JOptionPane.showInputDialog(frame, "Новое имя папки «" + folder + "»:", "Папка",
@@ -861,7 +861,7 @@ public final class ConfigWindow {
     private void delete() {
         Node sel = selectedNode();
         if (sel != null && sel.name() == null) {
-            if (sel.folder().isEmpty() || ConfigStore.DEFAULT_FOLDER.equals(sel.folder())) {
+            if (sel.folder().isEmpty() || ConfigStore.isProgramFolder(sel.folder())) {
                 return;
             }
             try {

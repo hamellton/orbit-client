@@ -92,4 +92,32 @@ class ConfigFoldersTest {
         assertEquals(BotConfig.Module.CUBIKON, store.load("Cubikon").module());
         assertEquals(BotConfig.empty(), store.load("CUBIKON"));
     }
+
+    @Test
+    void theLevelingConfigsAreAProgramFolderOfTheirOwn(@TempDir Path dir) throws IOException {
+        ConfigStore store = new ConfigStore(dir);
+        List<String> leveling = List.of("Прокачка EIC x-1", "Прокачка MMO x-1", "Прокачка VRU x-1");
+        assertEquals(leveling, store.folders().get(ConfigStore.LEVELING_FOLDER));
+        assertEquals(DEFAULTS, store.folders().get(ConfigStore.DEFAULT_FOLDER), "Default unchanged");
+        assertEquals(List.of(ConfigStore.DEFAULT_FOLDER, ConfigStore.LEVELING_FOLDER),
+                List.copyOf(store.folders().keySet()).subList(0, 2));
+        for (String n : leveling) {
+            assertTrue(store.isDefault(n), n);
+            assertEquals(ConfigStore.LEVELING_FOLDER, store.folderOf(n));
+            BotConfig c = store.load(n);
+            assertTrue(c.description().startsWith("[Прокачка]"), n);
+            assertEquals(BotConfig.Module.KILL_COLLECT, c.module());
+            assertEquals("ammunition_laser_lcb-10", c.loot().ammo());
+            assertEquals("BASE", c.safety().revive());
+            assertThrows(IOException.class, () -> store.save(n, c), "read-only");
+        }
+        assertEquals(1, store.load("Прокачка MMO x-1").general().workingMap());
+        assertEquals(5, store.load("Прокачка EIC x-1").general().workingMap());
+        assertEquals(9, store.load("Прокачка VRU x-1").general().workingMap());
+        assertThrows(IllegalArgumentException.class, () -> store.createFolder("Прокачка"));
+        assertTrue(ConfigStore.isProgramFolder(ConfigStore.LEVELING_FOLDER));
+        assertFalse(ConfigStore.isProgramFolder("Tests"));
+        store.copy("Прокачка MMO x-1", "my x-1");
+        assertEquals("", store.folderOf("my x-1"), "a copy leaves the program folder");
+    }
 }

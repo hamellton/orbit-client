@@ -1,0 +1,130 @@
+package orbit.bot.level;
+
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * The leveling advisor (docs/LEVELING.md): from the account's state and the plan, the goal to work on now, what it
+ * lacks and what the bot would buy. A pure function: it buys, fits and switches nothing.
+ */
+public final class Advisor {
+
+    private Advisor() {
+    }
+
+    /** A purchase the advisor would make: {@code amount} × {@code item} at {@code price} each. */
+    public record Purchase(String item, int amount, long price, boolean uridium) {
+
+        public long total() {
+            return price * amount;
+        }
+    }
+
+    /**
+     * The advice.
+     *
+     * @param goal     the goal to work on ({@code null}: every goal of the plan is done)
+     * @param done     the goals done before it, by id
+     * @param missing  units still lacking (items to get, or 1 for a ship); 0 when only fitting is left or unknown
+     * @param refit    items owned but not in the slots: to be fitted, no purchase needed
+     * @param purchase what the bot would buy now ({@code null}: nothing affordable or nothing to buy)
+     * @param text     the advice in words, for the leveling log
+     */
+    public record Advice(LevelPlan.Goal goal, List<String> done, int missing, int refit, Purchase purchase, String text) {
+    }
+
+    /** A goal's check against the state. */
+    record Check(boolean done, boolean known, int missing, int refit, String detail) {
+    }
+
+    public static Advice advise(AccountState s, LevelPlan plan) {
+        List<String> done = new ArrayList<>();
+        for (LevelPlan.Goal g : plan.goals()) {
+            Check c = check(s, g);
+            if (c.done()) {
+                done.add(g.id());
+                continue;
+            }
+            String head = g.id() + " «" + g.title() + "»";
+            if (!c.known()) {
+                return new Advice(g, done, 0, 0, null, head + ": не умею проверить (" + c.detail() + ") — дальше не иду");
+            }
+            Purchase p = null;
+            StringBuilder text = new StringBuilder(head + ": " + c.detail());
+            if (c.refit() > 0) {
+                text.append("; поставить из запаса ").append(c.refit());
+            }
+            if (c.missing() > 0 && g.buy() != null) {
+                LevelPlan.Buy b = g.buy();
+                long money = b.uridium() ? s.uridium() : s.credits();
+                long reserve = b.uridium() ? plan.reserveUridium() : plan.reserveCredits();
+                String cur = b.uridium() ? "уридия" : "кредитов";
+                if (money < 0) {
+                    text.append("; денег не знаю — не решаю");
+                } else {
+                    long free = Math.max(0, money - reserve);
+                    int can = (int) Math.min(c.missing(), b.price() <= 0 ? c.missing() : free / b.price());
+                    if (can > 0) {
+                        p = new Purchase(b.item(), can, b.price(), b.uridium());
+                        text.append("; купил бы ").append(can).append(" × ").append(b.item()).append(" за ")
+                                .append(p.total()).append(' ').append(cur);
+                    } else {
+                        text.append("; копить ещё ").append(b.price() - free).append(' ').append(cur)
+                                .append(" до первой (цена ").append(b.price()).append(", резерв ").append(reserve).append(')');
+                    }
+                    if (can < c.missing()) {
+                        text.append("; на все ").append(c.missing()).append(" нужно ")
+                                .append(Math.max(0, b.price() * c.missing() - free)).append(" сверх свободных");
+                    }
+                }
+            } else if (c.missing() > 0) {
+                text.append("; покупки в плане нет");
+            }
+            if (!g.auction().isEmpty()) {
+                text.append("; аукцион: ").append(String.join(", ", g.auction()));
+            }
+            if (!g.farm().isEmpty()) {
+                text.append("; фарм: ").append(g.farm());
+            }
+            return new Advice(g, done, c.missing(), c.refit(), p, text.toString());
+        }
+        return new Advice(null, done, 0, 0, null, "все цели плана выполнены");
+    }
+
+    static Check check(AccountState s, LevelPlan.Goal g) {
+        return switch (g.kind()) {
+            case LEVEL -> s.level() <= 0 ? new Check(false, false, 0, 0, "уровень не известен")
+                    : new Check(s.level() >= g.min(), true, 0, 0, "уровень " + s.level() + " из " + g.min());
+            case SHIP -> {
+                boolean has = g.accepted().stream().anyMatch(s.ownedShips()::contains);
+                yield new Check(has, true, has ? 0 : 1, 0, has ? "есть" : "нет корабля");
+            }
+            case FILL -> fill(s, g);
+            case UNKNOWN -> new Check(false, false, 0, 0, g.why().isEmpty() ? "проверки нет" : g.why());
+        };
+    }
+
+    /**
+     * Every slot in each config holds an accepted item. One item may stand in both configs, so the items owned are the
+     * most any config fits plus the spares; lacking = slots − owned; owned but not fitted somewhere = to refit.
+     */
+    private static Check fill(AccountState s, LevelPlan.Goal g) {
+        int slots = s.slots(g.slotset());
+        if (slots <= 0 || s.fitted().isEmpty()) {
+            return new Check(false, false, 0, 0, "слоты «" + g.slotset() + "» или снаряжение корабля не известны");
+        }
+        int most = 0;
+        int least = slots;
+        for (int c : g.configs()) {
+            int n = s.fittedOf(c, g.slotset(), g.accepted());
+            most = Math.max(most, n);
+            least = Math.min(least, n);
+        }
+        int owned = most + s.spareOf(g.accepted());
+        int missing = Math.max(0, slots - owned);
+        int refit = Math.max(0, Math.min(slots, owned) - least);
+        boolean done = least >= slots;
+        return new Check(done, true, missing, refit, "«" + g.slotset() + "»: подходящих " + least + "–" + most + " из " + slots
+                + " по конфигам " + g.configs() + ", в запасе " + s.spareOf(g.accepted()));
+    }
+}

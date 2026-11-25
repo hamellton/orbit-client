@@ -1,0 +1,213 @@
+{
+  "version": 1,
+  "reserveCredits": 30000,
+  "reserveUridium": 0,
+  "goals": [
+    {
+      "id": "Ц1",
+      "title": "Лазеры MP-1 на корабле",
+      "check": {
+        "kind": "fill",
+        "slotset": "lasers",
+        "configs": [
+          1,
+          2
+        ],
+        "accepted": [
+          "equipment_weapon_laser_mp-1",
+          "equipment_weapon_laser_lf-2",
+          "equipment_weapon_laser_lf-3",
+          "equipment_weapon_laser_lf-4",
+          "equipment_weapon_laser_lf-4-hp",
+          "equipment_weapon_laser_lf-4-md",
+          "equipment_weapon_laser_lf-4-pd",
+          "equipment_weapon_laser_lf-4-unstable",
+          "equipment_weapon_laser_lf-5",
+          "equipment_weapon_laser_lf-5-al",
+          "equipment_weapon_laser_lf-5-mf",
+          "equipment_weapon_laser_pr-l"
+        ]
+      },
+      "buy": {
+        "item": "equipment_weapon_laser_mp-1",
+        "price": 40000,
+        "currency": "credits"
+      },
+      "auction": [
+        "equipment_weapon_laser_lf-3"
+      ],
+      "farm": "x-1 (Прокачка <фракция> x-1)"
+    },
+    {
+      "id": "Ц2",
+      "title": "Nostromo (или Goliath)",
+      "check": {
+        "kind": "ship",
+        "accepted": [
+          "ship_nostromo",
+          "ship_goliath"
+        ]
+      },
+      "buy": {
+        "item": "ship_nostromo",
+        "price": 195000,
+        "currency": "credits"
+      },
+      "auction": [
+        "ship_goliath"
+      ],
+      "farm": "x-1"
+    },
+    {
+      "id": "Ц3",
+      "title": "Двигатели G3N-7900 во всех генераторах",
+      "check": {
+        "kind": "fill",
+        "slotset": "generators",
+        "configs": [
+          1,
+          2
+        ],
+        "accepted": [
+          "equipment_generator_speed_g3n-7900"
+        ]
+      },
+      "buy": {
+        "item": "equipment_generator_speed_g3n-7900",
+        "price": 2000,
+        "currency": "uridium"
+      },
+      "auction": [
+        "equipment_generator_speed_g3n-7900"
+      ],
+      "farm": "x-1"
+    },
+    {
+      "id": "Ц4",
+      "title": "Дроны Flax: конфиг 1 — урон, конфиг 2 — щиты",
+      "check": {
+        "kind": "unknown",
+        "why": "дроны в ответе сайта ещё не разобраны"
+      },
+      "buy": {
+        "item": "drone_flax",
+        "price": 100000,
+        "currency": "credits"
+      }
+    },
+    {
+      "id": "Ц5",
+      "title": "Goliath",
+      "check": {
+        "kind": "ship",
+        "accepted": [
+          "ship_goliath"
+        ]
+      },
+      "buy": {
+        "item": "ship_goliath",
+        "price": 50000,
+        "currency": "uridium"
+      },
+      "auction": [
+        "ship_goliath"
+      ]
+    },
+    {
+      "id": "Ц6",
+      "title": "Goliath оснащён: лазеры MP-1+ и двигатели",
+      "check": {
+        "kind": "unknown",
+        "why": "проверка по Goliath — после Ц5"
+      }
+    },
+    {
+      "id": "Ц7",
+      "title": "8 Iris",
+      "check": {
+        "kind": "unknown",
+        "why": "дроны в ответе сайта ещё не разобраны"
+      },
+      "buy": {
+        "item": "drone_iris",
+        "price": 15000,
+        "currency": "uridium"
+      },
+      "auction": [
+        "drone_iris"
+      ]
+    },
+    {
+      "id": "Ц8",
+      "title": "Лазеры LF-3 или лучше",
+      "check": {
+        "kind": "fill",
+        "slotset": "lasers",
+        "configs": [
+          1,
+          2
+        ],
+        "accepted": [
+          "equipment_weapon_laser_lf-3",
+          "equipment_weapon_laser_lf-4",
+          "equipment_weapon_laser_lf-4-hp",
+          "equipment_weapon_laser_lf-4-md",
+          "equipment_weapon_laser_lf-4-pd",
+          "equipment_weapon_laser_lf-4-unstable",
+          "equipment_weapon_laser_lf-5",
+          "equipment_weapon_laser_lf-5-al",
+          "equipment_weapon_laser_lf-5-mf",
+          "equipment_weapon_laser_pr-l"
+        ]
+      },
+      "buy": {
+        "item": "equipment_weapon_laser_lf-3",
+        "price": 10000,
+        "currency": "uridium"
+      },
+      "auction": [
+        "equipment_weapon_laser_lf-3"
+      ]
+    },
+    {
+      "id": "Ц9",
+      "title": "Уровень 12 — палладий",
+      "check": {
+        "kind": "level",
+        "min": 12
+      },
+      "farm": "x-2 / x-3"
+    },
+    {
+      "id": "Ц10",
+      "title": "Zeta: ключи к зелёным трофеям, UCB-100",
+      "check": {
+        "kind": "unknown",
+        "why": "запасы ключей и UCB-100 ещё не читаются"
+      }
+    },
+    {
+      "id": "Ц11",
+      "title": "Blacklight: Ринуск → RSB-75",
+      "check": {
+        "kind": "unknown",
+        "why": "запасы Ринуска и RSB-75 ещё не читаются"
+      }
+    },
+    {
+      "id": "Ц12",
+      "title": "Прометеи во всех лазерах",
+      "check": {
+        "kind": "fill",
+        "slotset": "lasers",
+        "configs": [
+          1,
+          2
+        ],
+        "accepted": [
+          "equipment_weapon_laser_pr-l"
+        ]
+      }
+    }
+  ]
+}

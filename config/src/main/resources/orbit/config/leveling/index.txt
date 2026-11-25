@@ -1,0 +1,4 @@
+# The program's leveling configs (folder «Прокачка», docs/LEVELING.md): read-only, copied to be changed.
+Прокачка MMO x-1
+Прокачка EIC x-1
+Прокачка VRU x-1

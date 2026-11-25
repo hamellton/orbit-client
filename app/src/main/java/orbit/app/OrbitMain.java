@@ -752,6 +752,7 @@ public final class OrbitMain {
                     watchHangar(auth, conn, run.runner(), lastHost, accountName, cfg, ships);
                     watchSkylab(auth, conn, feed, game);
                     watchCalendar(auth, conn, accountName, game);
+                    LevelWatch.start(auth, conn, feed, accountName, playing::get, game::isAlive); // configs of «Прокачка» only
                     watchLab(conn, game);
                     feed.setRefreshInfo(() -> refreshInfo(auth, conn, feed));
                     planRefresh(conn, run.runner(), game);

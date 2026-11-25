@@ -30,11 +30,19 @@ public final class ConfigStore {
     public static final String DEFAULT_FOLDER = "Default";
     /** The bundled defaults: {@code index.txt} lists their names, one file each beside it. */
     static final String DEFAULTS = "/orbit/config/defaults/";
+    /**
+     * The folder of the program's leveling configs (docs/LEVELING.md): read-only like {@link #DEFAULT_FOLDER}; an account on
+     * one of them runs the leveling mode.
+     */
+    public static final String LEVELING_FOLDER = "Прокачка";
+    static final String LEVELING = "/orbit/config/leveling/";
     /** Letters (any script), digits, space, {@code _ - .}; no path separators. */
     private static final Pattern NAME = Pattern.compile("[\\p{L}\\p{N}_\\-. ]{1,64}");
 
     private final Path dir;
     private final Map<String, String> defaults;
+    /** The program folder of each default: {@link #DEFAULT_FOLDER} or {@link #LEVELING_FOLDER}. */
+    private final Map<String, String> defaultFolder;
 
     public ConfigStore(Path dir) {
         this(dir, true);
@@ -43,7 +51,26 @@ public final class ConfigStore {
     /** @param withDefaults the program's default configs too (tests of the plain store leave them out) */
     public ConfigStore(Path dir, boolean withDefaults) {
         this.dir = dir;
-        this.defaults = withDefaults ? bundled() : Map.of();
+        Map<String, String> d = new LinkedHashMap<>();
+        Map<String, String> f = new LinkedHashMap<>();
+        if (withDefaults) {
+            bundled(DEFAULTS).forEach((n, json) -> {
+                d.put(n, json);
+                f.put(n, DEFAULT_FOLDER);
+            });
+            bundled(LEVELING).forEach((n, json) -> {
+                if (d.putIfAbsent(n, json) == null) {
+                    f.put(n, LEVELING_FOLDER);
+                }
+            });
+        }
+        this.defaults = d;
+        this.defaultFolder = f;
+    }
+
+    /** A folder of the program's own configs ({@link #DEFAULT_FOLDER}, {@link #LEVELING_FOLDER}): shown locked, never written. */
+    public static boolean isProgramFolder(String folder) {
+        return DEFAULT_FOLDER.equals(folder) || LEVELING_FOLDER.equals(folder);
     }
 
     public static ConfigStore openDefault() {
@@ -67,8 +94,8 @@ public final class ConfigStore {
         if (!NAME.matcher(folder).matches() || folder.startsWith(".") || folder.isBlank()) {
             throw new IllegalArgumentException("Имя папки: буквы, цифры, пробел, _ - .");
         }
-        if (folder.equalsIgnoreCase(DEFAULT_FOLDER)) {
-            throw new IllegalArgumentException("Папка «" + DEFAULT_FOLDER + "» — для конфигов программы");
+        if (folder.equalsIgnoreCase(DEFAULT_FOLDER) || folder.equalsIgnoreCase(LEVELING_FOLDER)) {
+            throw new IllegalArgumentException("Папка «" + folder + "» — для конфигов программы");
         }
     }
 
@@ -88,10 +115,17 @@ public final class ConfigStore {
      */
     public Map<String, List<String>> folders() throws IOException {
         Map<String, List<String>> out = new LinkedHashMap<>();
-        if (!defaults.isEmpty()) {
-            List<String> d = new ArrayList<>(defaults.keySet());
-            d.sort(String.CASE_INSENSITIVE_ORDER);
-            out.put(DEFAULT_FOLDER, d);
+        for (String program : List.of(DEFAULT_FOLDER, LEVELING_FOLDER)) {
+            List<String> d = new ArrayList<>();
+            defaultFolder.forEach((n, f) -> {
+                if (f.equals(program)) {
+                    d.add(n);
+                }
+            });
+            if (!d.isEmpty()) {
+                d.sort(String.CASE_INSENSITIVE_ORDER);
+                out.put(program, d);
+            }
         }
         Map<String, List<String>> local = byFolder();
         List<String> root = local.remove("");
@@ -137,10 +171,10 @@ public final class ConfigStore {
         return defaults.containsKey(name) && find(name) == null;
     }
 
-    /** The folder of a config: {@link #DEFAULT_FOLDER}, a folder's name, {@code ""} for the top level. */
+    /** The folder of a config: a program folder ({@link #isProgramFolder}), a folder's name, {@code ""} for the top level. */
     public String folderOf(String name) {
         if (isDefault(name)) {
-            return DEFAULT_FOLDER;
+            return defaultFolder.getOrDefault(name, DEFAULT_FOLDER);
         }
         Path f = find(name);
         return f == null || f.getParent().equals(dir) ? "" : f.getParent().getFileName().toString();
@@ -303,7 +337,7 @@ public final class ConfigStore {
 
     private void refuseDefault(String name) throws IOException {
         if (isDefault(name) || defaults.containsKey(name) && find(name) == null) {
-            throw new IOException("«" + name + "» — конфиг программы (папка " + DEFAULT_FOLDER
+            throw new IOException("«" + name + "» — конфиг программы (папка " + defaultFolder.getOrDefault(name, DEFAULT_FOLDER)
                     + "): его не меняют — сделайте копию");
         }
     }
@@ -359,8 +393,13 @@ public final class ConfigStore {
 
     /** The program's default configs: name → JSON text, from the classpath ({@link #DEFAULTS}). */
     static Map<String, String> bundled() {
+        return bundled(DEFAULTS);
+    }
+
+    /** The program's configs of one bundled folder ({@link #DEFAULTS}, {@link #LEVELING}): name → JSON text. */
+    static Map<String, String> bundled(String base) {
         Map<String, String> out = new LinkedHashMap<>();
-        try (InputStream idx = ConfigStore.class.getResourceAsStream(DEFAULTS + "index.txt")) {
+        try (InputStream idx = ConfigStore.class.getResourceAsStream(base + "index.txt")) {
             if (idx == null) {
                 return out;
             }
@@ -369,7 +408,7 @@ public final class ConfigStore {
                 if (name.isEmpty() || name.startsWith("#")) {
                     continue;
                 }
-                try (InputStream in = ConfigStore.class.getResourceAsStream(DEFAULTS + name + ".json")) {
+                try (InputStream in = ConfigStore.class.getResourceAsStream(base + name + ".json")) {
                     if (in != null) {
                         out.put(name, new String(in.readAllBytes(), StandardCharsets.UTF_8));
                     }

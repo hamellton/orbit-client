@@ -76,6 +76,32 @@
     </encoder>
   </appender>
 
+  <!-- the leveling mode's detailed log (logs/leveling-<account>.log, docs/LEVELING.md): every snapshot, decision and action,
+       for analysis only — never in the window, the journal or the other files -->
+  <appender name="LEVELING" class="ch.qos.logback.classic.sift.SiftingAppender">
+    <discriminator>
+      <key>account</key>
+      <defaultValue>none</defaultValue>
+    </discriminator>
+    <sift>
+      <appender name="LEVELING-${account}" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>logs/leveling-${account}.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+          <fileNamePattern>logs/archive/leveling-${account}.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+          <maxFileSize>20MB</maxFileSize>
+          <maxHistory>60</maxHistory>
+          <totalSizeCap>500MB</totalSizeCap>
+        </rollingPolicy>
+        <encoder>
+          <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level %msg%n%ex</pattern>
+        </encoder>
+      </appender>
+    </sift>
+  </appender>
+  <logger name="orbit.level" level="DEBUG" additivity="false">
+    <appender-ref ref="LEVELING"/>
+  </logger>
+
   <!-- every relayed packet is logged at INFO by the sniffer; in the window that is noise -->
   <logger name="orbit.sniffer.GameRelay" level="WARN"/>
   <!-- one line per proxied website request -->
