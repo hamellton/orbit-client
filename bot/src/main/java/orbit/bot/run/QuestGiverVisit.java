@@ -23,6 +23,9 @@ import org.slf4j.LoggerFactory;
  */
 public final class QuestGiverVisit {
 
+    /** Offers already logged as «cannot do», by account and quest: said once per program run. */
+    private static final java.util.Set<String> SKIPPED_TOLD = java.util.concurrent.ConcurrentHashMap.newKeySet();
+
     private static final Logger log = LoggerFactory.getLogger(QuestGiverVisit.class);
 
     static final int GIVER_TYPE = 34;
@@ -290,8 +293,12 @@ public final class QuestGiverVisit {
                 return true;
             }
             boolean can = doable.test(d);
-            log.info("Квест {} ({}): {} — {}", orbit.world.QuestTitles.label(d.id()), QuestTexts.type(d.types()), describe(d),
-                    can ? "беру" : "не умею, пропускаю");
+            // «cannot do» once per quest and account in a program run: every visit lists the same offers again
+            String account = org.slf4j.MDC.get("account");
+            if (can || SKIPPED_TOLD.add((account == null ? "" : account) + "/" + d.id())) {
+                log.info("Квест {} ({}): {} — {}", orbit.world.QuestTitles.label(d.id()), QuestTexts.type(d.types()),
+                        describe(d), can ? "беру" : "не умею, пропускаю");
+            }
             if (can) {
                 toTake.add(d.id());
             }

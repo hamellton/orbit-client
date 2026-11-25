@@ -107,8 +107,11 @@ public final class QuestModule implements BotModule {
     private final OreMaps oreMaps;
     private QuestGiverVisit visit;
     private long visitedAt = Long.MIN_VALUE / 2;
-    /** A «back to the giver» condition sends the ship there at most this often. */
+    /** A «back to the giver» condition of one quest sends the ship there at most this often. */
     static final long GIVER_GAP_NS = 3 * 60_000_000_000L;
+    /** The quest a «back to the giver» visit was last started for, and when. */
+    private int giverFor = -1;
+    private long giverAt;
     private boolean visitedOnce;
     private boolean giverLaterTold;
     private int activeSeen = -1;
@@ -356,11 +359,16 @@ public final class QuestModule implements BotModule {
                 status = "Квест " + named(work.quest()) + ": " + progress + " · жду руду со Скайлаба";
             }
             case GIVER -> {
-                // not again and again when a visit did not count it (an earlier condition still open)
-                if (visit == null && now - visitedAt > GIVER_GAP_NS) {
-                    startVisit("квест " + named(work.quest()) + " просит вернуться к квестодателю");
+                // at once the first time; again for the same quest only after a while (a visit did not count it: an
+                // earlier condition still open) — a visit for other reasons does not hold it back (live 2026-11-25: the
+                // ship stood still for minutes after taking the quests)
+                int quest = work.quest();
+                status = "Квест " + named(quest) + ": " + progress + " · к квестодателю";
+                if (visit == null && (giverFor != quest || now - giverAt > GIVER_GAP_NS)) {
+                    giverFor = quest;
+                    giverAt = now;
+                    startVisit("квест " + named(quest) + " просит вернуться к квестодателю"); // clears the work
                 }
-                status = "Квест " + named(work.quest()) + ": " + progress + " · к квестодателю";
             }
             case MAP -> {
                 if (!Double.isNaN(work.x()) && ctx.nav().idle()
