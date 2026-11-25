@@ -143,12 +143,17 @@ class EnricherTest {
         CargoPlan all = new CargoPlan(BotConfig.Collect.CARGO_BASE, 0, List.of(0, 1, 2, 3, 4, 5, 6));
         orbit.world.WorldSnapshot.Lab low = new orbit.world.WorldSnapshot.Lab(java.util.Map.of(2, new orbit.world.WorldSnapshot.Enrichment(6, 40)), 1);
         orbit.world.WorldSnapshot.Lab charged = new orbit.world.WorldSnapshot.Lab(java.util.Map.of(2, new orbit.world.WorldSnapshot.Enrichment(6, 150)), 1);
-        assertEquals(List.of(), CargoCare.keepEnrichOres(refining, all, low, 5).ores(), "low: all kept for promerium");
-        assertEquals(List.of(), CargoCare.keepEnrichOres(refining, all, null, -1).ores(), "lab not read: kept");
-        assertEquals(List.of(0, 1, 2), CargoCare.keepEnrichOres(refining, all, low, 0).ores(),
+        assertEquals(List.of(), CargoCare.keepEnrichOres(refining, all, low, 5, 20).ores(), "low: all kept for promerium");
+        assertEquals(List.of(), CargoCare.keepEnrichOres(refining, all, null, -1, 20).ores(), "lab not read: kept");
+        assertEquals(List.of(0, 1, 2), CargoCare.keepEnrichOres(refining, all, low, 0, 20).ores(),
                 "low but no xenomit: raw sold, prometid and duranium kept");
-        assertEquals(List.of(0, 1, 2, 4, 5), CargoCare.keepEnrichOres(refining, all, charged, 5).ores(),
+        assertEquals(List.of(0, 1, 2, 4, 5), CargoCare.keepEnrichOres(refining, all, charged, 5, 20).ores(),
                 "charged: raw and refined sold, xenomit and promerium kept");
+        BotConfig young = BotConfig.empty().withModuleSettings("enrich", Json.MAPPER.readTree(
+                "{\"enabled\":true,\"refine\":true,\"keepAllBelowLevel\":17,"
+                + "\"items\":{\"drive\":{\"on\":true,\"ore\":\"PROMERIUM\",\"below\":100}}}"));
+        assertEquals(List.of(), CargoCare.keepEnrichOres(young, all, charged, 0, 6).ores(), "below 17: nothing sold");
+        assertEquals(List.of(0, 1, 2, 4, 5), CargoCare.keepEnrichOres(young, all, charged, 5, 17).ores(), "from 17: as before");
     }
 
     static Map<String, Long> fastSend(int free, int max) throws Exception {

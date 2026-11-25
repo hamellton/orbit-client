@@ -761,7 +761,7 @@ public final class OrbitMain {
                     watchSkylab(auth, conn, feed, game);
                     watchCalendar(auth, conn, accountName, game);
                     LevelWatch.start(auth, conn, feed, accountName, playing::get, game::isAlive, run.runner()::status,
-                            run.runner()::requestShip, conn::refresh,
+                            run.runner()::requestShip, conn::refresh, run.runner()::requestRefit,
                             name -> {
                                 var s = switcher.get();
                                 if (s != null) {
@@ -798,7 +798,7 @@ public final class OrbitMain {
                             break;
                         }
                         failures = 0;
-                        if (levelingConfig(cfgName)) {
+                        if (levelingConfig(playing.get())) {
                             // the leveling mode: the new ship fitted before the login, out of the game (docs/LEVELING.md)
                             LevelWatch.fitOffline(new orbit.auth.Hangars(auth.http(), lastHost.get()), accountName);
                         }

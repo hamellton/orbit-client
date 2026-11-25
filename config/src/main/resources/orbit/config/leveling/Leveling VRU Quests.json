@@ -469,9 +469,16 @@
           "ore": "PROMERIUM",
           "below": 5000,
           "load": 500
+        },
+        "laser": {
+          "on": true,
+          "ore": "PROMETID",
+          "below": 10000,
+          "load": 500
         }
       },
-      "cargoWhenLow": true
+      "cargoWhenLow": true,
+      "keepAllBelowLevel": 17
     }
   }
 }

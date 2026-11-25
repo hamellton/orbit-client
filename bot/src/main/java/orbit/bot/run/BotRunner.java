@@ -76,6 +76,14 @@ public final class BotRunner {
     public void requestShip(int hangarId) {
         shipWanted = hangarId;
     }
+
+    /** A logout and login on the same ship (the leveling mode fits the gear out of the game in between). */
+    private volatile boolean refitWanted;
+
+    /** Asks for a logout and login on the same ship, once the module is not busy (the gear fitted out of the game). */
+    public void requestRefit() {
+        refitWanted = true;
+    }
     private boolean logoutHere;
     /** The start ship was looked at this session (once). */
     private boolean startChecked;
@@ -710,6 +718,15 @@ public final class BotRunner {
                 stop("смена корабля (корабль запуска)");
                 return;
             }
+        }
+        if (refitWanted && hangarRequest == 0 && !module.busy() && service.phase() == ServiceVisit.Phase.IDLE
+                && activeHangar != 0) {
+            refitWanted = false;
+            log.info("Перезахожу, чтобы поставить снаряжение (вне игры): выход, раскладка, вход");
+            hangarRequest = activeHangar; // the app's ship change on the same ship: the fitting between, no switch
+            logoutHere = true;
+            stop("перезаход ради снаряжения");
+            return;
         }
         if (shipWanted != 0 && hangarRequest == 0 && !module.busy() && service.phase() == ServiceVisit.Phase.IDLE
                 && activeHangar != 0) {

@@ -115,7 +115,7 @@ final class CargoCare {
      * and CUBIKON's list sold promerium): every ore of an item set on, while the enrichment is on.
      */
     static CargoPlan keepEnrichOres(BotConfig c, CargoPlan plan) {
-        return keepEnrichOres(c, plan, null, -1);
+        return keepEnrichOres(c, plan, null, -1, 0);
     }
 
     /**
@@ -126,7 +126,7 @@ final class CargoCare {
      * the raw ores make no promerium: they are sold, prometid and duranium kept for when xenomit comes (live 2026-11-25:
      * the hold filled with 1 300 raw ore and the bot stopped picking cargo). {@code xenomit} {@code -1}: not known.
      */
-    static CargoPlan keepEnrichOres(BotConfig c, CargoPlan plan, WorldSnapshot.Lab lab, long xenomit) {
+    static CargoPlan keepEnrichOres(BotConfig c, CargoPlan plan, WorldSnapshot.Lab lab, long xenomit, int level) {
         com.fasterxml.jackson.databind.JsonNode e = c.modules().get("enrich");
         if (e == null || !e.path("enabled").asBoolean(false) || plan.ores() == null || plan.ores().isEmpty()) {
             return plan;
@@ -141,6 +141,13 @@ final class CargoCare {
         }
         if (e.path("refine").asBoolean(false)) {
             keep.add(Refiner.XENOMIT);
+            int below = e.path("keepAllBelowLevel").asInt(0);
+            if (below > 0 && level > 0 && level < below) {
+                // till that level (17: the Blacklight maps) no ore is sold — it all goes to the enrichment (a user's choice,
+                // 2026-11-25: prometid for the lasers, promerium for the drives)
+                keep.addAll(java.util.List.of(Refiner.PROMETIUM, Refiner.ENDURIUM, Refiner.TERBIUM, Refiner.PROMETID,
+                        Refiner.DURANIUM, Refiner.PROMERIUM));
+            }
             if (enrichmentLow(e, lab)) {
                 keep.addAll(java.util.List.of(Refiner.PROMETID, Refiner.DURANIUM));
                 if (xenomit != 0) {
@@ -170,7 +177,7 @@ final class CargoCare {
         WorldSnapshot w = ctx.world().get();
         long now = ctx.now();
         plan = modulePlan != null ? modulePlan : new CargoPlan(c.collect().cargo(), 0, c.collect().sellOres());
-        plan = keepEnrichOres(c, plan, w.inventory().lab(), w.inventory().ore(Refiner.XENOMIT));
+        plan = keepEnrichOres(c, plan, w.inventory().lab(), w.inventory().ore(Refiner.XENOMIT), w.hero().level());
         String mode = plan.mode();
         ctx.stats().cargoMode = mode;
         boolean wantSale = BotConfig.Collect.CARGO_BASE.equals(mode) || BotConfig.Collect.CARGO_PET.equals(mode);

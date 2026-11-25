@@ -34,7 +34,7 @@ final class LevelWatch {
     /** Starts the advisor's thread for this game connection; it ends with the game thread. */
     static void start(AuthClient auth, GameConnection conn, WorldFeed feed, String account, Supplier<String> config,
                       BooleanSupplier alive, Supplier<String> status, java.util.function.IntConsumer requestShip,
-                      Runnable refresh, java.util.function.Consumer<String> switchConfig) {
+                      Runnable refresh, Runnable requestRefit, java.util.function.Consumer<String> switchConfig) {
         java.util.Map<String, String> ctx = org.slf4j.MDC.getCopyOfContextMap();
         AuctionWatch.start(auth, conn, feed, account, config, alive); // the bids, only on leveling configs too
         Thread.ofVirtual().name("leveling").start(() -> {
@@ -52,9 +52,11 @@ final class LevelWatch {
                     if (cfg != null && ConfigStore.LEVELING_FOLDER.equals(ConfigStore.openDefault().folderOf(cfg))) {
                         meter.sample(feed, cfg);
                         shapeLogged |= round(auth, conn, feed, account, cfg, plan, !shapeLogged, status, meter, switchConfig,
-                                requestShip, refresh);
+                                requestShip, refresh, requestRefit);
                     }
-                    Thread.sleep(EVERY_MS + random.nextInt(120_000));
+                    // gear waiting for the base station: the next look sooner, to fit it by a re-login if still waiting
+                    Thread.sleep(PENDING_SINCE.containsKey(account) ? PENDING_LOOK_MS + random.nextInt(30_000)
+                            : EVERY_MS + random.nextInt(120_000));
                 }
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
@@ -199,6 +201,11 @@ final class LevelWatch {
         return done;
     }
 
+    /** Gear moves waiting for the base station since when, per account. */
+    private static final java.util.Map<String, Long> PENDING_SINCE = new java.util.concurrent.ConcurrentHashMap<>();
+    static final long REFIT_AFTER_MS = 10 * 60_000L;
+    static final long PENDING_LOOK_MS = 10 * 60_000L;
+
     /** The last state the advisor read, per account: the auction's bids use it (with the game's money of the moment). */
     private static final java.util.Map<String, AccountState> LAST_STATE = new java.util.concurrent.ConcurrentHashMap<>();
 
@@ -318,7 +325,7 @@ final class LevelWatch {
     private static boolean round(AuthClient auth, GameConnection conn, WorldFeed feed, String account, String cfg,
                                  LevelPlan plan, boolean logShape, Supplier<String> status, Meter meter,
                                  java.util.function.Consumer<String> switchConfig, java.util.function.IntConsumer requestShip,
-                                 Runnable refresh) throws InterruptedException {
+                                 Runnable refresh, Runnable requestRefit) throws InterruptedException {
         var session = conn.session();
         if (session == null || session.host() == null) {
             LOG.info("советчик: нет игровой сессии — пропускаю");
@@ -381,11 +388,24 @@ final class LevelWatch {
             }
             var moves = orbit.bot.level.FitPlanner.plan(hangar, list.activeHangar(), list.slots(), plan);
             if (moves.isEmpty()) {
+                PENDING_SINCE.remove(account);
                 LOG.info("раскладка: всё на местах");
             } else if (!atHomeStation(feed)) {
-                // in the game the site changes gear only by the base station (live 2026-11-25): half done is worse
-                LOG.info("раскладка: {} перекладок ждут, пока корабль у станции базы (или вход в игру)", moves.size());
+                // in the game the site changes gear only by the base station (live 2026-11-25): half done is worse; waiting
+                // longer than REFIT_AFTER_MS — a re-login, the gear fitted out of the game (user's choice, 2026-11-25)
+                long since = PENDING_SINCE.computeIfAbsent(account, k -> System.currentTimeMillis());
+                long waited = System.currentTimeMillis() - since;
+                if (waited >= REFIT_AFTER_MS) {
+                    PENDING_SINCE.remove(account);
+                    LOG.info("раскладка: {} перекладок ждут {} мин, база далеко — перезахожу, раскладка вне игры", moves.size(),
+                            waited / 60_000);
+                    requestRefit.run();
+                } else {
+                    LOG.info("раскладка: {} перекладок ждут, пока корабль у станции базы (перезаход через {} мин)", moves.size(),
+                            (REFIT_AFTER_MS - waited) / 60_000 + 1);
+                }
             } else if (apply(site, list.activeHangar(), moves) > 0) {
+                PENDING_SINCE.remove(account);
                 LOG.info("раскладка: перезахожу, чтобы игра увидела снаряжение");
                 refresh.run();
             }
