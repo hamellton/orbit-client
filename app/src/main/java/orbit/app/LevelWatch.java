@@ -145,12 +145,12 @@ final class LevelWatch {
         switchConfig.accept(to);
     }
 
-    /** The leveling folder's start config for a faction (1 MMO, 2 EIC, 3 VRU); {@code null} unknown. */
+    /** The leveling folder's start config for a faction (1 MMO, 2 EIC, 3 VRU): its quests; {@code null} unknown. */
     static String startConfig(int faction) {
         return switch (faction) {
-            case 1 -> "Leveling MMO x-1";
-            case 2 -> "Leveling EIC x-1";
-            case 3 -> "Leveling VRU x-1";
+            case 1 -> "Leveling MMO Quests";
+            case 2 -> "Leveling EIC Quests";
+            case 3 -> "Leveling VRU Quests";
             default -> null;
         };
     }
@@ -270,8 +270,8 @@ final class LevelWatch {
                 decision.mode(), decision.config(), decision.reason(), moduleStatus, mapName, meter.describe());
         switchTo(account, decision, cfg, switchConfig);
         String start = startConfig(faction);
-        if (start != null && !start.equals(cfg)) {
-            LOG.info("фракция {}: стартовый конфиг — «{}», сейчас «{}»", faction, start, cfg);
+        if (start != null && !cfg.startsWith(start.substring(0, start.lastIndexOf(' ') + 1))) {
+            LOG.info("фракция {}: конфиг другой фракции — нужен «{}», сейчас «{}»", faction, start, cfg);
         }
         auction(auth, session.host(), state, plan);
         if (logShape && hangar != null) {
