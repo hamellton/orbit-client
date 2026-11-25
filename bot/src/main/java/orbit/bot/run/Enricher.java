@@ -120,6 +120,9 @@ public final class Enricher {
             if (!it.path("on").asBoolean(false)) {
                 continue;
             }
+            if (it.path("awayFromBase").asBoolean(false) && onBaseMap(w)) {
+                continue; // on a map with the own base the ore is sold instead (the leveling configs' duranium, 2026-11-25)
+            }
             WorldSnapshot.Enrichment e = lab.items().get(item);
             long left = e == null ? 0 : e.left();
             long below = it.path("below").asLong(50_000);
@@ -223,6 +226,12 @@ public final class Enricher {
             i++;
         }
         return Integer.MAX_VALUE;
+    }
+
+    /** The ship is on a map with its company's HQ station (where the ore is sold). */
+    public static boolean onBaseMap(WorldSnapshot w) {
+        return w.hero() != null && w.assets().values().stream()
+                .anyMatch(a -> a.name() != null && a.name().contains("HQ") && a.factionId() == w.hero().factionId());
     }
 
     /** The drives are on and below their threshold. */

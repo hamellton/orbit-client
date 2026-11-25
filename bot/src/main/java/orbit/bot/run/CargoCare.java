@@ -162,6 +162,24 @@ final class CargoCare {
                 plan.always());
     }
 
+    /** Duranium sold on a map with the own base once there is this much (the leveling configs). */
+    static final long DURANIUM_SALE_MIN = 100;
+
+    /**
+     * {@code modules.enrich.sellDuraniumAtBase} (the leveling configs, a user's choice 2026-11-25): on a map with the own base
+     * the duranium aboard is sold without waiting for a full hold; on other maps it goes into the shields (the enrichment's
+     * {@code awayFromBase}).
+     */
+    static CargoPlan duraniumAtBase(BotConfig c, CargoPlan plan, WorldSnapshot w) {
+        com.fasterxml.jackson.databind.JsonNode e = c.modules().get("enrich");
+        if (e == null || !e.path("enabled").asBoolean(false) || !e.path("sellDuraniumAtBase").asBoolean(false)
+                || !BotConfig.Collect.CARGO_BASE.equals(plan.mode()) || !Enricher.onBaseMap(w)
+                || w.inventory().ore(Refiner.DURANIUM) < DURANIUM_SALE_MIN) {
+            return plan;
+        }
+        return new CargoPlan(plan.mode(), plan.map(), java.util.List.of(Refiner.DURANIUM), true);
+    }
+
     /** An enriched item of the config below its threshold ({@link Enricher#low}). */
     static boolean enrichmentLow(com.fasterxml.jackson.databind.JsonNode e, WorldSnapshot.Lab lab) {
         return Enricher.low(e, lab);
@@ -178,6 +196,9 @@ final class CargoCare {
         long now = ctx.now();
         plan = modulePlan != null ? modulePlan : new CargoPlan(c.collect().cargo(), 0, c.collect().sellOres());
         plan = keepEnrichOres(c, plan, w.inventory().lab(), w.inventory().ore(Refiner.XENOMIT), w.hero().level());
+        if (modulePlan == null) {
+            plan = duraniumAtBase(c, plan, w);
+        }
         String mode = plan.mode();
         ctx.stats().cargoMode = mode;
         boolean wantSale = BotConfig.Collect.CARGO_BASE.equals(mode) || BotConfig.Collect.CARGO_PET.equals(mode);

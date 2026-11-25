@@ -724,7 +724,9 @@ public final class BotRunner {
             refitWanted = false;
             log.info("Перезахожу, чтобы поставить снаряжение (вне игры): выход, раскладка, вход");
             hangarRequest = activeHangar; // the app's ship change on the same ship: the fitting between, no switch
-            logoutHere = true;
+            // out by the usual way (to a portal or the base, the fight first) — not where it stands: NPCs hitting the ship
+            // broke the logout again and again (live 2026-11-25, 1-4)
+            logoutHere = false;
             stop("перезаход ради снаряжения");
             return;
         }
@@ -735,7 +737,7 @@ public final class BotRunner {
             if (to != activeHangar) {
                 log.info("Пересаживаюсь на другой корабль: ангар {} → {} (выход из игры, смена на сайте, вход)", activeHangar, to);
                 hangarRequest = to;
-                logoutHere = true;
+                logoutHere = false; // the usual way out (portal or base), as above
                 stop("смена корабля");
                 return;
             }

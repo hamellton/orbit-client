@@ -366,14 +366,23 @@
           "promeriumAfterDrive": true,
           "below": 1000000000,
           "load": 500
+        },
+        "shield": {
+          "on": true,
+          "ore": "DURANIUM",
+          "below": 1000000000,
+          "load": 500,
+          "awayFromBase": true
         }
       },
       "cargoWhenLow": false,
       "keepAllBelowLevel": 17,
       "order": [
         "drive",
-        "laser"
-      ]
+        "laser",
+        "shield"
+      ],
+      "sellDuraniumAtBase": true
     }
   }
 }
