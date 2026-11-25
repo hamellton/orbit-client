@@ -20,6 +20,9 @@ import orbit.secrets.Vault;
  * person's pause between pages, and saves each answer (secrets masked) to {@code local/recon/<date>-<account>/}. It
  * buys, bids and moves nothing. Usage: {@code SiteRecon <account> [page …]} with {@code ORBIT_MASTER_PASSWORD} set or
  * asked; a page is a path after the site's origin ({@code indexInternal.es?action=…}); without pages the default set.
+ * {@code SiteRecon <account> auction}: the auction page and its lists as the page's own script asks for them
+ * ({@code js/auction.js}: {@code POST ajax/auction.php command=getAuctionList category=hour|day|week
+ * list=current|mybids|history}) — reading only.
  */
 public final class SiteRecon {
 
@@ -31,8 +34,12 @@ public final class SiteRecon {
 
     public static void main(String[] args) throws Exception {
         String account = args.length > 0 ? args[0] : "7";
+        boolean auction = args.length == 2 && "auction".equals(args[1]);
         List<String> pages = new ArrayList<>();
-        for (int i = 1; i < args.length; i++) {
+        if (auction) {
+            pages.add("indexInternal.es?action=internalAuction");
+        }
+        for (int i = auction ? 2 : 1; i < args.length; i++) {
             pages.add(args[i]);
         }
         if (pages.isEmpty()) {
@@ -45,7 +52,8 @@ public final class SiteRecon {
             System.err.println("Аккаунта нет в хранилище: " + account);
             System.exit(1);
         }
-        Path dir = Path.of("local", "recon", java.time.LocalDate.now() + "-" + account.replace('@', '-'));
+        Path dir = Path.of("local", "recon", java.time.LocalDate.now() + "-" + account.replace('@', '-')
+                + (auction ? "-auction-" + java.time.LocalTime.now().withNano(0).toString().replace(":", "") : ""));
         Files.createDirectories(dir);
         java.util.Random random = new java.util.Random();
         var spec = a.proxySpec();
@@ -64,6 +72,23 @@ public final class SiteRecon {
                 save(dir.resolve(name), r.body());
                 System.out.println(page + ": HTTP " + r.status() + ", " + (r.body() == null ? 0 : r.body().length())
                         + " символов → " + name);
+            }
+            if (auction) {
+                String referer = origin + "/indexInternal.es?action=internalAuction";
+                for (String category : List.of("hour", "day", "week")) {
+                    for (String list : List.of("current", "mybids", "history")) {
+                        pause(random);
+                        java.util.Map<String, String> form = new java.util.LinkedHashMap<>();
+                        form.put("command", "getAuctionList");
+                        form.put("category", category);
+                        form.put("list", list);
+                        HttpSession.Response r = auth.http().postForm(origin + "/ajax/auction.php", form, referer);
+                        String name = String.format("%02d-auction-%s-%s.json", ++n, category, list);
+                        save(dir.resolve(name), r.body());
+                        System.out.println("auction " + category + " " + list + ": HTTP " + r.status() + ", "
+                                + (r.body() == null ? 0 : r.body().length()) + " символов → " + name);
+                    }
+                }
             }
             if (args.length <= 1) {
                 orbit.auth.Hangars hangars = new orbit.auth.Hangars(auth.http(), origin);
