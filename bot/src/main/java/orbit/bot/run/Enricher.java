@@ -39,7 +39,11 @@ public final class Enricher {
     private long sentAt = Long.MIN_VALUE / 2;
     private long askedAt = Long.MIN_VALUE / 2;
     private final Map<Integer, Long> missing = new LinkedHashMap<>();
-    private String told = "";
+    /**
+     * What was said and not changed since: every message once (live 2026-11-25: two items short of ore took turns and each
+     * line was said 600 times a minute); cleared when a request is sent.
+     */
+    private final java.util.Set<String> told = new java.util.HashSet<>();
 
     public Enricher(BotContext ctx) {
         this.ctx = ctx;
@@ -151,7 +155,7 @@ public final class Enricher {
             ctx.actions().labEnrich(item, ore, amount);
             sentAt = now;
             sent.addLast(now);
-            told = "";
+            told.clear();
             log.info("Обогащение: {} ← {} {} (было {})", ITEM_NAMES[item], oreName(ore), amount, left);
             return; // one at a time: the lab's answer first
         }
@@ -232,8 +236,7 @@ public final class Enricher {
     }
 
     private void tellOnce(String s) {
-        if (!s.equals(told)) {
-            told = s;
+        if (told.add(s)) {
             log.info(s);
         }
     }
