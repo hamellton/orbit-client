@@ -242,4 +242,15 @@ public record Quests(Map<Integer, Quest> active, List<Offer> offers, Map<Integer
     public static final int COMPLETE_SEASON_PASS_QUESTS = 95;
     /** Only while an event runs ({@code matches} its name, «MimesisMutiny»): bounds its parent. */
     public static final int DURING_EVENT = 97;
+    /**
+     * Ammunition fired ({@code matches}: the damage kind, 1 lasers, 2 rockets; the grade, 0 any — the client's
+     * {@code SpendAmmunitionCondition}; Mimesis battle pass 500464–500466: EMAA-20 25k/55k/80k).
+     */
+    public static final int SPEND_AMMUNITION = 22;
+    /** Ammunition upgraded with ore in the lab ({@code matches}: LASER, ROCKET, SPEED or SHIELD and the ore). */
+    public static final int USE_ORE_UPDATE = 72;
+    /** Any of several galaxy gates finished. */
+    public static final int FINISH_GALAXY_GATES = 80;
+    /** An item used up ({@code matches} its loot id; Mimesis battle pass 500467–500469: escort keys 5/15/30). */
+    public static final int SPEND_ITEM = 89;
 }

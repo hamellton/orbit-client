@@ -77,9 +77,57 @@ public final class QuestTexts {
             case Quests.COMPLETED_OBJECTIVES -> "выполнить задания квестов";
             case Quests.COMPLETE_SEASON_PASS_QUESTS -> "выполнить миссии Season Pass";
             case Quests.DURING_EVENT -> "во время события " + (c.matches().isEmpty() ? "" : c.matches().get(0));
-            default -> "условие " + c.type();
+            case Quests.SPEND_AMMUNITION -> "выстрелить " + switch (c.match(0)) {
+                case 1 -> "лазерными боеприпасами";
+                case 2 -> "ракетами";
+                default -> "боеприпасами";
+            };
+            case Quests.USE_ORE_UPDATE -> "улучшить рудой " + (c.matches().size() < 2 ? "в лаборатории"
+                    : switch (c.matches().get(0)) {
+                        case "LASER" -> "лазеры";
+                        case "ROCKET" -> "ракеты";
+                        case "SPEED" -> "двигатель";
+                        case "SHIELD" -> "щит";
+                        default -> c.matches().get(0);
+                    } + " (" + item("resource_ore_" + c.matches().get(1).toLowerCase()) + ")");
+            case Quests.FINISH_GALAXY_GATES -> "пройти любые из врат";
+            case Quests.SPEND_ITEM -> "потратить " + (c.matches().isEmpty() ? "предметы" : item(c.matches().get(0)));
+            default -> OTHER.getOrDefault(c.type(), "условие " + c.type());
         };
     }
+
+    private static String item(String lootId) {
+        String n = ItemNames.of(lootId);
+        return n == null ? lootId : n;
+    }
+
+    /** The client's other condition types ({@code QuestConditionModule}), told by their kind only. */
+    static final Map<Integer, String> OTHER = Map.ofEntries(Map.entry(0, "условие квеста"), Map.entry(7, "нанести урон"),
+            Map.entry(8, "не получать урона"), Map.entry(9, "получить урон"), Map.entry(12, "держаться на расстоянии"),
+            Map.entry(14, "без топлива"), Map.entry(15, "быть рядом"), Map.entry(17, "побывать на разных картах"),
+            Map.entry(18, "пустое условие"), Map.entry(20, "боеприпасы"), Map.entry(21, "сберечь боеприпасы"),
+            Map.entry(24, "украсть"), Map.entry(25, "убить"), Map.entry(26, "нанести урон"),
+            Map.entry(31, "урон по игрокам чужих фирм"), Map.entry(32, "уничтожить объекты карты"),
+            Map.entry(33, "урон по объектам карты"), Map.entry(35, "погибнуть"), Map.entry(36, "не убивать NPC"),
+            Map.entry(37, "не убивать NPC"), Map.entry(38, "не убивать игроков"), Map.entry(39, "не наносить урон NPC"),
+            Map.entry(40, "не наносить урон игрокам"), Map.entry(41, "не допустить"), Map.entry(42, "прыгнуть"),
+            Map.entry(43, "не прыгать"), Map.entry(44, "не двигаться"), Map.entry(45, "множитель"),
+            Map.entry(46, "держаться подальше"), Map.entry(47, "быть в группе"), Map.entry(48, "убить кого угодно"),
+            Map.entry(49, "на сайте"), Map.entry(50, "в клиенте"), Map.entry(54, "особое условие"),
+            Map.entry(56, "выполнить квест"), Map.entry(57, "быстрая покупка"), Map.entry(58, "вступить в группу"),
+            Map.entry(59, "убить NPC только этими боеприпасами"), Map.entry(60, "убить игроков только этими боеприпасами"),
+            Map.entry(64, "честь ниже нуля"), Map.entry(65, "особая честь"), Map.entry(66, "быть в клане"),
+            Map.entry(68, "пройти стартовые врата"), Map.entry(70, "поставить предмет на панель"),
+            Map.entry(71, "побывать на картах типа"), Map.entry(73, "пройти портал на карты типа"),
+            Map.entry(74, "включить объект карты"), Map.entry(75, "посетить объект карты"),
+            Map.entry(76, "улучшить Скайлаб до уровня"), Map.entry(78, "захватить маяк"),
+            Map.entry(81, "набрать влияние"), Map.entry(82, "задание"), Map.entry(83, "побывать в зоне помех"),
+            Map.entry(84, "успеть до даты"), Map.entry(86, "собрать ящики типа"), Map.entry(88, "включить процессор"),
+            Map.entry(90, "пройти волну врат"), Map.entry(91, "очки Астрального вознесения"),
+            Map.entry(92, "собрать трофейные ящики типа"), Map.entry(93, "потратить ингредиенты рецептов"),
+            Map.entry(94, "есть золотой пропуск"), Map.entry(96, "войти в игру"),
+            Map.entry(98, "получить корабль"), Map.entry(99, "получить дизайн корабля"),
+            Map.entry(100, "пополнение на сумму"), Map.entry(101, "бустеры"));
 
     private static List<String> npcs(Quests.Condition c) {
         List<String> out = new ArrayList<>();
