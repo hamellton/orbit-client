@@ -72,7 +72,7 @@ Status: Stage 2 done; stage 3 in progress (login, game connection, vault, client
   lab enrichment and Skylab ore, also by a visit to the account's service ship (`docs/SKYLAB.md`).
   `orbit.bot.level` the leveling mode (docs/LEVELING.md): `AccountState` from the site (`SiteHangars`), `LevelPlan` (bundled
   `plan.json`), `Advisor` (first goal not done, what it would buy); runs as the app's `LevelWatch` only on configs of the read-only
-  folder «Прокачка» and logs to `logs/leveling-<a>.log` alone (logger `orbit.level`, not in the window).
+  folder «Leveling» and logs to `logs/leveling-<a>.log` alone (logger `orbit.level`, not in the window).
   `EternalGate` the Eternal Blacklight gate (EBG) as SharedPlugin: CPU on a BL map, runs, brake, boosters (`docs/EBG.md`).
   `LowModule` the LoW group gate (map 200, docs/LOW.md): the leader gathers own accounts on x-3 and jumps first, the relays
   in SharedPlugin's order, Kekka's targeting at the Century Falcon leaving 3 Vagrants, the helpers out after the start

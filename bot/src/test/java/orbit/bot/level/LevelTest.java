@@ -16,7 +16,7 @@ import org.junit.jupiter.api.Test;
 class LevelTest {
 
     static final String LF1 = "equipment_weapon_laser_lf-1";
-    static final String MP1 = "equipment_weapon_laser_mp-1";
+    static final String SLL2 = "equipment_weapon_laser_sll-02";
     static final String G79 = "equipment_generator_speed_g3n-7900";
 
     /** A new account as the site shows it: one Liberator, 1 × LF-1 and 2 × G3N-7900 in both configs. */
@@ -30,7 +30,7 @@ class LevelTest {
 
     static final String HANGAR = """
             {"isError":0,"data":{"map":{"lootIds":["equipment_weapon_laser_lf-1","equipment_generator_speed_g3n-7900",
-              "equipment_weapon_laser_mp-1"]},
+              "equipment_weapon_laser_sll-02"]},
              "ret":{"items":[{"I":"11","L":0,"EQH":"501"},{"I":"21","L":1,"EQH":"501"},{"I":"22","L":1,"EQH":"501"},
                {"I":"31","L":2,"EQH":null}],
               "hangars":{"0":{"hangarID":"501","config":{
@@ -59,7 +59,7 @@ class LevelTest {
         var hangar = SiteHangars.hangar(json(HANGAR), 501);
         assertEquals(List.of(LF1), hangar.fitted().get(1).get("lasers"));
         assertEquals(List.of(G79, G79), hangar.fitted().get(2).get("generators"));
-        assertEquals(Map.of(MP1, 1), hangar.spare());
+        assertEquals(Map.of(SLL2, 1), hangar.spare());
         assertTrue(hangar.shape().contains("drones"), hangar.shape());
     }
 
@@ -73,15 +73,15 @@ class LevelTest {
     @Test
     void firstGoalLasersBuysWhatItCanAboveTheReserve() throws Exception {
         LevelPlan plan = LevelPlan.bundled();
-        // 4 slots, one spare MP-1 owned: 3 to buy; 30 000 reserve, 40 000 each → 100 000 buys one
-        Advisor.Advice a = Advisor.advise(newAccount(100_000), plan);
+        // 4 slots, one spare scalpel II owned: 3 to buy; 30 000 reserve, 300 000 each → 400 000 buys one
+        Advisor.Advice a = Advisor.advise(newAccount(400_000), plan);
         assertEquals("Ц1", a.goal().id());
         assertEquals(3, a.missing());
-        assertEquals(1, a.refit(), "the spare MP-1 goes in");
+        assertEquals(1, a.refit(), "the spare scalpel goes in");
         assertNotNull(a.purchase());
-        assertEquals(MP1, a.purchase().item());
+        assertEquals(SLL2, a.purchase().item());
         assertEquals(1, a.purchase().amount());
-        Advisor.Advice poor = Advisor.advise(newAccount(50_000), plan);
+        Advisor.Advice poor = Advisor.advise(newAccount(310_000), plan);
         assertNull(poor.purchase());
         assertTrue(poor.text().contains("копить ещё 20000"), poor.text());
     }
@@ -92,8 +92,8 @@ class LevelTest {
         AccountState s = newAccount(0);
         AccountState lasersDone = new AccountState(s.level(), 0, 0, s.activeHangar(), "ship_nostromo",
                 Set.of("ship_nostromo"), Map.of("lasers", 2, "generators", 2),
-                Map.of(1, Map.of("lasers", List.of(MP1, MP1), "generators", List.of(G79, G79)),
-                        2, Map.of("lasers", List.of(MP1, MP1), "generators", List.of(G79, G79))), Map.of());
+                Map.of(1, Map.of("lasers", List.of(SLL2, SLL2), "generators", List.of(G79, G79)),
+                        2, Map.of("lasers", List.of(SLL2, SLL2), "generators", List.of(G79, G79))), Map.of());
         Advisor.Advice a = Advisor.advise(lasersDone, plan);
         assertEquals(List.of("Ц1", "Ц2", "Ц3"), a.done());
         assertEquals("Ц4", a.goal().id());

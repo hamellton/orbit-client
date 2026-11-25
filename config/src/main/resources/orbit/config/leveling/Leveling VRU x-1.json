@@ -1,6 +1,6 @@
 {
   "schema": 3,
-  "description": "[Прокачка] VRU, 3-1: старт нового аккаунта — Streuner и Lordakia, бонусные ящики, патроны LCB-10",
+  "description": "[Leveling] VRU, 3-1: new account start — Streuner and Lordakia, bonus boxes, LCB-10 ammo",
   "module": "KILL_COLLECT",
   "general": {
     "workingMap": 9,

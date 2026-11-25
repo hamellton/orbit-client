@@ -5,7 +5,7 @@
   "goals": [
     {
       "id": "Ц1",
-      "title": "Лазеры MP-1 на корабле",
+      "title": "Лазеры «Спектральный скальпель II» (лучшие за кредиты)",
       "check": {
         "kind": "fill",
         "slotset": "lasers",
@@ -14,8 +14,8 @@
           2
         ],
         "accepted": [
-          "equipment_weapon_laser_mp-1",
-          "equipment_weapon_laser_lf-2",
+          "equipment_weapon_laser_sll-02",
+          "equipment_weapon_laser_sll-03",
           "equipment_weapon_laser_lf-3",
           "equipment_weapon_laser_lf-4",
           "equipment_weapon_laser_lf-4-hp",
@@ -29,14 +29,14 @@
         ]
       },
       "buy": {
-        "item": "equipment_weapon_laser_mp-1",
-        "price": 40000,
+        "item": "equipment_weapon_laser_sll-02",
+        "price": 300000,
         "currency": "credits"
       },
       "auction": [
         "equipment_weapon_laser_lf-3"
       ],
-      "farm": "x-1 (Прокачка <фракция> x-1)"
+      "farm": "x-1 (Leveling <faction> x-1)"
     },
     {
       "id": "Ц2",

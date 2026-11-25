@@ -1,9 +1,9 @@
 {
   "schema": 3,
-  "description": "[Прокачка] EIC, 2-1: старт нового аккаунта — Streuner и Lordakia, бонусные ящики, патроны LCB-10",
+  "description": "[Leveling] MMO, 1-1: new account start — Streuner and Lordakia, bonus boxes, LCB-10 ammo",
   "module": "KILL_COLLECT",
   "general": {
-    "workingMap": 5,
+    "workingMap": 1,
     "offensive": {
       "config": 1
     },
@@ -29,7 +29,7 @@
       "priority": 0,
       "kill": true,
       "maps": [
-        5
+        1
       ],
       "sab": false
     },
@@ -38,7 +38,7 @@
       "priority": 0,
       "kill": true,
       "maps": [
-        5
+        1
       ],
       "sab": false
     }

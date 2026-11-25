@@ -34,7 +34,7 @@ public final class ConfigStore {
      * The folder of the program's leveling configs (docs/LEVELING.md): read-only like {@link #DEFAULT_FOLDER}; an account on
      * one of them runs the leveling mode.
      */
-    public static final String LEVELING_FOLDER = "Прокачка";
+    public static final String LEVELING_FOLDER = "Leveling";
     static final String LEVELING = "/orbit/config/leveling/";
     /** Letters (any script), digits, space, {@code _ - .}; no path separators. */
     private static final Pattern NAME = Pattern.compile("[\\p{L}\\p{N}_\\-. ]{1,64}");
