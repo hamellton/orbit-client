@@ -180,7 +180,15 @@ public final class QuestModule implements BotModule {
 
     @Override
     public int workingMap() {
-        return visit != null || work == null ? 0 : work.map();
+        if (visit != null || work == null) {
+            return 0;
+        }
+        if (work.kind() == Kind.GATE && ctx.world().get().hero().mapId() == STARTER_GATE_MAP) {
+            // in the starter gate: the work there is chosen anew, no travel back to x-1 meanwhile (live 2026-11-26: the
+            // jump went through, the runner found no path from «Devolarium Attack» to 1-1 and stopped the bot)
+            return STARTER_GATE_MAP;
+        }
+        return work.map();
     }
 
     @Override
@@ -381,6 +389,11 @@ public final class QuestModule implements BotModule {
                 }
             }
             case GATE -> {
+                if (w.hero().mapId() == STARTER_GATE_MAP) {
+                    work = null; // in the gate: chosen anew (its NPCs)
+                    worker = null;
+                    return;
+                }
                 // what the map shows, once per change: to learn how the starter gate is entered
                 String seen = w.portals().values().stream().map(p -> p.id() + ":" + p.designId() + "@" + p.x() + "," + p.y())
                         .sorted().toList() + " активные " + w.activatable().keySet();
