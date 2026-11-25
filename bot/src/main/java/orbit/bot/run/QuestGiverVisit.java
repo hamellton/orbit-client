@@ -387,7 +387,9 @@ public final class QuestGiverVisit {
             if (q.active().containsKey(taking)) {
                 taken.add(taking);
                 Quests.Offer o = q.offers().stream().filter(x -> x.questId() == taking).findFirst().orElse(null);
-                if (o != null && (o.is(Quests.MISSION) || o.is(Quests.CHALLENGE))) {
+                if (o != null && (o.is(Quests.MISSION) || o.is(Quests.CHALLENGE) || o.is(Quests.STARTER))) {
+                    // a starter quest takes a mission slot too (live 2026-11-26 on int1: after 20009 the server left four
+                    // missions unanswered); only the leveling configs take starter quests
                     missionSlots--;
                 } else if (o != null && o.is(Quests.EVENT)) {
                     eventSlots--;
