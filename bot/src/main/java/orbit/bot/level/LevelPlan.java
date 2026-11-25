@@ -6,6 +6,7 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -14,13 +15,17 @@ import java.util.Set;
  *
  * @param reserveCredits credits never spent on the plan (ammunition, repairs)
  * @param reserveUridium uridium never spent on the plan
+ * @param fit            per ship slotset ({@code lasers}, {@code generators}) the items it takes, best first; both configs
+ *                       get the best (a user's choice: lasers and engines in configs 1 and 2, shields go in the drones)
  */
-public record LevelPlan(int version, long reserveCredits, long reserveUridium, List<Goal> goals) {
+public record LevelPlan(int version, long reserveCredits, long reserveUridium, List<Goal> goals,
+                        Map<String, List<String>> fit) {
 
     public static final String RESOURCE = "/orbit/bot/level/plan.json";
 
     public LevelPlan {
         goals = List.copyOf(goals);
+        fit = fit == null ? Map.of() : Map.copyOf(fit);
     }
 
     /** How a goal is checked. */
@@ -90,7 +95,13 @@ public record LevelPlan(int version, long reserveCredits, long reserveUridium, L
                     configs, accepted, check.path("min").asInt(), check.path("why").asText(""), buy, auction,
                     g.path("farm").asText(""), g.path("side").asBoolean(false)));
         }
+        Map<String, List<String>> fit = new java.util.LinkedHashMap<>();
+        root.path("fit").properties().forEach(e -> {
+            List<String> order = new ArrayList<>();
+            e.getValue().forEach(x -> order.add(x.asText()));
+            fit.put(e.getKey(), List.copyOf(order));
+        });
         return new LevelPlan(root.path("version").asInt(1), root.path("reserveCredits").asLong(),
-                root.path("reserveUridium").asLong(), goals);
+                root.path("reserveUridium").asLong(), goals, fit);
     }
 }

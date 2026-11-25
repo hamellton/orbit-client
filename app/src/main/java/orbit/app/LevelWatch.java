@@ -59,6 +59,16 @@ final class LevelWatch {
         });
     }
 
+    /** The leveling folder's start config for a faction (1 MMO, 2 EIC, 3 VRU); {@code null} unknown. */
+    static String startConfig(int faction) {
+        return switch (faction) {
+            case 1 -> "Leveling MMO x-1";
+            case 2 -> "Leveling EIC x-1";
+            case 3 -> "Leveling VRU x-1";
+            default -> null;
+        };
+    }
+
     /**
      * The shop's own offer for a purchase the plan would make: its tab read, the item found by loot id, its price set
      * against the plan's, and the exact request logged ({@code POST ajax/shop.php}, {@code Shop.purchaseForm}) — not sent.
@@ -141,8 +151,10 @@ final class LevelWatch {
         int level = 0;
         long credits = -1;
         long uridium = -1;
+        int faction = 0;
         var snap = feed.snapshot();
         if (snap != null && snap.hero() != null) {
+            faction = snap.hero().factionId();
             level = snap.hero().level();
             credits = (long) snap.hero().credits();
             uridium = (long) snap.hero().uridium();
@@ -155,6 +167,15 @@ final class LevelWatch {
             LOG.info("купил бы (режим советчика — не покупаю): {} × {} = {} {}", advice.purchase().amount(),
                     advice.purchase().item(), advice.purchase().total(), advice.purchase().uridium() ? "уридия" : "кредитов");
             shopCheck(auth, session.host(), advice.purchase());
+        }
+        if (hangar != null) {
+            var moves = orbit.bot.level.FitPlanner.plan(hangar, list.activeHangar(), list.slots(), plan);
+            LOG.info("раскладка (режим советчика — не перекладываю): {}", moves.isEmpty() ? "всё на местах"
+                    : String.join("; ", moves.stream().map(orbit.bot.level.FitPlanner.Move::describe).toList()));
+        }
+        String start = startConfig(faction);
+        if (start != null && !start.equals(cfg)) {
+            LOG.info("фракция {}: стартовый конфиг — «{}», сейчас «{}»", faction, start, cfg);
         }
         auction(auth, session.host(), state, plan);
         if (logShape && hangar != null) {

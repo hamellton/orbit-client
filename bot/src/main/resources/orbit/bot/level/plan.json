@@ -2,6 +2,33 @@
   "version": 1,
   "reserveCredits": 30000,
   "reserveUridium": 0,
+  "fit": {
+    "lasers": [
+      "equipment_weapon_laser_pr-l",
+      "equipment_weapon_laser_lf-5",
+      "equipment_weapon_laser_lf-5-mf",
+      "equipment_weapon_laser_lf-5-al",
+      "equipment_weapon_laser_lf-4",
+      "equipment_weapon_laser_lf-4-hp",
+      "equipment_weapon_laser_lf-4-md",
+      "equipment_weapon_laser_lf-4-pd",
+      "equipment_weapon_laser_lf-4-unstable",
+      "equipment_weapon_laser_lf-3",
+      "equipment_weapon_laser_sll-02",
+      "equipment_weapon_laser_lf-2",
+      "equipment_weapon_laser_sll-01",
+      "equipment_weapon_laser_mp-1",
+      "equipment_weapon_laser_lf-1"
+    ],
+    "generators": [
+      "equipment_generator_speed_g3n-7900",
+      "equipment_generator_speed_g3n-6900",
+      "equipment_generator_speed_g3n-3310",
+      "equipment_generator_speed_g3n-3210",
+      "equipment_generator_speed_g3n-2010",
+      "equipment_generator_speed_g3n-1010"
+    ]
+  },
   "goals": [
     {
       "id": "Ц1",

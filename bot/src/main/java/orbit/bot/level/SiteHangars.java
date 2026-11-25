@@ -30,7 +30,11 @@ public final class SiteHangars {
      * the drones ({@code general.drones}, a list; empty on a new account, 2026-11-25 int1) and the field names seen.
      */
     public record HangarInfo(Map<Integer, Map<String, List<String>>> fitted, Map<String, Integer> spare, int drones,
-                             String shape) {
+                             String shape, List<Owned> items, Map<Integer, Map<String, List<String>>> fittedIds) {
+    }
+
+    /** One item of the view: its id, loot id and the hangar it is fitted in ({@code 0} = a spare in the inventory). */
+    public record Owned(String id, String loot, int hangar) {
     }
 
     public static ListInfo list(JsonNode root) {
@@ -70,15 +74,20 @@ public final class SiteHangars {
         JsonNode lootIds = data.path("map").path("lootIds");
         Map<String, String> lootOf = new HashMap<>();
         Map<String, Integer> spare = new TreeMap<>();
+        List<Owned> items = new ArrayList<>();
         for (JsonNode i : data.path("ret").path("items")) {
             JsonNode l = i.path("L");
             String loot = l.isInt() && lootIds.has(l.asInt()) ? lootIds.get(l.asInt()).asText() : "";
             lootOf.put(i.path("I").asText(), loot);
+            JsonNode eqh = i.path("EQH");
+            int in = eqh.isNull() || eqh.isMissingNode() ? 0 : (int) amount(eqh);
+            items.add(new Owned(i.path("I").asText(), loot, in));
             if (i.path("EQH").isNull() || i.path("EQH").isMissingNode()) {
                 spare.merge(loot, Math.max(1, i.path("Q").asInt(1)), Integer::sum);
             }
         }
         Map<Integer, Map<String, List<String>>> fitted = new TreeMap<>();
+        Map<Integer, Map<String, List<String>>> fittedIds = new TreeMap<>();
         List<String> shape = new ArrayList<>();
         int drones = 0;
         for (JsonNode h : each(data.path("ret").path("hangars"))) {
@@ -101,15 +110,22 @@ public final class SiteHangars {
                             + (part.getValue().has("EQ") ? " EQ " + names(part.getValue().path("EQ")) : "")));
                 }
                 Map<String, List<String>> sets = new TreeMap<>();
+                Map<String, List<String>> idSets = new TreeMap<>();
                 c.getValue().path("ship").path("EQ").properties().forEach(set -> {
+                    List<String> loots = new ArrayList<>();
                     List<String> ids = new ArrayList<>();
-                    set.getValue().forEach(id -> ids.add(lootOf.getOrDefault(id.asText(), "?" + id.asText())));
-                    sets.put(set.getKey(), List.copyOf(ids));
+                    set.getValue().forEach(id -> {
+                        loots.add(lootOf.getOrDefault(id.asText(), "?" + id.asText()));
+                        ids.add(id.asText());
+                    });
+                    sets.put(set.getKey(), List.copyOf(loots));
+                    idSets.put(set.getKey(), List.copyOf(ids));
                 });
                 fitted.put(config, sets);
+                fittedIds.put(config, idSets);
             });
         }
-        return new HangarInfo(fitted, spare, drones, String.join("; ", shape));
+        return new HangarInfo(fitted, spare, drones, String.join("; ", shape), List.copyOf(items), fittedIds);
     }
 
     /** The full state: the list and the active hangar's view, with the game's level and money where it knows them. */
