@@ -189,9 +189,22 @@ final class LevelWatch {
     /** The fitting's moves done on the site, one by one with a person's pause; the number that went through. */
     private static int apply(orbit.auth.Hangars site, int hangarId, java.util.List<orbit.bot.level.FitPlanner.Move> moves)
             throws InterruptedException {
+        return apply(site, hangarId, moves, () -> true);
+    }
+
+    /**
+     * As above, stopped once {@code still} is false (in the game: the ship left the base station — live 2026-11-25: the last
+     * four moves were refused after it flew off, the rest is fitted at the next re-login).
+     */
+    private static int apply(orbit.auth.Hangars site, int hangarId, java.util.List<orbit.bot.level.FitPlanner.Move> moves,
+                             BooleanSupplier still) throws InterruptedException {
         int done = 0;
         for (var m : moves) {
             Thread.sleep(GAP_MS);
+            if (!still.getAsBoolean()) {
+                LOG.info("раскладка: корабль ушёл от станции базы — остальные {} перекладок позже", moves.size() - done);
+                break;
+            }
             try {
                 site.move(hangarId, java.util.List.of(m.itemId()), m.config(), m.toShip(), "ship", m.slotset());
                 LOG.info("раскладка: {}", m.describe());
@@ -408,7 +421,7 @@ final class LevelWatch {
                     LOG.info("раскладка: {} перекладок ждут, пока корабль у станции базы (перезаход через {} мин)", moves.size(),
                             (REFIT_AFTER_MS - waited) / 60_000 + 1);
                 }
-            } else if (apply(site, list.activeHangar(), moves) > 0) {
+            } else if (apply(site, list.activeHangar(), moves, () -> atHomeStation(feed)) > 0) {
                 PENDING_SINCE.remove(account);
                 LOG.info("раскладка: перезахожу, чтобы игра увидела снаряжение");
                 refresh.run();
