@@ -170,6 +170,19 @@ public final class Shop {
         }
     }
 
+    /**
+     * Buys {@code amount} units of an offer of a shop tab ({@link #tabPage}), the tab's page as referer as the page itself
+     * sends it; returns the shop's answer (short, secrets masked). {@link #refused} tells a refusal.
+     */
+    public String purchase(Item item, int amount, String tab) throws IOException {
+        HttpSession.Response r = http.postForm(origin + "/ajax/shop.php", purchaseForm(item, amount), origin + tabPage(tab));
+        String body = r.body() == null ? "" : r.body().strip();
+        if (r.status() != 200) {
+            throw new IOException("покупка: ответ " + r.status());
+        }
+        return SecretMask.mask(body.length() > 400 ? body.substring(0, 400) + "…" : body);
+    }
+
     /** Buys {@code amount} units; returns the shop's answer (short, secrets masked). */
     public String purchase(Item item, int amount) throws IOException {
         Map<String, String> form = new LinkedHashMap<>();

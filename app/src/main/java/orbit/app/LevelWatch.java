@@ -249,10 +249,11 @@ final class LevelWatch {
     }
 
     /**
-     * The shop's own offer for a purchase the plan would make: its tab read, the item found by loot id, its price set
-     * against the plan's, and the exact request logged ({@code POST ajax/shop.php}, {@code Shop.purchaseForm}) — not sent.
+     * A purchase of the plan (with the user's consent, 2026-11-25): the shop tab read, the item found by loot id, its price
+     * set against the plan's (a different one — no purchase: the plan is out of date), then bought — at most the shop's
+     * limit at once — and the shop's answer logged. The item lands in the inventory; the fitting puts it on.
      */
-    private static void shopCheck(AuthClient auth, String origin, Advisor.Purchase p) throws InterruptedException {
+    private static void buy(AuthClient auth, String origin, Advisor.Purchase p) throws InterruptedException {
         String tab = orbit.auth.Shop.tabOf(p.item());
         if (tab == null) {
             LOG.warn("магазин: не знаю вкладку для {}", p.item());
@@ -268,13 +269,19 @@ final class LevelWatch {
             }
             String cur = item.uridium() ? "уридия" : "кредитов";
             if ((long) item.price() != p.price() || item.uridium() != p.uridium()) {
-                LOG.warn("магазин: цена {} — {} {}, в плане {} {} — план устарел", p.item(), (long) item.price(), cur, p.price(),
-                        p.uridium() ? "уридия" : "кредитов");
+                LOG.warn("магазин: цена {} — {} {}, в плане {} {} — план устарел, не покупаю", p.item(), (long) item.price(), cur,
+                        p.price(), p.uridium() ? "уридия" : "кредитов");
+                return;
             }
             int amount = item.maxAmount() > 0 ? Math.min(p.amount(), item.maxAmount()) : p.amount();
-            LOG.info("магазин: отправил бы POST ajax/shop.php {} (вкладка {}, цена {} {}, за раз не больше {})",
-                    orbit.auth.Shop.purchaseForm(item, amount), tab, (long) item.price(), cur,
-                    item.maxAmount() > 0 ? item.maxAmount() : "без лимита");
+            Thread.sleep(GAP_MS);
+            String answer = new orbit.auth.Shop(auth.http(), origin).purchase(item, amount, tab);
+            if (orbit.auth.Shop.refused(answer)) {
+                LOG.warn("магазин: {} × {} не куплено — сайт: {}", amount, p.item(), answer);
+            } else {
+                LOG.info("магазин: куплено {} × {} за {} {} — сайт: {}", amount, p.item(), (long) item.price() * amount, cur,
+                        answer);
+            }
         } catch (java.io.IOException | RuntimeException e) {
             LOG.warn("магазин не прочитан ({})", e.getMessage());
         }
@@ -346,9 +353,9 @@ final class LevelWatch {
         LOG.info("снимок [{}, конфиг «{}», план v{}]: {}", account, cfg, plan.version(), state.describe());
         LOG.info("совет: выполнено {}; {}", advice.done(), advice.text());
         if (advice.purchase() != null) {
-            LOG.info("купил бы (режим советчика — не покупаю): {} × {} = {} {}", advice.purchase().amount(),
-                    advice.purchase().item(), advice.purchase().total(), advice.purchase().uridium() ? "уридия" : "кредитов");
-            shopCheck(auth, session.host(), advice.purchase());
+            LOG.info("покупаю по плану: {} × {} = {} {} ({})", advice.purchase().amount(), advice.purchase().item(),
+                    advice.purchase().total(), advice.purchase().uridium() ? "уридия" : "кредитов", advice.goal().id());
+            buy(auth, session.host(), advice.purchase());
         }
         if (hangar != null) {
             // a better ship owned (won on the auction, bought): its gear moved over and the bot sent there (user's consent
