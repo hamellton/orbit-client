@@ -159,6 +159,9 @@ class EnricherTest {
         assertEquals(List.of(2), CargoCare.keepEnrichOres(young, all, low, 5, 6,
                 java.util.Map.of(0, 13.0, 1, 3.0, 2, 1_467.0, 3, 5.0)).ores(),
                 "with xenomit aboard and the drives low too (live 2026-11-25)");
+        CargoPlan questSale = new CargoPlan(BotConfig.Collect.CARGO_BASE, 0, List.of(0), true);
+        assertEquals(List.of(0), CargoCare.keepEnrichOres(young, questSale, charged, 0, 6).ores(),
+                "a quest's «sell prometium» below 17: sold (20003, live 2026-11-26)");
     }
 
     static Map<String, Long> fastSend(int free, int max) throws Exception {

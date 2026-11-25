@@ -172,6 +172,12 @@ final class CargoCare {
                     keep.remove(raw);
                 }
             }
+            // a module's own sale (a quest's «sell ore») is sold whatever the rules above keep: its ore, or prometium for
+            // «any ore» (live 2026-11-26: four starters stood at the station on 20003 «sell 10 prometium», the level-17
+            // rule keeping it)
+            if (plan.always()) {
+                keep.removeAll(plan.ores().size() == 1 ? plan.ores() : java.util.List.of(Refiner.PROMETIUM));
+            }
         }
         if (keep.isEmpty() || plan.ores().stream().noneMatch(keep::contains)) {
             return plan;
