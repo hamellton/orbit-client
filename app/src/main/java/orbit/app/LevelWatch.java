@@ -260,6 +260,74 @@ final class LevelWatch {
         switchConfig.accept(to);
     }
 
+    /** Robots per collector the site allows. */
+    static final int ROBOTS_MAX = 12;
+    static final long ROBOT_PRICE = 250;
+
+    /**
+     * The Skylab by the plan (docs/SKYLAB-LEVELING.md, the user's choices 2026-11-25): the next upgrade of the stages A–D from
+     * the credits left after the reserve and the current equipment purchase, urgent only for promerium and seprom with more
+     * than 800 000 uridium left; then robots for the collectors (250 credits, up to 12 each). Everything to the leveling log.
+     */
+    private static void skylab(AuthClient auth, String origin, AccountState state, LevelPlan plan, Advisor.Advice advice,
+                               WorldFeed feed) throws InterruptedException {
+        try {
+            Thread.sleep(GAP_MS);
+            var info = new orbit.auth.Skylab(auth.http(), origin).read();
+            Thread.sleep(GAP_MS);
+            var site = new orbit.auth.SkylabUpgrades(auth.http(), origin);
+            var page = site.read();
+            java.util.Map<String, Long> storage = new java.util.HashMap<>();
+            info.ores().forEach(o -> storage.put(o.name(), o.amount()));
+            java.util.Map<String, orbit.bot.level.SkylabPlanner.Price> prices = new java.util.HashMap<>();
+            page.prices().forEach((m, p) -> prices.put(m, new orbit.bot.level.SkylabPlanner.Price(p.credits(), p.prometium(),
+                    p.endurium(), p.terbium(), p.minutes(), p.instantUridium())));
+            var sky = new orbit.bot.level.SkylabPlanner.State(page.levels(), prices, page.running(), storage);
+            long equipment = advice.goal() != null && advice.goal().buy() != null && !advice.goal().buy().uridium()
+                    && advice.missing() > 0 ? advice.goal().buy().price() : 0;
+            // the game's credits now: a purchase earlier in this round is already off
+            var now = feed.snapshot();
+            long credits = now != null && now.hero() != null ? (long) now.hero().credits() : state.credits();
+            long uridium = now != null && now.hero() != null ? (long) now.hero().uridium() : state.uridium();
+            long free = credits - plan.reserveCredits() - equipment;
+            java.util.List<orbit.bot.level.SkylabPlanner.Stage> stages;
+            try (var in = LevelPlan.class.getResourceAsStream(LevelPlan.RESOURCE)) {
+                stages = orbit.bot.level.SkylabPlanner.stages(orbit.config.Json.MAPPER.readTree(in));
+            }
+            var d = orbit.bot.level.SkylabPlanner.next(sky, stages, free, uridium);
+            LOG.info("Скайлаб: уровни {}; идёт {}; склад {}; свободно кредитов {} (после резерва {} и снаряжения {}) — {}",
+                    page.levels(), page.running(), storage, free, plan.reserveCredits(), equipment, d.reason());
+            if (d.module() != null) {
+                Thread.sleep(GAP_MS);
+                var after = site.upgrade(d.module(), d.instant(), page.token());
+                boolean started = after.running().contains(d.module())
+                        || after.levels().getOrDefault(d.module(), 0) > page.levels().getOrDefault(d.module(), 0);
+                LOG.info("Скайлаб: улучшение «{}» {} — {}", d.module(), d.instant() ? "срочно" : "обычно",
+                        started ? "началось" : "не видно на странице (идёт: " + after.running() + ", уровни " + after.levels() + ")");
+                if (started) {
+                    free -= prices.get(d.module()).credits();
+                }
+            }
+            // robots for the collectors: 250 credits each, from what is left after the reserve and the equipment
+            for (String c : orbit.auth.SkylabUpgrades.COLLECTORS) {
+                int have = page.robots().getOrDefault(c, 0);
+                while (have < ROBOTS_MAX && free >= ROBOT_PRICE) {
+                    Thread.sleep(GAP_MS / 2);
+                    String answer = site.buyRobot(c);
+                    boolean ok = answer.contains("\"OK\"");
+                    LOG.info("Скайлаб: робот на «{}» за {} кредитов — {}", c, ROBOT_PRICE, ok ? "куплен" : "не куплен: " + answer);
+                    if (!ok) {
+                        break;
+                    }
+                    have++;
+                    free -= ROBOT_PRICE;
+                }
+            }
+        } catch (java.io.IOException | RuntimeException e) {
+            LOG.warn("Скайлаб: не вышло ({})", e.getMessage());
+        }
+    }
+
     /** The leveling folder's start config for a faction (1 MMO, 2 EIC, 3 VRU): its quests; {@code null} unknown. */
     static String startConfig(int faction) {
         return switch (faction) {
@@ -441,6 +509,7 @@ final class LevelWatch {
             LOG.info("фракция {}: конфиг другой фракции — нужен «{}», сейчас «{}»", faction, start, cfg);
         }
         auction(auth, session.host(), state, plan);
+        skylab(auth, session.host(), state, plan, advice, feed);
         if (logShape && hangar != null) {
             LOG.info("поля getHangar по конфигам (без значений): {}", hangar.shape());
             return true;

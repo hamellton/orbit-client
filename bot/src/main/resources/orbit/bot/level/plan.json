@@ -451,5 +451,79 @@
         "ship_citadel"
       ]
     }
+  ],
+  "skylab": [
+    {
+      "name": "A",
+      "targets": {
+        "baseModule": 5,
+        "solarModule": 5,
+        "storageModule": 5,
+        "terbiumCollector": 5,
+        "enduriumCollector": 5,
+        "prometiumCollector": 5
+      }
+    },
+    {
+      "name": "B",
+      "targets": {
+        "prometidRefinery": 3,
+        "duraniumRefinery": 3,
+        "xenoModule": 3,
+        "promeriumRefinery": 3
+      }
+    },
+    {
+      "name": "C",
+      "targets": {
+        "baseModule": 10,
+        "solarModule": 10,
+        "storageModule": 10,
+        "terbiumCollector": 10,
+        "enduriumCollector": 10,
+        "prometiumCollector": 10,
+        "prometidRefinery": 5,
+        "duraniumRefinery": 5,
+        "promeriumRefinery": 5,
+        "xenoModule": 5
+      }
+    },
+    {
+      "name": "D1",
+      "targets": {
+        "baseModule": 15,
+        "solarModule": 15,
+        "storageModule": 15,
+        "terbiumCollector": 15,
+        "enduriumCollector": 15,
+        "prometiumCollector": 15,
+        "prometidRefinery": 10,
+        "duraniumRefinery": 10
+      }
+    },
+    {
+      "name": "D2",
+      "targets": {
+        "promeriumRefinery": 5,
+        "xenoModule": 5,
+        "sepromRefinery": 5
+      }
+    },
+    {
+      "name": "D3",
+      "targets": {
+        "baseModule": 20,
+        "solarModule": 20,
+        "storageModule": 20,
+        "terbiumCollector": 20,
+        "enduriumCollector": 20,
+        "prometiumCollector": 20,
+        "prometidRefinery": 20,
+        "duraniumRefinery": 20,
+        "promeriumRefinery": 20,
+        "xenoModule": 20,
+        "sepromRefinery": 20
+      }
+    }
   ]
 }
