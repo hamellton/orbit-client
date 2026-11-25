@@ -89,5 +89,6 @@ class ShopTest {
         assertTrue(Shop.refused("{\"result\":\"error\",\"message\":\"мало кредитов\"}"));
         assertFalse(Shop.refused("{\"result\":\"success\",\"message\":\"куплено\"}"));
         assertTrue(Shop.refused("<html>"));
+        assertFalse(Shop.refused("{\"result\":\"success\",\"message\":\"Куплены лазеры…"), "a shortened answer that went through");
     }
 }

@@ -166,7 +166,9 @@ public final class Shop {
             JsonNode n = JSON.readTree(answer);
             return !"success".equals(n.path("result").asText(""));
         } catch (IOException e) {
-            return true;
+            // a shortened answer (the log keeps 400 characters) is no JSON: its own words then (live 2026-11-25: a
+            // purchase that went through was logged as refused)
+            return !answer.replace(" ", "").contains("\"result\":\"success\"");
         }
     }
 
