@@ -137,6 +137,16 @@ class EnricherTest {
         CargoPlan plan = new CargoPlan("BASE", 0, List.of(0, 1, 2, 4, 5, 6));
         assertEquals(List.of(0, 1, 2, 4, 5), CargoCare.keepEnrichOres(c, plan).ores(), "promerium kept");
         assertEquals(plan, CargoCare.keepEnrichOres(BotConfig.empty(), plan), "no enrichment: as it was");
+        // refining on (the leveling configs): the drive below its threshold keeps the raw ores and the refined ones
+        BotConfig refining = BotConfig.empty().withModuleSettings("enrich", Json.MAPPER.readTree(
+                "{\"enabled\":true,\"refine\":true,\"items\":{\"drive\":{\"on\":true,\"ore\":\"PROMERIUM\",\"below\":100}}}"));
+        CargoPlan all = new CargoPlan(BotConfig.Collect.CARGO_BASE, 0, List.of(0, 1, 2, 3, 4, 5, 6));
+        orbit.world.WorldSnapshot.Lab low = new orbit.world.WorldSnapshot.Lab(java.util.Map.of(2, new orbit.world.WorldSnapshot.Enrichment(6, 40)), 1);
+        orbit.world.WorldSnapshot.Lab charged = new orbit.world.WorldSnapshot.Lab(java.util.Map.of(2, new orbit.world.WorldSnapshot.Enrichment(6, 150)), 1);
+        assertEquals(List.of(), CargoCare.keepEnrichOres(refining, all, low).ores(), "low: all kept for promerium");
+        assertEquals(List.of(), CargoCare.keepEnrichOres(refining, all, null).ores(), "lab not read: kept");
+        assertEquals(List.of(0, 1, 2, 4, 5), CargoCare.keepEnrichOres(refining, all, charged).ores(),
+                "charged: raw and refined sold, xenomit and promerium kept");
     }
 
     static Map<String, Long> fastSend(int free, int max) throws Exception {

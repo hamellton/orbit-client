@@ -115,6 +115,16 @@ final class CargoCare {
      * and CUBIKON's list sold promerium): every ore of an item set on, while the enrichment is on.
      */
     static CargoPlan keepEnrichOres(BotConfig c, CargoPlan plan) {
+        return keepEnrichOres(c, plan, null);
+    }
+
+    /**
+     * As {@link #keepEnrichOres(BotConfig, CargoPlan)}; with the hold refined towards promerium ({@code modules.enrich.refine},
+     * the leveling configs) also the ores it is made of — the raw ores, prometid, duranium, xenomit — while an enriched item
+     * is below its threshold ({@code lab} {@code null} or not read yet: below); charged, they are sold by the config's list
+     * (a user's choice, 2026-11-25). Xenomit is never sold while refining is on.
+     */
+    static CargoPlan keepEnrichOres(BotConfig c, CargoPlan plan, WorldSnapshot.Lab lab) {
         com.fasterxml.jackson.databind.JsonNode e = c.modules().get("enrich");
         if (e == null || !e.path("enabled").asBoolean(false) || plan.ores() == null || plan.ores().isEmpty()) {
             return plan;
@@ -127,11 +137,36 @@ final class CargoCare {
                 keep.add(ore);
             }
         }
+        if (e.path("refine").asBoolean(false)) {
+            keep.add(Refiner.XENOMIT);
+            if (enrichmentLow(e, lab)) {
+                keep.addAll(java.util.List.of(Refiner.PROMETIUM, Refiner.ENDURIUM, Refiner.TERBIUM, Refiner.PROMETID,
+                        Refiner.DURANIUM));
+            }
+        }
         if (keep.isEmpty() || plan.ores().stream().noneMatch(keep::contains)) {
             return plan;
         }
         return new CargoPlan(plan.mode(), plan.map(), plan.ores().stream().filter(o -> !keep.contains(o)).toList(),
                 plan.always());
+    }
+
+    /** An enriched item of the config below its threshold ({@code below}); an unread lab counts as below. */
+    static boolean enrichmentLow(com.fasterxml.jackson.databind.JsonNode e, WorldSnapshot.Lab lab) {
+        if (lab == null || lab.items().isEmpty() && lab.nanos() == 0) {
+            return true;
+        }
+        for (int item = 0; item < Enricher.ITEMS.length; item++) {
+            com.fasterxml.jackson.databind.JsonNode it = e.path("items").path(Enricher.ITEMS[item]);
+            if (!it.path("on").asBoolean(false)) {
+                continue;
+            }
+            WorldSnapshot.Enrichment en = lab.items().get(item);
+            if ((en == null ? 0 : en.left()) < it.path("below").asLong(50_000)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -144,7 +179,7 @@ final class CargoCare {
         WorldSnapshot w = ctx.world().get();
         long now = ctx.now();
         plan = modulePlan != null ? modulePlan : new CargoPlan(c.collect().cargo(), 0, c.collect().sellOres());
-        plan = keepEnrichOres(c, plan);
+        plan = keepEnrichOres(c, plan, w.inventory().lab());
         String mode = plan.mode();
         ctx.stats().cargoMode = mode;
         boolean wantSale = BotConfig.Collect.CARGO_BASE.equals(mode) || BotConfig.Collect.CARGO_PET.equals(mode);

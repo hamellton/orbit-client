@@ -298,7 +298,13 @@
     "ignoreContested": true,
     "cargo": "BASE",
     "cargoFullAt": 0,
-    "sellOres": []
+    "sellOres": [
+      0,
+      1,
+      2,
+      4,
+      5
+    ]
   },
   "pet": {
     "enabled": false,
