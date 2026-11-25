@@ -59,6 +59,32 @@ final class LevelWatch {
         });
     }
 
+    /**
+     * The auction's bids the plan would place (docs/LEVELING.md «Аукцион»): the hourly page and the daily list read, the
+     * plan logged — nothing is bid.
+     */
+    private static void auction(AuthClient auth, String origin, AccountState state, LevelPlan plan) throws InterruptedException {
+        try {
+            Thread.sleep(GAP_MS);
+            var page = auth.http().get(origin + "/indexInternal.es?action=internalAuction",
+                    origin + "/indexInternal.es?action=internalStart");
+            orbit.bot.level.AuctionBoard board = orbit.bot.level.AuctionBoard.parse(page.body());
+            Thread.sleep(GAP_MS);
+            java.util.Map<String, String> form = new java.util.LinkedHashMap<>();
+            form.put("command", "getAuctionList");
+            form.put("category", "day");
+            form.put("list", "current");
+            var day = auth.http().postForm(origin + "/ajax/auction.php", form, origin + "/indexInternal.es?action=internalAuction");
+            String code = orbit.config.Json.MAPPER.readTree(day.body() == null ? "{}" : day.body()).path("code").asText("");
+            board = board.with(orbit.bot.level.AuctionBoard.parse(code));
+            LOG.info("аукцион: лотов {} (час {}, день {}), до конца часа {} с, дня {} с", board.lots().size(),
+                    board.of("hour").size(), board.of("day").size(), board.secondsLeft("hour"), board.secondsLeft("day"));
+            LOG.info("ставки (режим советчика — не ставлю): {}", orbit.bot.level.BidPlanner.plan(state, plan, board).describe());
+        } catch (java.io.IOException | RuntimeException e) {
+            LOG.warn("аукцион не прочитан ({})", e.getMessage());
+        }
+    }
+
     /** One look: the site's list and active hangar, the game's level and money, the advice. True when the shape was logged. */
     private static boolean round(AuthClient auth, GameConnection conn, WorldFeed feed, String account, String cfg,
                                  LevelPlan plan, boolean logShape) throws InterruptedException {
@@ -97,6 +123,7 @@ final class LevelWatch {
             LOG.info("купил бы (режим советчика — не покупаю): {} × {} = {} {}", advice.purchase().amount(),
                     advice.purchase().item(), advice.purchase().total(), advice.purchase().uridium() ? "уридия" : "кредитов");
         }
+        auction(auth, session.host(), state, plan);
         if (logShape && hangar != null) {
             LOG.info("поля getHangar по конфигам (без значений): {}", hangar.shape());
             return true;
