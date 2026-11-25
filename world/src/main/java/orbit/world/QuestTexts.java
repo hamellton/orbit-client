@@ -53,6 +53,7 @@ public final class QuestTexts {
             case Quests.VISIT_MAP_TYPE -> "побывать на " + String.join(" или ", c.matches().stream()
                     .map(m -> { try { return map(Integer.parseInt(m.strip())); } catch (RuntimeException e) { return m; } })
                     .toList());
+            case Quests.FINISH_STARTER_GATE -> "пройти стартовые врата";
             case Quests.VISIT_MAP_ASSET -> "посетить " + switch (c.match(0)) {
                 case 46 -> "штаб компании";
                 case 48 -> "ангар станции";

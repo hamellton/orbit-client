@@ -440,6 +440,7 @@
         "GIVER",
         "VISITMAPS",
         "VISITASSET",
+        "STARTERGATE",
         "SLOTBAR"
       ],
       "revisitMinutes": 60,

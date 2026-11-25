@@ -235,6 +235,8 @@ public record Quests(Map<Integer, Quest> active, List<Offer> offers, Map<Integer
     public static final int VISIT_MAP_TYPE = 71;
     /** «Put an item in the slot bar»: bar, slot, item loot id (or bar, item). */
     public static final int PUT_ITEM_IN_SLOT_BAR = 70;
+    /** «Finish the starter gate» ({@code FINISH_STARTER_GATE} in the client; the starter quest 20012 «Preemptive Strike»). */
+    public static final int FINISH_STARTER_GATE = 68;
     /** «Visit a map object» ({@code VISIT_MAP_ASSET} in the client): the match is an asset type (48 the home hangar). */
     public static final int VISIT_MAP_ASSET = 75;
     public static final int FINISH_GALAXY_GATE = 79;

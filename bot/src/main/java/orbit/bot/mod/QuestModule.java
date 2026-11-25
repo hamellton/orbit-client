@@ -60,7 +60,7 @@ public final class QuestModule implements BotModule {
      */
     static final int ENEMY_MAP_EXTRA_HOPS = 8;
 
-    enum Kind { KILL, DAMAGE, SALVAGE, BOX, ORE, SELL, MAP, REFINE, SKYLAB, GIVER, SLOTBAR }
+    enum Kind { KILL, DAMAGE, SALVAGE, BOX, ORE, SELL, MAP, REFINE, SKYLAB, GIVER, SLOTBAR, GATE }
 
     /** {@code Work.ore} of a resource's salvage ("collect Prismatium" — from the NPCs that carry it). */
     static final int LOOT = -3;
@@ -380,6 +380,42 @@ public final class QuestModule implements BotModule {
                     startVisit("квест " + named(quest) + " просит вернуться к квестодателю"); // clears the work
                 }
             }
+            case GATE -> {
+                // what the map shows, once per change: to learn how the starter gate is entered
+                String seen = w.portals().values().stream().map(p -> p.id() + ":" + p.designId() + "@" + p.x() + "," + p.y())
+                        .sorted().toList() + " активные " + w.activatable().keySet();
+                if (!seen.equals(gateSeen)) {
+                    gateSeen = seen;
+                    log.info("Квест {}: стартовые врата — порталы на карте {}: {}", named(work.quest()),
+                            ctx.maps().info(w.hero().mapId()).name(), seen);
+                }
+                if (Double.isNaN(work.x())) {
+                    if (gateSince == 0) {
+                        gateSince = now;
+                    } else if (now - gateSince > GATE_WAIT_NS) {
+                        log.warn("Квест {}: портала стартовых врат на карте нет — откладываю квест", named(work.quest()));
+                        setAside.add(work.quest());
+                        gateSince = 0;
+                        work = null;
+                        return;
+                    }
+                    ctx.nav().tick();
+                    status = "Квест " + named(work.quest()) + ": " + progress + " · жду портал стартовых врат";
+                    return;
+                }
+                gateSince = 0;
+                double d = Math.hypot(w.hero().x() - work.x(), w.hero().y() - work.y());
+                if (d > 150 && ctx.nav().idle()) {
+                    ctx.nav().moveTo(work.x(), work.y(), false);
+                }
+                if (d < 400 && now - gateJumpAt > 5_000_000_000L) {
+                    gateJumpAt = now;
+                    log.info("Квест {}: прыгаю в стартовые врата", named(work.quest()));
+                    ctx.actions().jump();
+                }
+                ctx.nav().tick();
+                status = "Квест " + named(work.quest()) + ": " + progress + " · лечу в стартовые врата";
+            }
             case MAP -> {
                 if (!Double.isNaN(work.x()) && ctx.nav().idle()
                         && Math.hypot(w.hero().x() - work.x(), w.hero().y() - work.y()) > 150) {
@@ -687,6 +723,7 @@ public final class QuestModule implements BotModule {
             case SKYLAB -> "везу со Скайлаба";
             case GIVER -> "лечу к квестодателю";
             case SLOTBAR -> "кладу на панель";
+            case GATE -> "лечу в стартовые врата";
         };
     }
 
@@ -898,6 +935,22 @@ public final class QuestModule implements BotModule {
             // «put an item in the slot bar» (the starter quest 20006: [standardSlotBar, ammunition_laser_mcb-50]) — only
             // with SLOTBAR listed in «do» (the leveling configs)
             return new Work(quest.id(), c.id(), Kind.SLOTBAR, h.mapId(), Set.of(), Double.NaN, Double.NaN, -1);
+        }
+        if (c.type() == Quests.FINISH_STARTER_GATE && doing.contains("STARTERGATE") && h.factionId() >= 1
+                && h.factionId() <= 3) {
+            // «finish the starter gate» (the starter quest 20012, 14 days of premium; live 2026-11-26 on int1): the map
+            // «Devolarium Attack» (223) — there every NPC in sight is fought; else the company's x-1, where a portal the
+            // catalog does not know is the gate's (flown to and jumped in, Kind.GATE) — only with STARTERGATE in «do»
+            if (h.mapId() == STARTER_GATE_MAP) {
+                Set<String> npcs = new java.util.TreeSet<>();
+                w.ships().values().stream().filter(WorldSnapshot.Ship::npc).forEach(x -> npcs.add(x.name()));
+                return new Work(quest.id(), c.id(), Kind.KILL, h.mapId(), npcs.isEmpty() ? Set.of("Devolarium") : npcs,
+                        Double.NaN, Double.NaN, -1);
+            }
+            int home = HOME_MAPS[h.factionId()];
+            WorldSnapshot.Portal gate = h.mapId() == home ? unknownPortal(w, home) : null;
+            return new Work(quest.id(), c.id(), Kind.GATE, home, Set.of(), gate == null ? Double.NaN : gate.x(),
+                    gate == null ? Double.NaN : gate.y(), -1);
         }
         if (c.type() == Quests.VISIT_MAP_ASSET && doing.contains("VISITASSET") && h.factionId() >= 1 && h.factionId() <= 3) {
             // «visit a map object» (the starter quest 20008, live 2026-11-26 on int1: 75:[48] = the home station's hangar):
@@ -1164,6 +1217,24 @@ public final class QuestModule implements BotModule {
             return ores.getOrDefault(ore, 0.0) >= 1;
         }
         return ores.entrySet().stream().anyMatch(e -> e.getKey() != WorldSnapshot.Inventory.XENOMIT && e.getValue() >= 1);
+    }
+
+    /** The starter gate's map («Devolarium Attack» in the client's maps-config). */
+    static final int STARTER_GATE_MAP = 223;
+    /** A portal object this far from every catalog portal of the map is not one of them. */
+    static final double UNKNOWN_PORTAL = 300;
+    /** Waiting on x-1 for the starter gate's portal: longer and the quest is set aside. */
+    static final long GATE_WAIT_NS = 3 * 60_000_000_000L;
+    private long gateSince;
+    private long gateJumpAt;
+    private String gateSeen = "";
+
+    /** A portal object on the map the catalog does not list (the starter gate's, it is thought). */
+    private WorldSnapshot.Portal unknownPortal(WorldSnapshot w, int map) {
+        List<orbit.world.maps.MapCatalog.Portal> known = ctx.maps().portals(map);
+        return w.portals().values().stream()
+                .filter(p -> known.stream().noneMatch(k -> Math.hypot(k.x() - p.x(), k.y() - p.y()) < UNKNOWN_PORTAL))
+                .findFirst().orElse(null);
     }
 
     /** The companies' x-1 by faction (1 MMO 1-1, 2 EIC 2-1, 3 VRU 3-1). */
