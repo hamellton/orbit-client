@@ -45,7 +45,24 @@
         "kind": "ship",
         "accepted": [
           "ship_nostromo",
-          "ship_goliath"
+          "ship_goliath",
+          "ship_g-bastion",
+          "ship_g-veteran",
+          "ship_g-exalted",
+          "ship_g-enforcer",
+          "ship_g-centaur",
+          "ship_g-peacemaker",
+          "ship_g-sovereign",
+          "ship_g-referee",
+          "ship_g-kick",
+          "ship_g-goal",
+          "ship_g-champion",
+          "ship_g-vanquisher",
+          "ship_g-ignite",
+          "ship_g-surgeon",
+          "ship_a-elite",
+          "ship_aegis",
+          "ship_a-veteran"
         ]
       },
       "buy": {
@@ -54,7 +71,11 @@
         "currency": "credits"
       },
       "auction": [
-        "ship_goliath"
+        "ship_g-bastion",
+        "ship_goliath",
+        "ship_g-veteran",
+        "ship_g-exalted",
+        "ship_g-enforcer"
       ],
       "farm": "x-1"
     },
@@ -97,11 +118,28 @@
     },
     {
       "id": "Ц5",
-      "title": "Goliath",
+      "title": "Goliath (с дизайном тоже; на аукционе первым Bastion)",
       "check": {
         "kind": "ship",
         "accepted": [
-          "ship_goliath"
+          "ship_goliath",
+          "ship_g-bastion",
+          "ship_g-veteran",
+          "ship_g-exalted",
+          "ship_g-enforcer",
+          "ship_g-centaur",
+          "ship_g-peacemaker",
+          "ship_g-sovereign",
+          "ship_g-referee",
+          "ship_g-kick",
+          "ship_g-goal",
+          "ship_g-champion",
+          "ship_g-vanquisher",
+          "ship_g-ignite",
+          "ship_g-surgeon",
+          "ship_a-elite",
+          "ship_aegis",
+          "ship_a-veteran"
         ]
       },
       "buy": {
@@ -110,19 +148,15 @@
         "currency": "uridium"
       },
       "auction": [
-        "ship_goliath"
+        "ship_g-bastion",
+        "ship_goliath",
+        "ship_g-veteran",
+        "ship_g-exalted",
+        "ship_g-enforcer"
       ]
     },
     {
       "id": "Ц6",
-      "title": "Goliath оснащён: лазеры MP-1+ и двигатели",
-      "check": {
-        "kind": "unknown",
-        "why": "проверка по Goliath — после Ц5"
-      }
-    },
-    {
-      "id": "Ц7",
       "title": "8 дронов: докупить Iris",
       "check": {
         "kind": "drones",
@@ -138,7 +172,7 @@
       ]
     },
     {
-      "id": "Ц8",
+      "id": "Ц7",
       "title": "Лазеры LF-3 или лучше",
       "check": {
         "kind": "fill",
@@ -167,6 +201,28 @@
       },
       "auction": [
         "equipment_weapon_laser_lf-3"
+      ]
+    },
+    {
+      "id": "Ц8",
+      "title": "Aegis Elite или Aegis (хил)",
+      "check": {
+        "kind": "ship",
+        "accepted": [
+          "ship_a-elite",
+          "ship_aegis",
+          "ship_a-veteran"
+        ]
+      },
+      "buy": {
+        "item": "ship_aegis",
+        "price": 80000,
+        "currency": "uridium"
+      },
+      "auction": [
+        "ship_a-elite",
+        "ship_aegis",
+        "ship_a-veteran"
       ]
     },
     {
@@ -208,6 +264,36 @@
           "equipment_weapon_laser_pr-l"
         ]
       }
+    },
+    {
+      "id": "П1",
+      "side": true,
+      "title": "Solace сборкой, как только хватит материалов",
+      "check": {
+        "kind": "ship",
+        "accepted": [
+          "ship_solace",
+          "ship_solace-plus"
+        ]
+      },
+      "farm": "сборка: высокочастотный кабель ×10, микротранзисторы ×1, наноконденсатор ×8 (только в событие, один раз)"
+    },
+    {
+      "id": "П2",
+      "side": true,
+      "title": "Citadel или Citadel Elite (большой трюм) — на будущее",
+      "check": {
+        "kind": "ship",
+        "accepted": [
+          "ship_c-elite",
+          "ship_citadel",
+          "ship_c-veteran"
+        ]
+      },
+      "auction": [
+        "ship_c-elite",
+        "ship_citadel"
+      ]
     }
   ]
 }

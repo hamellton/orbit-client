@@ -38,8 +38,26 @@ public final class Advisor {
     }
 
     public static Advice advise(AccountState s, LevelPlan plan) {
+        Advice main = chain(s, plan);
+        List<String> side = new ArrayList<>();
+        for (LevelPlan.Goal g : plan.goals()) {
+            if (g.side()) {
+                Check c = check(s, g);
+                side.add(g.id() + " «" + g.title() + "»: " + (c.done() ? "есть" : c.known() ? c.detail() : "не умею проверить ("
+                        + c.detail() + ")") + (c.done() || g.auction().isEmpty() ? "" : ", аукцион: " + String.join(", ", g.auction())));
+            }
+        }
+        return side.isEmpty() ? main : new Advice(main.goal(), main.done(), main.missing(), main.refit(), main.purchase(),
+                main.text() + " | попутно: " + String.join("; ", side));
+    }
+
+    /** The first goal of the chain (side goals left out) not done. */
+    private static Advice chain(AccountState s, LevelPlan plan) {
         List<String> done = new ArrayList<>();
         for (LevelPlan.Goal g : plan.goals()) {
+            if (g.side()) {
+                continue;
+            }
             Check c = check(s, g);
             if (c.done()) {
                 done.add(g.id());

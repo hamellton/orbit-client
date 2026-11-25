@@ -46,9 +46,10 @@ public record LevelPlan(int version, long reserveCredits, long reserveUridium, L
      *
      * @param auction loot ids to bid on for this goal (the hourly auction; not done yet)
      * @param farm    what earns the money for it (a note for the log until configs are switched by goal)
+     * @param side    a goal on the side: reported beside the current one, taken when it comes, never blocking the chain
      */
     public record Goal(String id, String title, Kind kind, String slotset, List<Integer> configs, Set<String> accepted,
-                       int min, String why, Buy buy, List<String> auction, String farm) {
+                       int min, String why, Buy buy, List<String> auction, String farm, boolean side) {
 
         public Goal {
             configs = configs == null || configs.isEmpty() ? List.of(1, 2) : List.copyOf(configs);
@@ -87,7 +88,7 @@ public record LevelPlan(int version, long reserveCredits, long reserveUridium, L
             g.path("auction").forEach(a -> auction.add(a.asText()));
             goals.add(new Goal(g.path("id").asText(), g.path("title").asText(), kind, check.path("slotset").asText(""),
                     configs, accepted, check.path("min").asInt(), check.path("why").asText(""), buy, auction,
-                    g.path("farm").asText("")));
+                    g.path("farm").asText(""), g.path("side").asBoolean(false)));
         }
         return new LevelPlan(root.path("version").asInt(1), root.path("reserveCredits").asLong(),
                 root.path("reserveUridium").asLong(), goals);

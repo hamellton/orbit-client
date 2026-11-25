@@ -106,8 +106,25 @@ class LevelTest {
         assertEquals("Ц5", next.goal().id(), "Goliath next");
         AccountState goliath = new AccountState(s.level(), 0, 0, s.activeHangar(), "ship_goliath", Set.of("ship_goliath"),
                 lasersDone.slots(), lasersDone.fitted(), Map.of(), 1);
-        assertEquals("Ц6", Advisor.advise(goliath, plan).goal().id());
-        assertTrue(Advisor.advise(goliath, plan).text().contains("не умею проверить"), "an unknown check stops");
+        Advisor.Advice drones = Advisor.advise(goliath, plan);
+        assertEquals("Ц6", drones.goal().id(), "eight drones next");
+        assertTrue(drones.text().contains("дронов 1 из 8"), drones.text());
+        AccountState bastion = new AccountState(30, 0, 0, s.activeHangar(), "ship_g-bastion", Set.of("ship_g-bastion"),
+                Map.of("lasers", 2, "generators", 2),
+                Map.of(1, Map.of("lasers", List.of("equipment_weapon_laser_lf-3", "equipment_weapon_laser_lf-3"),
+                                "generators", List.of(G79, G79)),
+                        2, Map.of("lasers", List.of("equipment_weapon_laser_lf-3", "equipment_weapon_laser_lf-3"),
+                                "generators", List.of(G79, G79))), Map.of(), 8);
+        Advisor.Advice aegis = Advisor.advise(bastion, plan);
+        assertTrue(aegis.done().contains("Ц5"), "a Goliath design is a Goliath");
+        assertEquals("Ц8", aegis.goal().id(), "Aegis after LF-3");
+        assertTrue(aegis.text().contains("ship_a-elite"), aegis.text());
+        assertTrue(aegis.text().contains("попутно: П1"), "side goals reported: " + aegis.text());
+        AccountState withAegis = new AccountState(30, 0, 0, s.activeHangar(), "ship_g-bastion",
+                Set.of("ship_g-bastion", "ship_aegis"), bastion.slots(), bastion.fitted(), Map.of(), 8);
+        Advisor.Advice zeta = Advisor.advise(withAegis, plan);
+        assertEquals("Ц10", zeta.goal().id(), "level 30 passes the palladium goal");
+        assertTrue(zeta.text().contains("не умею проверить"), "an unknown check stops: " + zeta.text());
     }
 
     @Test
@@ -123,7 +140,8 @@ class LevelTest {
         LevelPlan plan = LevelPlan.bundled();
         assertTrue(plan.goals().size() >= 10);
         assertEquals("Ц1", plan.goals().getFirst().id());
-        assertTrue(plan.goals().getLast().accepted().contains("equipment_weapon_laser_pr-l"));
+        LevelPlan.Goal last = plan.goals().stream().filter(g -> !g.side()).reduce((x, y) -> y).orElseThrow();
+        assertTrue(last.accepted().contains("equipment_weapon_laser_pr-l"), "the chain ends with the Prometheus lasers");
         Set<String> ids = new java.util.HashSet<>();
         plan.goals().forEach(g -> assertTrue(ids.add(g.id()), "unique " + g.id()));
     }
