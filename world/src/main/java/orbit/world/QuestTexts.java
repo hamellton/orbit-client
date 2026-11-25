@@ -49,6 +49,12 @@ public final class QuestTexts {
             case Quests.KILL_NPCS -> "убить " + String.join(" или ", npcs(c));
             case Quests.DAMAGE_NPCS -> "урон по " + String.join(" или ", npcs(c));
             case Quests.COLLECT -> "собрать " + ore(c.match(0));
+            // «visit maps» (VISIT_MULTIPLE_MAPS): its matches are map ids, any of them (20006: [2] = 1-2)
+            case Quests.VISIT_MAP_TYPE -> "побывать на " + String.join(" или ", c.matches().stream()
+                    .map(m -> { try { return map(Integer.parseInt(m.strip())); } catch (RuntimeException e) { return m; } })
+                    .toList());
+            case Quests.PUT_ITEM_IN_SLOT_BAR -> "положить на панель " + (c.matches().isEmpty() ? "предмет"
+                    : item(c.matches().get(c.matches().size() - 1)));
             case Quests.SELL_ORE -> "продать " + ore(c.match(0));
             case Quests.COLLECT_LOOT -> "собрать " + (c.matches().isEmpty() ? "предметы" : c.matches().get(0));
             case Quests.REFINE_ORE -> "переработать " + (c.matches().isEmpty() ? "руду" : c.matches().get(0));
