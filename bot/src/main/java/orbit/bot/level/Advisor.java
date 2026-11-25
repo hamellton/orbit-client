@@ -164,11 +164,29 @@ public final class Advisor {
                 yield new Check(has, true, has ? 0 : 1, 0, has ? "есть" : "нет корабля");
             }
             case FILL -> fill(s, g);
+            case HAS -> {
+                int n = owned(s, g.accepted());
+                int need = Math.max(1, g.min());
+                yield new Check(n >= need, true, Math.max(0, need - n), 0, "есть " + n + " из " + need);
+            }
             case DRONES -> s.drones() < 0 ? new Check(false, false, 0, 0, "дроны не известны")
                     : new Check(s.drones() >= g.min(), true, Math.max(0, g.min() - s.drones()), 0,
                             "дронов " + s.drones() + " из " + g.min());
             case UNKNOWN -> new Check(false, false, 0, 0, g.why().isEmpty() ? "проверки нет" : g.why());
         };
+    }
+
+    /** Items of {@code accepted} the account has: the most any config of the active ship fits (any slotset) plus spares. */
+    static int owned(AccountState s, java.util.Set<String> accepted) {
+        int most = 0;
+        for (var config : s.fitted().values()) {
+            int n = 0;
+            for (var ids : config.values()) {
+                n += (int) ids.stream().filter(accepted::contains).count();
+            }
+            most = Math.max(most, n);
+        }
+        return most + s.spareOf(accepted);
     }
 
     /**

@@ -121,4 +121,18 @@ class AuctionTest {
         assertEquals(1, p.bids().size(), p.describe());
         assertEquals("ship_aegis", p.bids().getFirst().lot().loot(), "the Elite is too dear, the plain Aegis is bid on");
     }
+
+    @Test
+    void shipCpusAreBidOnUntilOwned() {
+        LevelPlan plan = LevelPlan.bundled();
+        String rrb = "equipment_extra_cpu_nc-rrb-x";
+        AuctionBoard b = AuctionBoard.parse(page(2, 0, row(30, rrb, "Автопроцессор для ремонта", "-", "0", "0", "10.000")));
+        BidPlanner.Plan want = BidPlanner.plan(account(100_000, 0, Set.of("ship_liberator")), plan, b);
+        assertTrue(want.bids().stream().anyMatch(x -> x.lot().loot().equals(rrb) && x.goal().equals("П3")), want.describe());
+        AccountState has = new AccountState(5, 100_000, 0, 1, "ship_liberator", Set.of("ship_liberator"),
+                Map.of("lasers", 4, "extras", 2), Map.of(1, Map.of("extras", List.of(rrb)), 2, Map.of("extras", List.of(rrb))),
+                Map.of(), 0);
+        BidPlanner.Plan owned = BidPlanner.plan(has, plan, b);
+        assertTrue(owned.bids().stream().noneMatch(x -> x.lot().loot().equals(rrb)), "owned: no bid — " + owned.describe());
+    }
 }

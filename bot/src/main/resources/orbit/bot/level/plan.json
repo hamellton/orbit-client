@@ -61,12 +61,22 @@
       "equipment_generator_shield_sg3n-a01"
     ],
     "extras": [
+      "equipment_extra_cpu_sle-04",
+      "equipment_extra_cpu_sle-03",
+      "equipment_extra_cpu_sle-02",
       "equipment_extra_repbot_rep-4",
       "equipment_extra_repbot_rep-3",
       "equipment_extra_repbot_rep-2",
       "equipment_extra_repbot_rep-1",
+      "equipment_extra_cpu_nc-rrb-x",
+      "equipment_extra_cpu_rllb-x",
+      "equipment_extra_cpu_arol-x",
       "equipment_extra_cpu_jp-02",
       "equipment_extra_cpu_jp-01"
+    ],
+    "heavy_guns": [
+      "equipment_weapon_rocketlauncher_hst-2",
+      "equipment_weapon_rocketlauncher_hst-1"
     ]
   },
   "goals": [
@@ -344,6 +354,85 @@
         ]
       },
       "farm": "сборка: высокочастотный кабель ×10, микротранзисторы ×1, наноконденсатор ×8 (только в событие, один раз)"
+    },
+    {
+      "id": "П3",
+      "side": true,
+      "title": "Процессор авторемонта (аукцион)",
+      "check": {
+        "kind": "has",
+        "min": 1,
+        "accepted": [
+          "equipment_extra_cpu_nc-rrb-x"
+        ]
+      },
+      "auction": [
+        "equipment_extra_cpu_nc-rrb-x"
+      ]
+    },
+    {
+      "id": "П4",
+      "side": true,
+      "title": "Расширитель отсеков (аукцион)",
+      "check": {
+        "kind": "has",
+        "min": 1,
+        "accepted": [
+          "equipment_extra_cpu_sle-04",
+          "equipment_extra_cpu_sle-03",
+          "equipment_extra_cpu_sle-02"
+        ]
+      },
+      "auction": [
+        "equipment_extra_cpu_sle-04",
+        "equipment_extra_cpu_sle-03",
+        "equipment_extra_cpu_sle-02"
+      ]
+    },
+    {
+      "id": "П5",
+      "side": true,
+      "title": "Ракетомёт Hellstorm-2 (аукцион)",
+      "check": {
+        "kind": "has",
+        "min": 1,
+        "accepted": [
+          "equipment_weapon_rocketlauncher_hst-2"
+        ]
+      },
+      "auction": [
+        "equipment_weapon_rocketlauncher_hst-2"
+      ]
+    },
+    {
+      "id": "П6",
+      "side": true,
+      "title": "Автопускатель ракет — авторакетный процессор (аукцион)",
+      "check": {
+        "kind": "has",
+        "min": 1,
+        "accepted": [
+          "equipment_extra_cpu_arol-x"
+        ]
+      },
+      "auction": [
+        "equipment_extra_cpu_arol-x"
+      ]
+    },
+    {
+      "id": "П7",
+      "side": true,
+      "title": "Автозарядка ракетомёта — процессор «Ракетомёт» (аукцион)",
+      "check": {
+        "kind": "has",
+        "min": 1,
+        "accepted": [
+          "equipment_extra_cpu_rllb-x"
+        ]
+      },
+      "auction": [
+        "equipment_extra_cpu_rllb-x"
+      ]
     },
     {
       "id": "П2",

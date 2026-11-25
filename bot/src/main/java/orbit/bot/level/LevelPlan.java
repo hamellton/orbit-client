@@ -45,6 +45,8 @@ public record LevelPlan(int version, long reserveCredits, long reserveUridium, L
         LEVEL,
         /** the active ship has at least {@code min} drones (what they fit is not read yet) */
         DRONES,
+        /** the account has at least {@code min} of {@code accepted} items (fitted on the active ship or spare) */
+        HAS,
         /** the bot cannot check it yet ({@code why}); the advisor stops there */
         UNKNOWN
     }
