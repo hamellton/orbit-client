@@ -527,10 +527,14 @@ public final class QuestModule implements BotModule {
             return false;
         }
         int kills = ctx.stats().kills.get();
-        if (killFrom < 0 || c.current() != killAt || killQuest != work.quest()) {
+        // the server counts a kill for one quest only (live 2026-11-25: five Saimon went to 107005 while 107002 waited) —
+        // another quest growing means the kills go there for now: no verdict on this one
+        double others = othersProgress(work.quest());
+        if (killFrom < 0 || c.current() != killAt || killQuest != work.quest() || others != killOthers) {
             killFrom = kills;
             killAt = c.current();
             killQuest = work.quest();
+            killOthers = others;
             return false;
         }
         if (kills - killFrom < KILL_TRIES) {
@@ -550,6 +554,22 @@ public final class QuestModule implements BotModule {
         work = null;
         return true;
     }
+
+    /** The progress of every other active quest's conditions summed (a kill counted there shows here). */
+    private double othersProgress(int quest) {
+        double sum = 0;
+        for (Quests.Quest q : ctx.world().get().quests().active().values()) {
+            if (q.id() == quest) {
+                continue;
+            }
+            for (Quests.Condition x : q.leaves()) {
+                sum += x.current();
+            }
+        }
+        return sum;
+    }
+
+    private double killOthers;
 
     /** Kills of a wanted NPC with no progress before a kill condition is set aside. */
     static final int KILL_TRIES = 15;
