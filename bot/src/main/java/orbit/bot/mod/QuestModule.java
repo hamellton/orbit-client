@@ -409,6 +409,15 @@ public final class QuestModule implements BotModule {
                     ctx.nav().moveTo(work.x(), work.y(), false);
                 }
                 if (d < 400 && now - gateJumpAt > 5_000_000_000L) {
+                    if (gatePresses >= GATE_PRESSES) {
+                        log.warn("Квест {}: портал стартовых врат не пускает после {} нажатий — откладываю квест",
+                                named(work.quest()), gatePresses);
+                        setAside.add(work.quest());
+                        gatePresses = 0;
+                        work = null;
+                        return;
+                    }
+                    gatePresses++;
                     gateJumpAt = now;
                     log.info("Квест {}: прыгаю в стартовые врата", named(work.quest()));
                     ctx.actions().jump();
@@ -940,7 +949,7 @@ public final class QuestModule implements BotModule {
                 && h.factionId() <= 3) {
             // «finish the starter gate» (the starter quest 20012, 14 days of premium; live 2026-11-26 on int1): the map
             // «Devolarium Attack» (223) — there every NPC in sight is fought; else the company's x-1, where a portal the
-            // catalog does not know is the gate's (flown to and jumped in, Kind.GATE) — only with STARTERGATE in «do»
+            // of type 34 is the gate's (flown to and jumped in, Kind.GATE) — only with STARTERGATE in «do»
             if (h.mapId() == STARTER_GATE_MAP) {
                 Set<String> npcs = new java.util.TreeSet<>();
                 w.ships().values().stream().filter(WorldSnapshot.Ship::npc).forEach(x -> npcs.add(x.name()));
@@ -948,7 +957,7 @@ public final class QuestModule implements BotModule {
                         Double.NaN, Double.NaN, -1);
             }
             int home = HOME_MAPS[h.factionId()];
-            WorldSnapshot.Portal gate = h.mapId() == home ? unknownPortal(w, home) : null;
+            WorldSnapshot.Portal gate = h.mapId() == home ? starterGatePortal(w) : null;
             return new Work(quest.id(), c.id(), Kind.GATE, home, Set.of(), gate == null ? Double.NaN : gate.x(),
                     gate == null ? Double.NaN : gate.y(), -1);
         }
@@ -1221,20 +1230,23 @@ public final class QuestModule implements BotModule {
 
     /** The starter gate's map («Devolarium Attack» in the client's maps-config). */
     static final int STARTER_GATE_MAP = 223;
-    /** A portal object this far from every catalog portal of the map is not one of them. */
-    static final double UNKNOWN_PORTAL = 300;
+    /** The starter gate portal's type (its design id). */
+    static final int STARTER_GATE_PORTAL = 34;
+    /** Jump presses at the starter gate's portal with no jump: then the quest is set aside. */
+    static final int GATE_PRESSES = 6;
+    private int gatePresses;
     /** Waiting on x-1 for the starter gate's portal: longer and the quest is set aside. */
     static final long GATE_WAIT_NS = 3 * 60_000_000_000L;
     private long gateSince;
     private long gateJumpAt;
     private String gateSeen = "";
 
-    /** A portal object on the map the catalog does not list (the starter gate's, it is thought). */
-    private WorldSnapshot.Portal unknownPortal(WorldSnapshot w, int map) {
-        List<orbit.world.maps.MapCatalog.Portal> known = ctx.maps().portals(map);
-        return w.portals().values().stream()
-                .filter(p -> known.stream().noneMatch(k -> Math.hypot(k.x() - p.x(), k.y() - p.y()) < UNKNOWN_PORTAL))
-                .findFirst().orElse(null);
+    /**
+     * The starter gate's portal: of type {@link #STARTER_GATE_PORTAL} (DarkBot's StarManager: «Devolarium Attack» is reached
+     * only by portal type 34 from the home maps; live 2026-11-26 on 1-1 at 12500/8500 among the galaxy gates' portals).
+     */
+    private WorldSnapshot.Portal starterGatePortal(WorldSnapshot w) {
+        return w.portals().values().stream().filter(p -> p.designId() == STARTER_GATE_PORTAL).findFirst().orElse(null);
     }
 
     /** The companies' x-1 by faction (1 MMO 1-1, 2 EIC 2-1, 3 VRU 3-1). */
