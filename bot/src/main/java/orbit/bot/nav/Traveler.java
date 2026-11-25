@@ -50,7 +50,7 @@ public final class Traveler {
      * Presses at one portal with no jump: the map behind it is closed to the pilot's level (live 2026-11-25 on int1: a
      * level-1 Liberator pressed for 1-3 35 times in three minutes, the server saying nothing).
      */
-    static final int REFUSED_PRESSES = 6;
+    static final int REFUSED_PRESSES = 12; // a jump that went through took 4 presses (live 2026-11-25), 6 was too near
     /** Maps a portal would not let in, by map → the highest pilot level refused (for this program run). */
     private static final java.util.Map<Integer, Integer> CLOSED = new java.util.concurrent.ConcurrentHashMap<>();
 

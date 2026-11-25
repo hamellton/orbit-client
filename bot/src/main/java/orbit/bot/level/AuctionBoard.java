@@ -12,8 +12,14 @@ import java.util.regex.Pattern;
  * ({@code counterHour/Day/Week}). Bids are credits; «buy now» is uridium.
  *
  * @param secondsLeft per auction ({@code hour}, {@code day}, {@code week}) the seconds till it ends, {@code -1} unknown
+ * @param token       the page's {@code reloadToken} the bid form sends ({@code ""} none: only the page has it)
+ * @param button      the bid button's value the form sends ({@code ПОСТАВИТЬ} on a Russian page)
  */
-public record AuctionBoard(List<Lot> lots, java.util.Map<String, Long> secondsLeft) {
+public record AuctionBoard(List<Lot> lots, java.util.Map<String, Long> secondsLeft, String token, String button) {
+
+    public AuctionBoard(List<Lot> lots, java.util.Map<String, Long> secondsLeft) {
+        this(lots, secondsLeft, "", "");
+    }
 
     /** The bid with no rival: every lot nobody else wanted went for it (12 hourly auctions, 2026-11-25). */
     public static final long MIN_BID = 10_000;
@@ -21,6 +27,24 @@ public record AuctionBoard(List<Lot> lots, java.util.Map<String, Long> secondsLe
     public AuctionBoard {
         lots = List.copyOf(lots);
         secondsLeft = java.util.Map.copyOf(secondsLeft);
+        token = token == null ? "" : token;
+        button = button == null ? "" : button;
+    }
+
+    /**
+     * The bid form as the page sends it ({@code placeBid}: {@code POST indexInternal.es?action=internalAuction&reloadToken=…}),
+     * docs/recon/SHOP-AUCTION.md: token, auction type, {@code subAction=bid}, loot id, item key, credits, the button.
+     */
+    public java.util.Map<String, String> bidForm(Lot lot, long credits) {
+        java.util.Map<String, String> f = new java.util.LinkedHashMap<>();
+        f.put("reloadToken", token);
+        f.put("auctionType", lot.auction());
+        f.put("subAction", "bid");
+        f.put("lootId", lot.loot());
+        f.put("itemId", lot.key());
+        f.put("credits", String.valueOf(credits));
+        f.put("auction_buy_button", button.isEmpty() ? "BID" : button);
+        return f;
     }
 
     /**
@@ -82,7 +106,9 @@ public record AuctionBoard(List<Lot> lots, java.util.Map<String, Long> secondsLe
                     + 86_400 * Long.parseLong(c.group(5));
             left.put(c.group(1).toLowerCase(java.util.Locale.ROOT), sec);
         }
-        return new AuctionBoard(lots, left);
+        Matcher t = Pattern.compile("reloadToken\\s*=\\s*'([0-9a-fA-F]+)'").matcher(s);
+        Matcher b = Pattern.compile("id=\"auction_place_bid\"\\s+value=\"([^\"]*)\"").matcher(s);
+        return new AuctionBoard(lots, left, t.find() ? t.group(1) : "", b.find() ? b.group(1) : "");
     }
 
     /** This board with another's lots added (the daily or weekly list); the counters kept. */
@@ -91,7 +117,7 @@ public record AuctionBoard(List<Lot> lots, java.util.Map<String, Long> secondsLe
         other.lots().stream().filter(l -> all.stream().noneMatch(x -> x.key().equals(l.key()))).forEach(all::add);
         java.util.Map<String, Long> left = new java.util.HashMap<>(other.secondsLeft());
         left.putAll(secondsLeft);
-        return new AuctionBoard(all, left);
+        return new AuctionBoard(all, left, token.isEmpty() ? other.token() : token, button.isEmpty() ? other.button() : button);
     }
 
     /** {@code 222.706.666} → 222706666; {@code -1} unreadable. */

@@ -35,6 +35,7 @@ final class LevelWatch {
     static void start(AuthClient auth, GameConnection conn, WorldFeed feed, String account, Supplier<String> config,
                       BooleanSupplier alive, Supplier<String> status, java.util.function.Consumer<String> switchConfig) {
         java.util.Map<String, String> ctx = org.slf4j.MDC.getCopyOfContextMap();
+        AuctionWatch.start(auth, conn, feed, account, config, alive); // the bids, only on leveling configs too
         Thread.ofVirtual().name("leveling").start(() -> {
             if (ctx != null) {
                 org.slf4j.MDC.setContextMap(ctx);
@@ -111,6 +112,13 @@ final class LevelWatch {
         private static String fmt(double v) {
             return Double.isNaN(v) ? "?" : String.valueOf(Math.round(v));
         }
+    }
+
+    /** The last state the advisor read, per account: the auction's bids use it (with the game's money of the moment). */
+    private static final java.util.Map<String, AccountState> LAST_STATE = new java.util.concurrent.ConcurrentHashMap<>();
+
+    static AccountState lastState(String account) {
+        return LAST_STATE.get(account);
     }
 
     /** No second switch sooner than this after the last one: a choice gets time to work and be measured. */
@@ -247,6 +255,7 @@ final class LevelWatch {
             uridium = (long) snap.hero().uridium();
         }
         AccountState state = SiteHangars.state(list, hangar, level, credits, uridium);
+        LAST_STATE.put(account, state);
         Advisor.Advice advice = Advisor.advise(state, plan);
         LOG.info("снимок [{}, конфиг «{}», план v{}]: {}", account, cfg, plan.version(), state.describe());
         LOG.info("совет: выполнено {}; {}", advice.done(), advice.text());

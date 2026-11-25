@@ -47,6 +47,17 @@ class AuctionTest {
         assertEquals(222_706_666, b.lots().get(1).current());
         assertTrue(b.lots().get(1).highest());
         assertEquals(44 * 60 + 38, b.secondsLeft("hour"));
+        AuctionBoard withToken = AuctionBoard.parse(page(44, 38, row(39, "ship_goliath", "Goliath", "-", "0", "0", "50.000"))
+                + "\nvar reloadToken = 'abc123';\n<input type=\"submit\" name=\"auction_buy_button\" class=\"disabled\" "
+                + "id=\"auction_place_bid\" value=\"ПОСТАВИТЬ\" />");
+        var form = withToken.bidForm(withToken.lots().getFirst(), 10_000);
+        assertEquals("abc123", form.get("reloadToken"));
+        assertEquals("hour", form.get("auctionType"));
+        assertEquals("bid", form.get("subAction"));
+        assertEquals("ship_goliath", form.get("lootId"));
+        assertEquals("item_hour_39", form.get("itemId"));
+        assertEquals("10000", form.get("credits"));
+        assertEquals("ПОСТАВИТЬ", form.get("auction_buy_button"));
         assertEquals(8 * 3600 + 2 * 60 + 1, b.secondsLeft("day"));
     }
 
