@@ -19,10 +19,11 @@ import java.util.Set;
  * @param slots         the active ship's slots by slotset ({@code lasers}, {@code generators}…)
  * @param fitted        per config (1, 2): slotset → loot ids fitted in the active ship
  * @param spare         loot id → how many lie in the inventory, fitted in no hangar
+ * @param drones        the active ship's drones ({@code -1} unknown)
  */
 public record AccountState(int level, long credits, long uridium, int activeHangar, String activeShip,
                            Set<String> ownedShips, Map<String, Integer> slots, Map<Integer, Map<String, List<String>>> fitted,
-                           Map<String, Integer> spare) {
+                           Map<String, Integer> spare, int drones) {
 
     public AccountState {
         ownedShips = Set.copyOf(ownedShips);
@@ -66,6 +67,7 @@ public record AccountState(int level, long credits, long uridium, int activeHang
         for (int c : new int[] {1, 2}) {
             parts.add("конфиг " + c + " " + fitted.getOrDefault(c, Map.of()));
         }
+        parts.add("дроны " + (drones >= 0 ? drones : "?"));
         parts.add("запас " + spare);
         parts.add("корабли " + new java.util.TreeSet<>(ownedShips));
         return String.join("; ", parts);

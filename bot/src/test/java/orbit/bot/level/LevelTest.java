@@ -30,10 +30,10 @@ class LevelTest {
 
     static final String HANGAR = """
             {"isError":0,"data":{"map":{"lootIds":["equipment_weapon_laser_lf-1","equipment_generator_speed_g3n-7900",
-              "equipment_weapon_laser_sll-02"]},
+              "equipment_weapon_laser_sll-02","ammunition_laser_lcb-10"]},
              "ret":{"items":[{"I":"11","L":0,"EQH":"501"},{"I":"21","L":1,"EQH":"501"},{"I":"22","L":1,"EQH":"501"},
-               {"I":"31","L":2,"EQH":null}],
-              "hangars":{"0":{"hangarID":"501","config":{
+               {"I":"31","L":2,"EQH":null},{"I":"41","L":3,"EQH":null,"Q":5000}],
+              "hangars":{"0":{"hangarID":"501","general":{"ship":{"L":0},"drones":[]},"config":{
                 "1":{"ship":{"EQ":{"lasers":["11"],"generators":["21","22"]}},"drones":{}},
                 "2":{"ship":{"EQ":{"lasers":["11"],"generators":["21","22"]}},"drones":{}}}}}}}}
             """;
@@ -59,7 +59,8 @@ class LevelTest {
         var hangar = SiteHangars.hangar(json(HANGAR), 501);
         assertEquals(List.of(LF1), hangar.fitted().get(1).get("lasers"));
         assertEquals(List.of(G79, G79), hangar.fitted().get(2).get("generators"));
-        assertEquals(Map.of(SLL2, 1), hangar.spare());
+        assertEquals(Map.of(SLL2, 1, "ammunition_laser_lcb-10", 5000), hangar.spare(), "ammunition by its amount");
+        assertEquals(0, hangar.drones());
         assertTrue(hangar.shape().contains("drones"), hangar.shape());
     }
 
@@ -93,11 +94,20 @@ class LevelTest {
         AccountState lasersDone = new AccountState(s.level(), 0, 0, s.activeHangar(), "ship_nostromo",
                 Set.of("ship_nostromo"), Map.of("lasers", 2, "generators", 2),
                 Map.of(1, Map.of("lasers", List.of(SLL2, SLL2), "generators", List.of(G79, G79)),
-                        2, Map.of("lasers", List.of(SLL2, SLL2), "generators", List.of(G79, G79))), Map.of());
+                        2, Map.of("lasers", List.of(SLL2, SLL2), "generators", List.of(G79, G79))), Map.of(), 0);
         Advisor.Advice a = Advisor.advise(lasersDone, plan);
         assertEquals(List.of("Ц1", "Ц2", "Ц3"), a.done());
         assertEquals("Ц4", a.goal().id());
-        assertTrue(a.text().contains("не умею проверить"), a.text());
+        assertEquals(1, a.missing());
+        assertTrue(a.text().contains("дронов 0 из 1"), a.text());
+        AccountState oneDrone = new AccountState(s.level(), 0, 0, s.activeHangar(), "ship_nostromo", Set.of("ship_nostromo"),
+                lasersDone.slots(), lasersDone.fitted(), Map.of(), 1);
+        Advisor.Advice next = Advisor.advise(oneDrone, plan);
+        assertEquals("Ц5", next.goal().id(), "Goliath next");
+        AccountState goliath = new AccountState(s.level(), 0, 0, s.activeHangar(), "ship_goliath", Set.of("ship_goliath"),
+                lasersDone.slots(), lasersDone.fitted(), Map.of(), 1);
+        assertEquals("Ц6", Advisor.advise(goliath, plan).goal().id());
+        assertTrue(Advisor.advise(goliath, plan).text().contains("не умею проверить"), "an unknown check stops");
     }
 
     @Test

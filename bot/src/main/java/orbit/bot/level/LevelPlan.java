@@ -31,6 +31,8 @@ public record LevelPlan(int version, long reserveCredits, long reserveUridium, L
         SHIP,
         /** the pilot's level is at least {@code min} */
         LEVEL,
+        /** the active ship has at least {@code min} drones (what they fit is not read yet) */
+        DRONES,
         /** the bot cannot check it yet ({@code why}); the advisor stops there */
         UNKNOWN
     }

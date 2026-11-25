@@ -100,6 +100,9 @@ public final class Advisor {
                 yield new Check(has, true, has ? 0 : 1, 0, has ? "есть" : "нет корабля");
             }
             case FILL -> fill(s, g);
+            case DRONES -> s.drones() < 0 ? new Check(false, false, 0, 0, "дроны не известны")
+                    : new Check(s.drones() >= g.min(), true, Math.max(0, g.min() - s.drones()), 0,
+                            "дронов " + s.drones() + " из " + g.min());
             case UNKNOWN -> new Check(false, false, 0, 0, g.why().isEmpty() ? "проверки нет" : g.why());
         };
     }

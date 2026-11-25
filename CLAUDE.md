@@ -107,6 +107,9 @@ Gradle needs JDK 21 (`export JAVA_HOME=$(/usr/libexec/java_home -v 21)`; the def
   client's `resource_quest.xml` on the CDN; the server sends none).
 - `scripts/update-item-names.sh [lang]` — refresh `reference/maps/item-names-ru.json` (item names as the client shows
   them, `items_<lootId>_fullname` from `resource_items.xml` on the CDN; `orbit.world.ItemNames`, the Totals window).
+- `scripts/site-recon.sh [account]` — read-only site recon (shop tabs, auction, hangars) → `local/recon/<date>-<account>/`.
+- `scripts/update-items-doc.sh [recon dir]` — regenerate `docs/ITEMS.md` (shop with prices, hourly auction lots, the account's
+  hangar) and `docs/items/*.md` (every item the game names, where it is sold) from the latest recon.
 - `scripts/update-craft-doc.sh` — regenerate `docs/CRAFT.md` (every Assembly recipe from the decompiled client's
   `ItemDataProvider.as`, names from the game's texts, where each ingredient comes from in `reference/craft/sources-ru.json`).
 - `scripts/update-quest-doc.sh [quests-seen.json ...]` — regenerate `docs/QUESTS.md` + `docs/quests/*.md` (every quest the

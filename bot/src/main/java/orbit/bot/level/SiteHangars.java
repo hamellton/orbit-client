@@ -25,8 +25,12 @@ public final class SiteHangars {
                            long credits, long uridium) {
     }
 
-    /** What one hangar's view tells: per config slotset → loot ids, the spares, the config entries' field names. */
-    public record HangarInfo(Map<Integer, Map<String, List<String>>> fitted, Map<String, Integer> spare, String shape) {
+    /**
+     * What one hangar's view tells: per config slotset → loot ids, the spares (by amount: ammunition counts its {@code Q}),
+     * the drones ({@code general.drones}, a list; empty on a new account, 2026-11-25 int1) and the field names seen.
+     */
+    public record HangarInfo(Map<Integer, Map<String, List<String>>> fitted, Map<String, Integer> spare, int drones,
+                             String shape) {
     }
 
     public static ListInfo list(JsonNode root) {
@@ -71,15 +75,19 @@ public final class SiteHangars {
             String loot = l.isInt() && lootIds.has(l.asInt()) ? lootIds.get(l.asInt()).asText() : "";
             lootOf.put(i.path("I").asText(), loot);
             if (i.path("EQH").isNull() || i.path("EQH").isMissingNode()) {
-                spare.merge(loot, 1, Integer::sum);
+                spare.merge(loot, Math.max(1, i.path("Q").asInt(1)), Integer::sum);
             }
         }
         Map<Integer, Map<String, List<String>>> fitted = new TreeMap<>();
         List<String> shape = new ArrayList<>();
+        int drones = 0;
         for (JsonNode h : each(data.path("ret").path("hangars"))) {
             if (h.path("hangarID").asInt() != hangarId) {
                 continue;
             }
+            JsonNode d = h.path("general").path("drones");
+            drones = d.size();
+            shape.add("general " + names(h.path("general")) + (d.size() > 0 ? ", drone " + names(d.path(0)) : ""));
             h.path("config").properties().forEach(c -> {
                 int config;
                 try {
@@ -87,7 +95,7 @@ public final class SiteHangars {
                 } catch (NumberFormatException e) {
                     return;
                 }
-                if (shape.isEmpty()) {
+                if (shape.size() == 1) {
                     shape.add("config " + names(c.getValue()));
                     c.getValue().properties().forEach(part -> shape.add(part.getKey() + " " + names(part.getValue())
                             + (part.getValue().has("EQ") ? " EQ " + names(part.getValue().path("EQ")) : "")));
@@ -101,14 +109,15 @@ public final class SiteHangars {
                 fitted.put(config, sets);
             });
         }
-        return new HangarInfo(fitted, spare, String.join("; ", shape));
+        return new HangarInfo(fitted, spare, drones, String.join("; ", shape));
     }
 
     /** The full state: the list and the active hangar's view, with the game's level and money where it knows them. */
     public static AccountState state(ListInfo list, HangarInfo hangar, int level, long gameCredits, long gameUridium) {
         return new AccountState(level, gameCredits >= 0 ? gameCredits : list.credits(),
                 gameUridium >= 0 ? gameUridium : list.uridium(), list.activeHangar(), list.activeShip(), list.ownedShips(),
-                list.slots(), hangar == null ? Map.of() : hangar.fitted(), hangar == null ? Map.of() : hangar.spare());
+                list.slots(), hangar == null ? Map.of() : hangar.fitted(), hangar == null ? Map.of() : hangar.spare(),
+                hangar == null ? -1 : hangar.drones());
     }
 
     /** The site writes money as text with dots between thousands ({@code "869.218.568.732"}); {@code -1} unreadable. */

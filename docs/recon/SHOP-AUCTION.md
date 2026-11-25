@@ -94,3 +94,45 @@ Leonov сильнее на родных картах (подсказка маг�
 бустеры (урона — 704 млн кредитов, чести — 200 млн кредитов, остальные дёшево); патроны и ракеты; лог-диски; ксеномит; дизайны Goliath.
 
 Не известно: минимальная ставка и шаг, когда списываются кредиты (сразу или по итогу), что дневной и недельный аукцион.
+
+## Разведка 2026-11-25 (новый аккаунт «7», int1, `scripts/site-recon.sh`, только чтение)
+
+Полный список товаров и лотов — `docs/ITEMS.md` (генерируется `scripts/update-items-doc.sh`), все предметы игры — `docs/items/`.
+
+### Новый аккаунт
+
+- Liberator, в обоих конфигах: лазер LF-1, двигатели G3N-7900 × 2, дополнения REP-2 и JP-01 (10 зарядов). В запасе LCB-10 5 000,
+  R-310 20. Кредиты и уридий — 0 (`getHangar` → `data.money`).
+- Дроны — не в конфигах, а в `data.ret.hangars{…}.general.drones` (список; у нового аккаунта пуст). Оснащение дронов по конфигам —
+  когда появится первый дрон, его поля советчик запишет в лог прокачки.
+- Предметы `getHangar.items[]`: `I`, `L`, `LV` (уровень), `EQH` (ангар), `EQC` (конфиг), `EQT` (`SHIP`); у боеприпасов `Q` — количество.
+
+### Магазин
+
+- Вкладки `internalDock<Вкладка>`: Ships 48, Laser 19 (9 лазеров и 10 наборов), Generator 12, Drones 20 (Flax, Iris, формации),
+  Ammo 40, Booster 21, PetGear 12, PetProtocols 12, ShipModel 50, Customization 56, Specials 166. Вкладки `Extras` нет (сайт отдаёт Ships).
+- Товар: `category`, `code`, `name`, `description`, `price`, `currency` (`virtual` кредиты / `real` уридий / `null` у товаров за
+  деньги, `isPaymentItem`), `maxAmount`, `amountsSelectable`, `dailyLimitMax`/`dailyLimitRemaining`, `isOwned`, `salePrice`,
+  `discountPercent`; у наборов `imageVars.loot_id` — предмет внутри.
+- Лазеры за кредиты: LF-1, MP-1, «Спектральный скальпель I» (50 000 кр, 130 урона по NPC), «Спектральный скальпель II» (300 000 кр,
+  165 по NPC, 90 по игрокам). За уридий: LF-2, LF-3 (10 000, до 175), рассеивающий лазер I.
+- Дроны: Flax 100 000 кр (один отсек), Iris 15 000 ури (два отсека), по одному за покупку.
+
+### Аукцион
+
+- Страница `indexInternal.es?action=internalAuction` несёт только часовой аукцион: 61 лот, строки `tr.auctionItemRow` с `itemKey`
+  `item_hour_<n>`, колонки: название, раздел, лидер (`-` нет), текущая ставка, моя ставка, «купить сразу» (уридий); скрытые поля
+  `item_hour_<n>_{descr,bid,buyPrice,lootId,instantBuy}`.
+- Оставшееся время — в скрипте страницы: `counterHour`, `counterDay`, `counterWeek` `{second, minute, hour, day}`; мои ставки —
+  `myBidCount {hour, day, week}`.
+- Дневной и недельный аукцион, «мои ставки», хроника — отдельным запросом страницы (`js/auction.js`): `POST ajax/auction.php`,
+  `command=getAuctionList`, `category=hour|day|week`, `list=current|mybids|history` → JSON `{code: <html>}`. Хроника — по
+  `history_<id>` в выпадающем списке.
+- Ставка — форма `placeBid`: `POST indexInternal.es?action=internalAuction&reloadToken=…` с `reloadToken`, `auctionType`, `subAction=bid`,
+  `lootId`, `itemId` (= `itemKey`), `credits`, `auction_buy_button`. Мгновенная покупка — `GET …&subAction=buy&lootId=…&reloadToken=…`
+  (уридий). После выигрыша корабля страница может спросить «поставить корабль» (`ajax/dock.php command=equipLastShip`/`dontEquip`),
+  предмета — `ajax/shop.php action=equipItems`.
+- Снимок 15:15 (44 мин до конца часа): ставок нет на Goliath, Vengeance, Leonov, дизайны Goliath/Vengeance, Iris, LF-3, G3N-7900,
+  SG3N-B02, REP-3/4, все процессоры, кроме CL04K-XL (10 000). Ставки: лог-диск 160 000, бустеры урона 222,7 млн, прочности 162,7 млн.
+- Ещё не известно: минимум и шаг ставки, когда списываются кредиты и возвращаются ли они при перебитой ставке, что показывает
+  страница сразу после конца часа, бывает ли капча (у DarkBot бывает).
