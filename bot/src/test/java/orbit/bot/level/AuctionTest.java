@@ -38,6 +38,9 @@ class AuctionTest {
                 row(39, "ship_goliath", "Goliath", "-", "0", "0", "50.000"),
                 row(51, "booster_dmg-b01", "Бустер урона", "someone", "222.706.666", "0", "10.000")));
         assertEquals(2, b.lots().size());
+        AuctionBoard twice = AuctionBoard.parse(page(2, 0, row(46, "ship_g-bastion", "Goliath Bastion", "me", "10.000", "10.000",
+                "100.000"), row(46, "ship_g-bastion", "Goliath Bastion", "me", "10.000", "10.000", "100.000")));
+        assertEquals(1, twice.lots().size(), "the «my bids» table repeats a lot");
         AuctionBoard.Lot g = b.lots().getFirst();
         assertEquals("item_hour_39", g.key());
         assertEquals("hour", g.auction());

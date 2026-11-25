@@ -82,6 +82,10 @@ final class AuctionWatch {
                 return;
             }
             long left = board.secondsLeft("hour");
+            if (left > WAKE_S + 120) {
+                LevelWatch.LOG.info("аукцион: час закончился, следующий — через {} мин; итог — по ангару", left / 60);
+                return; // a new hour began (live 2026-11-25: the look went on every minute of the next hour)
+            }
             if (left < LAST_S) {
                 LevelWatch.LOG.info("аукцион: до конца часа {} с — больше не ставлю, итог — после часа по ангару", left);
                 return;
@@ -141,7 +145,8 @@ final class AuctionWatch {
                 java.util.regex.Pattern.DOTALL | java.util.regex.Pattern.CASE_INSENSITIVE).matcher(html);
         while (m.find()) {
             String t = m.group(1).replaceAll("<[^>]+>", " ").replaceAll("\\s+", " ").strip();
-            if (!t.isEmpty() && t.length() < 300) {
+            // the page's placeholder for its script («this text will be replace on ajax call») is no answer
+            if (!t.isEmpty() && t.length() < 300 && !t.toLowerCase(java.util.Locale.ROOT).contains("ajax call")) {
                 return t;
             }
         }

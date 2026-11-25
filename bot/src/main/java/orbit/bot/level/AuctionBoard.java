@@ -93,8 +93,12 @@ public record AuctionBoard(List<Lot> lots, java.util.Map<String, Long> secondsLe
     public static AuctionBoard parse(String html) {
         String s = html == null ? "" : html;
         List<Lot> lots = new ArrayList<>();
+        java.util.Set<String> keys = new java.util.HashSet<>();
         Matcher m = ROW.matcher(s);
         while (m.find()) {
+            if (!keys.add(m.group(1))) {
+                continue; // the same lot again in the page's «my bids» table (live 2026-11-25: led twice in the plan)
+            }
             long buy = "1".equals(m.group(10)) ? amount(m.group(8)) : -1;
             lots.add(new Lot(m.group(1), m.group(2), m.group(9), text(m.group(3)), text(m.group(4)),
                     !text(m.group(5)).equals("-") && !text(m.group(5)).isEmpty(), amount(m.group(6)), amount(m.group(7)), buy));
