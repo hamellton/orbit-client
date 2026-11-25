@@ -23,8 +23,43 @@ import org.slf4j.LoggerFactory;
  */
 public final class QuestGiverVisit {
 
-    /** Offers already logged as «cannot do», by account and quest: said once per program run. */
+    /**
+     * Offers already logged as «cannot do», by account and quest ({@code account/questId}, one a line): said once per
+     * account for good — kept in {@link #SKIPPED_FILE} across restarts. A quest that becomes doable is logged as taken.
+     */
     private static final java.util.Set<String> SKIPPED_TOLD = java.util.concurrent.ConcurrentHashMap.newKeySet();
+    static final java.nio.file.Path SKIPPED_FILE = java.nio.file.Path.of("local", "quests-skipped-told.txt");
+    private static volatile boolean skippedLoaded;
+
+    /** True the first time this account's offer is told as «cannot do» (then remembered in the file). */
+    static boolean firstSkip(String key) {
+        if (!skippedLoaded) {
+            synchronized (SKIPPED_TOLD) {
+                if (!skippedLoaded) {
+                    try {
+                        if (java.nio.file.Files.exists(SKIPPED_FILE)) {
+                            java.nio.file.Files.readAllLines(SKIPPED_FILE).stream().map(String::strip)
+                                    .filter(l -> !l.isEmpty()).forEach(SKIPPED_TOLD::add);
+                        }
+                    } catch (java.io.IOException ignored) {
+                        // only fewer lines saved from the log
+                    }
+                    skippedLoaded = true;
+                }
+            }
+        }
+        if (!SKIPPED_TOLD.add(key)) {
+            return false;
+        }
+        try {
+            java.nio.file.Files.createDirectories(SKIPPED_FILE.getParent());
+            java.nio.file.Files.writeString(SKIPPED_FILE, key + "\n", java.nio.file.StandardOpenOption.CREATE,
+                    java.nio.file.StandardOpenOption.APPEND);
+        } catch (java.io.IOException ignored) {
+            // told again after a restart, no harm
+        }
+        return true;
+    }
 
     private static final Logger log = LoggerFactory.getLogger(QuestGiverVisit.class);
 
@@ -303,9 +338,9 @@ public final class QuestGiverVisit {
                 return true;
             }
             boolean can = doable.test(d);
-            // «cannot do» once per quest and account in a program run: every visit lists the same offers again
+            // «cannot do» once per quest and account (kept across restarts): every visit lists the same offers again
             String account = org.slf4j.MDC.get("account");
-            if (can || SKIPPED_TOLD.add((account == null ? "" : account) + "/" + d.id())) {
+            if (can || firstSkip((account == null ? "" : account) + "/" + d.id())) {
                 log.info("Квест {} ({}): {} — {}", orbit.world.QuestTitles.label(d.id()), QuestTexts.type(d.types()),
                         describe(d), can ? "беру" : "не умею, пропускаю");
             }
