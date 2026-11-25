@@ -319,6 +319,15 @@ public final class QuestGiverVisit {
         return true; // daily and weekly were taken with no mission slot left (recording)
     }
 
+    /** The server's own fields of a quest's conditions (type: matches), to learn what an unknown one asks for. */
+    static String raw(Quests.Quest q) {
+        List<String> parts = new ArrayList<>();
+        for (Quests.Condition c : q.leaves()) {
+            parts.add(c.type() + ":" + c.matches());
+        }
+        return " (условия сервера " + String.join("; ", parts) + ")";
+    }
+
     private boolean reading(WorldSnapshot w, long now) {
         if (reading != 0) {
             Quests.Quest d = w.quests().details().get(reading);
@@ -341,8 +350,8 @@ public final class QuestGiverVisit {
             // «cannot do» once per quest and account (kept across restarts): every visit lists the same offers again
             String account = org.slf4j.MDC.get("account");
             if (can || firstSkip((account == null ? "" : account) + "/" + d.id())) {
-                log.info("Квест {} ({}): {} — {}", orbit.world.QuestTitles.label(d.id()), QuestTexts.type(d.types()),
-                        describe(d), can ? "беру" : "не умею, пропускаю");
+                log.info("Квест {} ({}): {} — {}{}", orbit.world.QuestTitles.label(d.id()), QuestTexts.type(d.types()),
+                        describe(d), can ? "беру" : "не умею, пропускаю", can ? "" : raw(d));
             }
             if (can) {
                 toTake.add(d.id());

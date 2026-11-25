@@ -231,6 +231,10 @@ public record Quests(Map<Integer, Quest> active, List<Offer> offers, Map<Integer
     public static final int COLLECT_LOOT = 67;
     public static final int REFINE_ORE = 69;
     public static final int ON_MAP = 77;
+    /** «Visit maps» ({@code VISIT_MULTIPLE_MAPS} in the client): the matches are map ids. */
+    public static final int VISIT_MAP_TYPE = 71;
+    /** «Put an item in the slot bar»: bar, slot, item loot id (or bar, item). */
+    public static final int PUT_ITEM_IN_SLOT_BAR = 70;
     public static final int FINISH_GALAXY_GATE = 79;
     /** Cargo boxes picked up (the client's {@code CargoCondition}, its help icon «cargo_box»; Season Pass 700037). */
     public static final int CARGO = 51;

@@ -438,7 +438,8 @@
         "ORE",
         "SELL",
         "MAP",
-        "GIVER"
+        "GIVER",
+        "VISITMAPS"
       ],
       "revisitMinutes": 60,
       "locator": false,

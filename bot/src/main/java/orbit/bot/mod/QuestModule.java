@@ -747,6 +747,16 @@ public final class QuestModule implements BotModule {
             // reached the giver) — only with GIVER listed in «do» (the leveling configs)
             return new Work(quest.id(), c.id(), Kind.GIVER, h.mapId(), Set.of(), Double.NaN, Double.NaN, -1);
         }
+        if (c.type() == Quests.VISIT_MAP_TYPE && doing.contains("VISITMAPS")) {
+            // «visit maps» (the starter quest 20006, live 2026-11-25 on int1): the nearest of the maps it names — only
+            // with VISITMAPS listed in «do» (the leveling configs)
+            List<Integer> maps = new java.util.ArrayList<>(QuestTargets.mapsOf(c));
+            if (maps.size() > 1 && c.current() > 0) {
+                maps.remove(Integer.valueOf(h.mapId())); // one of them done here: on to another
+            }
+            Integer best = nearest(maps, h);
+            return best == null ? null : new Work(quest.id(), c.id(), Kind.MAP, best, Set.of(), Double.NaN, Double.NaN, -1);
+        }
         if (QuestTargets.travelling(c) && doing.contains("MAP")) {
             Integer best = nearest(QuestTargets.mapsOf(c), h);
             if (best == null) {
