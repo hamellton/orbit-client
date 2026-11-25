@@ -12,6 +12,7 @@ import java.util.Map;
  * ({@code MapAssetActionAvailableCommand}), id → since when; a portal becomes jumpable about
  * 300–500 units away. {@code jumpingTo}: map of a jump the server started, 0 if none.
  * {@code slotItems}: items on the slot bars (used with a key; others are clicked in the item bar).
+ * {@code slotBars}: per slot bar ({@code standardSlotBar}…) its slots, slot id → item ({@code ""} empty).
  */
 public record WorldSnapshot(long nanos, Hero hero, Map<Integer, Ship> ships, Map<String, Collectable> collectables,
                             Map<Integer, Portal> portals, Map<Integer, Asset> assets, Map<String, Zone> zones,
@@ -20,7 +21,21 @@ public record WorldSnapshot(long nanos, Hero hero, Map<Integer, Ship> ships, Map
                             java.util.Set<String> slotItems, Map<Integer, Kill> destroyed, Rewards rewards,
                             List<Invitation> invitations, List<Contact> contacts, Map<String, Mine> mines,
                             Boosters boosters, JumpCpu jumpCpu, BoxCheck boxCheck, Quests quests, Damage damage,
-                            Gates gates) {
+                            Gates gates, Map<String, Map<Integer, String>> slotBars) {
+
+    /** Without the slot bars' slots (older callers and tests). */
+    public WorldSnapshot(long nanos, Hero hero, Map<Integer, Ship> ships, Map<String, Collectable> collectables,
+                         Map<Integer, Portal> portals, Map<Integer, Asset> assets, Map<String, Zone> zones,
+                         Group group, Map<String, Item> items, Inventory inventory, Pet pet,
+                         Map<Integer, Long> activatable, int jumpingTo, Death death,
+                         java.util.Set<String> slotItems, Map<Integer, Kill> destroyed, Rewards rewards,
+                         List<Invitation> invitations, List<Contact> contacts, Map<String, Mine> mines,
+                         Boosters boosters, JumpCpu jumpCpu, BoxCheck boxCheck, Quests quests, Damage damage,
+                         Gates gates) {
+        this(nanos, hero, ships, collectables, portals, assets, zones, group, items, inventory, pet, activatable, jumpingTo,
+                death, slotItems, destroyed, rewards, invitations, contacts, mines, boosters, jumpCpu, boxCheck, quests,
+                damage, gates, Map.of());
+    }
 
     /** Without the galaxy gates (older callers and tests). */
     public WorldSnapshot(long nanos, Hero hero, Map<Integer, Ship> ships, Map<String, Collectable> collectables,

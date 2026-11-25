@@ -549,6 +549,21 @@ public final class Actions {
     }
 
     /** A quest picked in the list: its conditions and rewards ({@code QuestInfoRequest} → {@code QuestInfoCommand}). */
+    /**
+     * Drags an item from the item menu onto a slot of a slot bar, as the client's {@code SendSlotBarConfigSetRequestCommand}
+     * does: from nothing ({@code ""}, 0) to {@code bar}'s {@code slot}, the item's menu id (its loot id). A starter quest
+     * asks for it (20006: MCB-50 on the standard bar, 2026-11-25).
+     */
+    public void slotBarPut(String item, String bar, int slot) {
+        orbit.protocol.gen.SlotBarConfigSetRequest r = new orbit.protocol.gen.SlotBarConfigSetRequest();
+        r.menuItemId = item;
+        r.slotBarIdTo = bar;
+        r.slotIdTo = slot;
+        r.slotBarIdFrom = "";
+        r.slotIdFrom = 0;
+        sender.accept(r);
+    }
+
     public void questInfo(int questId) {
         orbit.protocol.gen.QuestInfoRequest r = new orbit.protocol.gen.QuestInfoRequest();
         r.questId = questId;

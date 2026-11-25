@@ -60,7 +60,7 @@ public final class QuestModule implements BotModule {
      */
     static final int ENEMY_MAP_EXTRA_HOPS = 8;
 
-    enum Kind { KILL, DAMAGE, SALVAGE, BOX, ORE, SELL, MAP, REFINE, SKYLAB, GIVER }
+    enum Kind { KILL, DAMAGE, SALVAGE, BOX, ORE, SELL, MAP, REFINE, SKYLAB, GIVER, SLOTBAR }
 
     /** {@code Work.ore} of a resource's salvage ("collect Prismatium" — from the NPCs that carry it). */
     static final int LOOT = -3;
@@ -358,6 +358,11 @@ public final class QuestModule implements BotModule {
                 ctx.nav().tick();
                 status = "Квест " + named(work.quest()) + ": " + progress + " · жду руду со Скайлаба";
             }
+            case SLOTBAR -> {
+                slotBar(w, c, now);
+                ctx.nav().tick();
+                status = "Квест " + named(work.quest()) + ": " + progress + " · кладу на панель";
+            }
             case GIVER -> {
                 // at once the first time; again for the same quest only after a while (a visit did not count it: an
                 // earlier condition still open) — a visit for other reasons does not hold it back (live 2026-11-25: the
@@ -592,6 +597,7 @@ public final class QuestModule implements BotModule {
             case REFINE -> "перерабатываю в трюме";
             case SKYLAB -> "везу со Скайлаба";
             case GIVER -> "лечу к квестодателю";
+            case SLOTBAR -> "кладу на панель";
         };
     }
 
@@ -674,6 +680,33 @@ public final class QuestModule implements BotModule {
         return twin == null ? -1 : twin.id();
     }
 
+    /** When the item was last put on the bar for a «slot bar» condition (not again sooner than {@link #SLOTBAR_GAP_NS}). */
+    private long slotBarAt = Long.MIN_VALUE / 2;
+    static final long SLOTBAR_GAP_NS = 30_000_000_000L;
+
+    /**
+     * «Put an item in the slot bar»: the item ({@code [bar, slot, item]} or {@code [bar, item]}) dragged onto the bar's slot
+     * the condition names, else its first empty slot, else its last one — as a player would; again after a while if the
+     * condition did not count it.
+     */
+    private void slotBar(WorldSnapshot w, Quests.Condition c, long now) {
+        if (now - slotBarAt < SLOTBAR_GAP_NS) {
+            return;
+        }
+        List<String> m = c.matches();
+        String bar = m.get(0);
+        String item = m.size() > 2 ? m.get(2) : m.get(1);
+        int slot = m.size() > 2 ? c.match(1) : -1;
+        Map<Integer, String> slots = w.slotBars().getOrDefault(bar, Map.of());
+        if (slot <= 0) {
+            slot = slots.entrySet().stream().filter(e -> e.getValue().isBlank()).map(Map.Entry::getKey).findFirst()
+                    .orElse(slots.isEmpty() ? 10 : java.util.Collections.max(slots.keySet()));
+        }
+        slotBarAt = now;
+        log.info("Квест {}: кладу {} на панель {} в ячейку {} (на панели: {})", named(work.quest()), item, bar, slot, slots);
+        ctx.actions().slotBarPut(item, bar, slot);
+    }
+
     /** {@code ownMapsOnly}: quests worked on the own company's maps only ({@code false} by default). */
     boolean ownMapsOnly() {
         return settings().path("ownMapsOnly").asBoolean(false);
@@ -746,6 +779,11 @@ public final class QuestModule implements BotModule {
             // «back to the quest giver» (the starter chain 20000+, live 2026-11-25 on int1: 20000 counted once the ship
             // reached the giver) — only with GIVER listed in «do» (the leveling configs)
             return new Work(quest.id(), c.id(), Kind.GIVER, h.mapId(), Set.of(), Double.NaN, Double.NaN, -1);
+        }
+        if (c.type() == Quests.PUT_ITEM_IN_SLOT_BAR && doing.contains("SLOTBAR") && c.matches().size() >= 2) {
+            // «put an item in the slot bar» (the starter quest 20006: [standardSlotBar, ammunition_laser_mcb-50]) — only
+            // with SLOTBAR listed in «do» (the leveling configs)
+            return new Work(quest.id(), c.id(), Kind.SLOTBAR, h.mapId(), Set.of(), Double.NaN, Double.NaN, -1);
         }
         if (c.type() == Quests.VISIT_MAP_TYPE && doing.contains("VISITMAPS")) {
             // «visit maps» (the starter quest 20006, live 2026-11-25 on int1): the nearest of the maps it names — only

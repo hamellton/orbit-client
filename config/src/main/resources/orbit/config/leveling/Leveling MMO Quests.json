@@ -439,7 +439,8 @@
         "SELL",
         "MAP",
         "GIVER",
-        "VISITMAPS"
+        "VISITMAPS",
+        "SLOTBAR"
       ],
       "revisitMinutes": 60,
       "locator": false,

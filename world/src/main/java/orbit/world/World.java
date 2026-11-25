@@ -182,6 +182,8 @@ public final class World {
     private final Map<String, WorldSnapshot.Item> items = new LinkedHashMap<>();
     /** Items placed on the slot bars (keys 1–0 and the extra bars). */
     private final java.util.Set<String> slotItems = new java.util.LinkedHashSet<>();
+    /** Per slot bar its slots: slot id → item ({@code ""} empty), from the menu's slot bars. */
+    private final Map<String, Map<Integer, String>> slotBars = new java.util.LinkedHashMap<>();
     private final Map<Integer, Double> ores = new LinkedHashMap<>();
     private long oresNanos;
     private long loginNanos;
@@ -761,7 +763,7 @@ public final class World {
                 new WorldSnapshot.Damage(Map.copyOf(dealt), Map.copyOf(received), Map.copyOf(taken)),
                 new WorldSnapshot.Gates(Map.copyOf(gates), gateMoney, gateSamples, gateEnergyCost, gateSpinAmounts,
                         gateSpinSelected, gateInfoNanos, gateSetup, gateSetupError, gateSetupNanos, gateSpinError,
-                        gateSpinNanos, trinity, eternal, low, escort, dispatch, chromin));
+                        gateSpinNanos, trinity, eternal, low, escort, dispatch, chromin), Map.copyOf(slotBars));
     }
 
     private WorldSnapshot.Escort escort = WorldSnapshot.Escort.NONE;
@@ -1240,12 +1242,16 @@ public final class World {
     private void initItems(MenuInitializationCommand p, long nanos) {
         if (!p.slotBars.isEmpty()) {
             slotItems.clear();
+            slotBars.clear();
             for (SlotBarInitializationCommand bar : p.slotBars) {
+                Map<Integer, String> slots = new java.util.TreeMap<>();
                 for (SlotInfoCommand slot : bar.slots) {
+                    slots.put(slot.slotId, slot.menuItemId == null ? "" : slot.menuItemId);
                     if (!slot.menuItemId.isBlank()) {
                         slotItems.add(slot.menuItemId);
                     }
                 }
+                slotBars.put(bar.slotBarId, java.util.Collections.unmodifiableMap(slots));
             }
         }
         if (p.categories.isEmpty()) {
