@@ -17,15 +17,22 @@ import java.util.Set;
  * @param reserveUridium uridium never spent on the plan
  * @param fit            per ship slotset ({@code lasers}, {@code generators}) the items it takes, best first; both configs
  *                       get the best (a user's choice: lasers and engines in configs 1 and 2, shields go in the drones)
+ * @param ships          ships to fly, best first: the account flies the best one it owns (its gear moved over)
  */
 public record LevelPlan(int version, long reserveCredits, long reserveUridium, List<Goal> goals,
-                        Map<String, List<String>> fit) {
+                        Map<String, List<String>> fit, List<String> ships) {
+
+    /** The best ship of {@code owned} to fly by {@link #ships} ({@code null}: none listed). */
+    public String bestShip(java.util.Set<String> owned) {
+        return ships.stream().filter(owned::contains).findFirst().orElse(null);
+    }
 
     public static final String RESOURCE = "/orbit/bot/level/plan.json";
 
     public LevelPlan {
         goals = List.copyOf(goals);
         fit = fit == null ? Map.of() : Map.copyOf(fit);
+        ships = ships == null ? List.of() : List.copyOf(ships);
     }
 
     /** How a goal is checked. */
@@ -101,7 +108,9 @@ public record LevelPlan(int version, long reserveCredits, long reserveUridium, L
             e.getValue().forEach(x -> order.add(x.asText()));
             fit.put(e.getKey(), List.copyOf(order));
         });
+        List<String> ships = new ArrayList<>();
+        root.path("ships").forEach(x -> ships.add(x.asText()));
         return new LevelPlan(root.path("version").asInt(1), root.path("reserveCredits").asLong(),
-                root.path("reserveUridium").asLong(), goals, fit);
+                root.path("reserveUridium").asLong(), goals, fit, ships);
     }
 }

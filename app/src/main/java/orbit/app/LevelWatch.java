@@ -33,7 +33,8 @@ final class LevelWatch {
 
     /** Starts the advisor's thread for this game connection; it ends with the game thread. */
     static void start(AuthClient auth, GameConnection conn, WorldFeed feed, String account, Supplier<String> config,
-                      BooleanSupplier alive, Supplier<String> status, java.util.function.Consumer<String> switchConfig) {
+                      BooleanSupplier alive, Supplier<String> status, java.util.function.IntConsumer requestShip,
+                      Runnable refresh, java.util.function.Consumer<String> switchConfig) {
         java.util.Map<String, String> ctx = org.slf4j.MDC.getCopyOfContextMap();
         AuctionWatch.start(auth, conn, feed, account, config, alive); // the bids, only on leveling configs too
         Thread.ofVirtual().name("leveling").start(() -> {
@@ -50,7 +51,8 @@ final class LevelWatch {
                     String cfg = config.get();
                     if (cfg != null && ConfigStore.LEVELING_FOLDER.equals(ConfigStore.openDefault().folderOf(cfg))) {
                         meter.sample(feed, cfg);
-                        shapeLogged |= round(auth, conn, feed, account, cfg, plan, !shapeLogged, status, meter, switchConfig);
+                        shapeLogged |= round(auth, conn, feed, account, cfg, plan, !shapeLogged, status, meter, switchConfig,
+                                requestShip, refresh);
                     }
                     Thread.sleep(EVERY_MS + random.nextInt(120_000));
                 }
@@ -112,6 +114,42 @@ final class LevelWatch {
         private static String fmt(double v) {
             return Double.isNaN(v) ? "?" : String.valueOf(Math.round(v));
         }
+    }
+
+    /** Every laser, generator and extra of a hangar taken off to the inventory, config by config (before a ship change). */
+    private static void moveOut(orbit.auth.Hangars site, int hangarId, SiteHangars.HangarInfo hangar) throws InterruptedException {
+        for (var c : hangar.fittedIds().entrySet()) {
+            for (String set : java.util.List.of("lasers", "generators", "extras")) {
+                java.util.List<String> ids = c.getValue().getOrDefault(set, java.util.List.of());
+                if (ids.isEmpty()) {
+                    continue;
+                }
+                Thread.sleep(GAP_MS);
+                try {
+                    site.move(hangarId, ids, c.getKey(), false, "ship", set);
+                    LOG.info("пересадка: снял из конфига {} «{}»: {} шт. ({})", c.getKey(), set, ids.size(), ids);
+                } catch (java.io.IOException | RuntimeException e) {
+                    LOG.warn("пересадка: из конфига {} «{}» не снять ({})", c.getKey(), set, e.getMessage());
+                }
+            }
+        }
+    }
+
+    /** The fitting's moves done on the site, one by one with a person's pause; the number that went through. */
+    private static int apply(orbit.auth.Hangars site, int hangarId, java.util.List<orbit.bot.level.FitPlanner.Move> moves)
+            throws InterruptedException {
+        int done = 0;
+        for (var m : moves) {
+            Thread.sleep(GAP_MS);
+            try {
+                site.move(hangarId, java.util.List.of(m.itemId()), m.config(), m.toShip(), "ship", m.slotset());
+                LOG.info("раскладка: {}", m.describe());
+                done++;
+            } catch (java.io.IOException | RuntimeException e) {
+                LOG.warn("раскладка: не вышло — {} ({})", m.describe(), e.getMessage());
+            }
+        }
+        return done;
     }
 
     /** The last state the advisor read, per account: the auction's bids use it (with the game's money of the moment). */
@@ -224,7 +262,8 @@ final class LevelWatch {
     /** One look: the site's list and active hangar, the game's level and money, the advice. True when the shape was logged. */
     private static boolean round(AuthClient auth, GameConnection conn, WorldFeed feed, String account, String cfg,
                                  LevelPlan plan, boolean logShape, Supplier<String> status, Meter meter,
-                                 java.util.function.Consumer<String> switchConfig) throws InterruptedException {
+                                 java.util.function.Consumer<String> switchConfig, java.util.function.IntConsumer requestShip,
+                                 Runnable refresh) throws InterruptedException {
         var session = conn.session();
         if (session == null || session.host() == null) {
             LOG.info("советчик: нет игровой сессии — пропускаю");
@@ -265,9 +304,27 @@ final class LevelWatch {
             shopCheck(auth, session.host(), advice.purchase());
         }
         if (hangar != null) {
+            // a better ship owned (won on the auction, bought): its gear moved over and the bot sent there (user's consent
+            // 2026-11-25); the fitting is done there after the login
+            String best = plan.bestShip(list.ownedShips());
+            int bestHangar = best == null ? 0 : list.hangarOf(best);
+            int nowRank = plan.ships().indexOf(list.activeShip());
+            boolean better = best != null && bestHangar != 0 && bestHangar != list.activeHangar()
+                    && (nowRank < 0 || plan.ships().indexOf(best) < nowRank);
+            if (better) {
+                LOG.info("пересадка: лучший корабль «{}» в ангаре {}, сейчас «{}» в {} — снимаю снаряжение и пересаживаюсь", best,
+                        bestHangar, list.activeShip(), list.activeHangar());
+                moveOut(site, list.activeHangar(), hangar);
+                requestShip.accept(bestHangar);
+                return false;
+            }
             var moves = orbit.bot.level.FitPlanner.plan(hangar, list.activeHangar(), list.slots(), plan);
-            LOG.info("раскладка (режим советчика — не перекладываю): {}", moves.isEmpty() ? "всё на местах"
-                    : String.join("; ", moves.stream().map(orbit.bot.level.FitPlanner.Move::describe).toList()));
+            if (moves.isEmpty()) {
+                LOG.info("раскладка: всё на местах");
+            } else if (apply(site, list.activeHangar(), moves) > 0) {
+                LOG.info("раскладка: перезахожу, чтобы игра увидела снаряжение");
+                refresh.run();
+            }
         }
         String moduleStatus = status.get();
         boolean idle = moduleStatus != null && moduleStatus.contains("нечего делать");

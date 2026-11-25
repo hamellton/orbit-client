@@ -2,6 +2,31 @@
   "version": 1,
   "reserveCredits": 30000,
   "reserveUridium": 0,
+  "ships": [
+    "ship_solace-plus",
+    "ship_solace",
+    "ship_a-elite",
+    "ship_aegis",
+    "ship_a-veteran",
+    "ship_g-bastion",
+    "ship_goliath",
+    "ship_g-veteran",
+    "ship_g-exalted",
+    "ship_g-enforcer",
+    "ship_g-centaur",
+    "ship_g-peacemaker",
+    "ship_g-sovereign",
+    "ship_g-referee",
+    "ship_g-kick",
+    "ship_g-goal",
+    "ship_g-champion",
+    "ship_g-vanquisher",
+    "ship_g-ignite",
+    "ship_g-surgeon",
+    "ship_nostromo",
+    "ship_piranha",
+    "ship_liberator"
+  ],
   "fit": {
     "lasers": [
       "equipment_weapon_laser_pr-l",
@@ -34,6 +59,14 @@
       "equipment_generator_shield_sg3n-a03",
       "equipment_generator_shield_sg3n-a02",
       "equipment_generator_shield_sg3n-a01"
+    ],
+    "extras": [
+      "equipment_extra_repbot_rep-4",
+      "equipment_extra_repbot_rep-3",
+      "equipment_extra_repbot_rep-2",
+      "equipment_extra_repbot_rep-1",
+      "equipment_extra_cpu_jp-02",
+      "equipment_extra_cpu_jp-01"
     ]
   },
   "goals": [

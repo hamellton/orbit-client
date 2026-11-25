@@ -22,7 +22,13 @@ public final class SiteHangars {
 
     /** What the hangar list tells. */
     public record ListInfo(int activeHangar, String activeShip, Set<String> ownedShips, Map<String, Integer> slots,
-                           long credits, long uridium) {
+                           long credits, long uridium, Map<Integer, String> hangars) {
+
+        /** The hangar a ship stands in ({@code 0} none). */
+        public int hangarOf(String ship) {
+            return hangars.entrySet().stream().filter(e -> e.getValue().equals(ship)).map(Map.Entry::getKey).findFirst()
+                    .orElse(0);
+        }
     }
 
     /**
@@ -43,7 +49,10 @@ public final class SiteHangars {
         int active = 0;
         String ship = "";
         int shipIndex = -1;
+        Map<Integer, String> hangars = new LinkedHashMap<>();
         for (JsonNode h : each(data.path("ret").path("hangars"))) {
+            JsonNode hl = h.path("general").path("ship").path("L");
+            hangars.put(h.path("hangarID").asInt(), hl.isInt() && lootIds.has(hl.asInt()) ? lootIds.get(hl.asInt()).asText() : "");
             if (h.path("hangar_is_active").asBoolean()) {
                 active = h.path("hangarID").asInt();
                 JsonNode l = h.path("general").path("ship").path("L");
@@ -66,7 +75,8 @@ public final class SiteHangars {
             }
         }
         JsonNode money = data.path("money");
-        return new ListInfo(active, ship, owned, slots, amount(money.path("credits")), amount(money.path("uridium")));
+        return new ListInfo(active, ship, owned, slots, amount(money.path("credits")), amount(money.path("uridium")),
+                Map.copyOf(hangars));
     }
 
     public static HangarInfo hangar(JsonNode root, int hangarId) {

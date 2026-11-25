@@ -66,6 +66,16 @@ public final class BotRunner {
     /** The website hangar in use ({@code 0} not known), and the one the module asked to switch to. */
     private volatile int activeHangar;
     private volatile int hangarRequest;
+    /** A ship asked for from outside the module (the leveling mode's move to a better ship): its hangar, 0 none. */
+    private volatile int shipWanted;
+
+    /**
+     * Asks for the ship in {@code hangarId} (the leveling mode, docs/LEVELING.md «Пересадка»): once the module is not
+     * busy, the bot logs out, the app switches the ship on the site and logs in again — the palladium's own way.
+     */
+    public void requestShip(int hangarId) {
+        shipWanted = hangarId;
+    }
     private boolean logoutHere;
     /** The start ship was looked at this session (once). */
     private boolean startChecked;
@@ -694,6 +704,18 @@ public final class BotRunner {
                 logoutHere = true; // just logged in: out where it stands
                 module.pause();
                 stop("смена корабля (корабль запуска)");
+                return;
+            }
+        }
+        if (shipWanted != 0 && hangarRequest == 0 && !module.busy() && service.phase() == ServiceVisit.Phase.IDLE
+                && activeHangar != 0) {
+            int to = shipWanted;
+            shipWanted = 0;
+            if (to != activeHangar) {
+                log.info("Пересаживаюсь на другой корабль: ангар {} → {} (выход из игры, смена на сайте, вход)", activeHangar, to);
+                hangarRequest = to;
+                logoutHere = true;
+                stop("смена корабля");
                 return;
             }
         }

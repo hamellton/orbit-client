@@ -756,6 +756,7 @@ public final class OrbitMain {
                     watchSkylab(auth, conn, feed, game);
                     watchCalendar(auth, conn, accountName, game);
                     LevelWatch.start(auth, conn, feed, accountName, playing::get, game::isAlive, run.runner()::status,
+                            run.runner()::requestShip, conn::refresh,
                             name -> {
                                 var s = switcher.get();
                                 if (s != null) {
