@@ -24,6 +24,10 @@ Status: Stage 2 done; stage 3 in progress (login, game connection, vault, client
   Remote `origin` = `git@github-hamellton:hamellton/orbit-client.git` (personal account, private).
   Repo-local identity `hamellton <hamelltonn@gmail.com>` — never commit here with the work email.
 - Never log passwords, dosid, sessionID or keys.
+- Stable point: tag `stable-2026-11-25` (cfee6aa) — the build before the leveling mode work; the builds after it are unstable
+  while the leveling mode is being built. The leveling work must not touch what worked before it: everything it adds is for the
+  leveling mode only (its configs, `orbit.bot.level`, `LevelWatch`/`AuctionWatch`, settings off by default); a fix to shared
+  code only with a reason in docs/LEVELING.md «Изоляция» (user's rule, 2026-11-25).
 - The map (`MinimapPanel`, its overlays, map-only mode) is frozen as of 2026-11-17: change its look or behaviour only
   with the user's explicit consent (`docs/PLAN.md`, «Карта: дизайн и функции заморожены»).
 
