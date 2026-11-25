@@ -124,6 +124,14 @@ final class AuctionWatch {
             AuctionBoard after = AuctionBoard.parse(r.body());
             AuctionBoard.Lot lot = after.lots().stream().filter(l -> l.key().equals(b.lot().key())).findFirst().orElse(null);
             String message = notice(r.body());
+            if (lot == null || lot.mine() < b.credits()) {
+                // the site did not take the bid (live 2026-11-25: 53 000 sent, «mine 0» back): its page kept for a look
+                java.nio.file.Path f = java.nio.file.Path.of("local", "debug", "auction-bid-"
+                        + java.time.LocalTime.now().withNano(0).toString().replace(":", "") + ".html");
+                java.nio.file.Files.createDirectories(f.getParent());
+                java.nio.file.Files.writeString(f, orbit.secrets.SecretMask.mask(r.body() == null ? "" : r.body()));
+                LevelWatch.LOG.warn("аукцион: ставку {} на {} сайт не принял — страница в {}", b.credits(), b.lot().name(), f);
+            }
             LevelWatch.LOG.info("аукцион: ставка {} на {} ({}, {}, цель {}) — HTTP {}; лот теперь: ставка {}, моя {}{}", b.credits(),
                     b.lot().name(), b.lot().loot(), b.lot().auction(), b.goal(), r.status(),
                     lot == null ? "?" : lot.current(), lot == null ? "?" : lot.mine(),

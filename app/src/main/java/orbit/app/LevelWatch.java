@@ -260,6 +260,52 @@ final class LevelWatch {
         switchConfig.accept(to);
     }
 
+    static final String ECO = "ammunition_rocketlauncher_eco-10";
+    /** ECO-10 bought when fewer than this are left, this many at a time (1 500 credits each). */
+    static final long ECO_BELOW = 50;
+    static final int ECO_AMOUNT = 100;
+
+    /**
+     * Rockets for a launcher on the ship (a user's choice, 2026-11-25): with a launcher fitted and fewer than {@link #ECO_BELOW}
+     * ECO-10 left, {@link #ECO_AMOUNT} are bought in the shop from the credits above the plan's reserve (ammunition, like the
+     * lasers' — not held back for the equipment). The launcher CPU fires them; the config selects ECO-10.
+     */
+    private static void launcherRockets(AuthClient auth, String origin, AccountState state, LevelPlan plan, WorldFeed feed)
+            throws InterruptedException {
+        boolean launcher = state.fitted().values().stream().anyMatch(c -> c.getOrDefault("heavy_guns", java.util.List.of())
+                .stream().anyMatch(i -> i.contains("rocketlauncher")));
+        var w = feed.snapshot();
+        if (!launcher || w == null || w.hero() == null) {
+            return;
+        }
+        var item = w.items().get(ECO);
+        long have = item == null ? 0 : (long) item.counter();
+        if (have >= ECO_BELOW) {
+            return;
+        }
+        try {
+            Thread.sleep(GAP_MS);
+            var offers = new orbit.auth.Shop(auth.http(), origin).byLoot("Ammo");
+            var offer = offers.get(ECO);
+            if (offer == null) {
+                LOG.warn("ракеты: ECO-10 в магазине нет");
+                return;
+            }
+            long cost = (long) offer.price() * ECO_AMOUNT;
+            long free = (long) w.hero().credits() - plan.reserveCredits();
+            if (free < cost) {
+                LOG.info("ракеты: ECO-10 {} шт., на {} нужно {} кредитов, свободно {}", have, ECO_AMOUNT, cost, Math.max(0, free));
+                return;
+            }
+            Thread.sleep(GAP_MS);
+            String answer = new orbit.auth.Shop(auth.http(), origin).purchase(offer, ECO_AMOUNT, "Ammo");
+            LOG.info("ракеты: ECO-10 было {}, {} {} за {} кредитов — сайт: {}", have,
+                    orbit.auth.Shop.refused(answer) ? "не куплено" : "куплено", ECO_AMOUNT, cost, answer);
+        } catch (java.io.IOException | RuntimeException e) {
+            LOG.warn("ракеты: не вышло ({})", e.getMessage());
+        }
+    }
+
     /** Robots per collector the site allows. */
     static final int ROBOTS_MAX = 12;
     static final long ROBOT_PRICE = 250;
@@ -509,6 +555,7 @@ final class LevelWatch {
             LOG.info("фракция {}: конфиг другой фракции — нужен «{}», сейчас «{}»", faction, start, cfg);
         }
         auction(auth, session.host(), state, plan);
+        launcherRockets(auth, session.host(), state, plan, feed);
         skylab(auth, session.host(), state, plan, advice, feed);
         if (logShape && hangar != null) {
             LOG.info("поля getHangar по конфигам (без значений): {}", hangar.shape());
