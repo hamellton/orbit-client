@@ -299,6 +299,13 @@ public final class QuestGiverVisit {
         if (qs != null && qs.path("highLevelFirst").asBoolean(false)) {
             offers.sort(java.util.Comparator.comparingInt(Quests.Offer::minLevel).reversed());
         }
+        // «starterFirst» (the leveling configs) while the pilot has no premium yet: the starter chain up to its premium quest
+        // comes first, then the highest level as above (live 2026-11-26 on int1: four level-7 missions filled the slots and
+        // the server left the starter 20008 unanswered — a starter quest takes a slot too)
+        starterFirst = qs != null && qs.path("starterFirst").asBoolean(false) && !w.hero().premium();
+        if (starterFirst) {
+            offers.sort(java.util.Comparator.comparingInt(o -> o.is(Quests.STARTER) ? 0 : 1));
+        }
         for (Quests.Offer o : offers) {
             if (o.status() == Quests.ACCEPTABLE && (always.contains(o.questId()) || types.stream().anyMatch(o::is))
                     && (level <= 0 || o.minLevel() <= level) && slotFor(o)) {
@@ -315,6 +322,9 @@ public final class QuestGiverVisit {
         at = now;
         return true;
     }
+
+    /** The starter chain taken first in this visit (no premium yet, «starterFirst»). */
+    private boolean starterFirst;
 
     private boolean slotFor(Quests.Offer o) {
         if (o.is(Quests.MISSION) || o.is(Quests.CHALLENGE)) {
@@ -387,7 +397,7 @@ public final class QuestGiverVisit {
             if (q.active().containsKey(taking)) {
                 taken.add(taking);
                 Quests.Offer o = q.offers().stream().filter(x -> x.questId() == taking).findFirst().orElse(null);
-                if (o != null && (o.is(Quests.MISSION) || o.is(Quests.CHALLENGE))) {
+                if (o != null && (o.is(Quests.MISSION) || o.is(Quests.CHALLENGE) || (starterFirst && o.is(Quests.STARTER)))) {
                     missionSlots--;
                 } else if (o != null && o.is(Quests.EVENT)) {
                     eventSlots--;
