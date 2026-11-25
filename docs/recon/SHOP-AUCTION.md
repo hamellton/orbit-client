@@ -163,3 +163,18 @@ Leonov сильнее на родных картах (подсказка маг�
   30 000–80 000. Недельный: Diminisher, Sentinel, Solace, Spectrum, Vengeance Lightning, Venom — 7 из 12, от 100 млн.
 - Дизайновые Goliath (Veteran, Exalted, Bastion, Enforcer) и Vengeance с дизайнами берут за минимальную ставку редко, но берут:
   соперников почти нет. Простой Goliath в эти 12 часов не продан ни разу.
+
+### Покупка в магазине (скрипт страницы `resources/js/shop.js`, 2026-11-25)
+
+- Любой товар покупается одним запросом, как патроны: `POST ajax/shop.php` с `action=purchase`, `category` (товара: `ship`, `weapon`,
+  `generator`, `drone`…), `itemId` (ключ товара в `itemData`), `amount`, `level`, `selectedName` (пустые, кроме питомца и имён).
+- Ключ товара — не всегда id предмета: у дронов `"1"` Flax, `"2"` Iris (id предмета — `imageVars.loot_id`); у кораблей, лазеров,
+  генераторов ключ = id (`ship_nostromo`, `equipment_weapon_laser_sll-02`).
+- Ответ: `result` = `success` или `error` (с `message`); при успехе ещё `userShip`, `updatedPrice` (новая цена — так растёт цена
+  следующего), `updatedMaxAmount`, `dailyLimitRemaining`, `removeItem`, `removeBuyableDrones` (дронов больше не купить),
+  `removeHangarSlot`, `showEquipOption`, `isShipDumpEmpty`.
+- «Поставить сразу» после покупки: тот же запрос с `action=equipItems` (category, itemId, amount — сколько куплено, level,
+  selectedName). После покупки корабля страница предлагает перейти в ангар.
+- Страница перед запросом проверяет: пустой активный ангар у товара с `requiresShipInActiveHangar`, хватает ли денег, допустимое
+  количество (место для батарей и ракет), уровень питомца; дроны с `isTechFactoryDrone` — через Техфабрику.
+- У нового аккаунта корабли, лазеры и генераторы — `requiresShipInActiveHangar: false`, у кораблей `maxAmount` 1.

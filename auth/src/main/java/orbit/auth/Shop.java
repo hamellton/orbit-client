@@ -91,6 +91,85 @@ public final class Shop {
         }
     }
 
+    /** The page of a shop tab ({@code Ships}, {@code Laser}, {@code Generator}, {@code Drones}…). */
+    public static String tabPage(String tab) {
+        return "/indexInternal.es?action=internalDock&tpl=internalDock" + tab;
+    }
+
+    /**
+     * The shop tab where an item is sold, by its loot id ({@code ship_…} Ships, {@code equipment_weapon_…} Laser,
+     * {@code equipment_generator_…} Generator, {@code drone_…} Drones); {@code null} for other items.
+     */
+    public static String tabOf(String loot) {
+        if (loot.startsWith("ship_")) {
+            return "Ships";
+        }
+        if (loot.startsWith("equipment_weapon_")) {
+            return "Laser";
+        }
+        if (loot.startsWith("equipment_generator_")) {
+            return "Generator";
+        }
+        if (loot.startsWith("drone_")) {
+            return "Drones";
+        }
+        return null;
+    }
+
+    /**
+     * A tab's offers by the item's loot id: the shop's own key is not always it (drones are {@code "1"} Flax, {@code "2"}
+     * Iris; the loot id is {@code imageVars.loot_id}, 2026-11-25 int1). Packages are left out.
+     */
+    public Map<String, Item> byLoot(String tab) throws IOException {
+        HttpSession.Response r = http.get(origin + tabPage(tab), origin + START_PAGE);
+        if (r.status() != 200) {
+            throw new IOException("магазин ответил " + r.status());
+        }
+        return parseByLoot(r.body());
+    }
+
+    static Map<String, Item> parseByLoot(String html) throws IOException {
+        Map<String, Item> out = new LinkedHashMap<>();
+        itemData(html).properties().forEach(e -> {
+            JsonNode o = e.getValue();
+            if (o.path("isPaymentItem").asBoolean(false) || e.getKey().startsWith("package_")) {
+                return;
+            }
+            String loot = o.path("imageVars").path("loot_id").asText(e.getKey());
+            out.putIfAbsent(loot, new Item(e.getKey(), o.path("category").asText(""), o.path("code").asText(e.getKey()),
+                    o.path("price").asDouble(-1), o.path("currency").asText(""), o.path("maxAmount").asInt(0)));
+        });
+        return out;
+    }
+
+    /**
+     * The request a purchase sends, as the shop page's own script builds it ({@code resources/js/shop.js}
+     * {@code processPurchase}); for the leveling log before anything is bought.
+     */
+    public static Map<String, String> purchaseForm(Item item, int amount) {
+        Map<String, String> form = new LinkedHashMap<>();
+        form.put("action", "purchase");
+        form.put("category", item.category());
+        form.put("itemId", item.id());
+        form.put("amount", String.valueOf(amount));
+        form.put("level", "");
+        form.put("selectedName", "");
+        return form;
+    }
+
+    /**
+     * True when a purchase answer refuses: the page's script reads {@code result} — {@code "error"} with a {@code message},
+     * {@code "success"} otherwise ({@code shop.js onPurchaseSuccess}).
+     */
+    public static boolean refused(String answer) {
+        try {
+            JsonNode n = JSON.readTree(answer);
+            return !"success".equals(n.path("result").asText(""));
+        } catch (IOException e) {
+            return true;
+        }
+    }
+
     /** Buys {@code amount} units; returns the shop's answer (short, secrets masked). */
     public String purchase(Item item, int amount) throws IOException {
         Map<String, String> form = new LinkedHashMap<>();
@@ -121,6 +200,21 @@ public final class Shop {
 
     /** The offers in a shop page's {@code Shop.Parameters} JSON. */
     static Map<String, Item> parse(String html) throws IOException {
+        JsonNode items = itemData(html);
+        Map<String, Item> out = new LinkedHashMap<>();
+        items.properties().forEach(e -> {
+            JsonNode o = e.getValue();
+            if (o.path("isPaymentItem").asBoolean(false)) {
+                return; // bought with real money
+            }
+            out.put(e.getKey(), new Item(e.getKey(), o.path("category").asText(""), o.path("code").asText(e.getKey()),
+                    o.path("price").asDouble(-1), o.path("currency").asText(""), o.path("maxAmount").asInt(0)));
+        });
+        return out;
+    }
+
+    /** The {@code itemData} of a shop page's {@code Shop.Parameters}. */
+    private static JsonNode itemData(String html) throws IOException {
         int at = html.indexOf("Shop.Parameters");
         int start = at < 0 ? -1 : html.indexOf('{', at);
         if (start < 0) {
@@ -151,16 +245,6 @@ public final class Shop {
         if (end < 0) {
             throw new IOException("Shop.Parameters не разобран");
         }
-        JsonNode items = JSON.readTree(html.substring(start, end + 1)).path("itemData");
-        Map<String, Item> out = new LinkedHashMap<>();
-        items.properties().forEach(e -> {
-            JsonNode o = e.getValue();
-            if (o.path("isPaymentItem").asBoolean(false)) {
-                return; // bought with real money
-            }
-            out.put(e.getKey(), new Item(e.getKey(), o.path("category").asText(""), o.path("code").asText(e.getKey()),
-                    o.path("price").asDouble(-1), o.path("currency").asText(""), o.path("maxAmount").asInt(0)));
-        });
-        return out;
+        return JSON.readTree(html.substring(start, end + 1)).path("itemData");
     }
 }

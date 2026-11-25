@@ -55,4 +55,39 @@ class ShopTest {
         assertEquals(1, items.size());
         assertEquals(10, items.get("ammunition_laser_lcb-10").price());
     }
+
+    /** A drones tab as the site sends it (invented values): drones keyed by number, the loot id in imageVars. */
+    static final String DRONES_TAB = "<script>Shop.Parameters = { category : 'drones', itemData : {"
+            + "\"1\":{\"category\":\"drone\",\"code\":\"FLAX\",\"price\":100000,\"currency\":\"virtual\",\"maxAmount\":1,"
+            + "\"imageVars\":{\"loot_id\":\"drone_flax\"}},"
+            + "\"2\":{\"category\":\"drone\",\"code\":\"IRIS\",\"price\":15000,\"currency\":\"real\",\"maxAmount\":1,"
+            + "\"imageVars\":{\"loot_id\":\"drone_iris\"}},"
+            + "\"package_x\":{\"category\":\"special\",\"price\":5,\"currency\":\"real\",\"imageVars\":{\"loot_id\":\"drone_iris\"}},"
+            + "\"drone_formation_f-01-tu\":{\"category\":\"drone\",\"price\":1000000,\"currency\":\"virtual\",\"maxAmount\":1}"
+            + "} };</script>";
+
+    @Test
+    void findsOffersByTheirLootId() throws Exception {
+        java.util.Map<String, Shop.Item> by = Shop.parseByLoot(DRONES_TAB);
+        assertEquals("1", by.get("drone_flax").id(), "the shop's own key is what a purchase sends");
+        assertEquals("drone", by.get("drone_flax").category());
+        assertEquals(15000, by.get("drone_iris").price(), 0.1, "the package holding an Iris is left out");
+        assertTrue(by.get("drone_iris").uridium());
+        assertEquals("drone_formation_f-01-tu", by.get("drone_formation_f-01-tu").id(), "no loot id: the key");
+        assertEquals("Drones", Shop.tabOf("drone_iris"));
+        assertEquals("Laser", Shop.tabOf("equipment_weapon_laser_sll-02"));
+        assertEquals("Ships", Shop.tabOf("ship_nostromo"));
+        assertEquals(null, Shop.tabOf("ammunition_laser_lcb-10"));
+    }
+
+    @Test
+    void thePurchaseFormAndItsAnswer() {
+        Shop.Item flax = new Shop.Item("1", "drone", "FLAX", 100000, "virtual", 1);
+        assertEquals(java.util.List.of("action", "category", "itemId", "amount", "level", "selectedName"),
+                java.util.List.copyOf(Shop.purchaseForm(flax, 1).keySet()));
+        assertEquals("1", Shop.purchaseForm(flax, 1).get("itemId"));
+        assertTrue(Shop.refused("{\"result\":\"error\",\"message\":\"мало кредитов\"}"));
+        assertFalse(Shop.refused("{\"result\":\"success\",\"message\":\"куплено\"}"));
+        assertTrue(Shop.refused("<html>"));
+    }
 }

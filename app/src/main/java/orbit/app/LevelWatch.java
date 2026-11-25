@@ -60,6 +60,38 @@ final class LevelWatch {
     }
 
     /**
+     * The shop's own offer for a purchase the plan would make: its tab read, the item found by loot id, its price set
+     * against the plan's, and the exact request logged ({@code POST ajax/shop.php}, {@code Shop.purchaseForm}) — not sent.
+     */
+    private static void shopCheck(AuthClient auth, String origin, Advisor.Purchase p) throws InterruptedException {
+        String tab = orbit.auth.Shop.tabOf(p.item());
+        if (tab == null) {
+            LOG.warn("магазин: не знаю вкладку для {}", p.item());
+            return;
+        }
+        try {
+            Thread.sleep(GAP_MS);
+            var offers = new orbit.auth.Shop(auth.http(), origin).byLoot(tab);
+            var item = offers.get(p.item());
+            if (item == null) {
+                LOG.warn("магазин: {} на вкладке {} нет (товаров {})", p.item(), tab, offers.size());
+                return;
+            }
+            String cur = item.uridium() ? "уридия" : "кредитов";
+            if ((long) item.price() != p.price() || item.uridium() != p.uridium()) {
+                LOG.warn("магазин: цена {} — {} {}, в плане {} {} — план устарел", p.item(), (long) item.price(), cur, p.price(),
+                        p.uridium() ? "уридия" : "кредитов");
+            }
+            int amount = item.maxAmount() > 0 ? Math.min(p.amount(), item.maxAmount()) : p.amount();
+            LOG.info("магазин: отправил бы POST ajax/shop.php {} (вкладка {}, цена {} {}, за раз не больше {})",
+                    orbit.auth.Shop.purchaseForm(item, amount), tab, (long) item.price(), cur,
+                    item.maxAmount() > 0 ? item.maxAmount() : "без лимита");
+        } catch (java.io.IOException | RuntimeException e) {
+            LOG.warn("магазин не прочитан ({})", e.getMessage());
+        }
+    }
+
+    /**
      * The auction's bids the plan would place (docs/LEVELING.md «Аукцион»): the hourly page and the daily list read, the
      * plan logged — nothing is bid.
      */
@@ -122,6 +154,7 @@ final class LevelWatch {
         if (advice.purchase() != null) {
             LOG.info("купил бы (режим советчика — не покупаю): {} × {} = {} {}", advice.purchase().amount(),
                     advice.purchase().item(), advice.purchase().total(), advice.purchase().uridium() ? "уридия" : "кредитов");
+            shopCheck(auth, session.host(), advice.purchase());
         }
         auction(auth, session.host(), state, plan);
         if (logShape && hangar != null) {
