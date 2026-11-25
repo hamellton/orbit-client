@@ -51,6 +51,11 @@ public final class Traveler {
      * level-1 Liberator pressed for 1-3 35 times in three minutes, the server saying nothing).
      */
     static final int REFUSED_PRESSES = 12; // a jump that went through took 4 presses (live 2026-11-25), 6 was too near
+    /**
+     * Maps closed by the level are a low pilot's matter (x-3 and alike at level 1); from this level on the traveler presses as
+     * before the leveling work — a slow jump of a high account is never taken for a closed map (the stable point's way).
+     */
+    static final int CLOSED_BELOW_LEVEL = 17;
     /** Maps a portal would not let in, by map → the highest pilot level refused (for this program run). */
     private static final java.util.Map<Integer, Integer> CLOSED = new java.util.concurrent.ConcurrentHashMap<>();
 
@@ -175,7 +180,8 @@ public final class Traveler {
             return;
         }
         MapCatalog.Portal portal = route.getFirst();
-        if (h.level() > 0 && (closed(targetMap, h.level()) || closed(portal.toId(), h.level()))) {
+        if (h.level() > 0 && h.level() < CLOSED_BELOW_LEVEL
+                && (closed(targetMap, h.level()) || closed(portal.toId(), h.level()))) {
             int shut = closed(targetMap, h.level()) ? targetMap : portal.toId();
             fail("карта " + catalog.info(shut).name() + " не пускает пилота уровня " + h.level() + " (портал не пускал)");
             return;
@@ -190,7 +196,7 @@ public final class Traveler {
             if (pressAtNanos == 0) {
                 pressAtNanos = now + ms(PRESS_MIN_MS, PRESS_MAX_MS);
             }
-            if (now >= pressAtNanos && presses >= REFUSED_PRESSES && h.level() > 0) {
+            if (now >= pressAtNanos && presses >= REFUSED_PRESSES && h.level() > 0 && h.level() < CLOSED_BELOW_LEVEL) {
                 CLOSED.merge(portal.toId(), h.level(), Math::max);
                 fail("портал на " + portal.toName() + " не пускает после " + presses + " нажатий — карта, видимо, закрыта для "
                         + "уровня " + h.level());
