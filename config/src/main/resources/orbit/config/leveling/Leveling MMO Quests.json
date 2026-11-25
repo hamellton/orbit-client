@@ -437,24 +437,22 @@
         "BOX",
         "ORE",
         "SELL",
-        "MAP"
+        "MAP",
+        "GIVER"
       ],
       "revisitMinutes": 60,
       "locator": false,
-      "first": [
-        1010,
-        1011,
-        1012,
-        1013,
-        1014,
-        1015,
-        1016,
-        1017,
-        1018,
-        1019,
-        1020
+      "first": [],
+      "skip": [],
+      "starterFirst": true,
+      "typeOrder": [
+        "STARTER",
+        "MISSION",
+        "DAILY",
+        "WEEKLY",
+        "EVENT"
       ],
-      "skip": []
+      "easyFirst": true
     }
   }
 }

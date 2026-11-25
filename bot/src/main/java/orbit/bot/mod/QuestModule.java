@@ -60,7 +60,7 @@ public final class QuestModule implements BotModule {
      */
     static final int ENEMY_MAP_EXTRA_HOPS = 8;
 
-    enum Kind { KILL, DAMAGE, SALVAGE, BOX, ORE, SELL, MAP, REFINE, SKYLAB }
+    enum Kind { KILL, DAMAGE, SALVAGE, BOX, ORE, SELL, MAP, REFINE, SKYLAB, GIVER }
 
     /** {@code Work.ore} of a resource's salvage ("collect Prismatium" — from the NPCs that carry it). */
     static final int LOOT = -3;
@@ -107,6 +107,8 @@ public final class QuestModule implements BotModule {
     private final OreMaps oreMaps;
     private QuestGiverVisit visit;
     private long visitedAt = Long.MIN_VALUE / 2;
+    /** A «back to the giver» condition sends the ship there at most this often. */
+    static final long GIVER_GAP_NS = 3 * 60_000_000_000L;
     private boolean visitedOnce;
     private boolean giverLaterTold;
     private int activeSeen = -1;
@@ -353,6 +355,13 @@ public final class QuestModule implements BotModule {
                 ctx.nav().tick();
                 status = "Квест " + named(work.quest()) + ": " + progress + " · жду руду со Скайлаба";
             }
+            case GIVER -> {
+                // not again and again when a visit did not count it (an earlier condition still open)
+                if (visit == null && now - visitedAt > GIVER_GAP_NS) {
+                    startVisit("квест " + named(work.quest()) + " просит вернуться к квестодателю");
+                }
+                status = "Квест " + named(work.quest()) + ": " + progress + " · к квестодателю";
+            }
             case MAP -> {
                 if (!Double.isNaN(work.x()) && ctx.nav().idle()
                         && Math.hypot(w.hero().x() - work.x(), w.hero().y() - work.y()) > 150) {
@@ -574,6 +583,7 @@ public final class QuestModule implements BotModule {
             case MAP -> "лечу";
             case REFINE -> "перерабатываю в трюме";
             case SKYLAB -> "везу со Скайлаба";
+            case GIVER -> "лечу к квестодателю";
         };
     }
 
@@ -596,7 +606,13 @@ public final class QuestModule implements BotModule {
         List<Quests.Quest> quests = w.quests().active().values().stream()
                 .filter(x -> !left(x.id()))
                 .sorted(Comparator.<Quests.Quest>comparingInt(x -> first.contains(x.id()) ? first.indexOf(x.id()) : first.size())
-                        .thenComparingInt(QuestModule::rank).thenComparingInt(Quests.Quest::id)).toList();
+                        // «starterFirst» (the leveling configs): the tutorial chain before all else — its rewards are the
+                        // first equipment; off by default
+                        .thenComparingInt(x -> starterFirst() && x.is(Quests.STARTER) ? 0 : 1)
+                        .thenComparingInt(this::typeRank)
+                        // «easyFirst» (the leveling configs): of one type, the quest with the least left to do first
+                        .thenComparingDouble(x -> easyFirst() ? leftToDo(x) : 0)
+                        .thenComparingInt(Quests.Quest::id)).toList();
         for (Quests.Quest quest : quests) {
             for (Quests.Condition c : quest.leaves()) {
                 if (c.completed() || QuestTargets.passive(c) || background(c)) {
@@ -668,6 +684,11 @@ public final class QuestModule implements BotModule {
             }
             // nothing of it aboard: collect it first (any ore: the cheapest common one, prometium)
             return doing.contains("ORE") ? oreWork(quest, c, ore >= 0 ? ore : 0, w) : null;
+        }
+        if (c.type() == Quests.VISIT_QUEST_GIVER && doing.contains("GIVER")) {
+            // «back to the quest giver» (the starter chain 20000+, live 2026-11-25 on int1: 20000 counted once the ship
+            // reached the giver) — only with GIVER listed in «do» (the leveling configs)
+            return new Work(quest.id(), c.id(), Kind.GIVER, h.mapId(), Set.of(), Double.NaN, Double.NaN, -1);
         }
         if (QuestTargets.travelling(c) && doing.contains("MAP")) {
             Integer best = nearest(QuestTargets.mapsOf(c), h);
@@ -1206,6 +1227,45 @@ public final class QuestModule implements BotModule {
         List<String> out = new java.util.ArrayList<>();
         t.forEach(n -> out.add(n.asText()));
         return out;
+    }
+
+    /** The work order of a quest's type: {@code typeOrder} of the config when it has one, else {@link #ORDER}. */
+    private int typeRank(Quests.Quest q) {
+        List<String> names = strings("typeOrder", List.of());
+        if (names.isEmpty()) {
+            return rank(q);
+        }
+        for (int i = 0; i < names.size(); i++) {
+            Integer t = TYPE_NAMES.get(names.get(i).toUpperCase(java.util.Locale.ROOT));
+            if (t != null && q.is(t)) {
+                return i;
+            }
+        }
+        return names.size();
+    }
+
+    static final Map<String, Integer> TYPE_NAMES = Map.of("STARTER", Quests.STARTER, "MISSION", Quests.MISSION,
+            "DAILY", Quests.DAILY, "WEEKLY", Quests.WEEKLY, "EVENT", Quests.EVENT, "CHALLENGE", Quests.CHALLENGE);
+
+    /** What a quest still asks: the open amounts of its required conditions (kills, boxes…) summed. */
+    static double leftToDo(Quests.Quest q) {
+        double n = 0;
+        for (Quests.Condition c : q.leaves()) {
+            if (!c.completed() && c.mandatory() && c.target() > 0) {
+                n += Math.max(0, c.target() - c.current());
+            }
+        }
+        return n;
+    }
+
+    /** {@code easyFirst}: of one type, the quest with the least left first ({@code false} by default). */
+    boolean easyFirst() {
+        return settings().path("easyFirst").asBoolean(false);
+    }
+
+    /** {@code starterFirst}: the starter quests before every other ({@code false} by default). */
+    boolean starterFirst() {
+        return settings().path("starterFirst").asBoolean(false);
     }
 
     private JsonNode settings() {
