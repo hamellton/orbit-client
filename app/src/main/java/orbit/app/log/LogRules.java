@@ -27,6 +27,7 @@ public final class LogRules {
             Map.entry("CubeMaps", LogCategory.BATTLE),
             Map.entry("BoxPicker", LogCategory.LOOT),
             Map.entry("LootLog", LogCategory.REWARDS),
+            Map.entry("StockBook", LogCategory.REWARDS),
             Map.entry("PalladiumModule", LogCategory.LOOT),
             Map.entry("CargoCare", LogCategory.TRADE),
             Map.entry("BuyWatch", LogCategory.TRADE),
@@ -82,7 +83,7 @@ public final class LogRules {
             "^Связь восстановлена", "^Выхожу из игры", "^Лечу на рабочую карту",
             "^Трюм полон", "^Продал", "^Обменял", "^Покупаю", "^Потрачено", "^Торговец не покупает",
             "^Выполняю проверку", "^Ящики проверки собраны",
-            "^Прыжок на карту", "^Добыча:"));
+            "^Прыжок на карту", "^Добыча:", "^Склад: "));
 
     /**
      * Never in the journal: warnings of the everyday kind (they would bury the real ones) and the echoes of one

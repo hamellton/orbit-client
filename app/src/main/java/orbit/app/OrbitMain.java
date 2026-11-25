@@ -647,6 +647,7 @@ public final class OrbitMain {
             }
             HourlyReport hourly = HourlyReport.of(feed);
             DailyTotals daily = DailyTotals.of(accountName);
+            StockBook stock = StockBook.of(accountName);
             while (!closed.get()) {
                 try {
                     Thread.sleep(1_000);
@@ -656,6 +657,7 @@ public final class OrbitMain {
                 long nowMs = System.currentTimeMillis();
                 hourly.tick(nowMs, feed.sessionStartNanos() != 0 && !feed.loggedOut());
                 daily.update(HourlyReport.Totals.of(feed), nowMs); // the Today totals over all runs
+                stock.update(feed.snapshot().inventory().resources(), nowMs); // the Plus parts in store
             }
             long endMs = System.currentTimeMillis();
             hourly.finish(endMs, false); // the hour begun so far, not lost with the stop
