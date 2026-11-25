@@ -875,6 +875,14 @@ public final class QuestModule implements BotModule {
             if (ore == -1) {
                 return null;
             }
+            // «sellAtOnce» (the leveling configs): what is left to sell gathered first, then sold in one trip (live
+            // 2026-11-26 on int1: 1 prometium aboard for «sell 10» — picked and sold one by one, the second sale taken for
+            // a failed one as the next piece landed, five minutes lost each time)
+            double left = c.target() - c.current();
+            if (ore >= 0 && sellAtOnce() && doing.contains("ORE") && w.cargoFree() > 0
+                    && w.inventory().ores().getOrDefault(ore, 0.0) < left) {
+                return oreWork(quest, c, ore, w);
+            }
             if (aboard(w, ore)) {
                 return new Work(quest.id(), c.id(), Kind.SELL, 0, Set.of(), Double.NaN, Double.NaN, ore);
             }
@@ -1526,6 +1534,11 @@ public final class QuestModule implements BotModule {
     }
 
     /** {@code easyFirst}: of one type, the quest with the least left first ({@code false} by default). */
+    /** {@code sellAtOnce}: a «sell ore» condition's whole amount gathered before the sale ({@code false} by default). */
+    boolean sellAtOnce() {
+        return settings().path("sellAtOnce").asBoolean(false);
+    }
+
     boolean easyFirst() {
         return settings().path("easyFirst").asBoolean(false);
     }
