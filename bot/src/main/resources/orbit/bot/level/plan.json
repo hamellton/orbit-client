@@ -63,7 +63,7 @@
       "auction": [
         "equipment_weapon_laser_lf-3"
       ],
-      "farm": "x-1 (Leveling <faction> x-1)"
+      "farm": "квесты (Leveling <фракция> Quests), между ними x-1…x-3"
     },
     {
       "id": "Ц2",
@@ -104,7 +104,7 @@
         "ship_g-exalted",
         "ship_g-enforcer"
       ],
-      "farm": "x-1"
+      "farm": "квесты (Leveling <фракция> Quests), между ними x-1…x-3"
     },
     {
       "id": "Ц3",
@@ -128,7 +128,7 @@
       "auction": [
         "equipment_generator_speed_g3n-7900"
       ],
-      "farm": "x-1"
+      "farm": "квесты (Leveling <фракция> Quests), между ними x-1…x-3"
     },
     {
       "id": "Ц4",
@@ -254,12 +254,12 @@
     },
     {
       "id": "Ц9",
-      "title": "Уровень 12 — палладий",
+      "title": "Уровень 17 — палладий и BL-карты",
       "check": {
         "kind": "level",
-        "min": 12
+        "min": 17
       },
-      "farm": "x-2 / x-3"
+      "farm": "квесты (Leveling <фракция> Quests), между ними x-1…x-3 по уровню"
     },
     {
       "id": "Ц10",

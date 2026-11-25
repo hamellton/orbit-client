@@ -1,0 +1,448 @@
+{
+  "schema": 3,
+  "description": "[Leveling] EIC: quests first — starter quests (first equipment), level missions, daily, weekly, events; own x-1 to x-3",
+  "module": "QUESTS",
+  "general": {
+    "workingMap": 5,
+    "offensive": {
+      "config": 1
+    },
+    "roam": {
+      "config": 1
+    },
+    "run": {
+      "config": 2
+    },
+    "runFromEnemies": true,
+    "runFromEnemiesInSight": false,
+    "rememberEnemiesSec": 300,
+    "roamSequential": false,
+    "onlyKillPreferred": false,
+    "runModeTravel": true,
+    "runModeChase": false,
+    "avoidMines": true,
+    "baseRadius": 500
+  },
+  "npcs": {
+    "-=[ Recruit Streuner ]=-": {
+      "radius": 450.0,
+      "priority": 0,
+      "kill": true,
+      "maps": [
+        5,
+        6
+      ],
+      "sab": false
+    },
+    "-=[ Streuner ]=-": {
+      "radius": 450.0,
+      "priority": 1,
+      "kill": true,
+      "maps": [
+        5,
+        6
+      ],
+      "sab": false
+    },
+    "-=[ Lordakia ]=-": {
+      "radius": 450.0,
+      "priority": 2,
+      "kill": true,
+      "maps": [
+        5,
+        6,
+        7
+      ],
+      "sab": false
+    },
+    "..::{ Boss Lordakia }::..": {
+      "radius": 450.0,
+      "priority": 10,
+      "kill": false,
+      "maps": [
+        6,
+        7
+      ],
+      "sab": false
+    },
+    "..::{ Boss Streuner }::..": {
+      "radius": 450.0,
+      "priority": 10,
+      "kill": false,
+      "maps": [
+        6
+      ],
+      "sab": false
+    },
+    "-=[ Saimon ]=-": {
+      "radius": 500.0,
+      "priority": 1,
+      "kill": true,
+      "maps": [
+        7
+      ],
+      "sab": false
+    },
+    "-=[ Mordon ]=-": {
+      "radius": 500.0,
+      "priority": 2,
+      "kill": true,
+      "maps": [
+        7
+      ],
+      "sab": false
+    },
+    "-=[ Devolarium ]=-": {
+      "radius": 536.0,
+      "priority": 3,
+      "kill": true,
+      "maps": [
+        7
+      ],
+      "sab": false
+    },
+    "..::{ Boss Saimon }::..": {
+      "radius": 500.0,
+      "priority": 10,
+      "kill": false,
+      "maps": [
+        7
+      ],
+      "sab": false
+    },
+    "..::{ Boss Mordon }::..": {
+      "radius": 520.0,
+      "priority": 10,
+      "kill": false,
+      "maps": [
+        7
+      ],
+      "sab": false
+    },
+    "..::{ Boss Devolarium }::..": {
+      "radius": 575.0,
+      "priority": 10,
+      "kill": false,
+      "maps": [
+        7
+      ],
+      "sab": false
+    }
+  },
+  "loot": {
+    "ammo": "ammunition_laser_lcb-10",
+    "sabBelow": -1.0,
+    "sabNpcShieldMin": 0,
+    "groupNpcs": true,
+    "ignoreFartherThan": 2200,
+    "rocket": "ammunition_rocket_r-310",
+    "fireRockets": false,
+    "circle": false,
+    "fallback": [],
+    "launcher": "ammunition_rocketlauncher_eco-10",
+    "fireLauncher": false,
+    "move": "AUTO",
+    "runCircle": true,
+    "smartCircle": 4
+  },
+  "collect": {
+    "boxes": {
+      "ASTRAL_BOOTY_BOX": {
+        "collect": false,
+        "waitMs": 0,
+        "priority": 0
+      },
+      "ASTRAL_PRIME_BOOTY_BOX": {
+        "collect": false,
+        "waitMs": 0,
+        "priority": 0
+      },
+      "BATTLEPASS": {
+        "collect": false,
+        "waitMs": 0,
+        "priority": 0
+      },
+      "BIFENON_2": {
+        "collect": false,
+        "waitMs": 200,
+        "priority": 2
+      },
+      "BLACKLIGHT-CRYPT": {
+        "collect": false,
+        "waitMs": 0,
+        "priority": 0
+      },
+      "BLACK_BOOTY_BOX": {
+        "collect": false,
+        "waitMs": 0,
+        "priority": 0
+      },
+      "BOLTRUM": {
+        "collect": false,
+        "waitMs": 0,
+        "priority": 0
+      },
+      "BONUS_BOX": {
+        "collect": true,
+        "waitMs": 0,
+        "priority": 0
+      },
+      "BONUS_BOX_RED": {
+        "collect": false,
+        "waitMs": 0,
+        "priority": 0
+      },
+      "CANDY_CARGO": {
+        "collect": false,
+        "waitMs": 0,
+        "priority": 0
+      },
+      "EMPYRIAN_BOOTY_BOX": {
+        "collect": false,
+        "waitMs": 0,
+        "priority": 0
+      },
+      "FROM_SHIP": {
+        "collect": false,
+        "waitMs": 0,
+        "priority": 0
+      },
+      "FROM_SHIP_BLOCKED": {
+        "collect": false,
+        "waitMs": 0,
+        "priority": 0
+      },
+      "LUMINIUM": {
+        "collect": false,
+        "waitMs": 0,
+        "priority": 0
+      },
+      "LUMINIUM_2": {
+        "collect": false,
+        "waitMs": 0,
+        "priority": 0
+      },
+      "MASQUE_BOOTY_BOX": {
+        "collect": false,
+        "waitMs": 0,
+        "priority": 0
+      },
+      "MINI_PUMPKIN": {
+        "collect": false,
+        "waitMs": 0,
+        "priority": 0
+      },
+      "MUCOSUM": {
+        "collect": false,
+        "waitMs": 0,
+        "priority": 0
+      },
+      "PIRATE_BOOTY": {
+        "collect": false,
+        "waitMs": 0,
+        "priority": 0
+      },
+      "PIRATE_BOOTY_BLUE": {
+        "collect": false,
+        "waitMs": 0,
+        "priority": 0
+      },
+      "PIRATE_BOOTY_GOLD": {
+        "collect": false,
+        "waitMs": 0,
+        "priority": 0
+      },
+      "PIRATE_BOOTY_RED": {
+        "collect": false,
+        "waitMs": 0,
+        "priority": 0
+      },
+      "POISON_PUSAT_BOX_BLACK": {
+        "collect": false,
+        "waitMs": 0,
+        "priority": 0
+      },
+      "PRISMATIUM": {
+        "collect": false,
+        "waitMs": 0,
+        "priority": 0
+      },
+      "SCRAPIUM": {
+        "collect": false,
+        "waitMs": 0,
+        "priority": 1
+      },
+      "SOLAR_CLASH": {
+        "collect": false,
+        "waitMs": 0,
+        "priority": 0
+      },
+      "UNSTABLE_BLACKLIGHT_CACHE": {
+        "collect": false,
+        "waitMs": 0,
+        "priority": 0
+      },
+      "ore_0": {
+        "collect": false,
+        "waitMs": 0,
+        "priority": 0
+      },
+      "ore_1": {
+        "collect": false,
+        "waitMs": 0,
+        "priority": 0
+      }
+    },
+    "radius": 400,
+    "stayAwayFromEnemies": true,
+    "ignoreContested": true,
+    "cargo": "BASE",
+    "cargoFullAt": 0,
+    "sellOres": [
+      0,
+      1,
+      2,
+      4,
+      5,
+      6
+    ]
+  },
+  "pet": {
+    "enabled": false,
+    "gear": "PASSIVE",
+    "locatorTarget": 13,
+    "noRepair": false,
+    "comboRepairBelow": 0.0,
+    "kamikaze": {
+      "enabled": false,
+      "minNpcs": 0,
+      "flagged": true,
+      "radius": 600,
+      "everyMinutes": 5
+    }
+  },
+  "safety": {
+    "repairHpMin": 0.3,
+    "repairHpMax": 0.95,
+    "repairHpNoNpc": 0.5,
+    "repairToShield": 0.45,
+    "repairMode": {
+      "config": 2
+    },
+    "heal": {
+      "hpBelow": 0.6,
+      "shieldBelow": -1.0,
+      "hpPodBelow": -1.0
+    },
+    "maxDeaths": 1000,
+    "revive": "BASE",
+    "waitBeforeReviveSec": 10,
+    "waitAfterReviveSec": 10,
+    "paidRevives": 0,
+    "paidReviveMinutes": 3,
+    "escapeHp": 0.25,
+    "oneWayJumps": false
+  },
+  "zones": {},
+  "extra": {
+    "darkbot.GROUP": {
+      "ACCEPT_INVITES": false,
+      "OPEN_INVITES": false,
+      "BLOCK_INVITES": false,
+      "LEAVE_NO_WHITELISTED": false,
+      "KICK_NO_INVITED": false
+    },
+    "darkbot.MISCELLANEOUS": {
+      "REFRESH_AFTER_REVIVE": false,
+      "REFRESH_TIME": 0,
+      "PAUSE_FOR": 0,
+      "RESET_REFRESH": true,
+      "SOLVE_BACKPAGE_CAPTCHA": false,
+      "UPDATE_STATS_WHILE_PAUSED": true,
+      "DRONE_REPAIR_PERCENTAGE": 0.9,
+      "HONOR_LOST_EXACT": true,
+      "LOG_CHAT": false,
+      "LOG_DEATHS": false,
+      "AVOID_MINES": true,
+      "AVOID_CBS": true,
+      "AVOID_RADIATION": true,
+      "USERNAME_ON_TITLE": false,
+      "AUTO_REFINE": false
+    },
+    "darkbot.feature.dev.shared.do_gamer.behaviour.FixPetStuck": {
+      "enabled": true,
+      "stuckSeconds": 60
+    },
+    "darkbot.feature.eu.darkbot.popcorn.def.AntiPush": {
+      "DRAWFIRE_PAUSE_TIME": 0,
+      "MAX_DEATHS": 100,
+      "DEATH_PAUSE_TIME": -1
+    },
+    "darkbot.feature.eu.darkbot.popcorn.def.UserAgentUpdater": {
+      "USER_AGENT": "BigpointClient/1.6.9",
+      "NEXT_UPDATE": 1794062755255
+    }
+  },
+  "buy": {
+    "enabled": true,
+    "items": [
+      {
+        "item": "ammunition_laser_lcb-10",
+        "below": 1000,
+        "amount": 3000
+      }
+    ],
+    "keepCredits": 0.0,
+    "keepUridium": 0.0,
+    "boosters": [],
+    "boosterMinutes": 0
+  },
+  "session": {
+    "workMinutes": 0,
+    "breakMinutes": 0,
+    "jitterMinutes": 0
+  },
+  "flee": {
+    "mode": "ATTACKERS",
+    "sight": 2000,
+    "rememberSec": 60,
+    "jump": true,
+    "waitSec": 90,
+    "avoid": true,
+    "avoidRadius": 3000,
+    "stationRadius": 1600,
+    "npcs": false
+  },
+  "group": {
+    "accept": "ANY",
+    "rejectOthers": false,
+    "invite": false,
+    "leaveWithoutListed": false,
+    "kickUnlisted": false
+  },
+  "safetySpots": null,
+  "modules": {
+    "quests": {
+      "types": [
+        "STARTER",
+        "MISSION",
+        "DAILY",
+        "WEEKLY",
+        "EVENT"
+      ],
+      "do": [
+        "KILL",
+        "DAMAGE",
+        "SALVAGE",
+        "BOX",
+        "ORE",
+        "SELL",
+        "MAP"
+      ],
+      "revisitMinutes": 60,
+      "locator": false,
+      "first": [],
+      "skip": []
+    }
+  }
+}

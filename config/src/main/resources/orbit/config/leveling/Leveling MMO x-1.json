@@ -1,6 +1,6 @@
 {
   "schema": 3,
-  "description": "[Leveling] MMO, 1-1: new account start — Streuner and Lordakia, bonus boxes, LCB-10 ammo",
+  "description": "[Leveling] MMO, 1-1: new account start — Streuner, Recruit Streuner and Lordakia, bonus boxes, LCB-10 ammo",
   "module": "KILL_COLLECT",
   "general": {
     "workingMap": 1,
@@ -24,8 +24,8 @@
     "baseRadius": 500
   },
   "npcs": {
-    "-=[ Streuner ]=-": {
-      "radius": 500.0,
+    "-=[ Recruit Streuner ]=-": {
+      "radius": 450.0,
       "priority": 0,
       "kill": true,
       "maps": [
@@ -33,9 +33,18 @@
       ],
       "sab": false
     },
+    "-=[ Streuner ]=-": {
+      "radius": 450.0,
+      "priority": 1,
+      "kill": true,
+      "maps": [
+        1
+      ],
+      "sab": false
+    },
     "-=[ Lordakia ]=-": {
-      "radius": 500.0,
-      "priority": 0,
+      "radius": 450.0,
+      "priority": 2,
       "kill": true,
       "maps": [
         1

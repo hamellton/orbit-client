@@ -96,7 +96,9 @@ class ConfigFoldersTest {
     @Test
     void theLevelingConfigsAreAProgramFolderOfTheirOwn(@TempDir Path dir) throws IOException {
         ConfigStore store = new ConfigStore(dir);
-        List<String> leveling = List.of("Leveling EIC x-1", "Leveling MMO x-1", "Leveling VRU x-1");
+        List<String> leveling = List.of("Leveling EIC Quests", "Leveling EIC x-1", "Leveling EIC x-2", "Leveling EIC x-3",
+                "Leveling MMO Quests", "Leveling MMO x-1", "Leveling MMO x-2", "Leveling MMO x-3",
+                "Leveling VRU Quests", "Leveling VRU x-1", "Leveling VRU x-2", "Leveling VRU x-3");
         assertEquals(leveling, store.folders().get(ConfigStore.LEVELING_FOLDER));
         assertEquals(DEFAULTS, store.folders().get(ConfigStore.DEFAULT_FOLDER), "Default unchanged");
         assertEquals(List.of(ConfigStore.DEFAULT_FOLDER, ConfigStore.LEVELING_FOLDER),
@@ -106,7 +108,7 @@ class ConfigFoldersTest {
             assertEquals(ConfigStore.LEVELING_FOLDER, store.folderOf(n));
             BotConfig c = store.load(n);
             assertTrue(c.description().startsWith("[Leveling]"), n);
-            assertEquals(BotConfig.Module.KILL_COLLECT, c.module());
+            assertEquals(n.endsWith("Quests") ? BotConfig.Module.QUESTS : BotConfig.Module.KILL_COLLECT, c.module(), n);
             assertEquals("ammunition_laser_lcb-10", c.loot().ammo());
             assertEquals("BASE", c.safety().revive());
             assertThrows(IOException.class, () -> store.save(n, c), "read-only");
@@ -114,6 +116,10 @@ class ConfigFoldersTest {
         assertEquals(1, store.load("Leveling MMO x-1").general().workingMap());
         assertEquals(5, store.load("Leveling EIC x-1").general().workingMap());
         assertEquals(9, store.load("Leveling VRU x-1").general().workingMap());
+        assertEquals(3, store.load("Leveling MMO x-3").general().workingMap(), "1-3");
+        assertEquals(6, store.load("Leveling EIC x-2").general().workingMap(), "2-2");
+        assertEquals("STARTER", store.load("Leveling VRU Quests").modules().get("quests").path("types").get(0).asText(),
+                "the tutorial first");
         assertThrows(IllegalArgumentException.class, () -> store.createFolder("Leveling"));
         assertTrue(ConfigStore.isProgramFolder(ConfigStore.LEVELING_FOLDER));
         assertFalse(ConfigStore.isProgramFolder("Tests"));
