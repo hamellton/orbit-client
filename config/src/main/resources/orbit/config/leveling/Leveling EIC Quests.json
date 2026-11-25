@@ -203,9 +203,9 @@
         "priority": 0
       },
       "FROM_SHIP": {
-        "collect": false,
+        "collect": true,
         "waitMs": 0,
-        "priority": 0
+        "priority": 1
       },
       "FROM_SHIP_BLOCKED": {
         "collect": false,
@@ -298,14 +298,7 @@
     "ignoreContested": true,
     "cargo": "BASE",
     "cargoFullAt": 0,
-    "sellOres": [
-      0,
-      1,
-      2,
-      4,
-      5,
-      6
-    ]
+    "sellOres": []
   },
   "pet": {
     "enabled": false,
@@ -458,6 +451,20 @@
       "oreAsLoot": true,
       "ownMapsOnly": true,
       "craft": false
+    },
+    "enrich": {
+      "enabled": true,
+      "refine": true,
+      "keepInCargo": 0,
+      "maxPerHour": 30,
+      "items": {
+        "drive": {
+          "on": true,
+          "ore": "PROMERIUM",
+          "below": 50000,
+          "load": 500
+        }
+      }
     }
   }
 }

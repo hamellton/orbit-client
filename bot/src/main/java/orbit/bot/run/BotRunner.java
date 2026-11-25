@@ -103,6 +103,8 @@ public final class BotRunner {
     private final GroupWatch groupWatch;
     private final PetCare pet;
     private final Enricher enricher;
+    /** Raw ore refined towards promerium for the drive enrichment (modules.enrich.refine; the leveling configs). */
+    private final Refiner refiner;
     private final SkylabCare skylab;
     private final ServiceVisit service;
     private final CargoCare cargo;
@@ -161,6 +163,7 @@ public final class BotRunner {
         this.groupWatch = new GroupWatch(ctx);
         this.pet = new PetCare(ctx);
         this.enricher = new Enricher(ctx);
+        this.refiner = new Refiner(ctx);
         this.skylab = new SkylabCare(ctx, enricher::missing);
         this.service = new ServiceVisit(ctx);
         pet.setModuleLocator(() -> module == null ? 0 : module.petLocator());
@@ -597,6 +600,7 @@ public final class BotRunner {
         groupWatch.tick();
         pet.tick();
         if (state != State.STOPPING && service.phase() == ServiceVisit.Phase.IDLE) {
+            refiner.tick(); // raw ore → promerium in the hold (modules.enrich.refine)
             enricher.tick(); // the lab kept up from the hold (modules.enrich)
             skylab.tick(); // ore from the Skylab into the hold (modules.skylab)
         }
