@@ -145,4 +145,24 @@ class LevelTest {
         Set<String> ids = new java.util.HashSet<>();
         plan.goals().forEach(g -> assertTrue(ids.add(g.id()), "unique " + g.id()));
     }
+
+    @Test
+    void uridiumBuysTheNextGoalWhileTheFirstWaitsForCredits() throws Exception {
+        LevelPlan plan = LevelPlan.bundled();
+        var list = SiteHangars.list(json(LIST));
+        var hangar = SiteHangars.hangar(json(HANGAR), list.activeHangar());
+        // 50 000 credits (no scalpel), 4 500 uridium: two G3N-7900 at 2 000 (Ц3: 6 slots, 2 fitted, 4 to get)
+        AccountState s = SiteHangars.state(list, hangar, 3, 50_000, 4_500);
+        // Ц2 (Nostromo) would come before Ц3: give a Goliath so the chain's credit goal is Ц1 and Ц3 is the uridium one
+        AccountState withGoliath = new AccountState(s.level(), s.credits(), s.uridium(), s.activeHangar(), s.activeShip(),
+                Set.of("ship_liberator", "ship_g-bastion"), s.slots(), s.fitted(), s.spare(), 6);
+        Advisor.Advice a = Advisor.advise(withGoliath, plan);
+        assertEquals("Ц1", a.goal().id());
+        assertNull(a.purchase(), "no scalpel for 50 000");
+        assertNotNull(a.other(), a.text());
+        assertEquals(G79, a.other().item());
+        assertEquals(2, a.other().amount());
+        assertTrue(a.other().uridium());
+        assertNull(Advisor.advise(SiteHangars.state(list, hangar, 3, 50_000, 1_000), plan).other(), "not enough uridium");
+    }
 }

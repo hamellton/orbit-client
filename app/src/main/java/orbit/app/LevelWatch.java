@@ -307,7 +307,8 @@ final class LevelWatch {
             board = board.with(orbit.bot.level.AuctionBoard.parse(code));
             LOG.info("аукцион: лотов {} (час {}, день {}), до конца часа {} с, дня {} с", board.lots().size(),
                     board.of("hour").size(), board.of("day").size(), board.secondsLeft("hour"), board.secondsLeft("day"));
-            LOG.info("ставки (режим советчика — не ставлю): {}", orbit.bot.level.BidPlanner.plan(state, plan, board).describe());
+            LOG.info("ставки по плану сейчас (ставит поток аукциона в последние минуты часа): {}",
+                    orbit.bot.level.BidPlanner.plan(state, plan, board).describe());
         } catch (java.io.IOException | RuntimeException e) {
             LOG.warn("аукцион не прочитан ({})", e.getMessage());
         }
@@ -356,6 +357,11 @@ final class LevelWatch {
             LOG.info("покупаю по плану: {} × {} = {} {} ({})", advice.purchase().amount(), advice.purchase().item(),
                     advice.purchase().total(), advice.purchase().uridium() ? "уридия" : "кредитов", advice.goal().id());
             buy(auth, session.host(), advice.purchase());
+        }
+        if (advice.other() != null) {
+            LOG.info("покупаю в другой валюте: {} × {} = {} {}", advice.other().amount(), advice.other().item(),
+                    advice.other().total(), advice.other().uridium() ? "уридия" : "кредитов");
+            buy(auth, session.host(), advice.other());
         }
         if (hangar != null) {
             // a better ship owned (won on the auction, bought): its gear moved over and the bot sent there (user's consent

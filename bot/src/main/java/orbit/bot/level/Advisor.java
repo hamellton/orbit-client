@@ -30,7 +30,12 @@ public final class Advisor {
      * @param purchase what the bot would buy now ({@code null}: nothing affordable or nothing to buy)
      * @param text     the advice in words, for the leveling log
      */
-    public record Advice(LevelPlan.Goal goal, List<String> done, int missing, int refit, Purchase purchase, String text) {
+    public record Advice(LevelPlan.Goal goal, List<String> done, int missing, int refit, Purchase purchase, String text,
+                         Purchase other) {
+
+        public Advice(LevelPlan.Goal goal, List<String> done, int missing, int refit, Purchase purchase, String text) {
+            this(goal, done, missing, refit, purchase, text, null);
+        }
     }
 
     /** A goal's check against the state. */
@@ -47,8 +52,49 @@ public final class Advisor {
                         + c.detail() + ")") + (c.done() || g.auction().isEmpty() ? "" : ", аукцион: " + String.join(", ", g.auction())));
             }
         }
-        return side.isEmpty() ? main : new Advice(main.goal(), main.done(), main.missing(), main.refit(), main.purchase(),
-                main.text() + " | попутно: " + String.join("; ", side));
+        Purchase other = otherCurrency(s, plan, main);
+        String text = main.text() + (other == null ? "" : " | в другой валюте: купил бы " + other.amount() + " × " + other.item()
+                + " за " + other.total() + (other.uridium() ? " уридия" : " кредитов"))
+                + (side.isEmpty() ? "" : " | попутно: " + String.join("; ", side));
+        return new Advice(main.goal(), main.done(), main.missing(), main.refit(), main.purchase(), text, other);
+    }
+
+    /**
+     * The other currency's purchase: while the current goal waits for one currency (credits for the scalpels), the next
+     * goal of the chain bought with the other (uridium for the G3N-7900) is bought when affordable — the uridium does not
+     * lie idle (live 2026-11-25: 727 uridium while the first goal needed 4 million credits).
+     */
+    static Purchase otherCurrency(AccountState s, LevelPlan plan, Advice main) {
+        if (main.goal() == null || main.goal().buy() == null) {
+            return null;
+        }
+        boolean waitsFor = main.goal().buy().uridium();
+        boolean after = false;
+        for (LevelPlan.Goal g : plan.goals()) {
+            if (g.side()) {
+                continue;
+            }
+            if (g == main.goal()) {
+                after = true;
+                continue;
+            }
+            if (!after || g.buy() == null || g.buy().uridium() == waitsFor) {
+                continue;
+            }
+            Check c = check(s, g);
+            if (!c.known()) {
+                return null; // the chain is not known past here
+            }
+            if (c.done() || c.missing() <= 0) {
+                continue;
+            }
+            long money = g.buy().uridium() ? s.uridium() : s.credits();
+            long reserve = g.buy().uridium() ? plan.reserveUridium() : plan.reserveCredits();
+            long free = Math.max(0, money - reserve);
+            int can = (int) Math.min(c.missing(), g.buy().price() <= 0 ? 0 : free / g.buy().price());
+            return can > 0 ? new Purchase(g.buy().item(), can, g.buy().price(), g.buy().uridium()) : null;
+        }
+        return null;
     }
 
     /** The first goal of the chain (side goals left out) not done. */
