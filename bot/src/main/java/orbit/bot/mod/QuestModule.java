@@ -289,7 +289,7 @@ public final class QuestModule implements BotModule {
                     || work.kind() != next.kind() || work.map() != next.map()) {
                 Quests.Condition c = condition(q.active().get(next.quest()), next.condition());
                 log.info("Квест {}: начинаю — {} {}/{}, {} на {}{}", orbit.world.QuestTitles.label(next.quest()), QuestTexts.condition(c), (long) c.current(),
-                        (long) c.target(), what(next.kind()), ctx.maps().info(next.map()).name(),
+                        (long) c.target(), what(next.kind()), next.map() > 0 ? ctx.maps().info(next.map()).name() : "станции",
                         // the server's fields of a cargo condition (faction, ship type, NPC, loot type, ore): which
                         // NPCs carry what is known nowhere else (2026-11-17)
                         next.kind() == Kind.SALVAGE ? " (условие сервера: " + c.matches() + ")" : "");

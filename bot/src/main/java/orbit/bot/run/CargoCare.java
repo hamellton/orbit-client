@@ -76,6 +76,11 @@ final class CargoCare {
                 && free <= c.collect().cargoFullAt();
     }
 
+    /** Why a sale starts, for the log: a full hold, or the module's sale with room left (a quest's «sell ore», the palladium ship). */
+    static String why(BotConfig c, WorldSnapshot w, String mode) {
+        return (full(c, w, mode) ? "Трюм полон" : "Продажа по заданию модуля") + " (свободно " + w.cargoFree() + ")";
+    }
+
     private CargoPlan plan = new CargoPlan(BotConfig.Collect.CARGO_NONE, 0, List.of());
 
     /** Russian names of the ores, for the log. */
@@ -180,7 +185,7 @@ final class CargoCare {
                             + " больше не беру груз");
                     return false;
                 }
-                log.info("Трюм полон (свободно {}) — продаю через питомца: {}", w.cargoFree(), list(sell));
+                log.info("{} — продаю через питомца: {}", why(c, w, mode), list(sell));
                 pet.setTrade(true); // the trade pod opens the window and sends the prices by itself
                 step = Step.ASKED;
                 since = now;
@@ -195,8 +200,7 @@ final class CargoCare {
                 tell("Трюм полон, но пути к своей базе нет — больше не беру груз");
                 return false;
             }
-            log.info("Трюм полон (свободно {}) — лечу продавать на {}: {}", w.cargoFree(),
-                    ctx.maps().info(baseMap).name(), list(sell));
+            log.info("{} — лечу продавать на {}: {}", why(c, w, mode), ctx.maps().info(baseMap).name(), list(sell));
             step = Step.TO_BASE;
             since = now;
             nearSince = 0;
