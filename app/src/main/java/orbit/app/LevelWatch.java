@@ -33,7 +33,7 @@ final class LevelWatch {
 
     /** Starts the advisor's thread for this game connection; it ends with the game thread. */
     static void start(AuthClient auth, GameConnection conn, WorldFeed feed, String account, Supplier<String> config,
-                      BooleanSupplier alive, Supplier<String> status) {
+                      BooleanSupplier alive, Supplier<String> status, java.util.function.Consumer<String> switchConfig) {
         java.util.Map<String, String> ctx = org.slf4j.MDC.getCopyOfContextMap();
         Thread.ofVirtual().name("leveling").start(() -> {
             if (ctx != null) {
@@ -49,7 +49,7 @@ final class LevelWatch {
                     String cfg = config.get();
                     if (cfg != null && ConfigStore.LEVELING_FOLDER.equals(ConfigStore.openDefault().folderOf(cfg))) {
                         meter.sample(feed, cfg);
-                        shapeLogged |= round(auth, conn, feed, account, cfg, plan, !shapeLogged, status, meter);
+                        shapeLogged |= round(auth, conn, feed, account, cfg, plan, !shapeLogged, status, meter, switchConfig);
                     }
                     Thread.sleep(EVERY_MS + random.nextInt(120_000));
                 }
@@ -111,6 +111,38 @@ final class LevelWatch {
         private static String fmt(double v) {
             return Double.isNaN(v) ? "?" : String.valueOf(Math.round(v));
         }
+    }
+
+    /** No second switch sooner than this after the last one: a choice gets time to work and be measured. */
+    static final long SWITCH_GAP_MS = 30 * 60_000L;
+    /** The last switch per account. */
+    private static final java.util.Map<String, Long> SWITCHED_AT = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /**
+     * The strategist's choice applied (with the user's consent, 2026-11-25): the header's live switch, only from a config of
+     * the leveling folder to another one there that exists, not sooner than {@link #SWITCH_GAP_MS} after the last switch.
+     */
+    private static void switchTo(String account, orbit.bot.level.Strategy.Decision d, String cfg,
+                                 java.util.function.Consumer<String> switchConfig) {
+        String to = d.config();
+        if (to == null || to.equals(cfg)) {
+            return;
+        }
+        ConfigStore store = ConfigStore.openDefault();
+        if (!ConfigStore.LEVELING_FOLDER.equals(store.folderOf(cfg)) || !store.exists(to)
+                || !ConfigStore.LEVELING_FOLDER.equals(store.folderOf(to))) {
+            LOG.warn("стратег: «{}» → «{}» не переключаю (не оба конфига из папки {})", cfg, to, ConfigStore.LEVELING_FOLDER);
+            return;
+        }
+        long now = System.currentTimeMillis();
+        long last = SWITCHED_AT.getOrDefault(account, 0L);
+        if (now - last < SWITCH_GAP_MS) {
+            LOG.info("стратег: «{}» → «{}» — позже, с прошлой смены {} мин", cfg, to, (now - last) / 60_000);
+            return;
+        }
+        SWITCHED_AT.put(account, now);
+        LOG.info("стратег: переключаю «{}» → «{}» ({})", cfg, to, d.reason());
+        switchConfig.accept(to);
     }
 
     /** The leveling folder's start config for a faction (1 MMO, 2 EIC, 3 VRU); {@code null} unknown. */
@@ -183,8 +215,8 @@ final class LevelWatch {
 
     /** One look: the site's list and active hangar, the game's level and money, the advice. True when the shape was logged. */
     private static boolean round(AuthClient auth, GameConnection conn, WorldFeed feed, String account, String cfg,
-                                 LevelPlan plan, boolean logShape, Supplier<String> status, Meter meter)
-            throws InterruptedException {
+                                 LevelPlan plan, boolean logShape, Supplier<String> status, Meter meter,
+                                 java.util.function.Consumer<String> switchConfig) throws InterruptedException {
         var session = conn.session();
         if (session == null || session.host() == null) {
             LOG.info("советчик: нет игровой сессии — пропускаю");
@@ -234,8 +266,9 @@ final class LevelWatch {
                 : orbit.world.maps.MapCatalog.bundled().info(snap.hero().mapId()).name();
         var rates = meter.rates();
         var decision = orbit.bot.level.Strategy.decide(state, plan, advice, faction, mapName, idle, rates);
-        LOG.info("стратег (режим советчика — конфиг не меняю): {} «{}» — {}; модуль: «{}»; карта {}; заработок в час: {}",
+        LOG.info("стратег: {} «{}» — {}; модуль: «{}»; карта {}; заработок в час: {}",
                 decision.mode(), decision.config(), decision.reason(), moduleStatus, mapName, meter.describe());
+        switchTo(account, decision, cfg, switchConfig);
         String start = startConfig(faction);
         if (start != null && !start.equals(cfg)) {
             LOG.info("фракция {}: стартовый конфиг — «{}», сейчас «{}»", faction, start, cfg);

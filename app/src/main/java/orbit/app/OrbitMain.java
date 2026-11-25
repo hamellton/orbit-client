@@ -631,6 +631,9 @@ public final class OrbitMain {
         java.util.concurrent.atomic.AtomicReference<ModuleRun> current = new java.util.concurrent.atomic.AtomicReference<>();
         // chosen in the window: wins over the plan until the program ends
         java.util.concurrent.atomic.AtomicReference<String> chosen = new java.util.concurrent.atomic.AtomicReference<>();
+        // the header's live switch, for the leveling strategist (set below, once it is built)
+        java.util.concurrent.atomic.AtomicReference<java.util.function.Consumer<String>> switcher =
+                new java.util.concurrent.atomic.AtomicReference<>();
         java.util.concurrent.atomic.AtomicReference<GameConnection> currentConn = new java.util.concurrent.atomic.AtomicReference<>();
         // the account's site of the last game session (the hangars are switched there between sessions)
         java.util.concurrent.atomic.AtomicReference<String> lastHost = new java.util.concurrent.atomic.AtomicReference<>();
@@ -752,7 +755,13 @@ public final class OrbitMain {
                     watchHangar(auth, conn, run.runner(), lastHost, accountName, cfg, ships);
                     watchSkylab(auth, conn, feed, game);
                     watchCalendar(auth, conn, accountName, game);
-                    LevelWatch.start(auth, conn, feed, accountName, playing::get, game::isAlive, run.runner()::status); // «Leveling» only
+                    LevelWatch.start(auth, conn, feed, accountName, playing::get, game::isAlive, run.runner()::status,
+                            name -> {
+                                var s = switcher.get();
+                                if (s != null) {
+                                    s.accept(name);
+                                }
+                            }); // «Leveling» only
                     watchLab(conn, game);
                     feed.setRefreshInfo(() -> refreshInfo(auth, conn, feed));
                     planRefresh(conn, run.runner(), game);
@@ -867,6 +876,7 @@ public final class OrbitMain {
                 run.watch().switchTo(name);
             }
         };
+        switcher.set(switchConfig);
         Runnable kill = () -> {
             closed.set(true);
             ModuleRun run = current.get();
