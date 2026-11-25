@@ -348,7 +348,7 @@
       "enabled": true,
       "refine": true,
       "keepInCargo": 0,
-      "maxPerHour": 30,
+      "maxPerHour": 60,
       "items": {
         "drive": {
           "on": true,
@@ -358,13 +358,22 @@
         },
         "laser": {
           "on": true,
-          "ore": "PROMETID",
-          "below": 10000,
+          "ore": "PROMERIUM",
+          "ores": [
+            "PROMERIUM",
+            "PROMETID"
+          ],
+          "promeriumAfterDrive": true,
+          "below": 1000000000,
           "load": 500
         }
       },
       "cargoWhenLow": false,
-      "keepAllBelowLevel": 17
+      "keepAllBelowLevel": 17,
+      "order": [
+        "drive",
+        "laser"
+      ]
     }
   }
 }

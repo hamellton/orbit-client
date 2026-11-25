@@ -197,4 +197,59 @@ class EnricherTest {
         assertEquals(Map.of("promerium", 6_000L), fastSend(6_000, 8_000));
         assertEquals(Map.of(), fastSend(3_000, 8_000), "3 000 of 8 000 free: under 50 %, the paid one waits");
     }
+
+    static final String LEVELING = """
+            {"enabled":true,"order":["drive","laser"],"items":{
+             "drive":{"on":true,"ore":"PROMERIUM","below":5000,"load":500},
+             "laser":{"on":true,"ore":"PROMERIUM","ores":["PROMERIUM","PROMETID"],"promeriumAfterDrive":true,
+                      "below":1000000000,"load":500}}}""";
+
+    static int ore(LabUpdateItemRequest r) {
+        return r.updateWith.oreType.typeValue;
+    }
+
+    @Test
+    void theDrivesFirstThenPromeriumOnTheLasersElsePrometid() throws Exception {
+        // drives low, promerium and prometid aboard: the drives get the promerium, the lasers the prometid
+        Sim sim = new Sim(config(LEVELING, null), 1, 1_000, 1_000);
+        lab(sim, new int[] {2, 6, 1_000});
+        hold(sim, new int[] {6, 40}, new int[] {4, 300});
+        Enricher e = new Enricher(sim.ctx);
+        e.tick();
+        assertEquals(2, requests(sim).get(0).itemToUpdate.itemValue, "drives first");
+        sim.now += 1_000_000;
+        lab(sim, new int[] {2, 6, 1_400});
+        hold(sim, new int[] {4, 300}); // the promerium went into the drives
+        e.tick();
+        LabUpdateItemRequest laser = requests(sim).get(1);
+        assertEquals(0, laser.itemToUpdate.itemValue);
+        assertEquals(4, ore(laser), "the drives still need promerium: prometid on the lasers");
+    }
+
+    @Test
+    void chargedDrivesLeaveThePromeriumToTheLasers() throws Exception {
+        Sim sim = new Sim(config(LEVELING, null), 1, 1_000, 1_000);
+        lab(sim, new int[] {2, 6, 9_000});
+        hold(sim, new int[] {6, 40}, new int[] {4, 300});
+        Enricher e = new Enricher(sim.ctx);
+        e.tick();
+        LabUpdateItemRequest laser = requests(sim).get(0);
+        assertEquals(0, laser.itemToUpdate.itemValue);
+        assertEquals(6, ore(laser), "drives charged: promerium on the lasers");
+    }
+
+    @Test
+    void aRunningPrometidRunsOutWhenPromeriumIsFree() throws Exception {
+        Sim sim = new Sim(config(LEVELING, null), 1, 1_000, 1_000);
+        lab(sim, new int[] {2, 6, 9_000}, new int[] {0, 4, 3_000});
+        hold(sim, new int[] {6, 40}, new int[] {4, 300});
+        Enricher e = new Enricher(sim.ctx);
+        e.tick();
+        assertTrue(requests(sim).isEmpty(), "no mixing: the prometid on the lasers is not topped up, it runs out first");
+        Sim noPromerium = new Sim(config(LEVELING, null), 1, 1_000, 1_000);
+        lab(noPromerium, new int[] {2, 6, 1_000}, new int[] {0, 4, 3_000});
+        hold(noPromerium, new int[] {4, 300});
+        new Enricher(noPromerium.ctx).tick();
+        assertEquals(4, ore(requests(noPromerium).get(0)), "no promerium: the running prometid topped up");
+    }
 }
