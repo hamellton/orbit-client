@@ -124,6 +124,35 @@ public record AuctionBoard(List<Lot> lots, java.util.Map<String, Long> secondsLe
         return new AuctionBoard(all, left, token.isEmpty() ? other.token() : token, button.isEmpty() ? other.button() : button);
     }
 
+    private static final Pattern HISTORY_BLOCK = Pattern.compile("id=\"auction_history_(\\d+)\"[^>]*>(.*?)</tbody>",
+            Pattern.DOTALL);
+    private static final Pattern HISTORY_ROW = Pattern.compile(
+            "auction_history_name_col\">\\s*(.*?)\\s*</td>.*?auction_history_current\">\\s*(.*?)\\s*</td>", Pattern.DOTALL);
+
+    /**
+     * The median price each lot went for in the history list ({@code getAuctionList list=history}: the last auctions, only
+     * the lots sold), by lot name — the bids' ceiling (a user's choice, 2026-11-25).
+     */
+    public static java.util.Map<String, Long> medians(String historyHtml) {
+        java.util.Map<String, List<Long>> prices = new java.util.HashMap<>();
+        Matcher b = HISTORY_BLOCK.matcher(historyHtml == null ? "" : historyHtml);
+        while (b.find()) {
+            Matcher r = HISTORY_ROW.matcher(b.group(2));
+            while (r.find()) {
+                long p = amount(r.group(2));
+                if (p > 0) {
+                    prices.computeIfAbsent(text(r.group(1)), k -> new ArrayList<>()).add(p);
+                }
+            }
+        }
+        java.util.Map<String, Long> out = new java.util.HashMap<>();
+        prices.forEach((name, list) -> {
+            List<Long> sorted = list.stream().sorted().toList();
+            out.put(name, sorted.get(sorted.size() / 2));
+        });
+        return out;
+    }
+
     /** {@code 222.706.666} → 222706666; {@code -1} unreadable. */
     static long amount(String s) {
         String d = s == null ? "" : s.replaceAll("[^0-9]", "");

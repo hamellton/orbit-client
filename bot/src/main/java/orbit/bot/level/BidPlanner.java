@@ -62,7 +62,18 @@ public final class BidPlanner {
         }
     }
 
+    /** A lot with no sale in the history: nobody bids on it — a bid above this is not made. */
+    static final long NO_HISTORY_CAP = 50_000;
+
     public static Plan plan(AccountState s, LevelPlan plan, AuctionBoard board) {
+        return plan(s, plan, board, java.util.Map.of());
+    }
+
+    /**
+     * As above with ceilings: a lot is bid on up to its median price in the history ({@code caps}, by lot name), a lot the
+     * history never sold — up to {@link #NO_HISTORY_CAP}; {@code caps} empty — no ceiling (the history not read).
+     */
+    public static Plan plan(AccountState s, LevelPlan plan, AuctionBoard board, java.util.Map<String, Long> caps) {
         Map<String, LevelPlan.Goal> wanted = new LinkedHashMap<>();
         List<LevelPlan.Goal> order = new ArrayList<>();
         plan.goals().stream().filter(g -> !g.side()).forEach(order::add);
@@ -109,6 +120,11 @@ public final class BidPlanner {
                     break;
                 }
                 long b = bidFor(l);
+                long cap = caps.isEmpty() ? Long.MAX_VALUE : caps.getOrDefault(l.name(), NO_HISTORY_CAP);
+                if (b > cap) {
+                    tooDear.add(l.name() + ": нужно " + b + ", потолок " + cap + " (медиана хроники)");
+                    continue;
+                }
                 if (b <= free) {
                     pick = l;
                     bid = b;

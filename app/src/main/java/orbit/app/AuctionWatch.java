@@ -21,10 +21,12 @@ final class AuctionWatch {
 
     /** Wake this long before the hour ends (a random part on top). */
     static final long WAKE_S = 150;
-    /** Between two looks inside the last minutes. */
+    /** Between two looks inside the last minutes; in the last {@link #CLOSE_S} — {@link #CLOSE_GAP_S}. */
     static final long LOOK_GAP_S = 45;
-    /** No bid this close to the end: the page may not take it in time. */
-    static final long LAST_S = 15;
+    static final long CLOSE_S = 120;
+    static final long CLOSE_GAP_S = 10;
+    /** No bid this close to the end: the page may not take it in time (live 2026-11-25: outbid in the last seconds at 15). */
+    static final long LAST_S = 5;
 
     private AuctionWatch() {
     }
@@ -76,6 +78,7 @@ final class AuctionWatch {
     private static void window(AuthClient auth, String origin, WorldFeed feed, String account, LevelPlan plan,
                                BooleanSupplier alive) throws InterruptedException {
         java.util.Random random = new java.util.Random();
+        java.util.Map<String, Long> caps = null;
         while (alive.getAsBoolean()) {
             AuctionBoard board = readWithDay(auth, origin);
             if (board == null) {
@@ -95,7 +98,10 @@ final class AuctionWatch {
                 LevelWatch.LOG.info("аукцион: снимка аккаунта ещё нет (советчик не обходил) — не ставлю");
                 return;
             }
-            BidPlanner.Plan p = BidPlanner.plan(state, plan, board);
+            if (caps == null) {
+                caps = history(auth, origin);
+            }
+            BidPlanner.Plan p = BidPlanner.plan(state, plan, board, caps);
             LevelWatch.LOG.info("аукцион, до конца часа {} с: {}", left, p.describe());
             for (BidPlanner.Bid b : p.bids()) {
                 if (!b.now()) {
@@ -107,7 +113,27 @@ final class AuctionWatch {
                 }
                 Thread.sleep(2_000 + random.nextInt(3_000));
             }
-            Thread.sleep((LOOK_GAP_S + random.nextInt(15)) * 1_000);
+            long gap = board.secondsLeft("hour") <= CLOSE_S ? CLOSE_GAP_S + random.nextInt(5) : LOOK_GAP_S + random.nextInt(15);
+            Thread.sleep(gap * 1_000);
+        }
+    }
+
+    /** The bids' ceilings: the median price of each lot in the hourly history (by name); empty when it cannot be read. */
+    private static java.util.Map<String, Long> history(AuthClient auth, String origin) throws InterruptedException {
+        try {
+            Thread.sleep(2_000);
+            java.util.Map<String, String> form = new java.util.LinkedHashMap<>();
+            form.put("command", "getAuctionList");
+            form.put("category", "hour");
+            form.put("list", "history");
+            var r = auth.http().postForm(origin + "/ajax/auction.php", form, origin + "/indexInternal.es?action=internalAuction");
+            String code = orbit.config.Json.MAPPER.readTree(r.body() == null ? "{}" : r.body()).path("code").asText("");
+            java.util.Map<String, Long> caps = AuctionBoard.medians(code);
+            LevelWatch.LOG.info("аукцион: потолки по хронике (медиана): {}", caps);
+            return caps;
+        } catch (java.io.IOException | RuntimeException e) {
+            LevelWatch.LOG.warn("аукцион: хроника не прочитана ({}) — без потолка", e.getMessage());
+            return java.util.Map.of();
         }
     }
 

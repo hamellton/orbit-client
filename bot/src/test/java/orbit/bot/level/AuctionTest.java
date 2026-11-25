@@ -135,4 +135,34 @@ class AuctionTest {
         BidPlanner.Plan owned = BidPlanner.plan(has, plan, b);
         assertTrue(owned.bids().stream().noneMatch(x -> x.lot().loot().equals(rrb)), "owned: no bid — " + owned.describe());
     }
+
+    static String sold(String name, String price) {
+        return "<tr class=\"auctionItemRow \"><td class=\"auction_history_name_col\"> " + name + " </td>"
+                + "<td class=\"auction_history_type\"> x </td><td class=\"auction_history_winner\"> someone </td>"
+                + "<td class=\"auction_history_current\"> " + price + " </td></tr>";
+    }
+
+    @Test
+    void theHistoryGivesEachLotsMedian() {
+        String history = "<tbody class=\"auction_history_wrapper\" id=\"auction_history_1\" >" + sold("Iris", "2.111.111")
+                + sold("LF-3", "10.000.000") + "</tbody><tbody class=\"auction_history_wrapper\" id=\"auction_history_2\" "
+                + "style=\"display:none;\">" + sold("Iris", "50.000") + "</tbody><tbody id=\"auction_history_3\" >"
+                + sold("Iris", "900.000") + "</tbody>";
+        Map<String, Long> m = AuctionBoard.medians(history);
+        assertEquals(900_000, m.get("Iris"), "50 000, 900 000, 2 111 111: the middle one");
+        assertEquals(10_000_000, m.get("LF-3"));
+    }
+
+    @Test
+    void aBidAboveTheMedianIsNotMade() {
+        LevelPlan plan = LevelPlan.bundled();
+        AuctionBoard b = AuctionBoard.parse(page(1, 0, row(37, "drone_iris", "Iris", "other", "210.000", "0", "15.000")));
+        BidPlanner.Plan capped = BidPlanner.plan(account(1_000_000, 7, Set.of("ship_liberator")), plan, b,
+                Map.of("Iris", 200_000L));
+        assertTrue(capped.bids().stream().noneMatch(x -> x.lot().loot().equals("drone_iris")), capped.describe());
+        assertTrue(capped.describe().contains("потолок 200000"), capped.describe());
+        BidPlanner.Plan never = BidPlanner.plan(account(1_000_000, 7, Set.of("ship_liberator")), plan, b,
+                Map.of("LF-3", 1L));
+        assertTrue(never.describe().contains("потолок 50000"), "never sold: the small ceiling — " + never.describe());
+    }
 }
