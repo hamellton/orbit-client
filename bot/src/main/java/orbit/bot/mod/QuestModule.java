@@ -699,13 +699,28 @@ public final class QuestModule implements BotModule {
         int slot = m.size() > 2 ? c.match(1) : -1;
         Map<Integer, String> slots = w.slotBars().getOrDefault(bar, Map.of());
         if (slot <= 0) {
-            slot = slots.entrySet().stream().filter(e -> e.getValue().isBlank()).map(Map.Entry::getKey).findFirst()
-                    .orElse(slots.isEmpty() ? 10 : java.util.Collections.max(slots.keySet()));
+            slot = emptySlot(slots);
         }
         slotBarAt = now;
         log.info("Квест {}: кладу {} на панель {} в ячейку {} (на панели: {})", named(work.quest()), item, bar, slot, slots);
         ctx.actions().slotBarPut(item, bar, slot);
     }
+
+    /**
+     * The first empty slot of a bar of {@link #BAR_SLOTS}: the server lists only the filled ones (live 2026-11-25: slots 1, 2,
+     * 3, 9, 10 sent, 4–8 empty and absent), so a slot it does not list is empty; all full — the last.
+     */
+    static int emptySlot(Map<Integer, String> slots) {
+        for (int i = 1; i <= BAR_SLOTS; i++) {
+            String item = slots.get(i);
+            if (item == null || item.isBlank()) {
+                return i;
+            }
+        }
+        return BAR_SLOTS;
+    }
+
+    static final int BAR_SLOTS = 10;
 
     /** {@code ownMapsOnly}: quests worked on the own company's maps only ({@code false} by default). */
     boolean ownMapsOnly() {

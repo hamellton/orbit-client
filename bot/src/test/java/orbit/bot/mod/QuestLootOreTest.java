@@ -22,4 +22,19 @@ class QuestLootOreTest {
         assertEquals(-1, QuestModule.lootOre(new Quests.Condition(1, Quests.COLLECT_LOOT, List.of(), 1, 0, true, false, true,
                 List.of())));
     }
+
+    @Test
+    void theFirstEmptySlotOfABar() {
+        // as the server sent the standard bar of a new account: only the filled slots
+        java.util.Map<Integer, String> bar = java.util.Map.of(1, "ammunition_laser_lcb-10", 2, "ammunition_rocket_r-310",
+                3, "equipment_extra_repbot_rep", 9, "equipment_extra_cpu_jp", 10, "buy_ammunition_laser_lcb-10");
+        assertEquals(4, QuestModule.emptySlot(bar));
+        assertEquals(1, QuestModule.emptySlot(java.util.Map.of()));
+        assertEquals(2, QuestModule.emptySlot(java.util.Map.of(1, "x", 2, "")));
+        java.util.Map<Integer, String> full = new java.util.HashMap<>();
+        for (int i = 1; i <= 10; i++) {
+            full.put(i, "x" + i);
+        }
+        assertEquals(10, QuestModule.emptySlot(full));
+    }
 }
