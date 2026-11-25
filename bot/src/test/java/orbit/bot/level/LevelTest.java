@@ -98,17 +98,17 @@ class LevelTest {
         Advisor.Advice a = Advisor.advise(lasersDone, plan);
         assertEquals(List.of("Ц1", "Ц2", "Ц3"), a.done());
         assertEquals("Ц4", a.goal().id());
-        assertEquals(1, a.missing());
-        assertTrue(a.text().contains("дронов 0 из 1"), a.text());
+        assertEquals(6, a.missing(), "Flax up to six");
+        assertTrue(a.text().contains("дронов 0 из 6"), a.text());
         AccountState oneDrone = new AccountState(s.level(), 0, 0, s.activeHangar(), "ship_nostromo", Set.of("ship_nostromo"),
-                lasersDone.slots(), lasersDone.fitted(), Map.of(), 1);
+                lasersDone.slots(), lasersDone.fitted(), Map.of(), 6);
         Advisor.Advice next = Advisor.advise(oneDrone, plan);
         assertEquals("Ц5", next.goal().id(), "Goliath next");
         AccountState goliath = new AccountState(s.level(), 0, 0, s.activeHangar(), "ship_goliath", Set.of("ship_goliath"),
-                lasersDone.slots(), lasersDone.fitted(), Map.of(), 1);
+                lasersDone.slots(), lasersDone.fitted(), Map.of(), 6);
         Advisor.Advice drones = Advisor.advise(goliath, plan);
         assertEquals("Ц6", drones.goal().id(), "eight drones next");
-        assertTrue(drones.text().contains("дронов 1 из 8"), drones.text());
+        assertTrue(drones.text().contains("дронов 6 из 8"), drones.text());
         AccountState bastion = new AccountState(30, 0, 0, s.activeHangar(), "ship_g-bastion", Set.of("ship_g-bastion"),
                 Map.of("lasers", 2, "generators", 2),
                 Map.of(1, Map.of("lasers", List.of("equipment_weapon_laser_lf-3", "equipment_weapon_laser_lf-3"),
