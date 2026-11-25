@@ -428,6 +428,14 @@
         "shield"
       ],
       "sellDuraniumAtBase": true
+    },
+    "dispatch": {
+      "enabled": true,
+      "retriever": "R-01",
+      "count": 2,
+      "freeSlots": 0,
+      "instant": false,
+      "keepCredits": 330000
     }
   }
 }

@@ -22,7 +22,7 @@ import org.slf4j.LoggerFactory;
  * slot) — no new send for {@link #REFUSED_MS}.
  *
  * <p>Settings {@code modules.dispatch}: {@code enabled} (false), {@code retriever} («R-01», 200 000 credits),
- * {@code count} (5), {@code freeSlots} (0), {@code instant} (false).
+ * {@code count} (5), {@code freeSlots} (0), {@code instant} (false), {@code keepCredits} (0: credits left after a send).
  */
 public final class DispatchCare {
 
@@ -174,7 +174,10 @@ public final class DispatchCare {
         if (running >= Math.max(1, s.path("count").asInt(5))) {
             return;
         }
-        if (k.credits() > 0 && h.credits() >= 0 && h.credits() < k.credits()
+        // keepCredits: credits left after the price (0 by default; the leveling configs keep their reserve and the next
+        // equipment purchase, a user's choice 2026-11-25)
+        long keep = Math.max(0, s.path("keepCredits").asLong(0));
+        if (k.credits() > 0 && h.credits() >= 0 && h.credits() < k.credits() + keep
                 || k.uridium() > 0 && h.uridium() >= 0 && h.uridium() < k.uridium()) {
             tell("money", "Диспетчер: на " + k.label() + " не хватает " + (k.credits() > 0 ? "кредитов" : "уридия"));
             return;
