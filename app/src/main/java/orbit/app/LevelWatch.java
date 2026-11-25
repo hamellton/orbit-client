@@ -43,6 +43,7 @@ final class LevelWatch {
             }
             java.util.Random random = new java.util.Random();
             boolean shapeLogged = false;
+            boolean first = true;
             Meter meter = new Meter();
             try {
                 Thread.sleep(FIRST_MS + random.nextInt(60_000));
@@ -52,7 +53,8 @@ final class LevelWatch {
                     if (cfg != null && ConfigStore.LEVELING_FOLDER.equals(ConfigStore.openDefault().folderOf(cfg))) {
                         meter.sample(feed, cfg);
                         shapeLogged |= round(auth, conn, feed, account, cfg, plan, !shapeLogged, status, meter, switchConfig,
-                                requestShip, refresh, requestRefit);
+                                requestShip, refresh, requestRefit, first);
+                        first = false;
                     }
                     // gear waiting for the base station: the next look sooner, to fit it by a re-login if still waiting
                     Thread.sleep(PENDING_SINCE.containsKey(account) ? PENDING_LOOK_MS + random.nextInt(30_000)
@@ -325,7 +327,7 @@ final class LevelWatch {
     private static boolean round(AuthClient auth, GameConnection conn, WorldFeed feed, String account, String cfg,
                                  LevelPlan plan, boolean logShape, Supplier<String> status, Meter meter,
                                  java.util.function.Consumer<String> switchConfig, java.util.function.IntConsumer requestShip,
-                                 Runnable refresh, Runnable requestRefit) throws InterruptedException {
+                                 Runnable refresh, Runnable requestRefit, boolean first) throws InterruptedException {
         var session = conn.session();
         if (session == null || session.host() == null) {
             LOG.info("советчик: нет игровой сессии — пропускаю");
@@ -393,7 +395,9 @@ final class LevelWatch {
             } else if (!atHomeStation(feed)) {
                 // in the game the site changes gear only by the base station (live 2026-11-25): half done is worse; waiting
                 // longer than REFIT_AFTER_MS — a re-login, the gear fitted out of the game (user's choice, 2026-11-25)
-                long since = PENDING_SINCE.computeIfAbsent(account, k -> System.currentTimeMillis());
+                // the first look of a session: gear already waiting (bought, won, left from before) — the re-login at once
+                long since = PENDING_SINCE.computeIfAbsent(account,
+                        k -> System.currentTimeMillis() - (first ? REFIT_AFTER_MS : 0));
                 long waited = System.currentTimeMillis() - since;
                 if (waited >= REFIT_AFTER_MS) {
                     PENDING_SINCE.remove(account);
