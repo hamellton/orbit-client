@@ -257,6 +257,11 @@ public final class QuestModule implements BotModule {
         activeSeen = q.active().size();
         long revisit = (long) setting("revisitMinutes", DEFAULT_REVISIT_MIN) * 60_000_000_000L;
         boolean due = !visitedOnce || finishedOne || now - visitedAt > revisit || next == null && now - visitedAt > revisit / 6;
+        if (due && visitedOnce && next != null && settings().path("finishFirst").asBoolean(false) && blocking(w) > 0) {
+            // «finishFirst» (the leveling quests configs, a user's choice 2026-11-25): no new quests while a taken mission
+            // or starter quest the bot can do is not finished — long ones and the passes' tasks aside
+            due = false;
+        }
         // on a map left only one way (5-2 → 5-3, back by the whole loop) its quests first, the giver after
         // (a jump to 5-3 means a whole loop back)
         if (due && next != null && next.map() == w.hero().mapId()
@@ -553,6 +558,27 @@ public final class QuestModule implements BotModule {
         worker = null;
         work = null;
         return true;
+    }
+
+    /** Work left above which a quest does not hold back the next visit to the giver (101001: ~75 kills left). */
+    static final double FINISH_FIRST_MAX = 60;
+
+    /**
+     * Taken quests that hold back new ones under {@code finishFirst}: missions and starter quests (not the passes' tasks, not
+     * dailies) the bot can do, not set aside, with no more than {@link #FINISH_FIRST_MAX} left to do.
+     */
+    int blocking(WorldSnapshot w) {
+        int n = 0;
+        for (Quests.Quest q : w.quests().active().values()) {
+            if (!(q.is(Quests.MISSION) || q.is(Quests.STARTER)) || setAside.contains(q.id()) || left(q.id())) {
+                continue;
+            }
+            if (leftToDo(q) > FINISH_FIRST_MAX || !doable(q)) {
+                continue;
+            }
+            n++;
+        }
+        return n;
     }
 
     /** The progress of every other active quest's conditions summed (a kill counted there shows here). */

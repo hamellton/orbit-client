@@ -458,7 +458,8 @@
       "ownMapsOnly": true,
       "craft": false,
       "highLevelFirst": true,
-      "killNoCount": true
+      "killNoCount": true,
+      "finishFirst": true
     },
     "enrich": {
       "enabled": true,
