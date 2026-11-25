@@ -311,7 +311,7 @@ public final class QuestModule implements BotModule {
         checkWay(w, c, now);
         switch (work.kind()) {
             case KILL, DAMAGE, SALVAGE, BOX, ORE -> {
-                if (notFound(w, now) || noCount(w, c)) {
+                if (notFound(w, now) || noCount(w, c) || killsNotCounted(c)) {
                     return;
                 }
                 if (followLocator(w, now, progress)) {
@@ -516,6 +516,49 @@ public final class QuestModule implements BotModule {
         return true;
     }
 
+    /**
+     * «killNoCount» (the leveling configs): a kill condition that does not grow after {@link #KILL_TRIES} kills is set
+     * aside for the session, its server fields logged — live 2026-11-25: 106008 «Saimon on 1-3» stood at 0/12 after 23
+     * Saimon killed on 1-3 while another quest's same condition counted them; something hidden is asked.
+     */
+    private boolean killsNotCounted(Quests.Condition c) {
+        if (work.kind() != Kind.KILL || !settings().path("killNoCount").asBoolean(false)) {
+            killFrom = -1;
+            return false;
+        }
+        int kills = ctx.stats().kills.get();
+        if (killFrom < 0 || c.current() != killAt || killQuest != work.quest()) {
+            killFrom = kills;
+            killAt = c.current();
+            killQuest = work.quest();
+            return false;
+        }
+        if (kills - killFrom < KILL_TRIES) {
+            return false;
+        }
+        Quests.Quest quest = ctx.world().get().quests().active().get(work.quest());
+        log.warn("Квест {}: убито {}, а «{}» не растёт ({}/{}) — откладываю до конца сессии; условия сервера: {}",
+                named(work.quest()), kills - killFrom, QuestTexts.condition(c), (long) c.current(), (long) c.target(),
+                quest == null ? "?" : quest.all().stream().map(x -> x.type() + ":" + x.matches()
+                        + (x.mandatory() ? "" : "(необяз.)") + (x.active() ? "" : "(неакт.)")).toList());
+        setAside.add(work.quest());
+        killFrom = -1;
+        if (worker != null) {
+            worker.pause();
+        }
+        worker = null;
+        work = null;
+        return true;
+    }
+
+    /** Kills of a wanted NPC with no progress before a kill condition is set aside. */
+    static final int KILL_TRIES = 15;
+    private long killFrom = -1;
+    private double killAt;
+    private int killQuest;
+    /** Quests set aside for this session (their kills did not count). */
+    private final Set<Integer> setAside = new java.util.HashSet<>();
+
     /** Cargo boxes picked with no progress before a map counts as the wrong one. */
     public static final int CARGO_TRIES = 10;
     private long cargoFrom = -1;
@@ -618,7 +661,7 @@ public final class QuestModule implements BotModule {
         // marked First go first, in the list's order; then by type, then by number; Skip/Cancel never
         List<Integer> first = ids("first");
         List<Quests.Quest> quests = w.quests().active().values().stream()
-                .filter(x -> !left(x.id()))
+                .filter(x -> !left(x.id()) && !setAside.contains(x.id()))
                 .sorted(Comparator.<Quests.Quest>comparingInt(x -> first.contains(x.id()) ? first.indexOf(x.id()) : first.size())
                         // «starterFirst» (the leveling configs): the tutorial chain before all else — its rewards are the
                         // first equipment; off by default

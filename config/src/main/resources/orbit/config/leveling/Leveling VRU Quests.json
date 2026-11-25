@@ -457,7 +457,8 @@
       "oreAsLoot": true,
       "ownMapsOnly": true,
       "craft": false,
-      "highLevelFirst": true
+      "highLevelFirst": true,
+      "killNoCount": true
     },
     "enrich": {
       "enabled": true,
