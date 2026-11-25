@@ -154,6 +154,8 @@ class EnricherTest {
                 + "\"items\":{\"drive\":{\"on\":true,\"ore\":\"PROMERIUM\",\"below\":100}}}"));
         assertEquals(List.of(), CargoCare.keepEnrichOres(young, all, charged, 0, 6).ores(), "below 17: nothing sold");
         assertEquals(List.of(0, 1, 2, 4, 5), CargoCare.keepEnrichOres(young, all, charged, 5, 17).ores(), "from 17: as before");
+        assertEquals(List.of(2), CargoCare.keepEnrichOres(young, all, charged, 0, 6,
+                java.util.Map.of(0, 13.0, 1, 33.0, 2, 1_442.0)).ores(), "terbium far beyond the endurium: sold");
     }
 
     static Map<String, Long> fastSend(int free, int max) throws Exception {

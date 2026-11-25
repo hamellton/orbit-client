@@ -456,7 +456,8 @@
       "easyFirst": true,
       "oreAsLoot": true,
       "ownMapsOnly": true,
-      "craft": false
+      "craft": false,
+      "highLevelFirst": true
     },
     "enrich": {
       "enabled": true,

@@ -292,7 +292,14 @@ public final class QuestGiverVisit {
         missionSlots = q.maxQuests();
         eventSlots = q.maxEventQuests();
         int level = w.hero().level();
-        for (Quests.Offer o : q.offers()) {
+        // «highLevelFirst» (the leveling quests configs, a user's choice 2026-11-25): the offers of the highest level the
+        // pilot may take first — read and taken before the lower ones while the mission slots last
+        java.util.List<Quests.Offer> offers = new java.util.ArrayList<>(q.offers());
+        com.fasterxml.jackson.databind.JsonNode qs = ctx.config().get().modules().get("quests");
+        if (qs != null && qs.path("highLevelFirst").asBoolean(false)) {
+            offers.sort(java.util.Comparator.comparingInt(Quests.Offer::minLevel).reversed());
+        }
+        for (Quests.Offer o : offers) {
             if (o.status() == Quests.ACCEPTABLE && (always.contains(o.questId()) || types.stream().anyMatch(o::is))
                     && (level <= 0 || o.minLevel() <= level) && slotFor(o)) {
                 if (always.contains(o.questId())) {

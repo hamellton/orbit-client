@@ -624,6 +624,8 @@ public final class QuestModule implements BotModule {
                         // first equipment; off by default
                         .thenComparingInt(x -> starterFirst() && x.is(Quests.STARTER) ? 0 : 1)
                         .thenComparingInt(this::typeRank)
+                        // «highLevelFirst» (the leveling configs): of one type, the quest of the highest level first
+                        .thenComparingInt(x -> highLevelFirst() ? -minLevel(w, x.id()) : 0)
                         // «easyFirst» (the leveling configs): of one type, the quest with the least left to do first
                         .thenComparingDouble(x -> easyFirst() ? leftToDo(x) : 0)
                         .thenComparingInt(Quests.Quest::id)).toList();
@@ -1397,6 +1399,22 @@ public final class QuestModule implements BotModule {
     /** {@code oreAsLoot}: an ore named as loot is collected as ore ({@code false} by default). */
     boolean oreAsLoot() {
         return settings().path("oreAsLoot").asBoolean(false);
+    }
+
+    /** {@code highLevelFirst}: of one type, the quest of the highest level first ({@code false} by default). */
+    boolean highLevelFirst() {
+        return settings().path("highLevelFirst").asBoolean(false);
+    }
+
+    /** A quest's level: the giver's offer of it, else the quest list's ({@code QuestCatalog}), else 0. */
+    static int minLevel(WorldSnapshot w, int questId) {
+        for (Quests.Offer o : w.quests().offers()) {
+            if (o.questId() == questId) {
+                return o.minLevel();
+            }
+        }
+        var e = orbit.world.QuestCatalog.shared().all().get(questId);
+        return e == null ? 0 : e.minLevel();
     }
 
     /** {@code easyFirst}: of one type, the quest with the least left first ({@code false} by default). */

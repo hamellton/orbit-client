@@ -115,7 +115,7 @@ final class CargoCare {
      * and CUBIKON's list sold promerium): every ore of an item set on, while the enrichment is on.
      */
     static CargoPlan keepEnrichOres(BotConfig c, CargoPlan plan) {
-        return keepEnrichOres(c, plan, null, -1, 0);
+        return keepEnrichOres(c, plan, null, -1, 0, java.util.Map.of());
     }
 
     /**
@@ -127,6 +127,16 @@ final class CargoCare {
      * the hold filled with 1 300 raw ore and the bot stopped picking cargo). {@code xenomit} {@code -1}: not known.
      */
     static CargoPlan keepEnrichOres(BotConfig c, CargoPlan plan, WorldSnapshot.Lab lab, long xenomit, int level) {
+        return keepEnrichOres(c, plan, lab, xenomit, level, java.util.Map.of());
+    }
+
+    /**
+     * As above with the hold's ores: below {@code keepAllBelowLevel} a raw ore far beyond what the endurium can refine (more
+     * than {@link #RAW_PER_ENDURIUM} per endurium and {@link #RAW_SPARE} more) is sold — live 2026-11-25: 1 442 terbium
+     * and 33 endurium filled the hold, nothing to refine or sell, no more cargo taken.
+     */
+    static CargoPlan keepEnrichOres(BotConfig c, CargoPlan plan, WorldSnapshot.Lab lab, long xenomit, int level,
+                                    java.util.Map<Integer, Double> ores) {
         com.fasterxml.jackson.databind.JsonNode e = c.modules().get("enrich");
         if (e == null || !e.path("enabled").asBoolean(false) || plan.ores() == null || plan.ores().isEmpty()) {
             return plan;
@@ -147,6 +157,12 @@ final class CargoCare {
                 // 2026-11-25: prometid for the lasers, promerium for the drives)
                 keep.addAll(java.util.List.of(Refiner.PROMETIUM, Refiner.ENDURIUM, Refiner.TERBIUM, Refiner.PROMETID,
                         Refiner.DURANIUM, Refiner.PROMERIUM));
+                double endurium = ores.getOrDefault(Refiner.ENDURIUM, 0.0);
+                for (int raw : new int[] {Refiner.PROMETIUM, Refiner.TERBIUM}) {
+                    if (ores.getOrDefault(raw, 0.0) > endurium * RAW_PER_ENDURIUM + RAW_SPARE) {
+                        keep.remove(raw); // more than the endurium can ever refine: sold
+                    }
+                }
             }
             if (enrichmentLow(e, lab)) {
                 keep.addAll(java.util.List.of(Refiner.PROMETID, Refiner.DURANIUM));
@@ -161,6 +177,10 @@ final class CargoCare {
         return new CargoPlan(plan.mode(), plan.map(), plan.ores().stream().filter(o -> !keep.contains(o)).toList(),
                 plan.always());
     }
+
+    /** Raw ore kept per endurium (prometid and duranium each take 20 raw and 10 endurium — 4 shared) and a spare. */
+    static final double RAW_PER_ENDURIUM = 4;
+    static final double RAW_SPARE = 100;
 
     /** Duranium sold on a map with the own base once there is this much (the leveling configs). */
     static final long DURANIUM_SALE_MIN = 100;
@@ -195,7 +215,8 @@ final class CargoCare {
         WorldSnapshot w = ctx.world().get();
         long now = ctx.now();
         plan = modulePlan != null ? modulePlan : new CargoPlan(c.collect().cargo(), 0, c.collect().sellOres());
-        plan = keepEnrichOres(c, plan, w.inventory().lab(), w.inventory().ore(Refiner.XENOMIT), w.hero().level());
+        plan = keepEnrichOres(c, plan, w.inventory().lab(), w.inventory().ore(Refiner.XENOMIT), w.hero().level(),
+                w.inventory().ores());
         if (modulePlan == null) {
             plan = duraniumAtBase(c, plan, w);
         }
