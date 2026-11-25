@@ -456,7 +456,8 @@
       ],
       "easyFirst": true,
       "oreAsLoot": true,
-      "ownMapsOnly": true
+      "ownMapsOnly": true,
+      "craft": false
     }
   }
 }
