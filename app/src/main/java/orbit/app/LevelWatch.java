@@ -116,6 +116,39 @@ final class LevelWatch {
         }
     }
 
+    /**
+     * Out of the game (between a logout and the next login): every other hangar's lasers, generators and extras taken off,
+     * then the active ship fitted by the plan — so a ship never enters the game empty (live 2026-11-25: the Bastion logged
+     * in bare and flew to fight; in the game the site refuses gear changes away from the base station). The moves done.
+     */
+    static int fitOffline(orbit.auth.Hangars site, String account) throws InterruptedException {
+        LevelPlan plan = LevelPlan.bundled();
+        try {
+            SiteHangars.ListInfo list = SiteHangars.list(site.listJson());
+            int moved = 0;
+            for (int other : list.hangars().keySet()) {
+                if (other == list.activeHangar()) {
+                    continue;
+                }
+                Thread.sleep(GAP_MS);
+                SiteHangars.HangarInfo h = SiteHangars.hangar(site.hangarJson(other), other);
+                if (h.fittedIds().values().stream().anyMatch(m -> m.values().stream().anyMatch(l -> !l.isEmpty()))) {
+                    LOG.info("вне игры: снимаю снаряжение с ангара {} («{}»)", other, list.hangars().get(other));
+                    moveOut(site, other, h);
+                    moved++;
+                }
+            }
+            Thread.sleep(GAP_MS);
+            SiteHangars.HangarInfo active = SiteHangars.hangar(site.hangarJson(list.activeHangar()), list.activeHangar());
+            var moves = orbit.bot.level.FitPlanner.plan(active, list.activeHangar(), list.slots(), plan);
+            LOG.info("вне игры: раскладка на «{}» (ангар {}): {} перекладок", list.activeShip(), list.activeHangar(), moves.size());
+            return moved + apply(site, list.activeHangar(), moves);
+        } catch (java.io.IOException | RuntimeException e) {
+            LOG.warn("вне игры: раскладка не вышла ({})", e.getMessage());
+            return 0;
+        }
+    }
+
     /** Every laser, generator and extra of a hangar taken off to the inventory, config by config (before a ship change). */
     private static void moveOut(orbit.auth.Hangars site, int hangarId, SiteHangars.HangarInfo hangar) throws InterruptedException {
         for (var c : hangar.fittedIds().entrySet()) {
@@ -133,6 +166,20 @@ final class LevelWatch {
                 }
             }
         }
+    }
+
+    /** Within this of an own HQ station the site lets the gear change in the game. */
+    static final double STATION_RANGE = 1_500;
+
+    /** The ship by its company's HQ station on this map (the base). */
+    static boolean atHomeStation(WorldFeed feed) {
+        var w = feed.snapshot();
+        if (w == null || w.hero() == null) {
+            return false;
+        }
+        return w.assets().values().stream().anyMatch(a -> a.name() != null && a.name().contains("HQ")
+                && a.factionId() == w.hero().factionId()
+                && Math.hypot(a.x() - w.hero().x(), a.y() - w.hero().y()) <= STATION_RANGE);
     }
 
     /** The fitting's moves done on the site, one by one with a person's pause; the number that went through. */
@@ -312,15 +359,19 @@ final class LevelWatch {
             boolean better = best != null && bestHangar != 0 && bestHangar != list.activeHangar()
                     && (nowRank < 0 || plan.ships().indexOf(best) < nowRank);
             if (better) {
-                LOG.info("пересадка: лучший корабль «{}» в ангаре {}, сейчас «{}» в {} — снимаю снаряжение и пересаживаюсь", best,
-                        bestHangar, list.activeShip(), list.activeHangar());
-                moveOut(site, list.activeHangar(), hangar);
+                // the gear is moved over out of the game, between the logout and the login (OrbitMain → fitOffline): in the
+                // game the site refuses gear changes away from the base station (live 2026-11-25)
+                LOG.info("пересадка: лучший корабль «{}» в ангаре {}, сейчас «{}» в {} — пересаживаюсь, снаряжение — вне игры",
+                        best, bestHangar, list.activeShip(), list.activeHangar());
                 requestShip.accept(bestHangar);
                 return false;
             }
             var moves = orbit.bot.level.FitPlanner.plan(hangar, list.activeHangar(), list.slots(), plan);
             if (moves.isEmpty()) {
                 LOG.info("раскладка: всё на местах");
+            } else if (!atHomeStation(feed)) {
+                // in the game the site changes gear only by the base station (live 2026-11-25): half done is worse
+                LOG.info("раскладка: {} перекладок ждут, пока корабль у станции базы (или вход в игру)", moves.size());
             } else if (apply(site, list.activeHangar(), moves) > 0) {
                 LOG.info("раскладка: перезахожу, чтобы игра увидела снаряжение");
                 refresh.run();

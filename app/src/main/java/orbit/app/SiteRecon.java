@@ -35,6 +35,7 @@ public final class SiteRecon {
     public static void main(String[] args) throws Exception {
         String account = args.length > 0 ? args[0] : "7";
         boolean auction = args.length == 2 && "auction".equals(args[1]);
+        boolean fit = args.length == 2 && "fit".equals(args[1]); // the leveling fitting, out of the game
         List<String> pages = new ArrayList<>();
         if (auction) {
             pages.add("indexInternal.es?action=internalAuction");
@@ -63,6 +64,12 @@ public final class SiteRecon {
             GameSession session = new AccountLogin(auth, vault, OrbitMain.loginOf(account), OrbitMain.serverOf(account))
                     .login();
             String origin = session.host();
+            if (fit) {
+                org.slf4j.MDC.put("account", account);
+                int n = LevelWatch.fitOffline(new orbit.auth.Hangars(auth.http(), origin), account);
+                System.out.println("Раскладка вне игры: перекладок " + n + " (подробно — logs/leveling-" + account + ".log)");
+                return;
+            }
             String start = origin + "/indexInternal.es?action=internalStart";
             int n = 0;
             for (String page : pages) {

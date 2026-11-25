@@ -262,6 +262,11 @@ public final class OrbitMain {
         return at < 0 ? account : account.substring(0, at);
     }
 
+    /** The config lies in the leveling folder (docs/LEVELING.md). */
+    static boolean levelingConfig(String cfg) {
+        return cfg != null && orbit.config.ConfigStore.LEVELING_FOLDER.equals(orbit.config.ConfigStore.openDefault().folderOf(cfg));
+    }
+
     /** The server of {@code main@ru5}: {@code ru5}; {@code null} = the account's default. */
     static String serverOf(String account) {
         int at = account.indexOf('@');
@@ -793,6 +798,10 @@ public final class OrbitMain {
                             break;
                         }
                         failures = 0;
+                        if (levelingConfig(cfgName)) {
+                            // the leveling mode: the new ship fitted before the login, out of the game (docs/LEVELING.md)
+                            LevelWatch.fitOffline(new orbit.auth.Hangars(auth.http(), lastHost.get()), accountName);
+                        }
                         afterShipChange = run.runner();
                         continue;
                     }
