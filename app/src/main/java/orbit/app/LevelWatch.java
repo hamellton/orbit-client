@@ -280,6 +280,11 @@ final class LevelWatch {
      * user's choice 2026-11-26 (bought but never on; the item text: «activated on the map in the CPUs section»). The CPUs the
      * game lists are told once per game session.
      */
+    private static String state(orbit.world.WorldSnapshot w, String id) {
+        var i = w.items().get(id);
+        return i == null ? "нет в игре" : (i.selected() ? "вкл" : "выкл") + (i.available() ? "" : " (недоступен)");
+    }
+
     private static void cpus(GameConnection conn, WorldFeed feed, String account) {
         var w = feed.snapshot();
         Object session = conn.session();
@@ -292,6 +297,15 @@ final class LevelWatch {
             LOG.info("процессоры в игре: {}", cpus.stream()
                     .map(i -> i.id() + (i.selected() ? " (вкл)" : " (выкл)") + (i.available() ? "" : " (недоступен)")).toList());
         }
+        // every round: the rocket CPUs, the launcher's load and its rockets — to see where the launcher stops
+        var launcher = w.items().values().stream().filter(i -> i.id().startsWith("equipment_weapon_rocketlauncher_"))
+                .findFirst().orElse(null);
+        var eco = w.items().get(ECO);
+        LOG.info("ракетомёт: AROL-X {}, RLLB-X {}; {}; ECO-10 {}", state(w, "equipment_extra_cpu_arol-x"),
+                state(w, "equipment_extra_cpu_rllb-x"),
+                launcher == null ? "ракетомёта в игре нет" : launcher.id() + " заряд " + (long) launcher.counter() + "/"
+                        + (long) launcher.maxCounter() + (launcher.available() ? "" : " (недоступен)"),
+                eco == null ? "нет" : (long) eco.counter() + " шт." + (eco.selected() ? ", выбраны" : ", не выбраны"));
         for (var i : cpus) {
             if ((i.id().contains("arol") || i.id().contains("rllb")) && !i.selected() && i.available()) {
                 orbit.protocol.gen.MenuActionRequest m = new orbit.protocol.gen.MenuActionRequest();
