@@ -295,7 +295,7 @@ public final class BoxPicker {
                 // a full hold (the config does something about it): no more boxes that fill it
                 .filter(b -> !BotConfig.Collect.fillsCargo(key(b)) || !cargoFull(c, w))
                 // NPC cargo only while the enrichment lacks ore (modules.enrich.cargoWhenLow, the leveling quests config)
-                .filter(b -> !"FROM_SHIP".equals(key(b)) || cargoWanted(c, w))
+                .filter(b -> !NPC_CARGO.contains(key(b)) || cargoWanted(c, w))
                 .filter(b -> reach != null ? reach.test(b.x(), b.y()) : Double.isNaN(anchorX)
                         ? Math.hypot(b.x() - h.x(), b.y() - h.y()) <= c.collect().radius()
                         : Math.hypot(b.x() - anchorX, b.y() - anchorY) <= (within > 0 ? within : c.collect().radius()))
@@ -317,6 +317,13 @@ public final class BoxPicker {
         return best;
     }
 
+    /**
+     * NPC cargo in all its pictures: the plain one and the events' (the client draws these as cargo; live 2026-11-26 in the
+     * Thanksgiving days NPC cargo came as TURKEY_CARGO and the leveling configs listed FROM_SHIP alone).
+     */
+    static final java.util.Set<String> NPC_CARGO = java.util.Set.of("FROM_SHIP", "CANDY_CARGO", "TURKEY_CARGO",
+            "PROSPEROUS_CARGO");
+
     /** NPC cargo in sight already told about (by its hash): one line each. */
     private final java.util.Set<String> cargoTold = new java.util.HashSet<>();
 
@@ -331,7 +338,7 @@ public final class BoxPicker {
         }
         WorldSnapshot.Hero h = w.hero();
         for (WorldSnapshot.Collectable b : w.collectables().values()) {
-            if (!"FROM_SHIP".equals(key(b)) || b == best || !cargoTold.add(b.hash())) {
+            if (!NPC_CARGO.contains(key(b)) || b == best || !cargoTold.add(b.hash())) {
                 continue;
             }
             double d = Math.hypot(b.x() - h.x(), b.y() - h.y());
@@ -347,7 +354,7 @@ public final class BoxPicker {
                     : c.general().avoidMines() && orbit.bot.nav.PathFinder.nearMine(w, b.x(), b.y()) ? "у мины"
                     : ctx.nav().inDanger(b.x(), b.y()) ? "у обидчика"
                     : best != null ? "выбран другой ящик (" + key(best) + ")" : "не выбран";
-            log.info("Груз с корабля в {} не беру: {}", (int) d, why);
+            log.info("Груз с корабля ({}) в {} не беру: {}", key(b), (int) d, why);
         }
         if (cargoTold.size() > 500) {
             cargoTold.clear();
