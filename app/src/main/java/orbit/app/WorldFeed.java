@@ -243,7 +243,15 @@ public final class WorldFeed {
         return deluxe;
     }
 
+    /** The last packets both ways, for the «Пакеты» window. */
+    public PacketJournal journal() {
+        return journal;
+    }
+
+    private final PacketJournal journal = new PacketJournal();
+
     public void onPacket(Packet p, long nanos) {
+        journal.add(false, p);
         deluxe.onPacket(p);
         if (learnNpcMaps && p instanceof orbit.protocol.gen.ShipCreateCommand c && c.npc) {
             orbit.world.maps.NpcMaps.shared().learn(world.snapshot(nanos).hero().mapId(), c.userName);
@@ -369,6 +377,7 @@ public final class WorldFeed {
     }
 
     public void onSent(Packet p, long nanos) {
+        journal.add(true, p);
         world.applyOutgoing(p, nanos);
     }
 

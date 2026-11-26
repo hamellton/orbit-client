@@ -304,6 +304,10 @@ final class AccountView extends JPanel {
         hangar.setToolTipText("Патроны, ракеты, ресурсы и корабли аккаунта — в отдельном окне");
         hangar.addActionListener(e -> HangarWindow.open(tab.feed()));
         actions.add(hangar);
+        JButton packetsWin = new JButton("Пакеты");
+        packetsWin.setToolTipText("Пакеты игры этого аккаунта вживую — от сервера и от бота, с фильтром и сохранением");
+        packetsWin.addActionListener(e -> PacketWindow.open(tab.feed()));
+        actions.add(packetsWin);
         JButton totalsWin = new JButton("Итоги");
         totalsWin.setToolTipText("Итоги подробно: что подобрано по видам (ящики бегемота, инвоков, другие, руда),"
                 + " добыча, доход и дела — за сессию, в час и за сегодня — в отдельном окне");
