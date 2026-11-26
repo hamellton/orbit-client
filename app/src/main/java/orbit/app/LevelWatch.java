@@ -163,7 +163,7 @@ final class LevelWatch {
             moves.addAll(orbit.bot.level.FitPlanner.drones(active, SiteHangars.droneView(activeJson, list.activeHangar()),
                     list.activeHangar(), plan));
             LOG.info("вне игры: раскладка на «{}» (ангар {}): {} перекладок", list.activeShip(), list.activeHangar(), moves.size());
-            return moved + apply(site, list.activeHangar(), moves);
+            return moved + fitMain(site, list, plan, moves, () -> true);
         } catch (java.io.IOException | RuntimeException e) {
             LOG.warn("вне игры: раскладка не вышла ({})", e.getMessage());
             return 0;
@@ -233,6 +233,38 @@ final class LevelWatch {
             } catch (java.io.IOException | RuntimeException e) {
                 LOG.warn("раскладка: не вышло — {} ({})", m.describe(), e.getMessage());
             }
+        }
+        return done;
+    }
+
+    /**
+     * The main ship's moves; with an extender changed among them the hangar is read again and what is left fitted at once:
+     * the old extender taken off drops the places, and the site puts the extras over them in the inventory (live 2026-11-26
+     * on st2: SLE-03 off for the SLE-04 — AROL-X, RLLB-X, G3X-CRGO-X went to the inventory till the next round).
+     */
+    private static int fitMain(orbit.auth.Hangars site, SiteHangars.ListInfo list, LevelPlan plan,
+                               java.util.List<orbit.bot.level.FitPlanner.Move> moves, BooleanSupplier still)
+            throws InterruptedException {
+        int done = apply(site, list.activeHangar(), moves, still);
+        boolean extender = moves.stream().anyMatch(m -> m.droneId() == null && "extras".equals(m.slotset())
+                && "sle".equals(orbit.bot.level.FitPlanner.kind(m.loot())));
+        if (!extender || !still.getAsBoolean()) {
+            return done;
+        }
+        try {
+            Thread.sleep(GAP_MS);
+            var json = site.hangarJson(list.activeHangar());
+            SiteHangars.HangarInfo view = SiteHangars.hangar(json, list.activeHangar());
+            var again = new java.util.ArrayList<>(orbit.bot.level.FitPlanner.plan(view, list.activeHangar(),
+                    SiteHangars.withExtender(list.slots(), view), plan));
+            again.addAll(orbit.bot.level.FitPlanner.drones(view, SiteHangars.droneView(json, list.activeHangar()),
+                    list.activeHangar(), plan));
+            if (!again.isEmpty()) {
+                LOG.info("раскладка: расширитель сменён — ещё {} перекладок (то, что сайт выкинул в инвентарь)", again.size());
+                done += apply(site, list.activeHangar(), again, still);
+            }
+        } catch (java.io.IOException | RuntimeException e) {
+            LOG.warn("раскладка: после смены расширителя ангар не прочитан ({})", e.getMessage());
         }
         return done;
     }
@@ -502,14 +534,15 @@ final class LevelWatch {
      * won on the auction, fitted into its hangar with shields in its drones' places, the engines bought and fitted after
      * the P.E.T. It stays out of the main ship's way: never the active ship here, never stripped for it.
      */
-    private static void nostromo(AuthClient auth, String origin, orbit.auth.Hangars site,
+    /** @return the Nostromo gave the main ship's extras back now (the main ship's fitting reads its hangar again) */
+    private static boolean nostromo(AuthClient auth, String origin, orbit.auth.Hangars site,
                                  com.fasterxml.jackson.databind.JsonNode listJson, SiteHangars.ListInfo list,
                                  SiteHangars.HangarInfo anyView, String account, AccountState state, LevelPlan plan,
                                  WorldFeed feed, java.util.function.Consumer<String> switchConfig, Runnable requestRefit)
             throws InterruptedException {
         orbit.bot.level.PalladiumKit.Kit kit = orbit.bot.level.PalladiumKit.bundled();
         if (kit == null) {
-            return;
+            return false;
         }
         PalladiumStage.resume(account, feed, h -> { }, switchConfig);
         if (PalladiumStage.phase(account) == PalladiumStage.Phase.RUN) {
@@ -519,7 +552,7 @@ final class LevelWatch {
         java.util.List<String> missing = orbit.bot.level.PalladiumKit.missingExtras(kit, anyView, nh != 0);
         KIT_GOALS.put(account, orbit.bot.level.PalladiumKit.auctionGoals(missing));
         if (nh == 0 || nh == list.activeHangar()) {
-            return; // not bought yet (ПД1), or flown now (the stage itself)
+            return false; // not bought yet (ПД1), or flown now (the stage itself)
         }
         try {
             Thread.sleep(GAP_MS);
@@ -533,8 +566,10 @@ final class LevelWatch {
             // in the game the site changes a hangar only by the base station («Станция с ангаром…», live 2026-11-26 on
             // st2): there at once, else — waited as the main ship's moves — a re-login and the moves out of the game
             int done = 0;
+            boolean gaveBack = false;
             if (!moves.isEmpty() && atHomeStation(feed)) {
                 done = apply(site, nh, moves, () -> atHomeStation(feed));
+                gaveBack = done > 0 && moves.stream().anyMatch(m -> !m.toShip() && m.droneId() == null);
                 PENDING_SINCE.remove(account + ":n");
             } else if (!moves.isEmpty()) {
                 long since = PENDING_SINCE.computeIfAbsent(account + ":n", k -> System.currentTimeMillis());
@@ -595,8 +630,10 @@ final class LevelWatch {
                             state.credits() - plan.reserveCredits());
                 }
             }
+            return gaveBack;
         } catch (java.io.IOException | RuntimeException e) {
             LOG.warn("Nostromo: ангар не прочитан ({})", e.getMessage());
+            return false;
         }
     }
 
@@ -901,6 +938,18 @@ final class LevelWatch {
                 buy(auth, session.host(), advice.other(), state.credits() - plan.reserveCredits());
             }
         }
+        // the Nostromo first: what it gives back to the main ship is fitted on it right below, in this round
+        if (hangar != null
+                && nostromo(auth, session.host(), site, listJson, list, hangar, account, state, plan, feed, switchConfig, requestRefit)) {
+            try {
+                Thread.sleep(GAP_MS);
+                var fresh = site.hangarJson(list.activeHangar());
+                hangar = SiteHangars.hangar(fresh, list.activeHangar());
+                drones = SiteHangars.droneView(fresh, list.activeHangar());
+            } catch (java.io.IOException | RuntimeException e) {
+                LOG.warn("раскладка: ангар после Nostromo не прочитан ({})", e.getMessage());
+            }
+        }
         if (hangar != null) {
             // a better ship owned (won on the auction, bought): its gear moved over and the bot sent there (user's consent
             // 2026-11-25); the fitting is done there after the login
@@ -944,7 +993,7 @@ final class LevelWatch {
                     LOG.info("раскладка: {} перекладок ждут, пока корабль у станции базы (перезаход через {} мин)", moves.size(),
                             (REFIT_AFTER_MS - waited) / 60_000 + 1);
                 }
-            } else if (apply(site, list.activeHangar(), moves, () -> atHomeStation(feed)) > 0) {
+            } else if (fitMain(site, list, plan, moves, () -> atHomeStation(feed)) > 0) {
                 PENDING_SINCE.remove(account);
                 LOG.info("раскладка: перезахожу, чтобы игра увидела снаряжение");
                 refresh.run();
@@ -952,9 +1001,6 @@ final class LevelWatch {
         }
         if (drones != null && list.activeHangar() != 0) {
             sellFlaxForIris(site, list.activeHangar(), drones);
-        }
-        if (hangar != null) {
-            nostromo(auth, session.host(), site, listJson, list, hangar, account, state, plan, feed, switchConfig, requestRefit);
         }
         String moduleStatus = status.get();
         boolean idle = moduleStatus != null && moduleStatus.contains("нечего делать");
