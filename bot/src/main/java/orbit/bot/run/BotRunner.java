@@ -720,7 +720,7 @@ public final class BotRunner {
             }
         }
         if (refitWanted && hangarRequest == 0 && !module.busy() && service.phase() == ServiceVisit.Phase.IDLE
-                && activeHangar != 0) {
+                && activeHangar != 0 && plainMap(w)) {
             refitWanted = false;
             log.info("Перезахожу, чтобы поставить снаряжение (вне игры): выход, раскладка, вход");
             hangarRequest = activeHangar; // the app's ship change on the same ship: the fitting between, no switch
@@ -731,7 +731,7 @@ public final class BotRunner {
             return;
         }
         if (shipWanted != 0 && hangarRequest == 0 && !module.busy() && service.phase() == ServiceVisit.Phase.IDLE
-                && activeHangar != 0) {
+                && activeHangar != 0 && plainMap(w)) {
             int to = shipWanted;
             shipWanted = 0;
             if (to != activeHangar) {
@@ -1294,6 +1294,16 @@ public final class BotRunner {
     }
 
     private boolean noHomeTold;
+
+    /**
+     * The leveling mode's refit and ship change wait for an ordinary map ({@code normal} in maps-config: x-1…x-8), out at its
+     * portal or base the usual way — never in a gate or another instance (live 2026-11-26 on int1: st5 jumped into the
+     * starter gate and the refit's logout began there, cancelled again and again).
+     */
+    private boolean plainMap(WorldSnapshot w) {
+        int map = w.hero().mapId();
+        return "normal".equals(ctx.maps().info(map).type()) && !orbit.config.GateCatalog.instanced(map);
+    }
 
     private void fail(String why) {
         log.error("Бот остановлен: {}", why);
