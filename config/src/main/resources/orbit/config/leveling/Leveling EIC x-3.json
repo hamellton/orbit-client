@@ -391,7 +391,7 @@
   "modules": {
     "enrich": {
       "enabled": true,
-      "refine": true,
+      "refine": false,
       "keepInCargo": 0,
       "maxPerHour": 60,
       "items": {
@@ -402,7 +402,7 @@
           "load": 500
         },
         "laser": {
-          "on": true,
+          "on": false,
           "ore": "PROMERIUM",
           "ores": [
             "PROMERIUM",
@@ -413,7 +413,7 @@
           "load": 500
         },
         "shield": {
-          "on": true,
+          "on": false,
           "ore": "DURANIUM",
           "below": 1000000000,
           "load": 500,
@@ -421,13 +421,10 @@
         }
       },
       "cargoWhenLow": false,
-      "keepAllBelowLevel": 17,
       "order": [
-        "drive",
-        "laser",
-        "shield"
-      ],
-      "sellDuraniumAtBase": true
+      "drive"
+    ],
+      "sellDuraniumAtBase": false
     },
     "dispatch": {
       "enabled": true,

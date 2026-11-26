@@ -309,11 +309,49 @@ public final class BoxPicker {
                     return r == null ? 0 : r.priority();
                 }).thenComparingDouble(b -> Math.hypot(b.x() - h.x(), b.y() - h.y())))
                 .orElse(null);
+        tellCargoSkipped(c, w, best);
         if (best != null && fight && (Math.hypot(best.x() - h.x(), best.y() - h.y()) > c.collect().radius()
                 || fightNearNpc > 0 && Math.hypot(best.x() - fightNpcX, best.y() - fightNpcY) > fightNearNpc)) {
             return null;
         }
         return best;
+    }
+
+    /** NPC cargo in sight already told about (by its hash): one line each. */
+    private final java.util.Set<String> cargoTold = new java.util.HashSet<>();
+
+    /**
+     * The leveling quests configs ({@code modules.enrich.cargoWhenLow}) only: why NPC cargo in sight is not the box taken —
+     * one line per box (2026-11-26: the starters picked 4–7 cargo boxes all night, none after 00:54, in ~400 kills each).
+     */
+    private void tellCargoSkipped(BotConfig c, WorldSnapshot w, WorldSnapshot.Collectable best) {
+        com.fasterxml.jackson.databind.JsonNode e = c.modules().get("enrich");
+        if (e == null || !e.path("cargoWhenLow").asBoolean(false)) {
+            return;
+        }
+        WorldSnapshot.Hero h = w.hero();
+        for (WorldSnapshot.Collectable b : w.collectables().values()) {
+            if (!"FROM_SHIP".equals(key(b)) || b == best || !cargoTold.add(b.hash())) {
+                continue;
+            }
+            double d = Math.hypot(b.x() - h.x(), b.y() - h.y());
+            String why = ignored.containsKey(b.hash()) ? "недавно не вышло подобрать"
+                    : !collects(c, w, key(b)) ? "в конфиге работы груз выключен"
+                    : orbit.world.maps.ZoneGeometry.blocked(w, b.x(), b.y()) ? "в закрытой зоне"
+                    : avoidedDeep(c, w, b.x(), b.y()) ? "в избегаемой зоне"
+                    : BotConfig.Collect.fillsCargo(key(b)) && cargoFull(c, w) ? "трюм полон (свободно " + w.cargoFree() + ")"
+                    : !cargoWanted(c, w) ? "обогащению не нужен"
+                    : !Double.isNaN(anchorX) || fight ? "дальше радиуса сбора во время работы/боя (" + (int) d + ")"
+                    : d > c.collect().radius() ? "дальше радиуса сбора (" + (int) d + " > " + c.collect().radius() + ")"
+                    : c.collect().ignoreContested() && contested(w, b) ? "к нему летит другой игрок"
+                    : c.general().avoidMines() && orbit.bot.nav.PathFinder.nearMine(w, b.x(), b.y()) ? "у мины"
+                    : ctx.nav().inDanger(b.x(), b.y()) ? "у обидчика"
+                    : best != null ? "выбран другой ящик (" + key(best) + ")" : "не выбран";
+            log.info("Груз с корабля в {} не беру: {}", (int) d, why);
+        }
+        if (cargoTold.size() > 500) {
+            cargoTold.clear();
+        }
     }
 
     /** The reach DarkBot gives a box by an obstacle: the nearest free point closer than this. */
