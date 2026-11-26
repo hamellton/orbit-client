@@ -254,6 +254,7 @@ public final class QuestModule implements BotModule {
         WorldSnapshot w = ctx.world().get();
         Quests q = w.quests();
         long now = ctx.now();
+        notePlayerDeath(w, now);
         if (w.hero().mapId() == STARTER_GATE_MAP && kinds().contains("STARTERGATE")) {
             inStarterGate(w, now);
             return;
@@ -948,6 +949,7 @@ public final class QuestModule implements BotModule {
                 }
             }
             where.keySet().removeIf(m -> notThere.getOrDefault(m, Set.of()).contains(c.id()));
+            avoidDanger(where.keySet(), now());
             boolean bosses = !want.isEmpty() && want.stream().allMatch(n -> n.startsWith("boss"));
             int map45 = ctx.maps().byName("4-5") == null ? -1 : ctx.maps().byName("4-5").id();
             Integer best = on.isEmpty() ? pirateMap(want, where.keySet(), h) : null;
@@ -1200,6 +1202,7 @@ public final class QuestModule implements BotModule {
             where.keySet().retainAll(on);
         }
         where.keySet().removeIf(m -> notThere.getOrDefault(m, Set.of()).contains(c.id()));
+        avoidDanger(where.keySet(), now());
         Integer best = nearest(where.keySet(), w.hero());
         return best == null ? null : new Work(quest.id(), c.id(), Kind.SALVAGE, best, Set.copyOf(where.get(best)),
                 Double.NaN, Double.NaN, LOOT, want, 0);
@@ -1387,6 +1390,45 @@ public final class QuestModule implements BotModule {
         }
         ctx.nav().tick();
         status = "Стартовые врата: выхожу";
+    }
+
+    /** Maps where a player killed the ship → until when work there is avoided ({@code playerDeathAvoidMinutes}). */
+    private final Map<Integer, Long> dangerUntil = new java.util.HashMap<>();
+    private int aliveMap;
+    private int playerDeaths = -1;
+
+    private long now() {
+        return ctx.now();
+    }
+
+    /**
+     * {@code playerDeathAvoidMinutes} (the leveling quests configs; 0 = off, the default): the map where a player killed the
+     * ship is left out of the work's maps that long while another map has the same work (live 2026-11-26 on int1: st1 was
+     * killed by players twice in three minutes on 1-4, and the portal revive put it back there).
+     */
+    private void notePlayerDeath(WorldSnapshot w, long now) {
+        int minutes = settings().path("playerDeathAvoidMinutes").asInt(0);
+        int deaths = ctx.stats().killedBy().values().stream().mapToInt(Integer::intValue).sum();
+        if (w.hero().alive() && w.hero().mapId() > 0) {
+            aliveMap = w.hero().mapId();
+        }
+        if (playerDeaths >= 0 && deaths > playerDeaths && minutes > 0 && aliveMap > 0) {
+            dangerUntil.put(aliveMap, now + minutes * 60_000_000_000L);
+            log.warn("Квесты: на {} меня убил игрок — {} мин беру работу на других картах, где она есть",
+                    ctx.maps().info(aliveMap).name(), minutes);
+            work = null;
+            worker = null;
+        }
+        playerDeaths = deaths;
+    }
+
+    /** Leaves out the maps a player killed the ship on lately, while at least one other remains. */
+    private void avoidDanger(Set<Integer> maps, long now) {
+        dangerUntil.values().removeIf(t -> t < now);
+        if (dangerUntil.isEmpty() || maps.stream().allMatch(dangerUntil::containsKey)) {
+            return;
+        }
+        maps.removeIf(dangerUntil::containsKey);
     }
 
     /** The companies' x-1 by faction (1 MMO 1-1, 2 EIC 2-1, 3 VRU 3-1). */
