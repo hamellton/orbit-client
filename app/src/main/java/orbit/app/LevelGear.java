@@ -23,6 +23,8 @@ final class LevelGear {
 
     static final String X = "drone_formation_f-3d-x";
     static final String MOTH = "drone_formation_f-09-mo";
+    /** How often the game's items are looked at for the formations and the pet. */
+    static final long SEEN_NS = 2_000_000_000L;
 
     private LevelGear() {
     }
@@ -34,6 +36,8 @@ final class LevelGear {
             private BotConfig lastIn;
             private String lastKey;
             private BotConfig lastOut;
+            private long seenAt;
+            private String seenKey = "";
 
             @Override
             public synchronized BotConfig apply(BotConfig c) {
@@ -45,17 +49,29 @@ final class LevelGear {
                     leveledName = name;
                     leveling = OrbitMain.levelingConfig(name);
                 }
-                WorldSnapshot w = world.get();
-                if (!leveling || c == null || w == null || w.hero() == null) {
+                if (!leveling || c == null) {
                     return c;
                 }
-                boolean x = owned(w, X);
-                boolean moth = owned(w, MOTH);
-                boolean pet = w.pet() != null && w.pet().owned();
-                String key = x + "/" + moth + "/" + pet;
+                long now = System.nanoTime();
+                if (now - seenAt > SEEN_NS) {
+                    // the world looked at no more than every SEEN_NS: configs are read many times a tick
+                    seenAt = now;
+                    WorldSnapshot w = world.get();
+                    if (w != null && w.hero() != null) {
+                        seenKey = owned(w, X) + "/" + owned(w, MOTH) + "/" + (w.pet() != null && w.pet().owned());
+                    }
+                }
+                String key = seenKey;
+                if (key.isEmpty()) {
+                    return c;
+                }
                 if (c == lastIn && key.equals(lastKey)) {
                     return lastOut;
                 }
+                String[] k = key.split("/");
+                boolean x = Boolean.parseBoolean(k[0]);
+                boolean moth = Boolean.parseBoolean(k[1]);
+                boolean pet = Boolean.parseBoolean(k[2]);
                 lastIn = c;
                 lastKey = key;
                 lastOut = gear(c, x, moth, pet);

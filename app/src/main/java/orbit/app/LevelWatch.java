@@ -580,12 +580,7 @@ final class LevelWatch {
             if (petUnknown(advice.purchase(), snap)) {
                 LOG.info("покупка P.E.T.: игра ещё не сказала, есть ли он — не покупаю");
             } else {
-                if (buy(auth, session.host(), advice.purchase(), state.credits() - plan.reserveCredits())
-                        && advice.purchase().item().startsWith("drone_formation_")) {
-                    // the game shows an item bought on the site after the next login: a relogin puts the formation in use
-                    LOG.info("формация куплена — перезахожу, чтобы игра её показала");
-                    requestRefit.run();
-                }
+                buy(auth, session.host(), advice.purchase(), state.credits() - plan.reserveCredits());
             }
         }
         if (advice.other() != null) {
@@ -594,12 +589,7 @@ final class LevelWatch {
             if (petUnknown(advice.other(), snap)) {
                 LOG.info("покупка P.E.T.: игра ещё не сказала, есть ли он — не покупаю");
             } else {
-                if (buy(auth, session.host(), advice.other(), state.credits() - plan.reserveCredits())
-                        && advice.other().item().startsWith("drone_formation_")) {
-                    // the game shows an item bought on the site after the next login: a relogin puts the formation in use
-                    LOG.info("формация куплена — перезахожу, чтобы игра её показала");
-                    requestRefit.run();
-                }
+                buy(auth, session.host(), advice.other(), state.credits() - plan.reserveCredits());
             }
         }
         if (hangar != null) {

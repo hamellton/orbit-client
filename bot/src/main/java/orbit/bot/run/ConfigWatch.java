@@ -45,8 +45,13 @@ public final class ConfigWatch {
         this.modified = store.modified(name);
     }
 
+    /**
+     * The config with the program's override applied at each read (the override keeps its own cache): an override that
+     * follows the game — the leveling configs' formation once bought (LevelGear) — changes it without a reload (live
+     * 2026-11-26: applied once at the load, before the game's items came, the formation X stayed unused).
+     */
     public BotConfig current() {
-        return current;
+        return override.apply(raw);
     }
 
     public String name() {
