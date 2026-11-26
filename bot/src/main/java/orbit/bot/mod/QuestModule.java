@@ -1415,9 +1415,8 @@ public final class QuestModule implements BotModule {
         int minutes = settings().path("playerDeathAvoidMinutes").asInt(0);
         // the session's deaths (not killedBy: those are the NPCs the ship killed — live 2026-11-26 04:27 it fired on a kill)
         int deaths = ctx.stats().deaths.get();
-        if (w.hero().alive() && w.hero().mapId() > 0) {
-            aliveMap = w.hero().mapId();
-        }
+        // the map of the death is the last one this module saw the ship alive on before it: checked before taking the
+        // current map (live 2026-11-26: st5 died on 1-3, fled through 2-3 after the revive, and 2-3 was taken)
         if (playerDeaths >= 0 && deaths > playerDeaths && minutes > 0 && aliveMap > 0) {
             dangerUntil.put(aliveMap, now + minutes * 60_000_000_000L);
             log.warn("Квесты: на {} корабль погиб — {} мин беру работу на других картах, где она есть",
@@ -1426,6 +1425,9 @@ public final class QuestModule implements BotModule {
             worker = null;
         }
         playerDeaths = deaths;
+        if (w.hero().alive() && w.hero().mapId() > 0) {
+            aliveMap = w.hero().mapId();
+        }
     }
 
     /** Leaves out the maps a player killed the ship on lately, while at least one other remains. */
