@@ -247,8 +247,11 @@ final class AccountView extends JPanel {
         JLabel proxy = new JLabel();
         proxy.setForeground(Hud.DIM);
         proxy.setToolTipText("Под каким IP работает аккаунт: через прокси или напрямую; IP и страна — по проверке перед входом");
-        who.add(proxy);
         bar.add(who);
+        // the proxy line apart: long («напрямую, без прокси · IP … (UA)»), it wraps alone on a narrow window
+        JPanel proxyGroup = group();
+        proxyGroup.add(proxy);
+        bar.add(proxyGroup);
 
         if (tab.switchConfig() != null) {
             JLabel cfgLabel = new JLabel("Конфиг");
@@ -296,7 +299,10 @@ final class AccountView extends JPanel {
             edit.setToolTipText("Открыть конфиг");
             edit.addActionListener(e -> orbit.app.gui.config.ConfigWindow.open(orbit.config.ConfigStore.openDefault(),
                     orbit.config.AccountSettings.DEFAULT_FILE, null, tab.config().get(), tab.feed().title()));
-            cfg.add(edit);
+            // apart from the config box: on a narrow window it goes to the next row instead of being cut off
+            JPanel editGroup = group();
+            editGroup.add(edit);
+            bar.add(editGroup);
         }
         // the run controls first, always in sight; the windows, the client and the rest in short menus; each group wraps
         // as a whole, so a narrow window moves a group to the next row instead of cutting it off
