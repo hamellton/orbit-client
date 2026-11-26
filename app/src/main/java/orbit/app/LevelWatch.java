@@ -144,7 +144,8 @@ final class LevelWatch {
             }
             Thread.sleep(GAP_MS);
             SiteHangars.HangarInfo active = SiteHangars.hangar(site.hangarJson(list.activeHangar()), list.activeHangar());
-            var moves = orbit.bot.level.FitPlanner.plan(active, list.activeHangar(), list.slots(), plan);
+            var moves = orbit.bot.level.FitPlanner.plan(active, list.activeHangar(),
+                    SiteHangars.withExtender(list.slots(), active), plan);
             LOG.info("вне игры: раскладка на «{}» (ангар {}): {} перекладок", list.activeShip(), list.activeHangar(), moves.size());
             return moved + apply(site, list.activeHangar(), moves);
         } catch (java.io.IOException | RuntimeException e) {
@@ -569,7 +570,9 @@ final class LevelWatch {
                 requestShip.accept(bestHangar);
                 return false;
             }
-            var moves = orbit.bot.level.FitPlanner.plan(hangar, list.activeHangar(), list.slots(), plan);
+            // the extras with the slot extender's places (the site lists the ship's own alone)
+            var moves = orbit.bot.level.FitPlanner.plan(hangar, list.activeHangar(),
+                    SiteHangars.withExtender(list.slots(), hangar), plan);
             if (moves.isEmpty()) {
                 PENDING_SINCE.remove(account);
                 LOG.info("раскладка: всё на местах");

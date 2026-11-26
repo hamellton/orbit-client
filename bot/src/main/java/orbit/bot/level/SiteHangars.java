@@ -157,7 +157,7 @@ public final class SiteHangars {
      * lists the ship's own (live 2026-11-26 on int1: a G-Bastion «extras Q 3» with SLE-02 took a fourth and a fifth CPU,
      * AROL-X and RLLB-X, out of the game).
      */
-    static Map<String, Integer> withExtender(Map<String, Integer> slots, HangarInfo hangar) {
+    public static Map<String, Integer> withExtender(Map<String, Integer> slots, HangarInfo hangar) {
         if (hangar == null || !slots.containsKey("extras")) {
             return slots;
         }
