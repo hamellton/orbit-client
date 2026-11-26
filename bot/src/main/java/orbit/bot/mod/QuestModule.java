@@ -903,7 +903,22 @@ public final class QuestModule implements BotModule {
                 || orbit.bot.nav.Traveler.closed(wk.map(), w.hero().level()))) {
             return null; // also a map a portal would not let this level into
         }
+        if (wk != null && wk.map() > 0 && dangerous(wk.map())) {
+            // checked after the own-twin mirroring too (live 2026-11-26 09:22: Saimon known on 2-4 became work on 1-4,
+            // marked dangerous)
+            return null;
+        }
         return wk;
+    }
+
+    /** A map marked dangerous ({@code playerDeathAvoidMinutes}): a ship died there lately. */
+    private boolean dangerous(int map) {
+        if (settings().path("playerDeathAvoidMinutes").asInt(0) <= 0) {
+            return false;
+        }
+        loadDanger();
+        Long until = dangerUntil.get(map);
+        return until != null && until > System.currentTimeMillis();
     }
 
     /** A map of the hero's own company ({@code 1-x} for MMO, {@code 2-x} EIC, {@code 3-x} VRU). */
