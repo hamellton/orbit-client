@@ -28,6 +28,12 @@ final class Socks5Server {
     private final Upstream upstreamWay;
     private final PacketTap tap;
     private final boolean quiet;
+    /** The site window's guard against logging out ({@code null}: the site is piped as is). */
+    private volatile SiteGuard guard;
+
+    void guard(SiteGuard g) {
+        guard = g;
+    }
 
     Socks5Server(int port, Path recordDir, Predicate<String> isGameTarget) {
         this(port, recordDir, isGameTarget, Upstream.DIRECT, null, false);
@@ -117,6 +123,8 @@ final class Socks5Server {
 
             if (isGameTarget.test(target)) {
                 new GameRelay(client, upstream, target, recordDir, tap, quiet).run();
+            } else if (guard != null && guard.wants(host, dstPort)) {
+                guard.handle(client, upstream, host, dstPort);
             } else {
                 if (quiet) {
                     log.debug("Туннель к {}", target);

@@ -54,6 +54,11 @@ public final class HandRelay implements AutoCloseable {
      * nothing of it may reach the game server).
      */
     public static HandRelay siteOnly(Path recordDir, Upstream upstream) throws IOException {
+        return siteOnly(recordDir, upstream, null);
+    }
+
+    /** As {@link #siteOnly(Path, Upstream)}, the site's pages through {@code guard} (no logout from the site window). */
+    public static HandRelay siteOnly(Path recordDir, Upstream upstream, SiteGuard guard) throws IOException {
         HandRelay r = new HandRelay();
         Upstream noGame = (host, port) -> {
             if (GAME_TARGET.matcher(host + ":" + port).matches()) {
@@ -62,6 +67,7 @@ public final class HandRelay implements AutoCloseable {
             return upstream.open(host, port);
         };
         Socks5Server socks = new Socks5Server(0, recordDir, t -> false, noGame, null, true);
+        socks.guard(guard);
         ServerSocket ss = socks.bind();
         r.sockets.add(ss);
         r.socksPort = ss.getLocalPort();

@@ -191,13 +191,19 @@ public final class HandPlay {
      * folder, the site through the relay's SOCKS5 port and the game hosts mapped to loopback.
      */
     static Process launch(Path app, String account, int socksPort, GameSession session) throws IOException {
-        Path profile = Path.of("local", "client-profile-" + account.replaceAll("[^\\w.-]", "_")).toAbsolutePath();
+        return launch(app, "client-profile-", account, socksPort, session, "internalMapRevolution");
+    }
+
+    /** @param profilePrefix the profile folder's name before the account; {@code action} the site page opened first */
+    static Process launch(Path app, String profilePrefix, String account, int socksPort, GameSession session, String action)
+            throws IOException {
+        Path profile = Path.of("local", profilePrefix + account.replaceAll("[^\\w.-]", "_")).toAbsolutePath();
         List<String> cmd = List.of(app.resolve("Contents/MacOS/DarkOrbit Client").toString(),
                 "--proxy-server=socks5://127.0.0.1:" + socksPort,
                 "--proxy-bypass-list=<-loopback>",
                 "--host-resolver-rules=MAP *.prod.darkorbit.com 127.0.0.1",
                 "--user-data-dir=" + profile,
-                "--url=" + session.host() + "/indexInternal.es?action=internalMapRevolution",
+                "--url=" + session.host() + "/indexInternal.es?action=" + action,
                 "--dosid=" + session.dosid());
         ProcessBuilder pb = new ProcessBuilder(cmd).redirectErrorStream(true).redirectOutput(ProcessBuilder.Redirect.DISCARD);
         pb.environment().remove("ELECTRON_RUN_AS_NODE");
@@ -300,6 +306,91 @@ public final class HandPlay {
                 status.accept("клиент закрыт");
             }
         });
+    }
+
+    private static final Map<String, Process> SITES = new ConcurrentHashMap<>();
+
+    /** The account's site is open in a client window now. */
+    public static boolean siteOpen(String account) {
+        return account != null && SITES.containsKey(account);
+    }
+
+    /**
+     * «Сайт» (docs/PLAN.md «Сайт аккаунта», a user's wish 2026-11-26): the account's site in the official client (it has
+     * Flash for the hangar page) with the bot's site session, through the account's proxy; the bot goes on untouched. The
+     * site's «Выйти» is not let through ({@link orbit.sniffer.SiteGuard}), and the game page cannot reach the game servers
+     * (their hosts are refused): a login there would throw the bot out. No game ports: several site windows at once.
+     */
+    public static synchronized void site(String account, Consumer<String> status) {
+        Handle h = ACCOUNTS.get(account);
+        if (h == null) {
+            status.accept("этот аккаунт не запущен ботом в этой программе");
+            return;
+        }
+        if (SITES.containsKey(account)) {
+            status.accept("сайт уже открыт — закрой его окно");
+            return;
+        }
+        GameConnection conn = h.conn().get();
+        GameSession session = conn == null ? null : conn.session();
+        if (session == null || session.dosid() == null || session.host() == null) {
+            status.accept("нет сессии сайта — подожди, пока бот войдёт");
+            return;
+        }
+        Path app = clientApp();
+        if (app == null) {
+            status.accept("не нашёл DarkOrbit Client.app (задай ORBIT_CLIENT_APP)");
+            return;
+        }
+        HandRelay relay;
+        try {
+            if (!h.route().direct()) {
+                h.route().verify();
+            }
+            Upstream up = h.route().direct() ? Upstream.DIRECT
+                    : (host, port) -> h.route().connector().open(host, port, 15_000);
+            relay = HandRelay.siteOnly(Path.of("recordings"), up,
+                    new orbit.sniffer.SiteGuard(Path.of("local", "site-guard.p12")));
+        } catch (IOException | orbit.auth.AuthException | RuntimeException e) {
+            status.accept("окно сайта не запустилось: " + e.getMessage());
+            return;
+        }
+        Process process;
+        try {
+            process = launch(app, "client-site-", account, relay.socksPort(), session, "internalStart");
+        } catch (IOException e) {
+            relay.close();
+            status.accept("клиент не запустился: " + e.getMessage());
+            return;
+        }
+        SITES.put(account, process);
+        LOG.info("Сайт: окно сайта аккаунта открыто (выход с сайта не пропускается)");
+        status.accept("сайт открыт — бот работает дальше; «Выйти» на сайте не сработает, игра там не откроется");
+        Map<String, String> ctx = org.slf4j.MDC.getCopyOfContextMap();
+        Thread.ofPlatform().daemon().name("site-" + account).start(() -> {
+            if (ctx != null) {
+                org.slf4j.MDC.setContextMap(ctx);
+            }
+            try {
+                process.waitFor();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            } finally {
+                relay.close();
+                SITES.remove(account);
+                LOG.info("Сайт: окно закрыто");
+                status.accept("клиент закрыт");
+            }
+        });
+    }
+
+    /** Closes the account's site window. */
+    public static void closeSite(String account) {
+        Process p = SITES.get(account);
+        if (p != null) {
+            p.toHandle().descendants().forEach(ProcessHandle::destroy);
+            p.destroy();
+        }
     }
 
     /** Ends the watching: the client is closed. */

@@ -343,6 +343,7 @@ final class AccountView extends JPanel {
             javax.swing.JPopupMenu clientMenu = new javax.swing.JPopupMenu();
             javax.swing.JMenuItem watch = new javax.swing.JMenuItem();
             javax.swing.JMenuItem hand = new javax.swing.JMenuItem();
+            javax.swing.JMenuItem site = new javax.swing.JMenuItem();
             Runnable showClient = () -> {
                 boolean watching = orbit.app.HandPlay.watching(handAccount);
                 boolean playing = orbit.app.HandPlay.active(handAccount);
@@ -354,6 +355,10 @@ final class AccountView extends JPanel {
                 hand.setToolTipText("Отдать игру клиенту той же сессией (без выхода), бот на паузе; закроешь клиент — бот"
                         + " войдёт снова");
                 hand.setEnabled(!watching);
+                boolean siteOn = orbit.app.HandPlay.siteOpen(handAccount);
+                site.setText(siteOn ? "Закрыть сайт" : "Сайт аккаунта");
+                site.setToolTipText("Сайт аккаунта (ангар, Скайлаб, магазин…) в окне клиента той же сессией и через прокси"
+                        + " аккаунта; бот работает дальше; «Выйти» на сайте не сработает");
             };
             java.util.function.BiConsumer<String, String> told = (what, msg) ->
                     javax.swing.SwingUtilities.invokeLater(() -> {
@@ -385,8 +390,18 @@ final class AccountView extends JPanel {
                     told.accept("Играть руками", msg);
                 }));
             });
+            site.addActionListener(e -> {
+                if (orbit.app.HandPlay.siteOpen(handAccount)) {
+                    orbit.app.HandPlay.closeSite(handAccount);
+                    return;
+                }
+                client.setEnabled(false);
+                Thread.ofVirtual().start(() -> orbit.app.HandPlay.site(handAccount, msg -> told.accept("Сайт", msg)));
+            });
             clientMenu.add(watch);
             clientMenu.add(hand);
+            clientMenu.addSeparator();
+            clientMenu.add(site);
             client.addActionListener(e -> {
                 showClient.run();
                 clientMenu.show(client, 0, client.getHeight());
