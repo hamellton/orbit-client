@@ -183,7 +183,7 @@ public final class QuestModule implements BotModule {
         if (visit != null || work == null) {
             return 0;
         }
-        if (work.kind() == Kind.GATE && ctx.world().get().hero().mapId() == STARTER_GATE_MAP) {
+        if (ctx.world().get().hero().mapId() == STARTER_GATE_MAP && kinds().contains("STARTERGATE")) {
             // in the starter gate: the work there is chosen anew, no travel back to x-1 meanwhile (live 2026-11-26: the
             // jump went through, the runner found no path from «Devolarium Attack» to 1-1 and stopped the bot)
             return STARTER_GATE_MAP;
@@ -249,6 +249,10 @@ public final class QuestModule implements BotModule {
         WorldSnapshot w = ctx.world().get();
         Quests q = w.quests();
         long now = ctx.now();
+        if (w.hero().mapId() == STARTER_GATE_MAP && kinds().contains("STARTERGATE")) {
+            inStarterGate(w, now);
+            return;
+        }
         if (visit != null) {
             if (visit.tick()) {
                 return;
@@ -1260,6 +1264,71 @@ public final class QuestModule implements BotModule {
      */
     private WorldSnapshot.Portal starterGatePortal(WorldSnapshot w) {
         return w.portals().values().stream().filter(p -> p.designId() == STARTER_GATE_PORTAL).findFirst().orElse(null);
+    }
+
+    /** No NPC in sight in the starter gate this long: it is over, out by its portal. */
+    static final long GATE_EMPTY_NS = 20_000_000_000L;
+    private long gateEmptySince;
+
+    /**
+     * In the starter gate («Devolarium Attack», the leveling quests configs): nothing leads from it to another map, so no
+     * work elsewhere and no quest giver (live 2026-11-26: the runner found no path to 1-1 and stopped the bot, twice). Every
+     * NPC in sight is fought; none for {@link #GATE_EMPTY_NS} — to the map's portal and jump (out).
+     */
+    private void inStarterGate(WorldSnapshot w, long now) {
+        visit = null;
+        Set<String> npcs = new java.util.TreeSet<>();
+        w.ships().values().stream().filter(x -> x.npc() && x.name() != null).forEach(x -> npcs.add(x.name()));
+        if (!npcs.isEmpty()) {
+            gateEmptySince = 0;
+            Work fight = new Work(0, 0, Kind.KILL, STARTER_GATE_MAP, Set.copyOf(npcs), Double.NaN, Double.NaN, -1);
+            if (work == null || work.kind() != Kind.KILL || !work.names().equals(fight.names())) {
+                log.info("Стартовые врата: бью {}", npcs);
+                if (worker != null) {
+                    worker.pause();
+                }
+                work = fight;
+                worker = new KillModule(questContext(fight), true, true);
+            }
+            worker.tick();
+            status = "Стартовые врата: бой · " + worker.status();
+            return;
+        }
+        if (gateEmptySince == 0) {
+            gateEmptySince = now;
+        }
+        if (worker != null) {
+            worker.pause();
+            worker = null;
+        }
+        work = new Work(0, 0, Kind.GATE, STARTER_GATE_MAP, Set.of(), Double.NaN, Double.NaN, -1);
+        if (now - gateEmptySince < GATE_EMPTY_NS) {
+            ctx.nav().tick();
+            status = "Стартовые врата: жду NPC";
+            return;
+        }
+        WorldSnapshot.Portal out = w.portals().values().stream()
+                .min(java.util.Comparator.comparingDouble(p -> Math.hypot(p.x() - w.hero().x(), p.y() - w.hero().y())))
+                .orElse(null);
+        if (out == null) {
+            ctx.nav().tick();
+            status = "Стартовые врата: NPC нет, портала нет — жду";
+            if (now - gateEmptySince > 6 * GATE_EMPTY_NS) {
+                tell("Стартовые врата: NPC нет, портала выхода не видно");
+            }
+            return;
+        }
+        double d = Math.hypot(w.hero().x() - out.x(), w.hero().y() - out.y());
+        if (d > 150 && ctx.nav().idle()) {
+            ctx.nav().moveTo(out.x(), out.y(), false);
+        }
+        if (d < 400 && now - gateJumpAt > 5_000_000_000L) {
+            gateJumpAt = now;
+            log.info("Стартовые врата: NPC нет — выхожу через портал ({}/{})", out.x() / 100, out.y() / 100);
+            ctx.actions().jump();
+        }
+        ctx.nav().tick();
+        status = "Стартовые врата: выхожу";
     }
 
     /** The companies' x-1 by faction (1 MMO 1-1, 2 EIC 2-1, 3 VRU 3-1). */
