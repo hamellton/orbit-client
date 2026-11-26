@@ -1429,7 +1429,9 @@ public final class QuestModule implements BotModule {
     }
 
     /** Maps where a player killed the ship → until when work there is avoided ({@code playerDeathAvoidMinutes}). */
-    private final Map<Integer, Long> dangerUntil = new java.util.HashMap<>();
+    // shared by the accounts of one program (one company's maps): a player camping 1-3 killed st2 and a minute later st3
+    // (live 2026-11-26 07:29–07:30)
+    private static final Map<Integer, Long> dangerUntil = new java.util.concurrent.ConcurrentHashMap<>();
     private int aliveMap;
     private int playerDeaths = -1;
 
