@@ -133,7 +133,8 @@ final class MirrorServer implements AutoCloseable {
                         out.flush();
                         shown = replay.size();
                     }
-                    LOG.info("Смотреть: клиент вошёл в зеркало — показано {} пакетов входа, дальше вживую", shown);
+                    LOG.info("Смотреть: клиент вошёл в зеркало — показано {} пакетов входа ({}), дальше вживую", shown,
+                            capture.describe());
                 }
                 // anything else the client sends (clicks, keys, its UI) is dropped: the bot plays
             }

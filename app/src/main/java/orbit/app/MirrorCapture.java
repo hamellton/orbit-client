@@ -27,7 +27,7 @@ public final class MirrorCapture {
     static final Set<String> PASSING = Set.of("AttackLaserRunCommand", "AttackHitCommand", "AttackMissedCommand",
             "AttackHitNoLockCommand", "AttackRocketCommand", "AttackHitAssetCommand", "AttributeHitpointUpdateCommand",
             "AttributeShieldUpdateCommand", "HitpointInfoCommand", "PetHitpointsUpdateCommand", "PetShieldUpdateCommand",
-            "KeepAlive", "LegacyModule", "AttackAbortLaserCommand", "PetLaserAttackStopCommand", "PlaySoundCommand",
+            "KeepAlive", "AttackAbortLaserCommand", "PetLaserAttackStopCommand", "PlaySoundCommand",
             "StayinAlive", "UpdateSpaceSearchKeyCommand", "HellstormAttackCommand", "AbilityStartCommand",
             "AbilityStopCommand", "RefreshSelectedUICategoryCommand");
     /** Packets whose last one alone matters (per item where they name one). */
@@ -84,6 +84,8 @@ public final class MirrorCapture {
             beacon = b;
         } else if (PASSING.contains(name)) {
             // live only
+        } else if (p instanceof orbit.protocol.gen.LegacyModule lm) {
+            legacy(lm);
         } else if (!entity(p, name)) {
             if (LATEST.contains(name)) {
                 String key = name + ":" + firstOf(p, "menuItemId", "itemId", "userId") + ":" + firstOf(p, "modifier");
@@ -99,6 +101,21 @@ public final class MirrorCapture {
                 state.put("#" + other++, p);
             }
         }
+    }
+
+    /**
+     * The old text commands: the last of each kind (per ship for {@code n|…} — the drones {@code n|d|<ship>}, titles
+     * {@code n|t}, shields; per id for {@code v|<id>}; per code for the rest, the booty keys {@code A|BK…}); the loot
+     * messages ({@code LM}) are passing.
+     */
+    private void legacy(orbit.protocol.gen.LegacyModule lm) {
+        String[] f = lm.message == null ? new String[0] : lm.message.split("\\|", -1);
+        if (f.length < 2 || f[1].equals("LM")) {
+            return;
+        }
+        String key = "L:" + f[1] + (f.length > 2 ? "|" + f[2] : "") + (f[1].equals("n") && f.length > 3 ? "|" + f[3] : "");
+        state.remove(key);
+        state.put(key, lm);
     }
 
     /** The creates and removes of what is on the map; true when {@code p} was one. */
@@ -125,7 +142,8 @@ public final class MirrorCapture {
         if (userId instanceof Integer id) {
             moves.remove(id);
         }
-        state.keySet().removeIf(k -> k.startsWith("VisualModifierCommand:" + userId + ":"));
+        state.keySet().removeIf(k -> k.startsWith("VisualModifierCommand:" + userId + ":")
+                || k.startsWith("L:n|") && k.endsWith("|" + userId));
     }
 
     private void clearMap() {
@@ -187,6 +205,13 @@ public final class MirrorCapture {
         out.addAll(state.values());
         out.addAll(moves.values());
         return out;
+    }
+
+    /** What the replay holds, by kind (for the log: a client's map can be checked against it). */
+    public synchronized String describe() {
+        Map<String, Integer> n = new java.util.TreeMap<>();
+        state.values().forEach(p -> n.merge(p.getClass().getSimpleName(), 1, Integer::sum));
+        return "кораблей с движением " + moves.size() + ", " + n;
     }
 
     /** The bot is on a map (a client can be shown it). */

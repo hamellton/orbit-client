@@ -105,12 +105,19 @@ class MirrorServerTest {
             st.counterValue = i;
             cap.incoming(st);
         }
+        orbit.protocol.gen.LegacyModule drones = new orbit.protocol.gen.LegacyModule();
+        drones.message = "0|n|d|2|19|1|3";
+        cap.incoming(drones);
+        orbit.protocol.gen.LegacyModule loot = new orbit.protocol.gen.LegacyModule();
+        loot.message = "0|LM|ST|BAT|ammunition_laser_lcb-10|5";
+        cap.incoming(loot);
         List<Packet> r = cap.replay();
-        assertEquals(List.of("ShipInitializationCommand", "ShipCreateCommand", "MenuItemStatusCommand"),
+        assertEquals(List.of("ShipInitializationCommand", "ShipCreateCommand", "MenuItemStatusCommand", "LegacyModule"),
                 r.stream().map(p -> p.getClass().getSimpleName()).toList());
         assertEquals(2, ((orbit.protocol.gen.ShipCreateCommand) r.get(1)).userId, "the ship still there");
         assertEquals(49, ((orbit.protocol.gen.MenuItemStatusCommand) r.get(2)).counterValue, "the item's last state");
         assertEquals(49, cap.beacon().positionX, "the last beacon, kept apart for the hero's fresh one");
+        assertEquals("0|n|d|2|19|1|3", ((orbit.protocol.gen.LegacyModule) r.get(3)).message, "the ship's drones, no loot line");
     }
 
     private static Packet read(InputStream in) throws Exception {
