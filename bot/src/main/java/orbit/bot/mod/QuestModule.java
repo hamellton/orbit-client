@@ -331,6 +331,9 @@ public final class QuestModule implements BotModule {
             cargoFrom = -1;
         }
         Quests.Condition c = condition(q.active().get(work.quest()), work.condition());
+        if (stuck(c, now)) {
+            return;
+        }
         String progress = QuestTexts.condition(c) + (c.target() > 0 ? " " + orbit.world.Num.of(c.current(), c.target()) : "");
         if (work.kind() != Kind.SKYLAB && !ctx.stats().questOres.get().isEmpty()) {
             ctx.stats().questOres.set(Map.of());
@@ -624,6 +627,44 @@ public final class QuestModule implements BotModule {
                         + (x.mandatory() ? "" : "(необяз.)") + (x.active() ? "" : "(неакт.)")).toList());
         setAside.add(work.quest());
         killFrom = -1;
+        if (worker != null) {
+            worker.pause();
+        }
+        worker = null;
+        work = null;
+        return true;
+    }
+
+    private int stuckQuest;
+    private int stuckCondition;
+    private double stuckAt;
+    private long stuckSince;
+
+    /**
+     * {@code stuckMinutes} (the leveling quests configs; 0 = off, the default): a condition worked on that long with no
+     * progress is set aside for the session — not cancelled — so that under «finishFirst» it does not hold back new quests
+     * (live 2026-11-26: 108002 «collect 50 duranium» on 1-1/1-2, 0/50 for over ten minutes, terbium hardly there, and the
+     * giver gave nothing new meanwhile).
+     */
+    private boolean stuck(Quests.Condition c, long now) {
+        int minutes = settings().path("stuckMinutes").asInt(0);
+        if (minutes <= 0 || work == null) {
+            return false;
+        }
+        if (stuckQuest != work.quest() || stuckCondition != c.id() || stuckAt != c.current()) {
+            stuckQuest = work.quest();
+            stuckCondition = c.id();
+            stuckAt = c.current();
+            stuckSince = now;
+            return false;
+        }
+        if (now - stuckSince < minutes * 60_000_000_000L) {
+            return false;
+        }
+        log.warn("Квест {}: «{}» не сдвинулось за {} мин ({}/{}) — откладываю до конца сессии, новые квесты он не держит",
+                named(work.quest()), QuestTexts.condition(c), minutes, (long) c.current(), (long) c.target());
+        setAside.add(work.quest());
+        stuckQuest = 0;
         if (worker != null) {
             worker.pause();
         }
