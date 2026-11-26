@@ -95,7 +95,8 @@ Flax берём не больше 6. Перед ставкой или покуп
 | Leveling <фракция> x-3 | kill & collect | 1-3 / 2-3 / 3-3 | Lordakia, Saimon, Mordon, Devolarium; боссы — не бить |
 
 Общее: только бонусные ящики, патроны LCB-10 (докупка 3 000, когда меньше 1 000), без ракет и питомца, бегство от врагов,
-возрождение на базе, формации не трогаются. Радиусы — рекомендованные DarkBot (`reference/maps/npc-radius.json`): Streuner и
+возрождение у портала, как в обычных конфигах (`safety.revive` PORTAL; до 2026-11-26 было на базе — смена по решению
+пользователя), формации не трогаются. Радиусы — рекомендованные DarkBot (`reference/maps/npc-radius.json`): Streuner и
 Lordakia 450, Mordon и Saimon 500, Devolarium 536 (Recruit Streuner — как Streuner). Кто где живёт — `reference/maps/npc-maps.json`.
 Квестовый конфиг: типы STARTER (обучающие), MISSION, DAILY, WEEKLY, EVENT; к квестодателю — раз в час; пеленгатора нет.
 Сборка ради квестов (`craft`) в квестовых конфигах прокачки выключена: 2026-11-25 бот собрал 6 «Precision Targeter» по 20 000

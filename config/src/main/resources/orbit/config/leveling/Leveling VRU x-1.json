@@ -257,7 +257,7 @@
       "hpPodBelow": -1.0
     },
     "maxDeaths": 1000,
-    "revive": "BASE",
+    "revive": "PORTAL",
     "waitBeforeReviveSec": 10,
     "waitAfterReviveSec": 10,
     "paidRevives": 0,
