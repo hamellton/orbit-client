@@ -404,7 +404,9 @@ final class LevelWatch {
                 return;
             }
             String cur = item.uridium() ? "уридия" : "кредитов";
-            if ((long) item.price() != p.price() || item.uridium() != p.uridium()) {
+            // dearer than the plan (or another currency): the plan is out of date; cheaper is bought (live 2026-11-26: the
+            // G3N-7900 was 1 900 uridium against the plan's 2 000 and none were bought all night)
+            if ((long) item.price() > p.price() || item.uridium() != p.uridium()) {
                 LOG.warn("магазин: цена {} — {} {}, в плане {} {} — план устарел, не покупаю", p.item(), (long) item.price(), cur,
                         p.price(), p.uridium() ? "уридия" : "кредитов");
                 return;
