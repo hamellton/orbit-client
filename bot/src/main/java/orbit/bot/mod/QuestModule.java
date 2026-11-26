@@ -253,6 +253,11 @@ public final class QuestModule implements BotModule {
             inStarterGate(w, now);
             return;
         }
+        if (gateFight != null) {
+            gateFight = null; // out of the gate
+            work = null;
+            worker = null;
+        }
         if (visit != null) {
             if (visit.tick()) {
                 return;
@@ -1269,6 +1274,8 @@ public final class QuestModule implements BotModule {
     /** No NPC in sight in the starter gate this long: it is over, out by its portal. */
     static final long GATE_EMPTY_NS = 20_000_000_000L;
     private long gateEmptySince;
+    /** The gate's fight: every NPC name seen in it so far. */
+    private volatile Work gateFight;
 
     /**
      * In the starter gate («Devolarium Attack», the leveling quests configs): nothing leads from it to another map, so no
@@ -1281,14 +1288,19 @@ public final class QuestModule implements BotModule {
         w.ships().values().stream().filter(x -> x.npc() && x.name() != null).forEach(x -> npcs.add(x.name()));
         if (!npcs.isEmpty()) {
             gateEmptySince = 0;
-            Work fight = new Work(0, 0, Kind.KILL, STARTER_GATE_MAP, Set.copyOf(npcs), Double.NaN, Double.NaN, -1);
-            if (work == null || work.kind() != Kind.KILL || !work.names().equals(fight.names())) {
+            // one fighter for the whole gate; the NPCs it may fight grow with each wave (live 2026-11-26: a new fighter for
+            // every new name broke off fights with the target at 1-5 %)
+            Set<String> all = new java.util.TreeSet<>(gateFight == null ? Set.of() : gateFight.names());
+            boolean grew = all.addAll(npcs);
+            if (gateFight == null || grew) {
+                gateFight = new Work(0, 0, Kind.KILL, STARTER_GATE_MAP, Set.copyOf(all), Double.NaN, Double.NaN, -1);
                 log.info("Стартовые врата: бью {}", npcs);
-                if (worker != null) {
-                    worker.pause();
-                }
-                work = fight;
-                worker = new KillModule(questContext(fight), true, true);
+            }
+            work = gateFight;
+            if (worker == null) {
+                worker = new KillModule(new BotContext(ctx.world(), () -> questConfig(ctx.config().get(), gateFight,
+                        Map.of(), Set.of()), ctx.actions(), ctx.nav(), ctx.traveler(), ctx.maps(), ctx.random(), ctx.clock(),
+                        ctx.repair(), ctx.ship(), ctx.dataDir(), ctx.stats(), ctx.ships()), true, true);
             }
             worker.tick();
             status = "Стартовые врата: бой · " + worker.status();
