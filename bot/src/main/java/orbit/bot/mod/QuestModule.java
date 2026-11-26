@@ -1431,7 +1431,42 @@ public final class QuestModule implements BotModule {
     /** Maps where a player killed the ship → until when work there is avoided ({@code playerDeathAvoidMinutes}). */
     // shared by the accounts of one program (one company's maps): a player camping 1-3 killed st2 and a minute later st3
     // (live 2026-11-26 07:29–07:30)
+    // wall-clock millis, kept in local/danger-maps.properties so a restart does not forget them (07:36: right after a
+    // restart st2 flew back to 1-3 and the same player killed it again)
     private static final Map<Integer, Long> dangerUntil = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final java.nio.file.Path DANGER_FILE = java.nio.file.Path.of("local", "danger-maps.properties");
+    private static volatile boolean dangerLoaded;
+
+    private static synchronized void loadDanger() {
+        if (dangerLoaded) {
+            return;
+        }
+        dangerLoaded = true;
+        try {
+            if (java.nio.file.Files.exists(DANGER_FILE)) {
+                java.util.Properties p = new java.util.Properties();
+                try (var in = java.nio.file.Files.newInputStream(DANGER_FILE)) {
+                    p.load(in);
+                }
+                p.forEach((k, v) -> dangerUntil.put(Integer.parseInt(k.toString()), Long.parseLong(v.toString())));
+            }
+        } catch (Exception e) {
+            // no marks, no harm
+        }
+    }
+
+    private static synchronized void saveDanger() {
+        try {
+            java.util.Properties p = new java.util.Properties();
+            dangerUntil.forEach((k, v) -> p.setProperty(String.valueOf(k), String.valueOf(v)));
+            java.nio.file.Files.createDirectories(DANGER_FILE.getParent());
+            try (var out = java.nio.file.Files.newOutputStream(DANGER_FILE)) {
+                p.store(out, "maps where a ship died: until (epoch ms)");
+            }
+        } catch (Exception e) {
+            // told nowhere: the marks live on in memory
+        }
+    }
     private int aliveMap;
     private int playerDeaths = -1;
 
@@ -1451,7 +1486,9 @@ public final class QuestModule implements BotModule {
         // the map of the death is the last one this module saw the ship alive on before it: checked before taking the
         // current map (live 2026-11-26: st5 died on 1-3, fled through 2-3 after the revive, and 2-3 was taken)
         if (playerDeaths >= 0 && deaths > playerDeaths && minutes > 0 && aliveMap > 0) {
-            dangerUntil.put(aliveMap, now + minutes * 60_000_000_000L);
+            loadDanger();
+            dangerUntil.put(aliveMap, System.currentTimeMillis() + minutes * 60_000L);
+            saveDanger();
             log.warn("Квесты: на {} корабль погиб — {} мин беру работу на других картах, где она есть",
                     ctx.maps().info(aliveMap).name(), minutes);
             work = null;
@@ -1463,13 +1500,20 @@ public final class QuestModule implements BotModule {
         }
     }
 
-    /** Leaves out the maps a player killed the ship on lately, while at least one other remains. */
+    /**
+     * Leaves out the maps a ship died on lately; when only such maps have the work, none — the quest waits and others are
+     * done meanwhile (07:36: 108004 wants Boss Mordon on 1-3 only, where a player was camping).
+     */
     private void avoidDanger(Set<Integer> maps, long now) {
-        dangerUntil.values().removeIf(t -> t < now);
-        if (dangerUntil.isEmpty() || maps.stream().allMatch(dangerUntil::containsKey)) {
+        if (settings().path("playerDeathAvoidMinutes").asInt(0) <= 0) {
             return;
         }
-        maps.removeIf(dangerUntil::containsKey);
+        loadDanger();
+        long wall = System.currentTimeMillis();
+        dangerUntil.values().removeIf(t -> t < wall);
+        if (!dangerUntil.isEmpty()) {
+            maps.removeIf(dangerUntil::containsKey);
+        }
     }
 
     /** The companies' x-1 by faction (1 MMO 1-1, 2 EIC 2-1, 3 VRU 3-1). */
