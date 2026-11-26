@@ -345,6 +345,11 @@
         "item": "ammunition_rocket_plt-2026",
         "below": 100,
         "amount": 300
+      },
+      {
+        "item": "ammunition_rocketlauncher_eco-10",
+        "below": 50,
+        "amount": 100
       }
     ],
     "keepCredits": 0.0,
