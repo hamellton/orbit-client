@@ -358,7 +358,7 @@ public final class QuestGiverVisit {
             String account = org.slf4j.MDC.get("account");
             if (can || firstSkip((account == null ? "" : account) + "/" + d.id())) {
                 log.info("Квест {} ({}): {} — {}{}", orbit.world.QuestTitles.label(d.id()), QuestTexts.type(d.types()),
-                        describe(d), can ? "беру" : "не умею, пропускаю", can ? "" : raw(d));
+                        describe(d), can ? "подходит, в очередь" : "не умею, пропускаю", can ? "" : raw(d));
             }
             if (can) {
                 toTake.add(d.id());
