@@ -117,6 +117,42 @@ public final class PalladiumKit {
      */
     public static List<FitPlanner.Move> moves(Kit kit, SiteHangars.HangarInfo view, SiteHangars.DroneView drones,
                                               int hangarId, Map<String, Integer> slots, boolean engines) {
+        return moves(kit, view, drones, hangarId, slots, engines, null);
+    }
+
+    /**
+     * As above, the main ship first: an extra of a kind the main ship does not hold ({@code mainKinds}, {@link
+     * FitPlanner#kind}) is not taken from the inventory — it is the main ship's, out for a moment (live 2026-11-26 on st2:
+     * the SLE-03 taken off for the won SLE-04 dropped the places to 3, the site put AROL-X, RLLB-X, G3X-CRGO-X in the
+     * inventory, and the Nostromo took them) — and one fitted on the Nostromo goes out for the main ship to take.
+     * {@code mainKinds} null: no main ship to mind.
+     */
+    public static List<FitPlanner.Move> moves(Kit kit, SiteHangars.HangarInfo view, SiteHangars.DroneView drones,
+                                              int hangarId, Map<String, Integer> slots, boolean engines,
+                                              Set<String> mainKinds) {
+        List<FitPlanner.Move> back = new ArrayList<>();
+        if (mainKinds != null) {
+            final SiteHangars.HangarInfo given = view;
+            java.util.Set<String> here = new java.util.HashSet<>();
+            given.fittedIds().forEach((config, sets) -> sets.getOrDefault("extras", List.of()).forEach(id -> {
+                SiteHangars.Owned o = given.items().stream().filter(x -> x.id().equals(id)).findFirst().orElse(null);
+                if (o != null && kit.extras().contains(o.loot()) && !mainKinds.contains(FitPlanner.kind(o.loot()))) {
+                    back.add(new FitPlanner.Move(id, o.loot(), config, false, "extras"));
+                    here.add(id);
+                }
+            }));
+            List<SiteHangars.Owned> items = given.items().stream()
+                    .filter(o -> !here.contains(o.id()) && !(o.hangar() == 0 && o.loot().startsWith("equipment_extra_")
+                            && !mainKinds.contains(FitPlanner.kind(o.loot()))))
+                    .toList();
+            Map<Integer, Map<String, List<String>>> fitted = new java.util.TreeMap<>();
+            given.fittedIds().forEach((config, sets) -> {
+                Map<String, List<String>> m = new java.util.TreeMap<>();
+                sets.forEach((set, ids) -> m.put(set, ids.stream().filter(id -> !here.contains(id)).toList()));
+                fitted.put(config, m);
+            });
+            view = new SiteHangars.HangarInfo(given.fitted(), given.spare(), given.drones(), given.shape(), items, fitted);
+        }
         Map<String, List<String>> fit = new LinkedHashMap<>();
         fit.put("extras", kit.extras());
         if (engines) {
@@ -125,7 +161,8 @@ public final class PalladiumKit {
         fit.put("drone1", kit.shields());
         fit.put("drone2", kit.shields());
         LevelPlan own = new LevelPlan(1, 0, 0, List.of(), fit, List.of());
-        List<FitPlanner.Move> out = new ArrayList<>(FitPlanner.plan(view, hangarId, slots, own));
+        List<FitPlanner.Move> out = new ArrayList<>(back);
+        out.addAll(FitPlanner.plan(view, hangarId, slots, own));
         if (drones != null) {
             out.addAll(FitPlanner.drones(view, drones, hangarId, own));
         }

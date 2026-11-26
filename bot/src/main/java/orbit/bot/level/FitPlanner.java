@@ -148,7 +148,7 @@ public final class FitPlanner {
     }
 
     /** The kind of an extra: the repair robots are one kind, the slot extenders one; any other CPU — itself. */
-    static String kind(String loot) {
+    public static String kind(String loot) {
         if (loot.startsWith("equipment_extra_repbot_")) {
             return "repbot";
         }

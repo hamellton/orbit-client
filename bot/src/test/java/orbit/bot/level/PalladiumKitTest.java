@@ -97,4 +97,20 @@ class PalladiumKitTest {
         assertTrue(!SiteHangars.favourite(root, "ship_vengeance"), "not a favourite: not in the warp window");
         assertTrue(!SiteHangars.favourite(root, "ship_goliath"), "not listed");
     }
+
+    @Test
+    void theMainShipsExtrasOutForAMomentStayItsOwn() {
+        // st2 2026-11-26: the main ship holds SLE-04, REP-4, NC-RRB-X; AROL-X and RLLB-X went into the inventory when
+        // its SLE-03 came off and the Nostromo took them; a spare REP-2 is a second repair robot for the Nostromo
+        String rrb = "equipment_extra_cpu_nc-rrb-x";
+        String sle4 = "equipment_extra_cpu_sle-04";
+        var view = new SiteHangars.HangarInfo(Map.of(), Map.of(), 0, "", List.of(own("s4", sle4, MAIN), own("r4", REP4, MAIN),
+                own("n1", rrb, MAIN), own("a1", AROL, NOSTROMO), own("l1", RLLB, 0), own("r2", REP2, 0)),
+                Map.of(1, Map.of("extras", List.of("a1")), 2, Map.of("extras", List.of("a1"))));
+        var moves = PalladiumKit.moves(PalladiumKit.bundled(), view, null, NOSTROMO, Map.of("extras", 3), false,
+                java.util.Set.of("sle", "repbot", rrb));
+        assertTrue(moves.stream().anyMatch(m -> m.itemId().equals("a1") && !m.toShip()), "AROL-X back out: " + moves);
+        assertTrue(moves.stream().noneMatch(m -> m.itemId().equals("l1") && m.toShip()), "RLLB-X left for the main: " + moves);
+        assertTrue(moves.stream().anyMatch(m -> m.itemId().equals("r2") && m.toShip()), "REP-2 for the Nostromo: " + moves);
+    }
 }

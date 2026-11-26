@@ -520,7 +520,12 @@ final class LevelWatch {
             var slots = SiteHangars.withExtender(SiteHangars.slotsOf(listJson, kit.ship()), view);
             LevelPlan.Goal after = plan.goals().stream().filter(g -> kit.enginesAfter().equals(g.id())).findFirst().orElse(null);
             boolean engines = after != null && orbit.bot.level.Advisor.done(state, after);
-            var moves = orbit.bot.level.PalladiumKit.moves(kit, view, drones, nh, slots, engines);
+            // the main ship first: the kinds of extras it holds now (one taken off for a better one stays its own)
+            java.util.Set<String> mainKinds = new java.util.HashSet<>();
+            anyView.fittedIds().values().forEach(sets -> sets.getOrDefault("extras", java.util.List.of()).forEach(id ->
+                    anyView.items().stream().filter(o -> o.id().equals(id)).findFirst()
+                            .ifPresent(o -> mainKinds.add(orbit.bot.level.FitPlanner.kind(o.loot())))));
+            var moves = orbit.bot.level.PalladiumKit.moves(kit, view, drones, nh, slots, engines, mainKinds);
             int done = moves.isEmpty() ? 0 : apply(site, nh, moves);
             int lacking = engines ? orbit.bot.level.PalladiumKit.enginesMissing(kit, view, nh, slots) : 0;
             boolean gearOn = collectorGear(site, json, nh, kit);
