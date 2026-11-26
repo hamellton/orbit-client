@@ -280,56 +280,21 @@ final class LevelWatch {
      * user's choice 2026-11-26 (bought but never on; the item text: «activated on the map in the CPUs section»). The CPUs the
      * game lists are told once per game session.
      */
-    static final String SLOT_BAR = "standardSlotBar";
-    static final int BAR_SLOTS = 10;
-    /** The formations put on the slot bar in the current game session, per account. */
-    private static final java.util.Map<String, java.util.Map<String, Object>> ON_BAR =
-            new java.util.concurrent.ConcurrentHashMap<>();
+    static final String X = "drone_formation_f-3d-x";
+    static final String MOTH = "drone_formation_f-09-mo";
 
-    /**
-     * The leveling formations (LevelGear: X, Moth) put on the standard slot bar when owned and not there — the formation the
-     * main accounts use from the bar changes, one only in the item bar went unanswered (live 2026-11-26: X asked on st2 and
-     * st3, the ship stayed on №0); and the ship's formation told every round. The leveling mode alone.
-     */
+    /** The ship's formation and the leveling formations owned, told every round (to see the formation X take). */
     private static void formations(GameConnection conn, WorldFeed feed, String account) {
         var w = feed.snapshot();
-        Object session = conn.session();
-        if (w == null || w.hero() == null || session == null) {
+        if (w == null || w.hero() == null) {
             return;
         }
         java.util.List<String> owned = new java.util.ArrayList<>();
-        for (String f : java.util.List.of(LevelGear.X, LevelGear.MOTH)) {
+        for (String f : java.util.List.of(X, MOTH)) {
             var item = w.items().get(f);
-            if (item == null || !item.available()) {
-                continue;
+            if (item != null && item.available()) {
+                owned.add(f + (item.selected() ? " (выбрана)" : ""));
             }
-            owned.add(f + (item.selected() ? " (выбрана)" : "") + (w.slotItems().contains(f) ? " на панели" : " не на панели"));
-            var put = ON_BAR.computeIfAbsent(account, a -> new java.util.concurrent.ConcurrentHashMap<>());
-            if (w.slotItems().contains(f) || put.get(f) == session) {
-                continue;
-            }
-            java.util.Map<Integer, String> slots = w.slotBars().getOrDefault(SLOT_BAR, java.util.Map.of());
-            int free = 0;
-            for (int i = 1; i <= BAR_SLOTS; i++) {
-                String in = slots.get(i);
-                if (in == null || in.isBlank()) {
-                    free = i;
-                    break;
-                }
-            }
-            put.put(f, session);
-            if (free == 0) {
-                LOG.info("формация {}: на панели нет свободной ячейки — не кладу", f);
-                continue;
-            }
-            orbit.protocol.gen.SlotBarConfigSetRequest r = new orbit.protocol.gen.SlotBarConfigSetRequest();
-            r.menuItemId = f;
-            r.slotBarIdTo = SLOT_BAR;
-            r.slotIdTo = free;
-            r.slotBarIdFrom = "";
-            r.slotIdFrom = 0;
-            conn.send(r);
-            LOG.info("формация {}: кладу на панель (ячейка {})", f, free);
         }
         LOG.info("формации: на корабле №{}; есть: {}", w.hero().formation(), owned.isEmpty() ? "нет" : owned);
     }

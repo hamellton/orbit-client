@@ -5,13 +5,16 @@
   "general": {
     "workingMap": 5,
     "offensive": {
-      "config": 1
+      "config": 1,
+      "formation": "drone_formation_f-3d-x"
     },
     "roam": {
-      "config": 1
+      "config": 1,
+      "formation": "drone_formation_f-3d-x"
     },
     "run": {
-      "config": 2
+      "config": 2,
+      "formation": "drone_formation_f-3d-x"
     },
     "runFromEnemies": true,
     "runFromEnemiesInSight": false,
