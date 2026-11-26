@@ -708,10 +708,22 @@ public final class QuestModule implements BotModule {
                 continue;
             }
             for (Quests.Condition x : q.leaves()) {
-                sum += x.current();
+                if (fedByWork(x)) {
+                    sum += x.current();
+                }
             }
         }
         return sum;
+    }
+
+    /**
+     * A condition the work itself feeds — kills, damage, ores, cargo, boxes — not what grows anyway while the ship flies
+     * and shoots (live 2026-11-26: 700036 «fly 15 000 000» grew all the time, so the no-progress clock never ran out).
+     */
+    static boolean fedByWork(Quests.Condition x) {
+        return QuestTargets.killing(x) || QuestTargets.damaging(x) || x.type() == Quests.COLLECT
+                || x.type() == Quests.COLLECT_LOOT || x.type() == Quests.SALVAGE || x.type() == Quests.CARGO
+                || x.type() == Quests.COLLECT_BONUS_BOX;
     }
 
     private double killOthers;
