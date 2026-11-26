@@ -142,8 +142,35 @@ public final class SiteHangars {
     public static AccountState state(ListInfo list, HangarInfo hangar, int level, long gameCredits, long gameUridium) {
         return new AccountState(level, gameCredits >= 0 ? gameCredits : list.credits(),
                 gameUridium >= 0 ? gameUridium : list.uridium(), list.activeHangar(), list.activeShip(), list.ownedShips(),
-                list.slots(), hangar == null ? Map.of() : hangar.fitted(), hangar == null ? Map.of() : hangar.spare(),
-                hangar == null ? -1 : hangar.drones());
+                withExtender(list.slots(), hangar), hangar == null ? Map.of() : hangar.fitted(),
+                hangar == null ? Map.of() : hangar.spare(), hangar == null ? -1 : hangar.drones());
+    }
+
+    static final String EXTENDER = "equipment_extra_cpu_sle-0";
+
+    /**
+     * The extras slots with the slot extender's: SLE-0N owned (fitted or spare) adds N to the ship's {@code extras} — the site
+     * lists the ship's own (live 2026-11-26 on int1: a G-Bastion «extras Q 3» with SLE-02 took a fourth and a fifth CPU,
+     * AROL-X and RLLB-X, out of the game).
+     */
+    static Map<String, Integer> withExtender(Map<String, Integer> slots, HangarInfo hangar) {
+        if (hangar == null || !slots.containsKey("extras")) {
+            return slots;
+        }
+        int best = 0;
+        java.util.List<String> all = new java.util.ArrayList<>(hangar.spare().keySet());
+        hangar.fitted().values().forEach(sets -> sets.values().forEach(all::addAll));
+        for (String loot : all) {
+            if (loot.startsWith(EXTENDER) && loot.length() == EXTENDER.length() + 1) {
+                best = Math.max(best, loot.charAt(EXTENDER.length()) - '0');
+            }
+        }
+        if (best <= 0) {
+            return slots;
+        }
+        Map<String, Integer> out = new LinkedHashMap<>(slots);
+        out.merge("extras", best, Integer::sum);
+        return out;
     }
 
     /** The site writes money as text with dots between thousands ({@code "869.218.568.732"}); {@code -1} unreadable. */

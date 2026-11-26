@@ -98,4 +98,15 @@ class FitTest {
         assertEquals(List.of("снять equipment_generator_shield_sg3n-b01 (23) из конфиг 1 generators",
                 "поставить equipment_generator_speed_g3n-7900 (24) в конфиг 1 generators"), c1, "an engine comes, the shield goes");
     }
+
+    @Test
+    void theSlotExtenderAddsItsNumberToTheExtras() {
+        // live 2026-11-26: a G-Bastion with «extras Q 3» and SLE-02 took five extras out of the game
+        var fitted = Map.of(1, Map.of("extras", List.of("equipment_extra_cpu_sle-02", "equipment_extra_repbot_rep-2")));
+        var h = new SiteHangars.HangarInfo(fitted, Map.of("equipment_extra_cpu_arol-x", 1), 0, "", List.of(), Map.of());
+        assertEquals(5, SiteHangars.withExtender(Map.of("extras", 3, "lasers", 15), h).get("extras"));
+        assertEquals(15, SiteHangars.withExtender(Map.of("extras", 3, "lasers", 15), h).get("lasers"));
+        var none = new SiteHangars.HangarInfo(Map.of(), Map.of(), 0, "", List.of(), Map.of());
+        assertEquals(3, SiteHangars.withExtender(Map.of("extras", 3), none).get("extras"), "no extender: as the site says");
+    }
 }
