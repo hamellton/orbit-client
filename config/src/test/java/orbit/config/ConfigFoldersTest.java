@@ -110,7 +110,7 @@ class ConfigFoldersTest {
             assertTrue(c.description().startsWith("[Leveling]"), n);
             assertEquals(n.endsWith("Quests") ? BotConfig.Module.QUESTS : BotConfig.Module.KILL_COLLECT, c.module(), n);
             assertEquals("ammunition_laser_lcb-10", c.loot().ammo());
-            assertEquals("BASE", c.safety().revive());
+            assertEquals("PORTAL", c.safety().revive()); // as the other configs (a user's choice, 2026-11-26)
             assertThrows(IOException.class, () -> store.save(n, c), "read-only");
         }
         assertEquals(1, store.load("Leveling MMO x-1").general().workingMap());
