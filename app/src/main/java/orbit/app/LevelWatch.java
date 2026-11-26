@@ -496,8 +496,15 @@ final class LevelWatch {
             // G3N-7900 was 1 900 uridium against the plan's 2 000 and none were bought all night)
             // a drone's price grows with each one owned (Flax 100 000, 190 000, … 800 000 for the fourth, live 2026-11-26):
             // dearer than the plan, one is bought while the free credits cover it — the next round sees the next price
+            // … up to the goal's ceiling (Flax: 800 000, a user's choice 2026-11-26 — the fifth was 1 520 000)
+            long ceiling = LevelPlan.bundled().maxPrice(p.item());
             boolean dearerDrone = p.item().startsWith("drone_") && !item.uridium() && !p.uridium()
-                    && (long) item.price() > p.price() && (long) item.price() <= freeCredits;
+                    && (long) item.price() > p.price() && (long) item.price() <= freeCredits
+                    && (ceiling <= 0 || (long) item.price() <= ceiling);
+            if (p.item().startsWith("drone_") && ceiling > 0 && (long) item.price() > ceiling) {
+                LOG.info("магазин: {} — {} кредитов, выше потолка {} — не покупаю", p.item(), (long) item.price(), ceiling);
+                return false;
+            }
             if (dearerDrone) {
                 LOG.info("магазин: {} подорожал — {} кредитов (в плане {}), свободно {} — покупаю один", p.item(),
                         (long) item.price(), p.price(), freeCredits);

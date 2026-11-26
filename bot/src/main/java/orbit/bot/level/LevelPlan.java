@@ -53,11 +53,22 @@ public record LevelPlan(int version, long reserveCredits, long reserveUridium, L
 
     /** A purchase in the shop: the item, its price per unit and whether it costs uridium. */
     /** @param needs an item that must be owned before this is bought ({@code null}: none) */
-    public record Buy(String item, long price, boolean uridium, String needs) {
+    /** @param maxPrice a price that grows with each one owned (drones) is paid up to this, {@code 0} = only the plan's price */
+    public record Buy(String item, long price, boolean uridium, String needs, long maxPrice) {
+
+        public Buy(String item, long price, boolean uridium, String needs) {
+            this(item, price, uridium, needs, 0);
+        }
 
         public Buy(String item, long price, boolean uridium) {
             this(item, price, uridium, null);
         }
+    }
+
+    /** The highest price paid for {@code item} by its goal's {@link Buy#maxPrice} ({@code 0}: none set). */
+    public long maxPrice(String item) {
+        return goals.stream().filter(g -> g.buy() != null && g.buy().item().equals(item))
+                .mapToLong(g -> g.buy().maxPrice()).max().orElse(0);
     }
 
     /**
@@ -102,7 +113,7 @@ public record LevelPlan(int version, long reserveCredits, long reserveUridium, L
             check.path("accepted").forEach(a -> accepted.add(a.asText()));
             JsonNode b = g.path("buy");
             Buy buy = b.isObject() ? new Buy(b.path("item").asText(), b.path("price").asLong(),
-                    "uridium".equals(b.path("currency").asText()), b.path("needs").asText(null)) : null;
+                    "uridium".equals(b.path("currency").asText()), b.path("needs").asText(null), b.path("maxPrice").asLong(0)) : null;
             List<String> auction = new ArrayList<>();
             g.path("auction").forEach(a -> auction.add(a.asText()));
             goals.add(new Goal(g.path("id").asText(), g.path("title").asText(), kind, check.path("slotset").asText(""),

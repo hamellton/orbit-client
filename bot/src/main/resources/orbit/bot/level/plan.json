@@ -270,6 +270,7 @@
       "buy": {
         "item": "drone_flax",
         "price": 200000,
+        "maxPrice": 800000,
         "currency": "credits"
       }
     },
