@@ -43,6 +43,34 @@ public final class SiteHangars {
     public record Owned(String id, String loot, int hangar) {
     }
 
+    /**
+     * The active hangar's drones as the site tells them, every field but the id ({@code L} as its loot id) — for the log:
+     * a formation stays unset on a ship whose drones do not work (2026-11-26: X bought, not set on st2–st5).
+     */
+    public static String drones(JsonNode root, int hangarId) {
+        JsonNode data = root.path("data");
+        JsonNode lootIds = data.path("map").path("lootIds");
+        List<String> out = new ArrayList<>();
+        for (JsonNode h : each(data.path("ret").path("hangars"))) {
+            if (h.path("hangarID").asInt() != hangarId) {
+                continue;
+            }
+            for (JsonNode d : each(h.path("general").path("drones"))) {
+                List<String> f = new ArrayList<>();
+                d.properties().forEach(e -> {
+                    if (e.getKey().equals("I")) {
+                        return;
+                    }
+                    JsonNode v = e.getValue();
+                    f.add(e.getKey() + "=" + (e.getKey().equals("L") && v.isInt() && lootIds.has(v.asInt())
+                            ? lootIds.get(v.asInt()).asText() : v.toString()));
+                });
+                out.add(String.join(" ", f));
+            }
+        }
+        return out.isEmpty() ? "нет" : out.size() + ": " + String.join("; ", out);
+    }
+
     public static ListInfo list(JsonNode root) {
         JsonNode data = root.path("data");
         JsonNode lootIds = data.path("map").path("lootIds");

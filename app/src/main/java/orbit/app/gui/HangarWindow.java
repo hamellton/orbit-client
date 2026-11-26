@@ -56,11 +56,13 @@ final class HangarWindow {
         Rows rockets = new Rows("Ракеты и мины", "Количество");
         Rows resources = new Rows("Ресурс", "Количество");
         Rows ships = new Rows("Корабль", "Дизайн");
+        Rows formations = new Rows("Формация", "Состояние");
         JTabbedPane tabs = new JTabbedPane();
         tabs.addTab("Патроны", table(ammo));
         tabs.addTab("Ракеты и мины", table(rockets));
         tabs.addTab("Ресурсы и ключи", table(resources));
         tabs.addTab("Корабли", table(ships));
+        tabs.addTab("Формации", table(formations));
 
         JTextField search = new JTextField(18);
         search.putClientProperty("JTextField.placeholderText", "поиск");
@@ -79,6 +81,7 @@ final class HangarWindow {
             rockets.set(filter(items(w, ROCKETS, zeros.isSelected()), q));
             resources.set(filter(resources(w), q));
             ships.set(filter(ships(feed.account()), q));
+            formations.set(filter(formations(w, zeros.isSelected()), q));
             note.setText(w.hero().id() == 0 ? "не в игре — числа с последнего входа появятся после входа" : "по данным игры, сейчас");
         };
         search.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
@@ -126,6 +129,21 @@ final class HangarWindow {
         w.items().forEach((id, item) -> {
             if (prefixes.stream().anyMatch(id::startsWith) && (zeros || item.counter() > 0)) {
                 out.put(orbit.config.ItemCatalog.friendly(id), orbit.app.SessionSummary.number(item.counter()));
+            }
+        });
+        return out;
+    }
+
+    /**
+     * The drone formations the account owns (the game's item bar: usable = bought), the ship's current one marked; with
+     * {@code all} the ones not bought too.
+     */
+    static Map<String, String> formations(WorldSnapshot w, boolean all) {
+        Map<String, String> out = new TreeMap<>();
+        w.items().forEach((id, item) -> {
+            if (id.startsWith("drone_formation_") && (all || item.available())) {
+                out.put(orbit.config.ItemCatalog.label(id), item.selected() ? "на корабле"
+                        : item.available() ? "куплена" : item.buyable() ? "не куплена, можно купить" : "не куплена");
             }
         });
         return out;

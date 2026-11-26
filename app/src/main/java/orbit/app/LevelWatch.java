@@ -558,7 +558,9 @@ final class LevelWatch {
             list = SiteHangars.list(site.listJson());
             if (list.activeHangar() != 0) {
                 Thread.sleep(GAP_MS);
-                hangar = SiteHangars.hangar(site.hangarJson(list.activeHangar()), list.activeHangar());
+                var hangarJson = site.hangarJson(list.activeHangar());
+                hangar = SiteHangars.hangar(hangarJson, list.activeHangar());
+                LOG.info("дроны на сайте: {}", SiteHangars.drones(hangarJson, list.activeHangar()));
             }
         } catch (java.io.IOException | RuntimeException e) {
             LOG.warn("советчик: сайт не прочитан ({}) — повторю в следующий раз", e.getMessage());
