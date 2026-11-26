@@ -256,8 +256,16 @@ public final class WorldFeed {
         return mirror;
     }
 
+    private final MiniClientReward miniReward = new MiniClientReward();
+
+    /** The downloadable client's login reward of this account, fed by its packets. */
+    public MiniClientReward miniReward() {
+        return miniReward;
+    }
+
     public void onPacket(Packet p, long nanos) {
         journal.add(false, p);
+        miniReward.onPacket(p);
         mirror.incoming(p);
         deluxe.onPacket(p);
         if (learnNpcMaps && p instanceof orbit.protocol.gen.ShipCreateCommand c && c.npc) {

@@ -1015,6 +1015,9 @@ public final class OrbitMain {
                     while (game.isAlive()) {
                         if (conn.session() != null) {
                             feed.deluxe().tick(System.currentTimeMillis(), claimsCalendar(accountName), conn::send);
+                            if (!HandPlay.active(accountName)) {
+                                feed.miniReward().tick(System.currentTimeMillis(), claimsCalendar(accountName), conn::send);
+                            }
                         }
                         Thread.sleep(5_000 + random.nextInt(5_000));
                     }

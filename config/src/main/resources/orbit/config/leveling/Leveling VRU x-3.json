@@ -254,7 +254,7 @@
         "priority": 1
       },
       "SOLAR_CLASH": {
-        "collect": false,
+        "collect": true,
         "waitMs": 0,
         "priority": 0
       },
