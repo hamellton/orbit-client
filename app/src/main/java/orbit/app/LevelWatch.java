@@ -450,11 +450,12 @@ final class LevelWatch {
         return PET.equals(p.item()) && (snap == null || snap.pet() == null || snap.pet().owned());
     }
 
-    private static void buy(AuthClient auth, String origin, Advisor.Purchase p, long freeCredits) throws InterruptedException {
+    /** @return true when the site took the purchase */
+    private static boolean buy(AuthClient auth, String origin, Advisor.Purchase p, long freeCredits) throws InterruptedException {
         String tab = orbit.auth.Shop.tabOf(p.item());
         if (tab == null) {
             LOG.warn("магазин: не знаю вкладку для {}", p.item());
-            return;
+            return false;
         }
         try {
             Thread.sleep(GAP_MS);
@@ -462,7 +463,7 @@ final class LevelWatch {
             var item = offers.get(p.item());
             if (item == null) {
                 LOG.warn("магазин: {} на вкладке {} нет (товаров {})", p.item(), tab, offers.size());
-                return;
+                return false;
             }
             String cur = item.uridium() ? "уридия" : "кредитов";
             // dearer than the plan (or another currency): the plan is out of date; cheaper is bought (live 2026-11-26: the
@@ -476,7 +477,7 @@ final class LevelWatch {
             if (!dearerDrone && ((long) item.price() > p.price() || item.uridium() != p.uridium())) {
                 LOG.warn("магазин: цена {} — {} {}, в плане {} {} — план устарел, не покупаю", p.item(), (long) item.price(), cur,
                         p.price(), p.uridium() ? "уридия" : "кредитов");
-                return;
+                return false;
             }
             int amount = item.maxAmount() > 0 ? Math.min(p.amount(), item.maxAmount()) : p.amount();
             Thread.sleep(GAP_MS);
@@ -486,10 +487,12 @@ final class LevelWatch {
             } else {
                 LOG.info("магазин: куплено {} × {} за {} {} — сайт: {}", amount, p.item(), (long) item.price() * amount, cur,
                         answer);
+                return true;
             }
         } catch (java.io.IOException | RuntimeException e) {
             LOG.warn("магазин не прочитан ({})", e.getMessage());
         }
+        return false;
     }
 
     /**
@@ -577,7 +580,12 @@ final class LevelWatch {
             if (petUnknown(advice.purchase(), snap)) {
                 LOG.info("покупка P.E.T.: игра ещё не сказала, есть ли он — не покупаю");
             } else {
-                buy(auth, session.host(), advice.purchase(), state.credits() - plan.reserveCredits());
+                if (buy(auth, session.host(), advice.purchase(), state.credits() - plan.reserveCredits())
+                        && advice.purchase().item().startsWith("drone_formation_")) {
+                    // the game shows an item bought on the site after the next login: a relogin puts the formation in use
+                    LOG.info("формация куплена — перезахожу, чтобы игра её показала");
+                    requestRefit.run();
+                }
             }
         }
         if (advice.other() != null) {
@@ -586,7 +594,12 @@ final class LevelWatch {
             if (petUnknown(advice.other(), snap)) {
                 LOG.info("покупка P.E.T.: игра ещё не сказала, есть ли он — не покупаю");
             } else {
-                buy(auth, session.host(), advice.other(), state.credits() - plan.reserveCredits());
+                if (buy(auth, session.host(), advice.other(), state.credits() - plan.reserveCredits())
+                        && advice.other().item().startsWith("drone_formation_")) {
+                    // the game shows an item bought on the site after the next login: a relogin puts the formation in use
+                    LOG.info("формация куплена — перезахожу, чтобы игра её показала");
+                    requestRefit.run();
+                }
             }
         }
         if (hangar != null) {
