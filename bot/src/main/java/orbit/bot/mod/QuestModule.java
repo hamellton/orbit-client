@@ -607,7 +607,9 @@ public final class QuestModule implements BotModule {
             killFrom = -1;
             return false;
         }
-        int kills = ctx.stats().kills.get();
+        // kills of the NPC the condition wants, not every kill (live 2026-11-26: st2 set 108004 aside after 15 kills of
+        // others while its rare Boss Mordon had not come; st4 finished the same quest)
+        int kills = wantedKills(work);
         // the server counts a kill for one quest only (live 2026-11-25: five Saimon went to 107005 while 107002 waited) —
         // another quest growing means the kills go there for now: no verdict on this one
         double others = othersProgress(work.quest());
@@ -729,6 +731,21 @@ public final class QuestModule implements BotModule {
     }
 
     private double killOthers;
+
+    /** The session's kills of the work's NPCs (by name, as the quest wants them; all kills when it names none). */
+    private int wantedKills(Work wk) {
+        Set<String> want = wk.want().isEmpty() ? Set.of() : wk.want();
+        if (want.isEmpty()) {
+            return ctx.stats().kills.get();
+        }
+        int n = 0;
+        for (var e : ctx.stats().killedBy().entrySet()) {
+            if (want.contains(QuestTargets.norm(e.getKey()))) {
+                n += e.getValue();
+            }
+        }
+        return n;
+    }
 
     /** Kills of a wanted NPC with no progress before a kill condition is set aside. */
     static final int KILL_TRIES = 15;
