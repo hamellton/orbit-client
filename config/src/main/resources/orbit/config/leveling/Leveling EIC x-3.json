@@ -103,7 +103,7 @@
     "sabNpcShieldMin": 0,
     "groupNpcs": true,
     "ignoreFartherThan": 2200,
-    "rocket": "ammunition_rocket_r-310",
+    "rocket": "ammunition_rocket_plt-2026",
     "fireRockets": false,
     "circle": false,
     "fallback": [],
@@ -367,6 +367,11 @@
         "item": "ammunition_laser_lcb-10",
         "below": 1000,
         "amount": 3000
+      },
+      {
+        "item": "ammunition_rocket_plt-2026",
+        "below": 100,
+        "amount": 300
       }
     ],
     "keepCredits": 0.0,

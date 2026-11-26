@@ -271,46 +271,40 @@ final class LevelWatch {
      * ECO-10 left, {@link #ECO_AMOUNT} are bought in the shop from the credits above the plan's reserve (ammunition, like the
      * lasers' — not held back for the equipment). The launcher CPU fires them; the config selects ECO-10.
      */
-    static final String AROL = "equipment_extra_cpu_arol-x";
-    static final String RLLB = "equipment_extra_cpu_rllb-x";
     /** The game session the CPUs were last switched on in, per account (each login is a new one). */
     private static final java.util.Map<String, Object> CPUS_ON = new java.util.concurrent.ConcurrentHashMap<>();
 
     /**
-     * The rocket CPUs fitted (AROL-X auto rockets, RLLB-X the launcher's auto load) are switched on once per game session —
-     * the client's {@code ActivationStatedRequest} (type 0 auto rocket, 1 rocket launcher CPU, the state given, not a
-     * toggle); a user's choice 2026-11-26: they were bought but never on.
+     * The rocket CPUs (AROL-X auto rockets, RLLB-X the launcher's auto load) are switched on as the client's «CPUs» item
+     * section does it: the item of category {@code cpus} activated ({@code MenuActionRequest}) when it is not selected — a
+     * user's choice 2026-11-26 (bought but never on; the item text: «activated on the map in the CPUs section»). The CPUs the
+     * game lists are told once per game session.
      */
-    private static void cpus(GameConnection conn, AccountState state, String account) {
+    private static void cpus(GameConnection conn, WorldFeed feed, String account) {
+        var w = feed.snapshot();
         Object session = conn.session();
-        if (session == null || session == CPUS_ON.get(account)) {
+        if (w == null || w.hero() == null || session == null) {
             return;
         }
-        boolean arol = fittedAnywhere(state, AROL);
-        boolean rllb = fittedAnywhere(state, RLLB);
-        if (!arol && !rllb) {
-            return;
+        var cpus = w.items().values().stream().filter(i -> "cpus".equals(i.category())).toList();
+        if (session != CPUS_ON.get(account)) {
+            CPUS_ON.put(account, session);
+            LOG.info("процессоры в игре: {}", cpus.stream()
+                    .map(i -> i.id() + (i.selected() ? " (вкл)" : " (выкл)") + (i.available() ? "" : " (недоступен)")).toList());
         }
-        CPUS_ON.put(account, session);
-        if (arol) {
-            send(conn, orbit.protocol.gen.ActivationStatedRequest.ACTIVATIONTYPE_AUTOROCKET);
+        for (var i : cpus) {
+            if ((i.id().contains("arol") || i.id().contains("rllb")) && !i.selected() && i.available()) {
+                orbit.protocol.gen.MenuActionRequest m = new orbit.protocol.gen.MenuActionRequest();
+                m.actionType = (short) orbit.protocol.gen.MenuActionRequest.ACTIONTYPE_ACTIVATE;
+                m.sourceType = (short) (w.slotItems().contains(i.id()) ? orbit.protocol.gen.MenuActionRequest.SOURCETYPE_SLOT_BAR
+                        : orbit.protocol.gen.MenuActionRequest.SOURCETYPE_ITEM_BAR);
+                m.menuItemId = i.id();
+                conn.send(m);
+                LOG.info("процессоры: включаю {}", i.id());
+            }
         }
-        if (rllb) {
-            send(conn, orbit.protocol.gen.ActivationStatedRequest.ACTIVATIONTYPE_ROCKET_LAUNCHER_CPU);
-        }
-        LOG.info("процессоры: включаю{}{}", arol ? " автопуск ракет (AROL-X)" : "", rllb ? " автозарядку ракетомёта (RLLB-X)" : "");
     }
 
-    private static void send(GameConnection conn, int type) {
-        orbit.protocol.gen.ActivationStatedRequest r = new orbit.protocol.gen.ActivationStatedRequest();
-        r.activationType = (short) type;
-        r.active = true;
-        conn.send(r);
-    }
-
-    private static boolean fittedAnywhere(AccountState state, String loot) {
-        return state.fitted().values().stream().anyMatch(c -> c.values().stream().anyMatch(l -> l.contains(loot)));
-    }
 
     private static void launcherRockets(AuthClient auth, String origin, AccountState state, LevelPlan plan, WorldFeed feed)
             throws InterruptedException {
@@ -613,7 +607,7 @@ final class LevelWatch {
         }
         auction(auth, session.host(), state, plan);
         launcherRockets(auth, session.host(), state, plan, feed);
-        cpus(conn, state, account);
+        cpus(conn, feed, account);
         skylab(auth, session.host(), state, plan, advice, feed);
         if (logShape && hangar != null) {
             LOG.info("поля getHangar по конфигам (без значений): {}", hangar.shape());
