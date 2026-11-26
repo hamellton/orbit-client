@@ -86,4 +86,15 @@ class PalladiumKitTest {
         assertEquals("equipment_petgear_g-ar1", kit.collector());
         assertEquals(3, kit.collectorLevel());
     }
+
+    @Test
+    void aFavouriteShipIsReadFromTheHangarList() throws Exception {
+        var root = new com.fasterxml.jackson.databind.ObjectMapper().readTree("""
+                {"data": {"ret": {"shipInfo": [{"lootId": "ship_nostromo", "owned": 1, "fav": 1},
+                  {"lootId": "ship_vengeance", "owned": 1, "fav": 0}]}}}
+                """);
+        assertTrue(SiteHangars.favourite(root, "ship_nostromo"));
+        assertTrue(!SiteHangars.favourite(root, "ship_vengeance"), "not a favourite: not in the warp window");
+        assertTrue(!SiteHangars.favourite(root, "ship_goliath"), "not listed");
+    }
 }

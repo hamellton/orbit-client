@@ -364,6 +364,19 @@ public final class Hangars {
     }
 
     /**
+     * Marks a ship as a favourite (or not), as the inventory page's star does ({@code inventory.swf} 2026-11-26:
+     * {@code ConnectionProxy.setFavourite} → action {@code setFavourite}, {@code params {hangarId, activate}}): only the
+     * favourite ships are offered by the game's ship warp (ССД, {@code ShipWarpWindowCommand}).
+     */
+    public void setFavourite(int activeHangar, int hangarId, boolean on) throws IOException {
+        JsonNode root = call("setFavourite", "{\"params\":{\"hi\":" + activeHangar + ",\"hangarId\":" + hangarId
+                + ",\"activate\":" + on + "}}");
+        if (root.path("isError").asInt(0) != 0) {
+            throw new IOException("сайт не отметил избранным: " + root.toString().substring(0, Math.min(200, root.toString().length())));
+        }
+    }
+
+    /**
      * Sells a drone as the inventory page does ({@code inventory.swf} 2026-11-26: {@code InventoryView.askServerForItemSell}
      * → {@code sellAmountCallback} → {@code ConnectionProxy.itemSellRequest}: action {@code sellDrone}, the drone's id as
      * {@code itemId}, {@code quantity} 1; the items in it go back to the inventory).

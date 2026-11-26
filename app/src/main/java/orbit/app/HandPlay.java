@@ -52,6 +52,12 @@ public final class HandPlay {
         ACCOUNTS.put(account, new Handle(conn, runner, route, feed));
     }
 
+    /** The account's game connection now ({@code null} when it does not run in this program). */
+    static GameConnection connection(String account) {
+        Handle h = ACCOUNTS.get(account);
+        return h == null ? null : h.conn().get();
+    }
+
     /** The account can be handed over (it runs in this program). */
     public static boolean available(String account) {
         return account != null && ACCOUNTS.containsKey(account);

@@ -530,6 +530,11 @@ final class LevelWatch {
             // ПД4–ПД6: everything ready — the stage begins (the travel to 5-2 and the two switches there)
             int vh = kit.park().stream().mapToInt(list::hangarOf).filter(x -> x != 0).findFirst().orElse(0);
             String parkShip = vh == 0 ? "" : list.hangars().get(vh);
+            // both ships favourites on the site: the game's ship warp (ССД) offers only those
+            favourite(site, listJson, list, nh, kit.ship());
+            if (vh != 0) {
+                favourite(site, listJson, list, vh, parkShip);
+            }
             java.util.List<String> notYet = new java.util.ArrayList<>();
             if (!missing.isEmpty()) {
                 notYet.add("комплект с аукциона");
@@ -574,6 +579,21 @@ final class LevelWatch {
      * fitted into the P.E.T.'s gears of its hangar in both configs ({@code move} with target {@code pet}, slotset
      * {@code gears}, as the inventory page does). The P.E.T.'s mode and fuel are the palladium config's.
      */
+    /** Marks the ship a favourite on the site if it is not one yet (for the game's ship warp, ССД). */
+    private static void favourite(orbit.auth.Hangars site, com.fasterxml.jackson.databind.JsonNode listJson,
+                                  SiteHangars.ListInfo list, int hangarId, String ship) throws InterruptedException {
+        if (SiteHangars.favourite(listJson, ship)) {
+            return;
+        }
+        Thread.sleep(GAP_MS);
+        try {
+            site.setFavourite(list.activeHangar(), hangarId, true);
+            LOG.info("избранное: {} (ангар {}) отмечен избранным — для ССД", ship, hangarId);
+        } catch (java.io.IOException | RuntimeException e) {
+            LOG.warn("избранное: {} не отмечен ({})", ship, e.getMessage());
+        }
+    }
+
     /** @return the collector is on the Nostromo's P.E.T. in both configs (after the moves of this call) */
     private static boolean collectorGear(orbit.auth.Hangars site, com.fasterxml.jackson.databind.JsonNode json, int nh,
                                          orbit.bot.level.PalladiumKit.Kit kit) throws InterruptedException {

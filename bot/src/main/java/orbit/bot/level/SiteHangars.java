@@ -162,6 +162,19 @@ public final class SiteHangars {
         return out.isEmpty() ? "нет" : out.size() + ": " + String.join("; ", out);
     }
 
+    /**
+     * The ship is a favourite on the site ({@code shipInfo[].fav} of {@code getHangarList}, as DarkBot's {@code ShipInfo}
+     * reads it): only favourites are offered by the game's ship warp (ССД).
+     */
+    public static boolean favourite(JsonNode root, String shipLoot) {
+        for (JsonNode s : root.path("data").path("ret").path("shipInfo")) {
+            if (shipLoot.equals(s.path("lootId").asText())) {
+                return s.path("fav").asInt(0) != 0;
+            }
+        }
+        return false;
+    }
+
     /** The slotsets of any ship of the list ({@code itemInfo} of {@code getHangarList}), by its loot id; empty if unknown. */
     public static Map<String, Integer> slotsOf(JsonNode root, String shipLoot) {
         JsonNode data = root.path("data");

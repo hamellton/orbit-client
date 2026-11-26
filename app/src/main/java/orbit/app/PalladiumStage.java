@@ -17,8 +17,8 @@ import org.slf4j.LoggerFactory;
 /**
  * The palladium stage of the leveling plan (docs/LEVELING.md «План v2», ПД6–ПД7, the user's choices 2026-11-26), per account:
  * once everything is ready (the Nostromo kitted out, a Vengeance owned, the resource collector on the Nostromo's P.E.T.,
- * the uridium kept for its fuel) the main ship flies to 5-2's station, there the bot switches to the Vengeance (it stays
- * parked at the trader: the ships of a switch at a station appear there) and then to the Nostromo, the pair is written to
+ * the uridium kept for its fuel) the main ship flies to 5-2's station, there the game's ship warp (ССД, free by a station;
+ * the two ships favourites on the site) brings the Vengeance (it stays parked at the trader) and then the Nostromo, the pair is written to
  * the account's settings (collect — the Nostromo, sell — the Vengeance) and the read-only «Leveling Palladium» config runs
  * till the stage's extra energy is collected. The phase and the count are kept in {@code local/palladium-stage-<account>.json}.
  */
@@ -175,10 +175,11 @@ public final class PalladiumStage {
                                 runner.order(BotRunner.Order.jump(kit.sellMap()));
                             }
                         } else if (h.beacon() != null && h.beacon().inStation()) {
-                            LOG.info("палладий: в станции 5-2 — пауза, ССД на Vengeance (ангар {})", s.sell());
+                            LOG.info("палладий: в станции 5-2 — пауза, ССД (варп) Vengeance (ангар {})", s.sell());
                             runner.setPaused(true);
-                            runner.requestShipHere(s.sell());
-                            save(account, new State(Phase.SWITCH_SELL, s.collect(), s.sell(), s.sellShip(), s.energy(), s.seen()));
+                            if (warp(account, feed, s.sell(), s.sellShip())) {
+                                save(account, new State(Phase.SWITCH_SELL, s.collect(), s.sell(), s.sellShip(), s.energy(), s.seen()));
+                            }
                         } else {
                             var base = orbit.bot.run.SafePlaces.bases(w).stream()
                                     .min(java.util.Comparator.comparingDouble(b -> b.distance(h))).orElse(null);
@@ -190,19 +191,19 @@ public final class PalladiumStage {
                         }
                     }
                     case SWITCH_SELL -> {
+                        // the warp done: the Vengeance is the ship now, in 5-2's station; the Nostromo warped the same way
                         if (h.shipType().equals(s.sellShip())) {
                             if (h.mapId() != kit.sellMap()) {
-                                LOG.warn("палладий: Vengeance появился не на 5-2 (карта {}) — пусть так, модуль палладия"
-                                        + " довезёт его к торговцу сам", h.mapId());
+                                LOG.warn("палладий: Vengeance не на 5-2 (карта {}) — модуль палладия довезёт его к торговцу сам",
+                                        h.mapId());
                             }
-                            LOG.info("палладий: на Vengeance — ССД на Nostromo (ангар {})", s.collect());
                             runner.setPaused(true);
-                            runner.requestShipHere(s.collect());
-                            save(account, new State(Phase.SWITCH_COLLECT, s.collect(), s.sell(), s.sellShip(), s.energy(), s.seen()));
-                        } else if (now - phaseAt > 20 * 60_000L) {
-                            LOG.warn("палладий: смена на Vengeance не вышла за 20 мин — прошу снова");
-                            phaseAt = now;
-                            runner.requestShipHere(s.sell());
+                            if (warp(account, feed, s.collect(), kit.ship())) {
+                                save(account, new State(Phase.SWITCH_COLLECT, s.collect(), s.sell(), s.sellShip(), s.energy(), s.seen()));
+                            }
+                        } else if (now - phaseAt > 5 * 60_000L) {
+                            LOG.warn("палладий: Vengeance так и не стал кораблём за 5 мин — снова в станцию и ССД");
+                            save(account, new State(Phase.TRAVEL, s.collect(), s.sell(), s.sellShip(), s.energy(), s.seen()));
                         }
                     }
                     case SWITCH_COLLECT -> {
@@ -211,10 +212,9 @@ public final class PalladiumStage {
                             switchConfig.accept(kit.config());
                             runner.setPaused(false);
                             save(account, new State(Phase.RUN, s.collect(), s.sell(), s.sellShip(), s.energy(), s.seen()));
-                        } else if (now - phaseAt > 20 * 60_000L) {
-                            LOG.warn("палладий: смена на Nostromo не вышла за 20 мин — прошу снова");
-                            phaseAt = now;
-                            runner.requestShipHere(s.collect());
+                        } else if (now - phaseAt > 5 * 60_000L) {
+                            LOG.warn("палладий: Nostromo так и не стал кораблём за 5 мин — ССД снова");
+                            save(account, new State(Phase.SWITCH_SELL, s.collect(), s.sell(), s.sellShip(), s.energy(), s.seen()));
                         }
                     }
                     default -> {
@@ -227,6 +227,79 @@ public final class PalladiumStage {
         } catch (RuntimeException e) {
             LOG.warn("палладий: наблюдение за переездом упало ({}) — продолжу со следующего обхода", e.toString());
         }
+    }
+
+    /** The warp's answers waited for this long. */
+    static final long WARP_WAIT_MS = 15_000;
+
+    /**
+     * The game's ship warp (ССД; docs/LEVELING.md ПД6, the client's {@code WarpWindowMediator}): the window asked for as the
+     * features menu does ({@code UIButtonTriggerRequest{itemId "ship_warp"}}), the server's {@code ShipWarpWindowCommand}
+     * lists the favourite ships with their price (none by a space station), then {@code ShipWarpRequest{shipId}} — answered
+     * by {@code ShipWarpCompletedCommand} or {@code ShipWarpNotAllowedCommand}. True when the server said done.
+     */
+    static boolean warp(String account, WorldFeed feed, int hangarId, String shipType) throws InterruptedException {
+        orbit.game.GameConnection conn = HandPlay.connection(account);
+        if (conn == null) {
+            return false;
+        }
+        long from = feed.journal().since(0).stream().mapToLong(PacketJournal.Entry::seq).max().orElse(0);
+        orbit.protocol.gen.UIButtonTriggerRequest open = new orbit.protocol.gen.UIButtonTriggerRequest();
+        open.itemId = "ship_warp";
+        conn.send(open);
+        orbit.protocol.gen.ShipWarpWindowCommand window = await(feed, from, orbit.protocol.gen.ShipWarpWindowCommand.class);
+        if (window == null) {
+            LOG.warn("палладий: окно ССД не пришло — повторю");
+            return false;
+        }
+        orbit.protocol.gen.ShipWarpModule ship = window.ships.stream()
+                .filter(m -> m.hangarId == hangarId || shipType.equals(m.typeId)).findFirst().orElse(null);
+        if (ship == null) {
+            LOG.warn("палладий: в окне ССД нет {} (ангар {}) — он не в избранном? В окне: {}", shipType, hangarId,
+                    window.ships.stream().map(m -> m.typeId + " ангар " + m.hangarId).toList());
+            return false;
+        }
+        if (!window.isNearSpacestation && ship.uridiumPrice > 0) {
+            LOG.warn("палладий: ССД {} не бесплатна ({} уридия) — станция не рядом, подлетаю", shipType, ship.uridiumPrice);
+            return false;
+        }
+        Thread.sleep(800 + (long) (Math.random() * 1200));
+        long sent = feed.journal().since(0).stream().mapToLong(PacketJournal.Entry::seq).max().orElse(0);
+        orbit.protocol.gen.ShipWarpRequest go = new orbit.protocol.gen.ShipWarpRequest();
+        go.shipId = ship.shipId;
+        conn.send(go);
+        LOG.info("палладий: ССД {} (ангар {}, стоит на карте {}, цена {} уридия)", shipType, ship.hangarId, ship.mapId,
+                ship.uridiumPrice);
+        long until = System.currentTimeMillis() + WARP_WAIT_MS;
+        while (System.currentTimeMillis() < until) {
+            for (PacketJournal.Entry e : feed.journal().since(sent)) {
+                if (e.packet() instanceof orbit.protocol.gen.ShipWarpCompletedCommand c) {
+                    LOG.info("палладий: ССД готова — корабль {}", c.currentShipLootId);
+                    return true;
+                }
+                if (e.packet() instanceof orbit.protocol.gen.ShipWarpNotAllowedCommand
+                        || e.packet() instanceof orbit.protocol.gen.ShipWarpCanceledCommand) {
+                    LOG.warn("палладий: ССД {} — сервер отказал ({})", shipType, e.name());
+                    return false;
+                }
+            }
+            Thread.sleep(300);
+        }
+        LOG.warn("палладий: ССД {} — ответа нет за {} с", shipType, WARP_WAIT_MS / 1000);
+        return false;
+    }
+
+    private static <T> T await(WorldFeed feed, long after, Class<T> kind) throws InterruptedException {
+        long until = System.currentTimeMillis() + WARP_WAIT_MS;
+        while (System.currentTimeMillis() < until) {
+            for (PacketJournal.Entry e : feed.journal().since(after)) {
+                if (kind.isInstance(e.packet())) {
+                    return kind.cast(e.packet());
+                }
+            }
+            Thread.sleep(300);
+        }
+        return null;
     }
 
     /**
