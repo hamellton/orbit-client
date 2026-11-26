@@ -297,8 +297,9 @@ public final class BoxPicker {
                 // NPC cargo only while the enrichment lacks ore (modules.enrich.cargoWhenLow, the leveling quests config)
                 .filter(b -> !NPC_CARGO.contains(key(b)) || cargoWanted(c, w))
                 .filter(b -> reach != null ? reach.test(b.x(), b.y()) : Double.isNaN(anchorX)
-                        ? Math.hypot(b.x() - h.x(), b.y() - h.y()) <= c.collect().radius()
-                        : Math.hypot(b.x() - anchorX, b.y() - anchorY) <= (within > 0 ? within : c.collect().radius()))
+                        ? Math.hypot(b.x() - h.x(), b.y() - h.y()) <= radius(c, b)
+                        : Math.hypot(b.x() - anchorX, b.y() - anchorY) <= Math.max(within > 0 ? within : c.collect().radius(),
+                        NPC_CARGO.contains(key(b)) ? radius(c, b) : 0))
                 .filter(b -> anyType || !c.collect().ignoreContested() || !contested(w, b))
                 .filter(b -> !c.general().avoidMines() || !orbit.bot.nav.PathFinder.nearMine(w, b.x(), b.y()))
                 // not by a player who attacked the ship this session (the config's avoid-those-who-shot option)
@@ -310,7 +311,7 @@ public final class BoxPicker {
                 }).thenComparingDouble(b -> Math.hypot(b.x() - h.x(), b.y() - h.y())))
                 .orElse(null);
         tellCargoSkipped(c, w, best);
-        if (best != null && fight && (Math.hypot(best.x() - h.x(), best.y() - h.y()) > c.collect().radius()
+        if (best != null && fight && (Math.hypot(best.x() - h.x(), best.y() - h.y()) > radius(c, best)
                 || fightNearNpc > 0 && Math.hypot(best.x() - fightNpcX, best.y() - fightNpcY) > fightNearNpc)) {
             return null;
         }
@@ -323,6 +324,21 @@ public final class BoxPicker {
      */
     static final java.util.Set<String> NPC_CARGO = java.util.Set.of("FROM_SHIP", "CANDY_CARGO", "TURKEY_CARGO",
             "PROSPEROUS_CARGO");
+
+    /**
+     * The collect radius of a box: the config's; NPC cargo farther, {@code modules.enrich.cargoRadius} (the leveling configs,
+     * a user's choice 2026-11-26: the cargo falls where the NPC died, 450–1 200 from the ship fighting it, beyond 400).
+     */
+    static double radius(BotConfig c, WorldSnapshot.Collectable b) {
+        double r = c.collect().radius();
+        if (NPC_CARGO.contains(key(b))) {
+            com.fasterxml.jackson.databind.JsonNode e = c.modules().get("enrich");
+            if (e != null) {
+                r = Math.max(r, e.path("cargoRadius").asDouble(0));
+            }
+        }
+        return r;
+    }
 
     /** NPC cargo in sight already told about (by its hash): one line each. */
     private final java.util.Set<String> cargoTold = new java.util.HashSet<>();
@@ -349,7 +365,7 @@ public final class BoxPicker {
                     : BotConfig.Collect.fillsCargo(key(b)) && cargoFull(c, w) ? "трюм полон (свободно " + w.cargoFree() + ")"
                     : !cargoWanted(c, w) ? "обогащению не нужен"
                     : !Double.isNaN(anchorX) || fight ? "дальше радиуса сбора во время работы/боя (" + (int) d + ")"
-                    : d > c.collect().radius() ? "дальше радиуса сбора (" + (int) d + " > " + c.collect().radius() + ")"
+                    : d > radius(c, b) ? "дальше радиуса сбора (" + (int) d + " > " + (int) radius(c, b) + ")"
                     : c.collect().ignoreContested() && contested(w, b) ? "к нему летит другой игрок"
                     : c.general().avoidMines() && orbit.bot.nav.PathFinder.nearMine(w, b.x(), b.y()) ? "у мины"
                     : ctx.nav().inDanger(b.x(), b.y()) ? "у обидчика"

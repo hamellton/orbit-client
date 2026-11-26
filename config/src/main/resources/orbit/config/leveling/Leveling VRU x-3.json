@@ -173,17 +173,17 @@
       "FROM_SHIP": {
         "collect": true,
         "waitMs": 0,
-        "priority": 1
+        "priority": -1
       },
       "TURKEY_CARGO": {
         "collect": true,
         "waitMs": 0,
-        "priority": 1
+        "priority": -1
       },
       "PROSPEROUS_CARGO": {
         "collect": true,
         "waitMs": 0,
-        "priority": 1
+        "priority": -1
       },
       "FROM_SHIP_BLOCKED": {
         "collect": false,
@@ -430,7 +430,8 @@
           "awayFromBase": true
         }
       },
-      "cargoWhenLow": false,
+      "cargoRadius": 1200,
+    "cargoWhenLow": false,
       "order": [
       "drive"
     ],
