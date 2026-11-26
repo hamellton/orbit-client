@@ -759,7 +759,7 @@ public final class OrbitMain {
                     // for palladium only, and the ship list stayed empty otherwise)
                     watchHangar(auth, conn, run.runner(), lastHost, accountName, cfg, ships);
                     watchSkylab(auth, conn, feed, game);
-                    watchCalendar(auth, conn, accountName, game);
+                    watchCalendar(auth, conn, feed, accountName, game);
                     LevelWatch.start(auth, conn, feed, accountName, playing::get, game::isAlive, run.runner()::status,
                             run.runner()::requestShip, conn::refresh, run.runner()::requestRefit,
                             name -> {
@@ -990,13 +990,33 @@ public final class OrbitMain {
      * every server midnight while the game thread lives, the site books the day — unless the account's settings turn it
      * off. The day claimed is remembered in {@link #CALENDAR_FILE}, so relogins and restarts do not ask again.
      */
-    private static void watchCalendar(AuthClient auth, GameConnection conn, String accountName, Thread game) {
+    private static void watchCalendar(AuthClient auth, GameConnection conn, WorldFeed feed, String accountName,
+                                      Thread game) {
         java.util.Map<String, String> ctx = org.slf4j.MDC.getCopyOfContextMap();
         Thread.ofVirtual().name("calendar").start(() -> {
             if (ctx != null) {
                 org.slf4j.MDC.setContextMap(ctx);
             }
             java.util.Random random = new java.util.Random();
+            // the game's Monthly Deluxe window: claimed in the game, a few seconds after its info came
+            Thread.ofVirtual().name("deluxe").start(() -> {
+                if (ctx != null) {
+                    org.slf4j.MDC.setContextMap(ctx);
+                }
+                try {
+                    Thread.sleep(8_000 + random.nextInt(7_000));
+                    while (game.isAlive()) {
+                        if (conn.session() != null) {
+                            feed.deluxe().tick(System.currentTimeMillis(), claimsCalendar(accountName), conn::send);
+                        }
+                        Thread.sleep(5_000 + random.nextInt(5_000));
+                    }
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                } catch (RuntimeException e) {
+                    log.warn("Календарь Monthly Deluxe: не вышло ({})", e.getMessage());
+                }
+            });
             try {
                 Thread.sleep(30_000 + random.nextInt(60_000)); // after the login's own pages, not in their burst
                 while (game.isAlive()) {

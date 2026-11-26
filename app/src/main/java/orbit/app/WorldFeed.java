@@ -243,7 +243,15 @@ public final class WorldFeed {
     /** Remember every NPC met with its map ({@link orbit.world.maps.NpcMaps}); the app turns it on, tests do not. */
     public static volatile boolean learnNpcMaps;
 
+    private final DeluxeCalendar deluxe = new DeluxeCalendar();
+
+    /** The game's Monthly Deluxe calendar of this account, fed by its packets. */
+    public DeluxeCalendar deluxe() {
+        return deluxe;
+    }
+
     public void onPacket(Packet p, long nanos) {
+        deluxe.onPacket(p);
         if (learnNpcMaps && p instanceof orbit.protocol.gen.ShipCreateCommand c && c.npc) {
             orbit.world.maps.NpcMaps.shared().learn(world.snapshot(nanos).hero().mapId(), c.userName);
         }
