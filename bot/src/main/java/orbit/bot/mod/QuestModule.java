@@ -640,6 +640,7 @@ public final class QuestModule implements BotModule {
     private int stuckCondition;
     private double stuckAt;
     private long stuckSince;
+    private double stuckOthers;
 
     /**
      * {@code stuckMinutes} (the leveling quests configs; 0 = off, the default): a condition worked on that long with no
@@ -652,10 +653,14 @@ public final class QuestModule implements BotModule {
         if (minutes <= 0 || work == null || ids("first").contains(work.quest())) {
             return false; // the quests marked First (the starter chain up to its premium) are never set aside
         }
-        if (stuckQuest != work.quest() || stuckCondition != c.id() || stuckAt != c.current()) {
+        // another quest growing meanwhile is the same work counted there (the server credits a kill to one quest: live
+        // 2026-11-26 st2's Boss Saimon went to 101001, 106002 stayed 0/2) — no verdict, the time starts again
+        double others = othersProgress(work.quest());
+        if (stuckQuest != work.quest() || stuckCondition != c.id() || stuckAt != c.current() || stuckOthers != others) {
             stuckQuest = work.quest();
             stuckCondition = c.id();
             stuckAt = c.current();
+            stuckOthers = others;
             stuckSince = now;
             return false;
         }
