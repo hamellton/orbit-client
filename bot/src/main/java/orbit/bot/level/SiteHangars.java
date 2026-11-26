@@ -63,6 +63,31 @@ public final class SiteHangars {
         return loot == null || loot.isEmpty() || loot.equals("drone_flax") ? 1 : 2;
     }
 
+    /** A P.E.T. gear of the account: its id, loot, level (the site's LV + 1) and the hangar it stands in ({@code 0} spare). */
+    public record Gear(String id, String loot, int level, int hangar) {
+    }
+
+    /** The P.E.T. gears of {@code loot} the account owns, whatever their level and place. */
+    public static List<Gear> gears(JsonNode root, String loot) {
+        JsonNode data = root.path("data");
+        JsonNode lootIds = data.path("map").path("lootIds");
+        List<Gear> out = new ArrayList<>();
+        for (JsonNode i : data.path("ret").path("items")) {
+            JsonNode l = i.path("L");
+            String it = l.isInt() && lootIds.has(l.asInt()) ? lootIds.get(l.asInt()).asText() : "";
+            if (!it.equals(loot)) {
+                continue;
+            }
+            JsonNode eqh = i.path("EQH");
+            out.add(new Gear(i.path("I").asText(), it, i.path("LV").asInt() + 1,
+                    eqh.isNull() || eqh.isMissingNode() ? 0 : (int) amount(eqh)));
+        }
+        return out;
+    }
+
+    /** P.E.T. gears' loot ids start so. */
+    public static final String GEAR_PREFIX = "equipment_petgear_";
+
     public static DroneView droneView(JsonNode root, int hangarId) {
         JsonNode data = root.path("data");
         JsonNode lootIds = data.path("map").path("lootIds");
@@ -209,6 +234,11 @@ public final class SiteHangars {
             items.add(new Owned(i.path("I").asText(), loot, in));
             if (i.path("EQH").isNull() || i.path("EQH").isMissingNode()) {
                 spare.merge(loot, Math.max(1, i.path("Q").asInt(1)), Integer::sum);
+            }
+            // a P.E.T. gear by its level wherever it stands («equipment_petgear_g-ar1@3»): the plan wants the 3rd level
+            // (Ц3б); the site's LV counts from 0 (laser LV 0 = level 1 — to check on the first gear bought)
+            if (loot.startsWith(GEAR_PREFIX) && i.has("LV")) {
+                spare.merge(loot + "@" + (i.path("LV").asInt() + 1), 1, Integer::sum);
             }
         }
         Map<Integer, Map<String, List<String>>> fitted = new TreeMap<>();

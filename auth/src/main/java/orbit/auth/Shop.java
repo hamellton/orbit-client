@@ -21,7 +21,33 @@ import orbit.secrets.SecretMask;
 public final class Shop {
 
     /** One shop offer. {@code price} is per unit (an amount of 1). */
-    public record Item(String id, String category, String code, double price, String currency, int maxAmount) {
+    /**
+     * @param maxLevel    the highest level the account may buy now ({@code maxLevel}; a P.E.T. gear's grows with the P.E.T.'s
+     *                    level), {@code 0} for an offer without levels
+     * @param levelPrices the price per level ({@code levelItemShopData.<n>.price}), empty without levels
+     */
+    public record Item(String id, String category, String code, double price, String currency, int maxAmount, int maxLevel,
+                       Map<Integer, Double> levelPrices) {
+
+        public Item(String id, String category, String code, double price, String currency, int maxAmount) {
+            this(id, category, code, price, currency, maxAmount, 0, Map.of());
+        }
+
+        static Item of(String id, JsonNode o) {
+            Map<Integer, Double> prices = new java.util.TreeMap<>();
+            if (o.path("isLevelSetable").asBoolean(false)) {
+                o.path("levelItemShopData").properties().forEach(l -> {
+                    try {
+                        prices.put(Integer.parseInt(l.getKey()), l.getValue().path("price").asDouble(-1));
+                    } catch (NumberFormatException e) {
+                        // not a level
+                    }
+                });
+            }
+            return new Item(id, o.path("category").asText(""), o.path("code").asText(id), o.path("price").asDouble(-1),
+                    o.path("currency").asText(""), o.path("maxAmount").asInt(0), prices.isEmpty() ? 0 : o.path("maxLevel").asInt(0),
+                    Map.copyOf(prices));
+        }
 
         public boolean uridium() {
             return "real".equals(currency) || "uridium".equals(currency);
@@ -113,6 +139,9 @@ public final class Shop {
         if (loot.startsWith("drone_")) {
             return "Drones";
         }
+        if (loot.startsWith("equipment_petgear_")) {
+            return "PetGear";
+        }
         return null;
     }
 
@@ -136,8 +165,7 @@ public final class Shop {
                 return;
             }
             String loot = o.path("imageVars").path("loot_id").asText(e.getKey());
-            out.putIfAbsent(loot, new Item(e.getKey(), o.path("category").asText(""), o.path("code").asText(e.getKey()),
-                    o.path("price").asDouble(-1), o.path("currency").asText(""), o.path("maxAmount").asInt(0)));
+            out.putIfAbsent(loot, Item.of(e.getKey(), o));
         });
         return out;
     }
@@ -147,12 +175,17 @@ public final class Shop {
      * {@code processPurchase}); for the leveling log before anything is bought.
      */
     public static Map<String, String> purchaseForm(Item item, int amount) {
+        return purchaseForm(item, amount, 0);
+    }
+
+    /** As above with the level chosen in the page's level selector ({@code 0}: none — an offer without levels). */
+    public static Map<String, String> purchaseForm(Item item, int amount, int level) {
         Map<String, String> form = new LinkedHashMap<>();
         form.put("action", "purchase");
         form.put("category", item.category());
         form.put("itemId", item.id());
         form.put("amount", String.valueOf(amount));
-        form.put("level", "");
+        form.put("level", level > 0 ? String.valueOf(level) : "");
         form.put("selectedName", "");
         return form;
     }
@@ -177,7 +210,12 @@ public final class Shop {
      * sends it; returns the shop's answer (short, secrets masked). {@link #refused} tells a refusal.
      */
     public String purchase(Item item, int amount, String tab) throws IOException {
-        HttpSession.Response r = http.postForm(origin + "/ajax/shop.php", purchaseForm(item, amount), origin + tabPage(tab));
+        return purchase(item, amount, tab, 0);
+    }
+
+    /** As above at a level of the offer ({@code 0}: none). */
+    public String purchase(Item item, int amount, String tab, int level) throws IOException {
+        HttpSession.Response r = http.postForm(origin + "/ajax/shop.php", purchaseForm(item, amount, level), origin + tabPage(tab));
         String body = r.body() == null ? "" : r.body().strip();
         if (r.status() != 200) {
             throw new IOException("покупка: ответ " + r.status());
@@ -222,8 +260,7 @@ public final class Shop {
             if (o.path("isPaymentItem").asBoolean(false)) {
                 return; // bought with real money
             }
-            out.put(e.getKey(), new Item(e.getKey(), o.path("category").asText(""), o.path("code").asText(e.getKey()),
-                    o.path("price").asDouble(-1), o.path("currency").asText(""), o.path("maxAmount").asInt(0)));
+            out.put(e.getKey(), Item.of(e.getKey(), o));
         });
         return out;
     }

@@ -239,10 +239,15 @@
         "kind": "has",
         "min": 1,
         "accepted": [
-          "equipment_petgear_g-ar3"
+          "equipment_petgear_g-ar1@3"
         ]
       },
-      "farm": "квесты (Leveling <фракция> Quests), между ними x-1…x-3"
+      "farm": "квесты (Leveling <фракция> Quests), между ними x-1…x-3",
+      "buy": {
+        "item": "equipment_petgear_g-ar1",
+        "price": 17500,
+        "currency": "uridium"
+      }
     },
     {
       "id": "Ц3в",
@@ -258,7 +263,7 @@
         "item": "drone_formation_f-09-mo",
         "price": 100000,
         "currency": "uridium",
-        "needs": "equipment_petgear_g-ar3"
+        "needs": "equipment_petgear_g-ar1@3"
       },
       "farm": "квесты (Leveling <фракция> Quests), между ними x-1…x-3"
     },
@@ -734,6 +739,8 @@
       "equipment_generator_shield_sg3n-a03",
       "equipment_generator_shield_sg3n-a02",
       "equipment_generator_shield_sg3n-a01"
-    ]
+    ],
+    "collector": "equipment_petgear_g-ar1",
+    "collectorLevel": 3
   }
 }

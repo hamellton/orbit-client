@@ -80,6 +80,24 @@ class ShopTest {
         assertEquals(null, Shop.tabOf("ammunition_laser_lcb-10"));
     }
 
+    /** A P.E.T. gear with levels as the pet gear tab sends it (invented values): the level the P.E.T. allows, prices. */
+    static final String GEAR_TAB = "<script>Shop.Parameters = { category : 'petgear', itemData : {"
+            + "\"equipment_petgear_g-ar1\":{\"category\":\"petgear\",\"code\":\"G-AR1\",\"price\":2500,\"currency\":\"real\","
+            + "\"maxAmount\":1,\"isLevelSetable\":true,\"levelGrades\":[1,2,3],\"maxLevel\":2,\"levelItemShopData\":{"
+            + "\"1\":{\"price\":2500},\"2\":{\"price\":6000},\"3\":{\"price\":17500}}}"
+            + "} };</script>";
+
+    @Test
+    void aGearsLevelsAndTheLevelThePetAllows() throws Exception {
+        Shop.Item gear = Shop.parseByLoot(GEAR_TAB).get("equipment_petgear_g-ar1");
+        assertEquals(2, gear.maxLevel(), "a P.E.T. too young for the 3rd");
+        assertEquals(17500, gear.levelPrices().get(3), 0.1);
+        assertEquals("PetGear", Shop.tabOf("equipment_petgear_g-ar1"));
+        assertEquals("3", Shop.purchaseForm(gear, 1, 3).get("level"), "the level the page's selector sends");
+        assertEquals("", Shop.purchaseForm(gear, 1).get("level"), "no level: as before");
+        assertEquals(0, Shop.parseByLoot(DRONES_TAB).get("drone_flax").maxLevel(), "an offer without levels");
+    }
+
     @Test
     void thePurchaseFormAndItsAnswer() {
         Shop.Item flax = new Shop.Item("1", "drone", "FLAX", 100000, "virtual", 1);

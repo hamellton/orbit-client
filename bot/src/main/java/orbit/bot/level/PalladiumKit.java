@@ -28,9 +28,11 @@ public final class PalladiumKit {
      * @param kitAuction the extras won on the auction a second time for it (two of each kind: the main ship's and its own)
      * @param enginePrice the engine's shop price in uridium
      * @param enginesAfter the goal the engines wait for (the P.E.T., Ц3а)
+     * @param collector  the resource collector gear on its P.E.T. ({@code equipment_petgear_g-ar1})
+     * @param collectorLevel the collector's level it takes (the 3rd)
      */
     public record Kit(String ship, List<String> extras, List<String> kitAuction, List<String> engines, int enginePrice,
-                      List<String> shields, String enginesAfter) {
+                      List<String> shields, String enginesAfter, String collector, int collectorLevel) {
     }
 
     private static Kit bundled;
@@ -56,7 +58,8 @@ public final class PalladiumKit {
             return null;
         }
         return new Kit(p.path("ship").asText(), list(p.path("extras")), list(p.path("kitAuction")), list(p.path("engines")),
-                p.path("enginePrice").asInt(0), list(p.path("shields")), p.path("enginesAfter").asText("Ц3а"));
+                p.path("enginePrice").asInt(0), list(p.path("shields")), p.path("enginesAfter").asText("Ц3а"),
+                p.path("collector").asText(""), p.path("collectorLevel").asInt(3));
     }
 
     private static List<String> list(JsonNode n) {

@@ -517,6 +517,7 @@ final class LevelWatch {
             var moves = orbit.bot.level.PalladiumKit.moves(kit, view, drones, nh, slots, engines);
             int done = moves.isEmpty() ? 0 : apply(site, nh, moves);
             int lacking = engines ? orbit.bot.level.PalladiumKit.enginesMissing(kit, view, nh, slots) : 0;
+            collectorGear(site, json, nh, kit);
             LOG.info("Nostromo: ангар {}, слоты {}; с аукциона ещё нужно {}; перекладок {} (сделано {}); двигателей не хватает {}{}",
                     nh, slots, missing.isEmpty() ? "ничего" : missing, moves.size(), done, lacking,
                     engines ? "" : " (двигатели — после P.E.T.)");
@@ -530,6 +531,41 @@ final class LevelWatch {
             }
         } catch (java.io.IOException | RuntimeException e) {
             LOG.warn("Nostromo: ангар не прочитан ({})", e.getMessage());
+        }
+    }
+
+    /**
+     * The resource collector on the Nostromo's P.E.T. (ПД5): a gear of the kit's level (the 3rd), spare or already there,
+     * fitted into the P.E.T.'s gears of its hangar in both configs ({@code move} with target {@code pet}, slotset
+     * {@code gears}, as the inventory page does). The P.E.T.'s mode and fuel are the palladium config's.
+     */
+    private static void collectorGear(orbit.auth.Hangars site, com.fasterxml.jackson.databind.JsonNode json, int nh,
+                                      orbit.bot.level.PalladiumKit.Kit kit) throws InterruptedException {
+        if (kit.collector() == null || kit.collector().isEmpty()) {
+            return;
+        }
+        var all = SiteHangars.gears(json, kit.collector());
+        if (!all.isEmpty()) {
+            LOG.info("механизм сбора: {}", all.stream().map(g -> g.id() + " уровень " + g.level()
+                    + (g.hangar() == 0 ? " (в запасе)" : " (ангар " + g.hangar() + ")")).toList());
+        }
+        var gear = all.stream().filter(g -> g.level() >= kit.collectorLevel() && (g.hangar() == 0 || g.hangar() == nh))
+                .findFirst().orElse(null);
+        if (gear == null) {
+            return;
+        }
+        var onPet = orbit.auth.Hangars.petItems(json, nh, "gears");
+        for (int config : new int[] {1, 2}) {
+            if (onPet.getOrDefault(config, java.util.List.of()).contains(gear.id())) {
+                continue;
+            }
+            Thread.sleep(GAP_MS);
+            try {
+                site.move(nh, java.util.List.of(gear.id()), config, true, "pet", "gears");
+                LOG.info("механизм сбора: поставил {} в P.E.T. Nostromo, конфиг {}", gear.id(), config);
+            } catch (java.io.IOException | RuntimeException e) {
+                LOG.warn("механизм сбора: в P.E.T. Nostromo, конфиг {} — не вышло ({})", config, e.getMessage());
+            }
         }
     }
 
@@ -560,6 +596,9 @@ final class LevelWatch {
         }
     }
 
+    /** The level of a P.E.T. gear the leveling buys (the resource collector: the 3rd, from P.E.T. 8). */
+    static final int GEAR_LEVEL = 3;
+
     /** @return true when the site took the purchase */
     private static boolean buy(AuthClient auth, String origin, Advisor.Purchase p, long freeCredits) throws InterruptedException {
         String tab = orbit.auth.Shop.tabOf(p.item());
@@ -576,6 +615,30 @@ final class LevelWatch {
                 return false;
             }
             String cur = item.uridium() ? "уридия" : "кредитов";
+            // a P.E.T. gear has levels; the leveling buys the 3rd only (the 1st and 2nd are no use — the user's choice
+            // 2026-11-26): the shop sells it once the P.E.T. allows ({@code maxLevel}, the 3rd from P.E.T. 8)
+            int level = 0;
+            if (!item.levelPrices().isEmpty()) {
+                level = GEAR_LEVEL;
+                if (item.maxLevel() < level) {
+                    LOG.info("магазин: {} — в продаже только до уровня {} (нужен {}: P.E.T. ещё мал) — жду", p.item(),
+                            item.maxLevel(), level);
+                    return false;
+                }
+                Double levelPrice = item.levelPrices().get(level);
+                if (levelPrice == null || levelPrice <= 0 || levelPrice > p.price()) {
+                    LOG.warn("магазин: {} уровня {} — цена {}, в плане {} — не покупаю", p.item(), level, levelPrice, p.price());
+                    return false;
+                }
+                Thread.sleep(GAP_MS);
+                String answer = new orbit.auth.Shop(auth.http(), origin).purchase(item, 1, tab, level);
+                if (orbit.auth.Shop.refused(answer)) {
+                    LOG.warn("магазин: {} уровня {} не куплен — сайт: {}", p.item(), level, answer);
+                    return false;
+                }
+                LOG.info("магазин: куплен {} уровня {} за {} {} — сайт: {}", p.item(), level, levelPrice.longValue(), cur, answer);
+                return true;
+            }
             // dearer than the plan (or another currency): the plan is out of date; cheaper is bought (live 2026-11-26: the
             // G3N-7900 was 1 900 uridium against the plan's 2 000 and none were bought all night)
             // a drone's price grows with each one owned (Flax 100 000, 190 000, … 800 000 for the fourth, live 2026-11-26):

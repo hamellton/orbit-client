@@ -298,7 +298,7 @@ public final class Hangars {
         return petItems(call("getHangar", "{\"params\":{\"hi\":" + hangarId + "}}"), hangarId, slotset);
     }
 
-    static Map<Integer, List<String>> petItems(JsonNode root, int hangarId, String slotset) {
+    public static Map<Integer, List<String>> petItems(JsonNode root, int hangarId, String slotset) {
         Map<Integer, List<String>> out = new java.util.TreeMap<>();
         JsonNode hangars = root.path("data").path("ret").path("hangars");
         List<JsonNode> each = new ArrayList<>();

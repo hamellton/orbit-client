@@ -68,4 +68,22 @@ class PalladiumKitTest {
                 "the two spare engines (in both configs): " + after);
         assertEquals(8, PalladiumKit.enginesMissing(kit, view, NOSTROMO, slots), "ten places, two spare");
     }
+
+    @Test
+    void theCollectorCountsByItsLevelWhereverItStands() throws Exception {
+        var root = new com.fasterxml.jackson.databind.ObjectMapper().readTree("""
+                {"data": {"map": {"lootIds": ["equipment_petgear_g-ar1"]}, "ret": {"items": [
+                  {"I": "g1", "L": 0, "LV": 0, "EQH": null},
+                  {"I": "g3", "L": 0, "LV": 2, "EQH": "20", "EQT": "PET"}], "hangars": []}}}
+                """);
+        var h = SiteHangars.hangar(root, 10);
+        assertEquals(1, h.spare().get("equipment_petgear_g-ar1@1"));
+        assertEquals(1, h.spare().get("equipment_petgear_g-ar1@3"), "fitted on a P.E.T. counts too");
+        var gears = SiteHangars.gears(root, "equipment_petgear_g-ar1");
+        assertEquals(List.of(new SiteHangars.Gear("g1", "equipment_petgear_g-ar1", 1, 0),
+                new SiteHangars.Gear("g3", "equipment_petgear_g-ar1", 3, 20)), gears);
+        var kit = PalladiumKit.bundled();
+        assertEquals("equipment_petgear_g-ar1", kit.collector());
+        assertEquals(3, kit.collectorLevel());
+    }
 }
