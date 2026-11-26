@@ -74,6 +74,19 @@ public final class BotRunner {
      * busy, the bot logs out, the app switches the ship on the site and logs in again — the palladium's own way.
      */
     public void requestShip(int hangarId) {
+        shipWantedAnywhere = false;
+        shipWanted = hangarId;
+    }
+
+    /** The ship change may be made off a plain map too (the leveling's ССД at 5-2's station, docs/LEVELING.md ПД6). */
+    private volatile boolean shipWantedAnywhere;
+
+    /**
+     * As {@link #requestShip}, on any map — the palladium stage's switch at 5-2's station (a pirate map): the logout is the
+     * usual one at the nearest base or portal (the station the ship stands in), the new ship appears there.
+     */
+    public void requestShipHere(int hangarId) {
+        shipWantedAnywhere = true;
         shipWanted = hangarId;
     }
 
@@ -731,9 +744,10 @@ public final class BotRunner {
             return;
         }
         if (shipWanted != 0 && hangarRequest == 0 && !module.busy() && service.phase() == ServiceVisit.Phase.IDLE
-                && activeHangar != 0 && plainMap(w)) {
+                && activeHangar != 0 && (plainMap(w) || shipWantedAnywhere)) {
             int to = shipWanted;
             shipWanted = 0;
+            shipWantedAnywhere = false;
             if (to != activeHangar) {
                 log.info("Пересаживаюсь на другой корабль: ангар {} → {} (выход из игры, смена на сайте, вход)", activeHangar, to);
                 hangarRequest = to;

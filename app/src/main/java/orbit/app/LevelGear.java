@@ -37,7 +37,9 @@ final class LevelGear {
                 }
                 if (!name.equals(leveledName)) {
                     leveledName = name;
-                    leveling = OrbitMain.levelingConfig(name);
+                    // the palladium stage's config keeps its own P.E.T. (the resource collector), not the passive one
+                    var kit = orbit.bot.level.PalladiumKit.bundled();
+                    leveling = OrbitMain.levelingConfig(name) && (kit == null || !name.equals(kit.config()));
                 }
                 if (!leveling) {
                     return c;

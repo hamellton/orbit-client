@@ -47,7 +47,7 @@ public final class SafePlaces {
      * The safe bases on the map now: the own company's and the shared ones (company 0 — the pirate maps' station,
      * 5-2), never another company's.
      */
-    static List<Place> bases(WorldSnapshot w) {
+    public static List<Place> bases(WorldSnapshot w) {
         WorldSnapshot.Hero h = w.hero();
         List<Place> out = new ArrayList<>();
         for (WorldSnapshot.Asset a : w.assets().values()) {

@@ -133,8 +133,9 @@ final class LevelWatch {
             orbit.bot.level.PalladiumKit.Kit kit = orbit.bot.level.PalladiumKit.bundled();
             int kept = kit == null ? 0 : list.hangarOf(kit.ship());
             for (int other : list.hangars().keySet()) {
-                // the Nostromo keeps its own kit (palladium stage): never stripped for the main ship
-                if (other == list.activeHangar() || other == kept) {
+                // the Nostromo keeps its own kit (palladium stage): never stripped for the main ship; on the stage the
+                // main ship keeps its gear too (the Nostromo flies with its own)
+                if (other == list.activeHangar() || other == kept || PalladiumStage.holds(account)) {
                     continue;
                 }
                 Thread.sleep(GAP_MS);
@@ -494,11 +495,16 @@ final class LevelWatch {
      */
     private static void nostromo(AuthClient auth, String origin, orbit.auth.Hangars site,
                                  com.fasterxml.jackson.databind.JsonNode listJson, SiteHangars.ListInfo list,
-                                 SiteHangars.HangarInfo anyView, String account, AccountState state, LevelPlan plan)
+                                 SiteHangars.HangarInfo anyView, String account, AccountState state, LevelPlan plan,
+                                 WorldFeed feed, java.util.function.Consumer<String> switchConfig)
             throws InterruptedException {
         orbit.bot.level.PalladiumKit.Kit kit = orbit.bot.level.PalladiumKit.bundled();
         if (kit == null) {
             return;
+        }
+        PalladiumStage.resume(account, feed, h -> { }, switchConfig);
+        if (PalladiumStage.phase(account) == PalladiumStage.Phase.RUN) {
+            PalladiumStage.count(account, feed);
         }
         int nh = list.hangarOf(kit.ship());
         java.util.List<String> missing = orbit.bot.level.PalladiumKit.missingExtras(kit, anyView, nh != 0);
@@ -517,10 +523,39 @@ final class LevelWatch {
             var moves = orbit.bot.level.PalladiumKit.moves(kit, view, drones, nh, slots, engines);
             int done = moves.isEmpty() ? 0 : apply(site, nh, moves);
             int lacking = engines ? orbit.bot.level.PalladiumKit.enginesMissing(kit, view, nh, slots) : 0;
-            collectorGear(site, json, nh, kit);
+            boolean gearOn = collectorGear(site, json, nh, kit);
             LOG.info("Nostromo: ангар {}, слоты {}; с аукциона ещё нужно {}; перекладок {} (сделано {}); двигателей не хватает {}{}",
                     nh, slots, missing.isEmpty() ? "ничего" : missing, moves.size(), done, lacking,
                     engines ? "" : " (двигатели — после P.E.T.)");
+            // ПД4–ПД6: everything ready — the stage begins (the travel to 5-2 and the two switches there)
+            int vh = kit.park().stream().mapToInt(list::hangarOf).filter(x -> x != 0).findFirst().orElse(0);
+            String parkShip = vh == 0 ? "" : list.hangars().get(vh);
+            java.util.List<String> notYet = new java.util.ArrayList<>();
+            if (!missing.isEmpty()) {
+                notYet.add("комплект с аукциона");
+            }
+            if (!moves.isEmpty()) {
+                notYet.add("раскладка Nostromo");
+            }
+            if (!engines || lacking > 0) {
+                notYet.add("двигатели Nostromo");
+            }
+            if (!gearOn) {
+                notYet.add("механизм сбора в P.E.T. Nostromo");
+            }
+            if (vh == 0) {
+                notYet.add("Vengeance");
+            }
+            if (state.uridium() < kit.uridiumReserve()) {
+                notYet.add("уридий на топливо " + state.uridium() + " из " + kit.uridiumReserve());
+            }
+            if (PalladiumStage.phase(account) == PalladiumStage.Phase.NONE) {
+                if (notYet.isEmpty()) {
+                    PalladiumStage.start(account, nh, vh, parkShip, feed, h -> { }, switchConfig);
+                } else {
+                    LOG.info("палладий: этап ещё не готов — нет: {}", String.join("; ", notYet));
+                }
+            }
             if (lacking > 0 && kit.enginePrice() > 0) {
                 long free = Math.max(0, state.uridium() - plan.reserveUridium());
                 int can = (int) Math.min(lacking, free / kit.enginePrice());
@@ -539,10 +574,11 @@ final class LevelWatch {
      * fitted into the P.E.T.'s gears of its hangar in both configs ({@code move} with target {@code pet}, slotset
      * {@code gears}, as the inventory page does). The P.E.T.'s mode and fuel are the palladium config's.
      */
-    private static void collectorGear(orbit.auth.Hangars site, com.fasterxml.jackson.databind.JsonNode json, int nh,
-                                      orbit.bot.level.PalladiumKit.Kit kit) throws InterruptedException {
+    /** @return the collector is on the Nostromo's P.E.T. in both configs (after the moves of this call) */
+    private static boolean collectorGear(orbit.auth.Hangars site, com.fasterxml.jackson.databind.JsonNode json, int nh,
+                                         orbit.bot.level.PalladiumKit.Kit kit) throws InterruptedException {
         if (kit.collector() == null || kit.collector().isEmpty()) {
-            return;
+            return true;
         }
         var all = SiteHangars.gears(json, kit.collector());
         if (!all.isEmpty()) {
@@ -552,13 +588,15 @@ final class LevelWatch {
         var gear = all.stream().filter(g -> g.level() >= kit.collectorLevel() && (g.hangar() == 0 || g.hangar() == nh))
                 .findFirst().orElse(null);
         if (gear == null) {
-            return;
+            return false;
         }
         var onPet = orbit.auth.Hangars.petItems(json, nh, "gears");
+        boolean both = true;
         for (int config : new int[] {1, 2}) {
             if (onPet.getOrDefault(config, java.util.List.of()).contains(gear.id())) {
                 continue;
             }
+            both = false;
             Thread.sleep(GAP_MS);
             try {
                 site.move(nh, java.util.List.of(gear.id()), config, true, "pet", "gears");
@@ -567,6 +605,7 @@ final class LevelWatch {
                 LOG.warn("механизм сбора: в P.E.T. Nostromo, конфиг {} — не вышло ({})", config, e.getMessage());
             }
         }
+        return both;
     }
 
     /** Drone places of an account (the game's limit). */
@@ -793,7 +832,9 @@ final class LevelWatch {
             int nowRank = plan.ships().indexOf(list.activeShip());
             boolean better = best != null && bestHangar != 0 && bestHangar != list.activeHangar()
                     && (nowRank < 0 || plan.ships().indexOf(best) < nowRank);
-            if (better) {
+            if (better && PalladiumStage.holds(account)) {
+                LOG.info("пересадка: этап «Палладий» — остаюсь на «{}»", list.activeShip());
+            } else if (better) {
                 // the gear is moved over out of the game, between the logout and the login (OrbitMain → fitOffline): in the
                 // game the site refuses gear changes away from the base station (live 2026-11-25)
                 LOG.info("пересадка: лучший корабль «{}» в ангаре {}, сейчас «{}» в {} — пересаживаюсь, снаряжение — вне игры",
@@ -836,7 +877,7 @@ final class LevelWatch {
             sellFlaxForIris(site, list.activeHangar(), drones);
         }
         if (hangar != null) {
-            nostromo(auth, session.host(), site, listJson, list, hangar, account, state, plan);
+            nostromo(auth, session.host(), site, listJson, list, hangar, account, state, plan, feed, switchConfig);
         }
         String moduleStatus = status.get();
         boolean idle = moduleStatus != null && moduleStatus.contains("нечего делать");
@@ -846,7 +887,15 @@ final class LevelWatch {
         var decision = orbit.bot.level.Strategy.decide(state, plan, advice, faction, mapName, idle, rates);
         LOG.info("стратег: {} «{}» — {}; модуль: «{}»; карта {}; заработок в час: {}",
                 decision.mode(), decision.config(), decision.reason(), moduleStatus, mapName, meter.describe());
-        switchTo(account, decision, cfg, switchConfig);
+        if (PalladiumStage.holds(account)) {
+            String own = orbit.bot.level.PalladiumKit.bundled().config();
+            LOG.info("стратег: этап «Палладий» ({}) — конфиг не меняю", PalladiumStage.phase(account));
+            if (PalladiumStage.phase(account) == PalladiumStage.Phase.RUN && !own.equals(cfg)) {
+                switchConfig.accept(own);
+            }
+        } else {
+            switchTo(account, decision, cfg, switchConfig);
+        }
         String start = startConfig(faction);
         if (start != null && !cfg.startsWith(start.substring(0, start.lastIndexOf(' ') + 1))) {
             LOG.info("фракция {}: конфиг другой фракции — нужен «{}», сейчас «{}»", faction, start, cfg);

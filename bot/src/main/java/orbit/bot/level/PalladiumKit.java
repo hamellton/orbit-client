@@ -30,9 +30,15 @@ public final class PalladiumKit {
      * @param enginesAfter the goal the engines wait for (the P.E.T., Ц3а)
      * @param collector  the resource collector gear on its P.E.T. ({@code equipment_petgear_g-ar1})
      * @param collectorLevel the collector's level it takes (the 3rd)
+     * @param park       the ship parked at 5-2's trader to sell from (any Vengeance)
+     * @param uridiumReserve the uridium kept for the P.E.T.'s fuel before the stage starts (ПД4)
+     * @param energyTarget the extra energy (15 palladium = 1) the stage collects before it ends (ПД7)
+     * @param config     the stage's config (read-only, folder «Leveling»)
+     * @param sellMap    the map of the trader (5-2)
      */
     public record Kit(String ship, List<String> extras, List<String> kitAuction, List<String> engines, int enginePrice,
-                      List<String> shields, String enginesAfter, String collector, int collectorLevel) {
+                      List<String> shields, String enginesAfter, String collector, int collectorLevel, List<String> park,
+                      long uridiumReserve, long energyTarget, String config, int sellMap) {
     }
 
     private static Kit bundled;
@@ -59,7 +65,9 @@ public final class PalladiumKit {
         }
         return new Kit(p.path("ship").asText(), list(p.path("extras")), list(p.path("kitAuction")), list(p.path("engines")),
                 p.path("enginePrice").asInt(0), list(p.path("shields")), p.path("enginesAfter").asText("Ц3а"),
-                p.path("collector").asText(""), p.path("collectorLevel").asInt(3));
+                p.path("collector").asText(""), p.path("collectorLevel").asInt(3), list(p.path("park")),
+                p.path("uridiumReserve").asLong(0), p.path("energyTarget").asLong(0), p.path("config").asText(""),
+                p.path("sellMap").asInt(92));
     }
 
     private static List<String> list(JsonNode n) {

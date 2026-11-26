@@ -97,7 +97,7 @@ class ConfigFoldersTest {
     void theLevelingConfigsAreAProgramFolderOfTheirOwn(@TempDir Path dir) throws IOException {
         ConfigStore store = new ConfigStore(dir);
         List<String> leveling = List.of("Leveling EIC Quests", "Leveling EIC x-1", "Leveling EIC x-2", "Leveling EIC x-3",
-                "Leveling MMO Quests", "Leveling MMO x-1", "Leveling MMO x-2", "Leveling MMO x-3",
+                "Leveling MMO Quests", "Leveling MMO x-1", "Leveling MMO x-2", "Leveling MMO x-3", "Leveling Palladium",
                 "Leveling VRU Quests", "Leveling VRU x-1", "Leveling VRU x-2", "Leveling VRU x-3");
         assertEquals(leveling, store.folders().get(ConfigStore.LEVELING_FOLDER));
         assertEquals(DEFAULTS, store.folders().get(ConfigStore.DEFAULT_FOLDER), "Default unchanged");
@@ -108,11 +108,14 @@ class ConfigFoldersTest {
             assertEquals(ConfigStore.LEVELING_FOLDER, store.folderOf(n));
             BotConfig c = store.load(n);
             assertTrue(c.description().startsWith("[Leveling]"), n);
-            assertEquals(n.endsWith("Quests") ? BotConfig.Module.QUESTS : BotConfig.Module.KILL_COLLECT, c.module(), n);
+            assertEquals(n.endsWith("Quests") ? BotConfig.Module.QUESTS : n.endsWith("Palladium") ? BotConfig.Module.PALLADIUM
+                    : BotConfig.Module.KILL_COLLECT, c.module(), n);
             assertEquals("ammunition_laser_lcb-10", c.loot().ammo());
             assertEquals("PORTAL", c.safety().revive()); // as the other configs (a user's choice, 2026-11-26)
             assertThrows(IOException.class, () -> store.save(n, c), "read-only");
         }
+        assertEquals(93, store.load("Leveling Palladium").general().workingMap(), "5-3");
+        assertEquals(Boolean.TRUE, store.load("Leveling Palladium").pet().buyFuel(), "the P.E.T.'s fuel bought on the stage");
         assertEquals(1, store.load("Leveling MMO x-1").general().workingMap());
         assertEquals(5, store.load("Leveling EIC x-1").general().workingMap());
         assertEquals(9, store.load("Leveling VRU x-1").general().workingMap());

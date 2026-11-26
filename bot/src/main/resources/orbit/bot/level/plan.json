@@ -741,6 +741,18 @@
       "equipment_generator_shield_sg3n-a01"
     ],
     "collector": "equipment_petgear_g-ar1",
-    "collectorLevel": 3
+    "collectorLevel": 3,
+    "park": [
+      "ship_vengeance",
+      "ship_v-lightning",
+      "ship_v-revenge",
+      "ship_v-corsair",
+      "ship_v-avenger",
+      "ship_v-adept"
+    ],
+    "uridiumReserve": 200000,
+    "energyTarget": 75000,
+    "config": "Leveling Palladium",
+    "sellMap": 92
   }
 }
