@@ -389,7 +389,11 @@ final class LevelWatch {
      * set against the plan's (a different one — no purchase: the plan is out of date), then bought — at most the shop's
      * limit at once — and the shop's answer logged. The item lands in the inventory; the fitting puts it on.
      */
-    private static void buy(AuthClient auth, String origin, Advisor.Purchase p) throws InterruptedException {
+    /**
+     * @param freeCredits credits above the plan's reserve: a drone dearer than the plan is still bought within them — each
+     *                    next drone costs more (live 2026-11-26: the second Flax 200 000 against 100 000 in the plan)
+     */
+    private static void buy(AuthClient auth, String origin, Advisor.Purchase p, long freeCredits) throws InterruptedException {
         String tab = orbit.auth.Shop.tabOf(p.item());
         if (tab == null) {
             LOG.warn("магазин: не знаю вкладку для {}", p.item());
@@ -406,7 +410,13 @@ final class LevelWatch {
             String cur = item.uridium() ? "уридия" : "кредитов";
             // dearer than the plan (or another currency): the plan is out of date; cheaper is bought (live 2026-11-26: the
             // G3N-7900 was 1 900 uridium against the plan's 2 000 and none were bought all night)
-            if ((long) item.price() > p.price() || item.uridium() != p.uridium()) {
+            boolean dearerDrone = p.item().startsWith("drone_") && !item.uridium() && !p.uridium()
+                    && (long) item.price() > p.price() && (long) item.price() * p.amount() <= freeCredits;
+            if (dearerDrone) {
+                LOG.info("магазин: {} подорожал — {} кредитов (в плане {}), свободно {} — покупаю", p.item(),
+                        (long) item.price(), p.price(), freeCredits);
+            }
+            if (!dearerDrone && ((long) item.price() > p.price() || item.uridium() != p.uridium())) {
                 LOG.warn("магазин: цена {} — {} {}, в плане {} {} — план устарел, не покупаю", p.item(), (long) item.price(), cur,
                         p.price(), p.uridium() ? "уридия" : "кредитов");
                 return;
@@ -495,12 +505,12 @@ final class LevelWatch {
         if (advice.purchase() != null) {
             LOG.info("покупаю по плану: {} × {} = {} {} ({})", advice.purchase().amount(), advice.purchase().item(),
                     advice.purchase().total(), advice.purchase().uridium() ? "уридия" : "кредитов", advice.goal().id());
-            buy(auth, session.host(), advice.purchase());
+            buy(auth, session.host(), advice.purchase(), state.credits() - plan.reserveCredits());
         }
         if (advice.other() != null) {
             LOG.info("покупаю в другой валюте: {} × {} = {} {}", advice.other().amount(), advice.other().item(),
                     advice.other().total(), advice.other().uridium() ? "уридия" : "кредитов");
-            buy(auth, session.host(), advice.other());
+            buy(auth, session.host(), advice.other(), state.credits() - plan.reserveCredits());
         }
         if (hangar != null) {
             // a better ship owned (won on the auction, bought): its gear moved over and the bot sent there (user's consent
