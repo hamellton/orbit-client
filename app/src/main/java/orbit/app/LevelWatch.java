@@ -487,7 +487,8 @@ final class LevelWatch {
         AccountState state = SiteHangars.state(list, hangar, level, credits, uridium);
         LAST_STATE.put(account, state);
         Advisor.Advice advice = Advisor.advise(state, plan);
-        LOG.info("снимок [{}, конфиг «{}», план v{}]: {}", account, cfg, plan.version(), state.describe());
+        LOG.info("снимок [{}, конфиг «{}», план v{}]: {}; премиум {}", account, cfg, plan.version(), state.describe(),
+                snap == null || snap.hero() == null ? "?" : snap.hero().premium() ? "да" : "нет");
         LOG.info("совет: выполнено {}; {}", advice.done(), advice.text());
         if (advice.purchase() != null) {
             LOG.info("покупаю по плану: {} × {} = {} {} ({})", advice.purchase().amount(), advice.purchase().item(),
