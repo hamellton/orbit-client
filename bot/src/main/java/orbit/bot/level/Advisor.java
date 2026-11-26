@@ -53,6 +53,9 @@ public final class Advisor {
             }
         }
         Purchase other = otherCurrency(s, plan, main);
+        if (other == null) {
+            other = sideBuy(s, plan);
+        }
         String text = main.text() + (other == null ? "" : " | в другой валюте: купил бы " + other.amount() + " × " + other.item()
                 + " за " + other.total() + (other.uridium() ? " уридия" : " кредитов"))
                 + (side.isEmpty() ? "" : " | попутно: " + String.join("; ", side));
@@ -96,6 +99,41 @@ public final class Advisor {
             long free = Math.max(0, money - reserve);
             int can = (int) Math.min(c.missing(), g.buy().price() <= 0 ? 0 : free / g.buy().price());
             return can > 0 ? new Purchase(g.buy().item(), can, g.buy().price(), g.buy().uridium()) : null;
+        }
+        return null;
+    }
+
+    /** The goal the parallel purchases wait for: all lasers for credits (the user's choice 2026-11-26). */
+    static final String PARALLEL_AFTER = "Ц1";
+
+    /**
+     * A parallel track's purchase (docs/LEVELING.md «План v2»): once {@link #PARALLEL_AFTER} is done, the first side goal
+     * with a shop purchase for credits (the Flax, Ц4) not done is bought when the free credits allow — beside the chain.
+     */
+    static Purchase sideBuy(AccountState s, LevelPlan plan) {
+        LevelPlan.Goal after = plan.goals().stream().filter(g -> PARALLEL_AFTER.equals(g.id())).findFirst().orElse(null);
+        if (after == null || !check(s, after).done()) {
+            return null;
+        }
+        for (LevelPlan.Goal g : plan.goals()) {
+            // credits only: the uridium is the chain's (P.E.T., the gear, the Moth), LF-3 is won on the auction
+            if (!g.side() || g.buy() == null || g.buy().uridium()) {
+                continue;
+            }
+            if (g.buy().needs() != null && owned(s, java.util.Set.of(g.buy().needs())) == 0) {
+                continue;
+            }
+            Check c = check(s, g);
+            if (!c.known() || c.done() || c.missing() <= 0) {
+                continue;
+            }
+            long money = g.buy().uridium() ? s.uridium() : s.credits();
+            long reserve = g.buy().uridium() ? plan.reserveUridium() : plan.reserveCredits();
+            long free = Math.max(0, money - reserve);
+            int can = (int) Math.min(c.missing(), g.buy().price() <= 0 ? 0 : free / g.buy().price());
+            if (can > 0) {
+                return new Purchase(g.buy().item(), can, g.buy().price(), g.buy().uridium());
+            }
         }
         return null;
     }

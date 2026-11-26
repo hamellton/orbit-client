@@ -44,7 +44,11 @@ public final class SiteHangars {
     }
 
     /** One drone of the hangar: its id (the key of {@code config.<c>.drones}), loot id and item places. */
-    public record Drone(String id, String loot, int slots) {
+    public record Drone(String id, String loot, int slots, int level) {
+
+        public Drone(String id, String loot, int slots) {
+            this(id, loot, slots, 0);
+        }
     }
 
     /**
@@ -71,7 +75,7 @@ public final class SiteHangars {
             for (JsonNode d : each(h.path("general").path("drones"))) {
                 JsonNode l = d.path("L");
                 String loot = l.isInt() && lootIds.has(l.asInt()) ? lootIds.get(l.asInt()).asText() : "";
-                drones.add(new Drone(d.path("I").asText(), loot, droneSlots(loot)));
+                drones.add(new Drone(d.path("I").asText(), loot, droneSlots(loot), d.path("LV").asInt(0)));
             }
             h.path("config").properties().forEach(c -> {
                 int config;
@@ -97,7 +101,7 @@ public final class SiteHangars {
             int i = 0;
             for (String k : keys) {
                 String loot = i < drones.size() ? drones.get(i).loot() : "";
-                byKey.add(new Drone(k, loot, droneSlots(loot)));
+                byKey.add(new Drone(k, loot, droneSlots(loot), i < drones.size() ? drones.get(i).level() : 0));
                 i++;
             }
             drones = byKey;
@@ -196,6 +200,16 @@ public final class SiteHangars {
             }
             JsonNode d = h.path("general").path("drones");
             drones = d.size();
+            // the drones by kind among the spares (drone_flax, drone_iris…): the plan counts Iris apart from Flax
+            // (Ц6 «8 Iris», the Flax sold under them — the user's choice 2026-11-26)
+            for (JsonNode one : each(d)) {
+                JsonNode dl = one.path("L");
+                String loot = dl.isInt() && data.path("map").path("lootIds").has(dl.asInt())
+                        ? data.path("map").path("lootIds").get(dl.asInt()).asText() : "";
+                if (!loot.isEmpty()) {
+                    spare.merge(loot, 1, Integer::sum);
+                }
+            }
             shape.add("general " + names(h.path("general")) + (d.size() > 0 ? ", drone " + names(d.path(0)) : ""));
             h.path("config").properties().forEach(c -> {
                 int config;

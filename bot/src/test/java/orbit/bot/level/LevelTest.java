@@ -107,18 +107,19 @@ class LevelTest {
                         2, Map.of("lasers", List.of(SLL2, SLL2), "generators", List.of(G79, G79))), Map.of(), 0);
         Advisor.Advice a = Advisor.advise(lasersDone, plan);
         assertEquals(List.of("Ц1", "Ц2", "Ц3"), a.done());
-        assertEquals("Ц4", a.goal().id());
-        assertEquals(6, a.missing(), "Flax up to six");
-        assertTrue(a.text().contains("дронов 0 из 6"), a.text());
-        AccountState oneDrone = new AccountState(s.level(), 0, 0, s.activeHangar(), "ship_nostromo", Set.of("ship_nostromo"),
-                lasersDone.slots(), lasersDone.fitted(), Map.of(), 6);
-        Advisor.Advice next = Advisor.advise(oneDrone, plan);
-        assertEquals("Ц5", next.goal().id(), "Goliath next");
+        // the drones and LF-3 are parallel tracks now (plan v2): the chain goes on to the Goliath
+        assertEquals("Ц5", a.goal().id(), "Goliath next, the Flax beside the chain");
+        assertTrue(a.text().contains("Ц4") && a.text().contains("дронов 0 из 6"), "the Flax track reported: " + a.text());
+        assertTrue(a.other() == null, "no credits: nothing bought beside");
+        AccountState rich = new AccountState(s.level(), 1_000_000, 0, s.activeHangar(), "ship_nostromo",
+                Set.of("ship_nostromo"), lasersDone.slots(), lasersDone.fitted(), Map.of(), 0);
+        Advisor.Advice flax = Advisor.advise(rich, plan);
+        assertEquals("drone_flax", flax.other().item(), "the Flax bought for credits beside the chain once Ц1 is done");
         AccountState goliath = new AccountState(s.level(), 0, 0, s.activeHangar(), "ship_goliath", Set.of("ship_goliath"),
-                lasersDone.slots(), lasersDone.fitted(), Map.of(), 6);
+                lasersDone.slots(), lasersDone.fitted(), Map.of("drone_flax", 6), 6);
         Advisor.Advice drones = Advisor.advise(goliath, plan);
-        assertEquals("Ц6", drones.goal().id(), "eight drones next");
-        assertTrue(drones.text().contains("дронов 6 из 8"), drones.text());
+        assertEquals("Ц8", drones.goal().id(), "the eight Iris and LF-3 do not hold the chain");
+        assertTrue(drones.text().contains("Ц6"), "the Iris track reported: " + drones.text());
         AccountState bastion = new AccountState(30, 0, 0, s.activeHangar(), "ship_g-bastion", Set.of("ship_g-bastion"),
                 Map.of("lasers", 2, "generators", 2),
                 Map.of(1, Map.of("lasers", List.of("equipment_weapon_laser_lf-3", "equipment_weapon_laser_lf-3"),
@@ -129,7 +130,7 @@ class LevelTest {
         assertTrue(aegis.done().contains("Ц5"), "a Goliath design is a Goliath");
         assertEquals("Ц8", aegis.goal().id(), "Aegis after LF-3");
         assertTrue(aegis.text().contains("ship_a-elite"), aegis.text());
-        assertTrue(aegis.text().contains("попутно: П1"), "side goals reported: " + aegis.text());
+        assertTrue(aegis.text().contains("попутно: ") && aegis.text().contains("П1 «"), "side goals reported: " + aegis.text());
         AccountState withAegis = new AccountState(30, 0, 0, s.activeHangar(), "ship_g-bastion",
                 Set.of("ship_g-bastion", "ship_aegis"), bastion.slots(), bastion.fitted(), Map.of(), 8);
         Advisor.Advice zeta = Advisor.advise(withAegis, plan);

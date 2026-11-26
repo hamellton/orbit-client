@@ -264,7 +264,7 @@
     },
     {
       "id": "Ц4",
-      "title": "Дроны Flax — до 6, за кредиты раньше P.E.T. (в дронах: конфиг 1 — лазеры, конфиг 2 — щиты)",
+      "title": "Дроны Flax — до 6, за кредиты, параллельно цепочке с Ц1 (в дронах: конфиг 1 — лазеры, конфиг 2 — щиты)",
       "check": {
         "kind": "drones",
         "min": 6
@@ -274,7 +274,8 @@
         "price": 200000,
         "maxPrice": 800000,
         "currency": "credits"
-      }
+      },
+      "side": true
     },
     {
       "id": "Ц5",
@@ -317,23 +318,22 @@
     },
     {
       "id": "Ц6",
-      "title": "8 дронов: Iris, под каждый Iris без свободного места — продать один Flax",
+      "title": "8 Iris — на аукционе параллельно Flax; при 8 дронах с Flax среди них — продать один Flax под Iris",
       "check": {
-        "kind": "drones",
-        "min": 8
-      },
-      "buy": {
-        "item": "drone_iris",
-        "price": 15000,
-        "currency": "uridium"
+        "kind": "has",
+        "min": 8,
+        "accepted": [
+          "drone_iris"
+        ]
       },
       "auction": [
         "drone_iris"
-      ]
+      ],
+      "side": true
     },
     {
       "id": "Ц7",
-      "title": "Лазеры LF-3 или лучше",
+      "title": "Лазеры LF-3 или лучше — попутное улучшение (аукцион)",
       "check": {
         "kind": "fill",
         "slotset": "lasers",
@@ -361,7 +361,8 @@
       },
       "auction": [
         "equipment_weapon_laser_lf-3"
-      ]
+      ],
+      "side": true
     },
     {
       "id": "Ц8",

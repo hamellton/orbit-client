@@ -363,6 +363,19 @@ public final class Hangars {
         }
     }
 
+    /**
+     * Sells a drone as the inventory page does ({@code inventory.swf} 2026-11-26: {@code InventoryView.askServerForItemSell}
+     * → {@code sellAmountCallback} → {@code ConnectionProxy.itemSellRequest}: action {@code sellDrone}, the drone's id as
+     * {@code itemId}, {@code quantity} 1; the items in it go back to the inventory).
+     */
+    public void sellDrone(int hangarId, String droneId) throws IOException {
+        JsonNode root = call("sellDrone", "{\"action\":\"sellDrone\",\"params\":{\"hi\":" + hangarId + "},\"itemId\":\""
+                + droneId + "\",\"quantity\":1}");
+        if (root.path("isError").asInt(0) != 0) {
+            throw new IOException("сайт не продал дрона: " + root.toString().substring(0, Math.min(200, root.toString().length())));
+        }
+    }
+
     /** A {@code flashAPI/inventory.php} call: the action and its params as base64; the answer read, errors thrown. */
     private JsonNode call(String action, String params) throws IOException {
         Map<String, String> form = new LinkedHashMap<>();

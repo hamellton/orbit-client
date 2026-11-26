@@ -476,6 +476,33 @@ final class LevelWatch {
         return PET.equals(p.item()) && (snap == null || snap.pet() == null || snap.pet().owned());
     }
 
+    /** Drone places of an account (the game's limit). */
+    static final int DRONE_PLACES = 8;
+
+    /**
+     * Iris in place of Flax (docs/LEVELING.md «План v2», the user's choice 2026-11-26): with all {@link #DRONE_PLACES} taken
+     * and a Flax among them, the weakest Flax (lowest level) is sold, so the Iris won on the auction has a place — one at a
+     * time: seven drones then, the next one only once an Iris came.
+     */
+    static void sellFlaxForIris(orbit.auth.Hangars site, int hangarId, SiteHangars.DroneView drones) throws InterruptedException {
+        long flax = drones.drones().stream().filter(d -> "drone_flax".equals(d.loot())).count();
+        long iris = drones.drones().stream().filter(d -> "drone_iris".equals(d.loot())).count();
+        LOG.info("дроны: всего {}, Flax {}, Iris {}", drones.drones().size(), flax, iris);
+        if (drones.drones().size() < DRONE_PLACES || flax == 0) {
+            return;
+        }
+        SiteHangars.Drone weakest = drones.drones().stream().filter(d -> "drone_flax".equals(d.loot()))
+                .min(java.util.Comparator.comparingInt(SiteHangars.Drone::level).thenComparing(SiteHangars.Drone::id))
+                .orElseThrow();
+        Thread.sleep(GAP_MS);
+        try {
+            site.sellDrone(hangarId, weakest.id());
+            LOG.info("дроны: продал Flax {} (уровень {}) — место под Iris с аукциона", weakest.id(), weakest.level());
+        } catch (java.io.IOException | RuntimeException e) {
+            LOG.warn("дроны: Flax {} не продан ({})", weakest.id(), e.getMessage());
+        }
+    }
+
     /** @return true when the site took the purchase */
     private static boolean buy(AuthClient auth, String origin, Advisor.Purchase p, long freeCredits) throws InterruptedException {
         String tab = orbit.auth.Shop.tabOf(p.item());
@@ -681,6 +708,9 @@ final class LevelWatch {
                 LOG.info("раскладка: перезахожу, чтобы игра увидела снаряжение");
                 refresh.run();
             }
+        }
+        if (drones != null && list.activeHangar() != 0) {
+            sellFlaxForIris(site, list.activeHangar(), drones);
         }
         String moduleStatus = status.get();
         boolean idle = moduleStatus != null && moduleStatus.contains("нечего делать");
