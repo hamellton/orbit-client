@@ -42,6 +42,16 @@ class LevelTest {
         return orbit.config.Json.MAPPER.readTree(s);
     }
 
+    /**
+     * The bundled plan without its credit goal «X formation» (Ц0, added 2026-11-26) and the P.E.T./Moth goals: the chain
+     * tests below are about the lasers, the ship and the drones as they were.
+     */
+    static LevelPlan chainPlan() {
+        LevelPlan p = LevelPlan.bundled();
+        return new LevelPlan(p.version(), p.reserveCredits(), p.reserveUridium(), p.goals().stream()
+                .filter(g -> !java.util.Set.of("Ц0", "Ц3а", "Ц3б", "Ц3в").contains(g.id())).toList(), p.fit(), p.ships());
+    }
+
     static AccountState newAccount(long credits) throws Exception {
         var list = SiteHangars.list(json(LIST));
         var hangar = SiteHangars.hangar(json(HANGAR), list.activeHangar());
@@ -73,7 +83,7 @@ class LevelTest {
 
     @Test
     void firstGoalLasersBuysWhatItCanAboveTheReserve() throws Exception {
-        LevelPlan plan = LevelPlan.bundled();
+        LevelPlan plan = chainPlan();
         // 4 slots, one spare scalpel II owned: 3 to buy; 30 000 reserve, 300 000 each → 400 000 buys one
         Advisor.Advice a = Advisor.advise(newAccount(400_000), plan);
         assertEquals("Ц1", a.goal().id());
@@ -89,7 +99,7 @@ class LevelTest {
 
     @Test
     void doneGoalsAreSkippedAndUnknownStops() throws Exception {
-        LevelPlan plan = LevelPlan.bundled();
+        LevelPlan plan = chainPlan();
         AccountState s = newAccount(0);
         AccountState lasersDone = new AccountState(s.level(), 0, 0, s.activeHangar(), "ship_nostromo",
                 Set.of("ship_nostromo"), Map.of("lasers", 2, "generators", 2),
@@ -130,7 +140,7 @@ class LevelTest {
     @Test
     void unknownEquipmentIsNotDone() throws Exception {
         var list = SiteHangars.list(json(LIST));
-        Advisor.Advice a = Advisor.advise(SiteHangars.state(list, null, 1, 0, 0), LevelPlan.bundled());
+        Advisor.Advice a = Advisor.advise(SiteHangars.state(list, null, 1, 0, 0), chainPlan());
         assertEquals("Ц1", a.goal().id());
         assertFalse(a.text().contains("купил бы"), a.text());
     }
@@ -139,7 +149,7 @@ class LevelTest {
     void theBundledPlanReads() {
         LevelPlan plan = LevelPlan.bundled();
         assertTrue(plan.goals().size() >= 10);
-        assertEquals("Ц1", plan.goals().getFirst().id());
+        assertEquals("Ц0", plan.goals().getFirst().id(), "the formation X first (a user's choice 2026-11-26)");
         LevelPlan.Goal last = plan.goals().stream().filter(g -> !g.side()).reduce((x, y) -> y).orElseThrow();
         assertTrue(last.accepted().contains("equipment_weapon_laser_pr-l"), "the chain ends with the Prometheus lasers");
         Set<String> ids = new java.util.HashSet<>();
@@ -148,7 +158,7 @@ class LevelTest {
 
     @Test
     void uridiumBuysTheNextGoalWhileTheFirstWaitsForCredits() throws Exception {
-        LevelPlan plan = LevelPlan.bundled();
+        LevelPlan plan = chainPlan();
         var list = SiteHangars.list(json(LIST));
         var hangar = SiteHangars.hangar(json(HANGAR), list.activeHangar());
         // 50 000 credits (no scalpel), 4 500 uridium: two G3N-7900 at 2 000 (Ц3: 6 slots, 2 fitted, 4 to get)

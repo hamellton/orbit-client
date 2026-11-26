@@ -631,6 +631,11 @@ public final class OrbitMain {
         java.util.Map<String, String> logContext = org.slf4j.MDC.getCopyOfContextMap();
         java.util.concurrent.atomic.AtomicReference<String> playing = new java.util.concurrent.atomic.AtomicReference<>(
                 crewLeader != null ? crewConfig : o.config != null ? o.config : account.config());
+        // the leveling configs' formation and pet by what the account owns (LevelGear), after the LoW crew's override
+        java.util.function.UnaryOperator<orbit.config.BotConfig> gear = LevelGear.override(feed::snapshot, playing::get);
+        java.util.function.UnaryOperator<orbit.config.BotConfig> lowOverride = override;
+        java.util.function.UnaryOperator<orbit.config.BotConfig> configOverride = lowOverride == null ? gear
+                : c -> gear.apply(lowOverride.apply(c));
         long testEnd = o.minutes > 0 ? System.currentTimeMillis() + o.minutes * 60_000L : Long.MAX_VALUE;
         java.util.concurrent.atomic.AtomicBoolean closed = new java.util.concurrent.atomic.AtomicBoolean();
         java.util.concurrent.atomic.AtomicReference<ModuleRun> current = new java.util.concurrent.atomic.AtomicReference<>();
@@ -749,7 +754,7 @@ public final class OrbitMain {
                         ships.setStartShip(0); // after a ship change: on the ship the change chose, not back to the start one
                     }
                     ModuleRun run = startModule(feed, conn, cfgName, cfg, end, why, profile, stopFile,
-                            shopFor(auth, conn), () -> !game.isAlive(), ships, previous, override);
+                            shopFor(auth, conn), () -> !game.isAlive(), ships, previous, configOverride);
                     current.set(run);
                     run.runner().setClickHold(clickHold(accountName));
                     run.runner().setHangar(hangarFor(auth, conn));

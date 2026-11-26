@@ -443,6 +443,13 @@ final class LevelWatch {
      * @param freeCredits credits above the plan's reserve: a drone dearer than the plan is still bought within them — each
      *                    next drone costs more (live 2026-11-26: the second Flax 200 000 against 100 000 in the plan)
      */
+    static final String PET = "pet_pet10";
+
+    /** A P.E.T. is bought only when the game said the account has none (a second one is 50 000 uridium lost). */
+    private static boolean petUnknown(Advisor.Purchase p, orbit.world.WorldSnapshot snap) {
+        return PET.equals(p.item()) && (snap == null || snap.pet() == null || snap.pet().owned());
+    }
+
     private static void buy(AuthClient auth, String origin, Advisor.Purchase p, long freeCredits) throws InterruptedException {
         String tab = orbit.auth.Shop.tabOf(p.item());
         if (tab == null) {
@@ -547,6 +554,13 @@ final class LevelWatch {
             uridium = (long) snap.hero().uridium();
         }
         AccountState state = SiteHangars.state(list, hangar, level, credits, uridium);
+        if (snap != null && snap.pet() != null && snap.pet().owned() && !state.spare().containsKey(PET)) {
+            // the site lists no P.E.T. among the items: the game's word counts it as owned (never bought twice)
+            java.util.Map<String, Integer> spare = new java.util.HashMap<>(state.spare());
+            spare.put(PET, 1);
+            state = new AccountState(state.level(), state.credits(), state.uridium(), state.activeHangar(),
+                    state.activeShip(), state.ownedShips(), state.slots(), state.fitted(), spare, state.drones());
+        }
         LAST_STATE.put(account, state);
         if (feed.stats() != null) {
             // the laser count for the laser ammunition bought by the ship's growth (BuyWatch, modules.buyScale)
@@ -560,12 +574,20 @@ final class LevelWatch {
         if (advice.purchase() != null) {
             LOG.info("покупаю по плану: {} × {} = {} {} ({})", advice.purchase().amount(), advice.purchase().item(),
                     advice.purchase().total(), advice.purchase().uridium() ? "уридия" : "кредитов", advice.goal().id());
-            buy(auth, session.host(), advice.purchase(), state.credits() - plan.reserveCredits());
+            if (petUnknown(advice.purchase(), snap)) {
+                LOG.info("покупка P.E.T.: игра ещё не сказала, есть ли он — не покупаю");
+            } else {
+                buy(auth, session.host(), advice.purchase(), state.credits() - plan.reserveCredits());
+            }
         }
         if (advice.other() != null) {
             LOG.info("покупаю в другой валюте: {} × {} = {} {}", advice.other().amount(), advice.other().item(),
                     advice.other().total(), advice.other().uridium() ? "уридия" : "кредитов");
-            buy(auth, session.host(), advice.other(), state.credits() - plan.reserveCredits());
+            if (petUnknown(advice.other(), snap)) {
+                LOG.info("покупка P.E.T.: игра ещё не сказала, есть ли он — не покупаю");
+            } else {
+                buy(auth, session.host(), advice.other(), state.credits() - plan.reserveCredits());
+            }
         }
         if (hangar != null) {
             // a better ship owned (won on the auction, bought): its gear moved over and the bot sent there (user's consent

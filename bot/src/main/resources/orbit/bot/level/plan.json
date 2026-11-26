@@ -81,6 +81,23 @@
   },
   "goals": [
     {
+      "id": "Ц0",
+      "title": "Формация «Икс» — в атаке, полёте и бегстве",
+      "check": {
+        "kind": "has",
+        "min": 1,
+        "accepted": [
+          "drone_formation_f-3d-x"
+        ]
+      },
+      "buy": {
+        "item": "drone_formation_f-3d-x",
+        "price": 300000,
+        "currency": "credits"
+      },
+      "farm": "квесты (Leveling <фракция> Quests), между ними x-1…x-3"
+    },
+    {
       "id": "Ц1",
       "title": "Лазеры «Спектральный скальпель II» (лучшие за кредиты)",
       "check": {
@@ -178,6 +195,53 @@
       "auction": [
         "equipment_generator_speed_g3n-7900"
       ],
+      "farm": "квесты (Leveling <фракция> Quests), между ними x-1…x-3"
+    },
+    {
+      "id": "Ц3а",
+      "title": "P.E.T. 10 — всегда выпущен, пассивно (ради уровня: механизм сбора ресурсов с P.E.T. 8)",
+      "check": {
+        "kind": "has",
+        "min": 1,
+        "accepted": [
+          "pet_pet10"
+        ]
+      },
+      "buy": {
+        "item": "pet_pet10",
+        "price": 50000,
+        "currency": "uridium"
+      },
+      "farm": "квесты (Leveling <фракция> Quests), между ними x-1…x-3"
+    },
+    {
+      "id": "Ц3б",
+      "title": "Механизм сбора ресурсов 3-го уровня (P.E.T. 8+; 1-й и 2-й не покупать)",
+      "check": {
+        "kind": "has",
+        "min": 1,
+        "accepted": [
+          "equipment_petgear_g-ar3"
+        ]
+      },
+      "farm": "квесты (Leveling <фракция> Quests), между ними x-1…x-3"
+    },
+    {
+      "id": "Ц3в",
+      "title": "Формация «Мотылёк» — в атаке (Zeta), после механизма сбора 3-го уровня",
+      "check": {
+        "kind": "has",
+        "min": 1,
+        "accepted": [
+          "drone_formation_f-09-mo"
+        ]
+      },
+      "buy": {
+        "item": "drone_formation_f-09-mo",
+        "price": 100000,
+        "currency": "uridium",
+        "needs": "equipment_petgear_g-ar3"
+      },
       "farm": "квесты (Leveling <фракция> Quests), между ними x-1…x-3"
     },
     {

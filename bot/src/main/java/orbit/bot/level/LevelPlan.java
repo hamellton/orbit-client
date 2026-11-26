@@ -52,7 +52,12 @@ public record LevelPlan(int version, long reserveCredits, long reserveUridium, L
     }
 
     /** A purchase in the shop: the item, its price per unit and whether it costs uridium. */
-    public record Buy(String item, long price, boolean uridium) {
+    /** @param needs an item that must be owned before this is bought ({@code null}: none) */
+    public record Buy(String item, long price, boolean uridium, String needs) {
+
+        public Buy(String item, long price, boolean uridium) {
+            this(item, price, uridium, null);
+        }
     }
 
     /**
@@ -97,7 +102,7 @@ public record LevelPlan(int version, long reserveCredits, long reserveUridium, L
             check.path("accepted").forEach(a -> accepted.add(a.asText()));
             JsonNode b = g.path("buy");
             Buy buy = b.isObject() ? new Buy(b.path("item").asText(), b.path("price").asLong(),
-                    "uridium".equals(b.path("currency").asText())) : null;
+                    "uridium".equals(b.path("currency").asText()), b.path("needs").asText(null)) : null;
             List<String> auction = new ArrayList<>();
             g.path("auction").forEach(a -> auction.add(a.asText()));
             goals.add(new Goal(g.path("id").asText(), g.path("title").asText(), kind, check.path("slotset").asText(""),

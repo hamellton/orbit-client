@@ -81,6 +81,9 @@ public final class Advisor {
             if (!after || g.buy() == null || g.buy().uridium() == waitsFor) {
                 continue;
             }
+            if (g.buy().needs() != null && owned(s, java.util.Set.of(g.buy().needs())) == 0) {
+                continue; // waits for another item first (the Moth after the resource collector gear)
+            }
             Check c = check(s, g);
             if (!c.known()) {
                 return null; // the chain is not known past here
