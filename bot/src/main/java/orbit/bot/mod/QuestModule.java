@@ -183,6 +183,11 @@ public final class QuestModule implements BotModule {
         if (visit != null || work == null) {
             return 0;
         }
+        if (work.map() == STARTER_GATE_MAP && ctx.world().get().hero().mapId() != STARTER_GATE_MAP) {
+            // out of the gate (the server took the ship back to x-1 when it was over): the gate's work is done, never a
+            // way back in (live 2026-11-26 02:07: the learnt portal led the runner back towards «Devolarium Attack»)
+            return 0;
+        }
         if (ctx.world().get().hero().mapId() == STARTER_GATE_MAP && kinds().contains("STARTERGATE")) {
             // in the starter gate: the work there is chosen anew, no travel back to x-1 meanwhile (live 2026-11-26: the
             // jump went through, the runner found no path from «Devolarium Attack» to 1-1 and stopped the bot)
