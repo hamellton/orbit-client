@@ -101,7 +101,7 @@ final class AuctionWatch {
             if (caps == null) {
                 caps = history(auth, origin);
             }
-            BidPlanner.Plan p = BidPlanner.plan(state, plan, board, caps);
+            BidPlanner.Plan p = BidPlanner.plan(state, plan.withGoals(LevelWatch.kitGoals(account)), board, caps);
             LevelWatch.LOG.info("аукцион, до конца часа {} с: {}", left, p.describe());
             for (BidPlanner.Bid b : p.bids()) {
                 if (!b.now()) {

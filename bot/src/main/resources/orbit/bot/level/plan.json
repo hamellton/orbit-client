@@ -263,6 +263,22 @@
       "farm": "квесты (Leveling <фракция> Quests), между ними x-1…x-3"
     },
     {
+      "id": "ПД1",
+      "side": true,
+      "title": "Nostromo — свой корабль для палладия (магазин, за кредиты; этап «Палладий»)",
+      "check": {
+        "kind": "ship",
+        "accepted": [
+          "ship_nostromo"
+        ]
+      },
+      "buy": {
+        "item": "ship_nostromo",
+        "price": 195000,
+        "currency": "credits"
+      }
+    },
+    {
       "id": "Ц4",
       "title": "Дроны Flax — до 6, за кредиты, параллельно цепочке с Ц1 (в дронах: конфиг 1 — лазеры, конфиг 2 — щиты)",
       "check": {
@@ -575,6 +591,25 @@
       ]
     },
     {
+      "id": "ПД3",
+      "side": true,
+      "title": "Vengeance — пустой, для стоянки на 5-2 (аукцион; этап «Палладий»)",
+      "check": {
+        "kind": "ship",
+        "accepted": [
+          "ship_vengeance",
+          "ship_v-lightning",
+          "ship_v-revenge",
+          "ship_v-corsair",
+          "ship_v-avenger",
+          "ship_v-adept"
+        ]
+      },
+      "auction": [
+        "ship_vengeance"
+      ]
+    },
+    {
       "id": "П2",
       "side": true,
       "title": "Citadel или Citadel Elite (большой трюм) — на будущее",
@@ -665,5 +700,40 @@
         "sepromRefinery": 20
       }
     }
-  ]
+  ],
+  "palladium": {
+    "ship": "ship_nostromo",
+    "extras": [
+      "equipment_extra_cpu_sle-04",
+      "equipment_extra_repbot_rep-4",
+      "equipment_extra_repbot_rep-3",
+      "equipment_extra_repbot_rep-2",
+      "equipment_extra_cpu_nc-rrb-x",
+      "equipment_extra_cpu_rllb-x",
+      "equipment_extra_cpu_arol-x",
+      "equipment_extra_cpu_g3x-crgo-x",
+      "equipment_extra_cpu_rok-t01"
+    ],
+    "kitAuction": [
+      "equipment_extra_cpu_sle-04",
+      "equipment_extra_repbot_rep-4",
+      "equipment_extra_cpu_nc-rrb-x",
+      "equipment_extra_cpu_rllb-x",
+      "equipment_extra_cpu_arol-x",
+      "equipment_extra_cpu_g3x-crgo-x",
+      "equipment_extra_cpu_rok-t01"
+    ],
+    "engines": [
+      "equipment_generator_speed_g3n-7900"
+    ],
+    "enginesAfter": "Ц3а",
+    "enginePrice": 1900,
+    "shields": [
+      "equipment_generator_shield_sg3n-b02",
+      "equipment_generator_shield_sg3n-b01",
+      "equipment_generator_shield_sg3n-a03",
+      "equipment_generator_shield_sg3n-a02",
+      "equipment_generator_shield_sg3n-a01"
+    ]
+  }
 }

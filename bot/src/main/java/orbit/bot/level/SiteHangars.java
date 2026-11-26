@@ -137,6 +137,27 @@ public final class SiteHangars {
         return out.isEmpty() ? "нет" : out.size() + ": " + String.join("; ", out);
     }
 
+    /** The slotsets of any ship of the list ({@code itemInfo} of {@code getHangarList}), by its loot id; empty if unknown. */
+    public static Map<String, Integer> slotsOf(JsonNode root, String shipLoot) {
+        JsonNode data = root.path("data");
+        JsonNode lootIds = data.path("map").path("lootIds");
+        int index = -1;
+        for (int i = 0; i < lootIds.size(); i++) {
+            if (shipLoot.equals(lootIds.get(i).asText())) {
+                index = i;
+                break;
+            }
+        }
+        Map<String, Integer> slots = new LinkedHashMap<>();
+        for (JsonNode i : data.path("ret").path("itemInfo")) {
+            if (index >= 0 && i.path("L").asInt(-2) == index && "ship".equals(i.path("C").asText())) {
+                i.path("levels").path(0).path("slotsets").properties()
+                        .forEach(e -> slots.put(e.getKey(), e.getValue().path("Q").asInt()));
+            }
+        }
+        return slots;
+    }
+
     public static ListInfo list(JsonNode root) {
         JsonNode data = root.path("data");
         JsonNode lootIds = data.path("map").path("lootIds");

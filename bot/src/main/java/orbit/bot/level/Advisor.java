@@ -103,6 +103,11 @@ public final class Advisor {
         return null;
     }
 
+    /** The goal is done for the account (its check passes). */
+    public static boolean done(AccountState s, LevelPlan.Goal g) {
+        return check(s, g).done();
+    }
+
     /** The goal the parallel purchases wait for: all lasers for credits (the user's choice 2026-11-26). */
     static final String PARALLEL_AFTER = "Ц1";
 

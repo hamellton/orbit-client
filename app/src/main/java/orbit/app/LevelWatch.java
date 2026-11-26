@@ -130,8 +130,11 @@ final class LevelWatch {
         try {
             SiteHangars.ListInfo list = SiteHangars.list(site.listJson());
             int moved = 0;
+            orbit.bot.level.PalladiumKit.Kit kit = orbit.bot.level.PalladiumKit.bundled();
+            int kept = kit == null ? 0 : list.hangarOf(kit.ship());
             for (int other : list.hangars().keySet()) {
-                if (other == list.activeHangar()) {
+                // the Nostromo keeps its own kit (palladium stage): never stripped for the main ship
+                if (other == list.activeHangar() || other == kept) {
                     continue;
                 }
                 Thread.sleep(GAP_MS);
@@ -476,6 +479,60 @@ final class LevelWatch {
         return PET.equals(p.item()) && (snap == null || snap.pet() == null || snap.pet().owned());
     }
 
+    /** The Nostromo kit's bids per account, for the auction's planner (renewed every round). */
+    private static final java.util.Map<String, java.util.List<LevelPlan.Goal>> KIT_GOALS =
+            new java.util.concurrent.ConcurrentHashMap<>();
+
+    static java.util.List<LevelPlan.Goal> kitGoals(String account) {
+        return KIT_GOALS.getOrDefault(account, java.util.List.of());
+    }
+
+    /**
+     * The palladium stage's Nostromo (docs/LEVELING.md «План v2», ПД1–ПД3): its own kit — the second extra of each kind
+     * won on the auction, fitted into its hangar with shields in its drones' places, the engines bought and fitted after
+     * the P.E.T. It stays out of the main ship's way: never the active ship here, never stripped for it.
+     */
+    private static void nostromo(AuthClient auth, String origin, orbit.auth.Hangars site,
+                                 com.fasterxml.jackson.databind.JsonNode listJson, SiteHangars.ListInfo list,
+                                 SiteHangars.HangarInfo anyView, String account, AccountState state, LevelPlan plan)
+            throws InterruptedException {
+        orbit.bot.level.PalladiumKit.Kit kit = orbit.bot.level.PalladiumKit.bundled();
+        if (kit == null) {
+            return;
+        }
+        int nh = list.hangarOf(kit.ship());
+        java.util.List<String> missing = orbit.bot.level.PalladiumKit.missingExtras(kit, anyView, nh != 0);
+        KIT_GOALS.put(account, orbit.bot.level.PalladiumKit.auctionGoals(missing));
+        if (nh == 0 || nh == list.activeHangar()) {
+            return; // not bought yet (ПД1), or flown now (the stage itself)
+        }
+        try {
+            Thread.sleep(GAP_MS);
+            var json = site.hangarJson(nh);
+            SiteHangars.HangarInfo view = SiteHangars.hangar(json, nh);
+            SiteHangars.DroneView drones = SiteHangars.droneView(json, nh);
+            var slots = SiteHangars.withExtender(SiteHangars.slotsOf(listJson, kit.ship()), view);
+            LevelPlan.Goal after = plan.goals().stream().filter(g -> kit.enginesAfter().equals(g.id())).findFirst().orElse(null);
+            boolean engines = after != null && orbit.bot.level.Advisor.done(state, after);
+            var moves = orbit.bot.level.PalladiumKit.moves(kit, view, drones, nh, slots, engines);
+            int done = moves.isEmpty() ? 0 : apply(site, nh, moves);
+            int lacking = engines ? orbit.bot.level.PalladiumKit.enginesMissing(kit, view, nh, slots) : 0;
+            LOG.info("Nostromo: ангар {}, слоты {}; с аукциона ещё нужно {}; перекладок {} (сделано {}); двигателей не хватает {}{}",
+                    nh, slots, missing.isEmpty() ? "ничего" : missing, moves.size(), done, lacking,
+                    engines ? "" : " (двигатели — после P.E.T.)");
+            if (lacking > 0 && kit.enginePrice() > 0) {
+                long free = Math.max(0, state.uridium() - plan.reserveUridium());
+                int can = (int) Math.min(lacking, free / kit.enginePrice());
+                if (can > 0) {
+                    buy(auth, origin, new orbit.bot.level.Advisor.Purchase(kit.engines().getFirst(), can, kit.enginePrice(), true),
+                            state.credits() - plan.reserveCredits());
+                }
+            }
+        } catch (java.io.IOException | RuntimeException e) {
+            LOG.warn("Nostromo: ангар не прочитан ({})", e.getMessage());
+        }
+    }
+
     /** Drone places of an account (the game's limit). */
     static final int DRONE_PLACES = 8;
 
@@ -561,7 +618,8 @@ final class LevelWatch {
      * The auction's bids the plan would place (docs/LEVELING.md «Аукцион»): the hourly page and the daily list read, the
      * plan logged — nothing is bid.
      */
-    private static void auction(AuthClient auth, String origin, AccountState state, LevelPlan plan) throws InterruptedException {
+    private static void auction(AuthClient auth, String origin, AccountState state, LevelPlan plan, String account)
+            throws InterruptedException {
         try {
             Thread.sleep(GAP_MS);
             var page = auth.http().get(origin + "/indexInternal.es?action=internalAuction",
@@ -578,7 +636,7 @@ final class LevelWatch {
             LOG.info("аукцион: лотов {} (час {}, день {}), до конца часа {} с, дня {} с", board.lots().size(),
                     board.of("hour").size(), board.of("day").size(), board.secondsLeft("hour"), board.secondsLeft("day"));
             LOG.info("ставки по плану сейчас (ставит поток аукциона в последние минуты часа): {}",
-                    orbit.bot.level.BidPlanner.plan(state, plan, board).describe());
+                    orbit.bot.level.BidPlanner.plan(state, plan.withGoals(kitGoals(account)), board).describe());
         } catch (java.io.IOException | RuntimeException e) {
             LOG.warn("аукцион не прочитан ({})", e.getMessage());
         }
@@ -602,8 +660,10 @@ final class LevelWatch {
         SiteHangars.ListInfo list;
         SiteHangars.HangarInfo hangar = null;
         SiteHangars.DroneView drones = null;
+        com.fasterxml.jackson.databind.JsonNode listJson;
         try {
-            list = SiteHangars.list(site.listJson());
+            listJson = site.listJson();
+            list = SiteHangars.list(listJson);
             if (list.activeHangar() != 0) {
                 Thread.sleep(GAP_MS);
                 var hangarJson = site.hangarJson(list.activeHangar());
@@ -712,6 +772,9 @@ final class LevelWatch {
         if (drones != null && list.activeHangar() != 0) {
             sellFlaxForIris(site, list.activeHangar(), drones);
         }
+        if (hangar != null) {
+            nostromo(auth, session.host(), site, listJson, list, hangar, account, state, plan);
+        }
         String moduleStatus = status.get();
         boolean idle = moduleStatus != null && moduleStatus.contains("нечего делать");
         String mapName = snap == null || snap.hero() == null ? null
@@ -725,7 +788,7 @@ final class LevelWatch {
         if (start != null && !cfg.startsWith(start.substring(0, start.lastIndexOf(' ') + 1))) {
             LOG.info("фракция {}: конфиг другой фракции — нужен «{}», сейчас «{}»", faction, start, cfg);
         }
-        auction(auth, session.host(), state, plan);
+        auction(auth, session.host(), state, plan, account);
         launcherRockets(auth, session.host(), state, plan, feed);
         cpus(conn, feed, account);
         formations(conn, feed, account);

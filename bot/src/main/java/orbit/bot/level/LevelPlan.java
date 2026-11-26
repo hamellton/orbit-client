@@ -29,6 +29,16 @@ public record LevelPlan(int version, long reserveCredits, long reserveUridium, L
 
     public static final String RESOURCE = "/orbit/bot/level/plan.json";
 
+    /** The plan with more goals after its own (the Nostromo kit's bids, {@link PalladiumKit#auctionGoals}). */
+    public LevelPlan withGoals(List<Goal> more) {
+        if (more == null || more.isEmpty()) {
+            return this;
+        }
+        List<Goal> all = new java.util.ArrayList<>(goals);
+        all.addAll(more);
+        return new LevelPlan(version, reserveCredits, reserveUridium, all, fit, ships);
+    }
+
     public LevelPlan {
         goals = List.copyOf(goals);
         fit = fit == null ? Map.of() : Map.copyOf(fit);

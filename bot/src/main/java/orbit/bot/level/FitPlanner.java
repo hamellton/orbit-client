@@ -108,6 +108,15 @@ public final class FitPlanner {
             List<SiteHangars.Owned> own = h.items().stream()
                     .filter(o -> order.contains(o.loot()) && (o.hangar() == 0 || o.hangar() == hangarId))
                     .sorted(best.thenComparing(SiteHangars.Owned::id)).toList();
+            if ("extras".equals(set)) {
+                // one of each kind: a second CPU of a kind gives nothing (and the Nostromo's own set must stay for it)
+                Set<String> fittedHere = new HashSet<>();
+                h.fittedIds().values().forEach(m -> fittedHere.addAll(m.getOrDefault(set, List.of())));
+                Map<String, SiteHangars.Owned> one = new java.util.LinkedHashMap<>();
+                own.stream().sorted(best.thenComparing((SiteHangars.Owned o) -> !fittedHere.contains(o.id())))
+                        .forEach(o -> one.putIfAbsent(kind(o.loot()), o));
+                own = one.values().stream().sorted(best.thenComparing(SiteHangars.Owned::id)).toList();
+            }
             Set<String> wanted = new HashSet<>();
             own.stream().limit(n).forEach(o -> wanted.add(o.id()));
             for (int config : new int[] {1, 2}) {
@@ -118,15 +127,35 @@ public final class FitPlanner {
                         .toList();
                 List<SiteHangars.Owned> in = own.stream().filter(o -> wanted.contains(o.id()) && !fittedIds.contains(o.id()))
                         .toList();
-                int free = Math.max(0, n - fitted.size());
+                // extras: a fitted one of a kind the wanted set already has (REP-2 beside REP-4, SLE-02 beside SLE-04)
+                // goes out even with places free — two of one kind give nothing
+                Set<String> wantedKinds = new HashSet<>();
+                if ("extras".equals(set)) {
+                    own.stream().filter(o -> wanted.contains(o.id())).forEach(o -> wantedKinds.add(kind(o.loot())));
+                }
+                List<SiteHangars.Owned> twins = fitted.stream()
+                        .filter(o -> !wanted.contains(o.id()) && wantedKinds.contains(kind(o.loot()))).toList();
+                int free = Math.max(0, n - fitted.size() + twins.size());
                 int outs = Math.max(0, in.size() - free);
-                List<SiteHangars.Owned> worst = fitted.stream().filter(o -> !wanted.contains(o.id()))
-                        .sorted(best.reversed()).limit(outs).toList();
+                List<SiteHangars.Owned> worst = new ArrayList<>(twins);
+                fitted.stream().filter(o -> !wanted.contains(o.id()) && !twins.contains(o))
+                        .sorted(best.reversed()).limit(outs).forEach(worst::add);
                 worst.forEach(o -> out.add(new Move(o.id(), o.loot(), config, false, set)));
-                in.stream().limit(free + worst.size()).forEach(o -> out.add(new Move(o.id(), o.loot(), config, true, set)));
+                in.stream().limit(free + worst.size() - twins.size()).forEach(o -> out.add(new Move(o.id(), o.loot(), config, true, set)));
             }
         }
         return out;
+    }
+
+    /** The kind of an extra: the repair robots are one kind, the slot extenders one; any other CPU — itself. */
+    static String kind(String loot) {
+        if (loot.startsWith("equipment_extra_repbot_")) {
+            return "repbot";
+        }
+        if (loot.startsWith("equipment_extra_cpu_sle-")) {
+            return "sle";
+        }
+        return loot;
     }
 
     /** The place in the order, best first; an item outside it ranks after all. */
