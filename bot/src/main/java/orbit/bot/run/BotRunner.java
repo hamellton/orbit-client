@@ -1302,7 +1302,11 @@ public final class BotRunner {
      */
     private boolean plainMap(WorldSnapshot w) {
         int map = w.hero().mapId();
-        return "normal".equals(ctx.maps().info(map).type()) && !orbit.config.GateCatalog.instanced(map);
+        // the companies' x-8 are plain maps too, the maps-config just gives them no type (live 2026-11-26: st2 farmed
+        // 1-8 for hours, its re-login for the gear waited all that time)
+        String name = ctx.maps().info(map).name();
+        boolean x8 = name.matches("[123]-8");
+        return ("normal".equals(ctx.maps().info(map).type()) || x8) && !orbit.config.GateCatalog.instanced(map);
     }
 
     private void fail(String why) {
