@@ -254,7 +254,6 @@ public final class QuestModule implements BotModule {
         WorldSnapshot w = ctx.world().get();
         Quests q = w.quests();
         long now = ctx.now();
-        notePlayerDeath(w, now);
         if (w.hero().mapId() == STARTER_GATE_MAP && kinds().contains("STARTERGATE")) {
             inStarterGate(w, now);
             return;
@@ -903,23 +902,9 @@ public final class QuestModule implements BotModule {
                 || orbit.bot.nav.Traveler.closed(wk.map(), w.hero().level()))) {
             return null; // also a map a portal would not let this level into
         }
-        if (wk != null && wk.map() > 0 && dangerous(wk.map())) {
-            // checked after the own-twin mirroring too (live 2026-11-26 09:22: Saimon known on 2-4 became work on 1-4,
-            // marked dangerous)
-            return null;
-        }
         return wk;
     }
 
-    /** A map marked dangerous ({@code playerDeathAvoidMinutes}): a ship died there lately. */
-    private boolean dangerous(int map) {
-        if (settings().path("playerDeathAvoidMinutes").asInt(0) <= 0) {
-            return false;
-        }
-        loadDanger();
-        Long until = dangerUntil.get(map);
-        return until != null && until > System.currentTimeMillis();
-    }
 
     /** A map of the hero's own company ({@code 1-x} for MMO, {@code 2-x} EIC, {@code 3-x} VRU). */
     private boolean ownMap(int map, int faction) {
@@ -1000,7 +985,6 @@ public final class QuestModule implements BotModule {
                 }
             }
             where.keySet().removeIf(m -> notThere.getOrDefault(m, Set.of()).contains(c.id()));
-            avoidDanger(where.keySet(), now());
             boolean bosses = !want.isEmpty() && want.stream().allMatch(n -> n.startsWith("boss"));
             int map45 = ctx.maps().byName("4-5") == null ? -1 : ctx.maps().byName("4-5").id();
             Integer best = on.isEmpty() ? pirateMap(want, where.keySet(), h) : null;
@@ -1253,7 +1237,6 @@ public final class QuestModule implements BotModule {
             where.keySet().retainAll(on);
         }
         where.keySet().removeIf(m -> notThere.getOrDefault(m, Set.of()).contains(c.id()));
-        avoidDanger(where.keySet(), now());
         Integer best = nearest(where.keySet(), w.hero());
         return best == null ? null : new Work(quest.id(), c.id(), Kind.SALVAGE, best, Set.copyOf(where.get(best)),
                 Double.NaN, Double.NaN, LOOT, want, 0);
@@ -1441,94 +1424,6 @@ public final class QuestModule implements BotModule {
         }
         ctx.nav().tick();
         status = "Стартовые врата: выхожу";
-    }
-
-    /** Maps where a player killed the ship → until when work there is avoided ({@code playerDeathAvoidMinutes}). */
-    // shared by the accounts of one program (one company's maps): a player camping 1-3 killed st2 and a minute later st3
-    // (live 2026-11-26 07:29–07:30)
-    // wall-clock millis, kept in local/danger-maps.properties so a restart does not forget them (07:36: right after a
-    // restart st2 flew back to 1-3 and the same player killed it again)
-    private static final Map<Integer, Long> dangerUntil = new java.util.concurrent.ConcurrentHashMap<>();
-    private static final java.nio.file.Path DANGER_FILE = java.nio.file.Path.of("local", "danger-maps.properties");
-    private static volatile boolean dangerLoaded;
-
-    private static synchronized void loadDanger() {
-        if (dangerLoaded) {
-            return;
-        }
-        dangerLoaded = true;
-        try {
-            if (java.nio.file.Files.exists(DANGER_FILE)) {
-                java.util.Properties p = new java.util.Properties();
-                try (var in = java.nio.file.Files.newInputStream(DANGER_FILE)) {
-                    p.load(in);
-                }
-                p.forEach((k, v) -> dangerUntil.put(Integer.parseInt(k.toString()), Long.parseLong(v.toString())));
-            }
-        } catch (Exception e) {
-            // no marks, no harm
-        }
-    }
-
-    private static synchronized void saveDanger() {
-        try {
-            java.util.Properties p = new java.util.Properties();
-            dangerUntil.forEach((k, v) -> p.setProperty(String.valueOf(k), String.valueOf(v)));
-            java.nio.file.Files.createDirectories(DANGER_FILE.getParent());
-            try (var out = java.nio.file.Files.newOutputStream(DANGER_FILE)) {
-                p.store(out, "maps where a ship died: until (epoch ms)");
-            }
-        } catch (Exception e) {
-            // told nowhere: the marks live on in memory
-        }
-    }
-    private int aliveMap;
-    private int playerDeaths = -1;
-
-    private long now() {
-        return ctx.now();
-    }
-
-    /**
-     * {@code playerDeathAvoidMinutes} (the leveling quests configs; 0 = off, the default): the map where the ship died (a
-     * player's kill mostly) is left out of the work's maps that long while another map has the same work (live 2026-11-26 on int1: st1 was
-     * killed by players twice in three minutes on 1-4, and the portal revive put it back there).
-     */
-    private void notePlayerDeath(WorldSnapshot w, long now) {
-        int minutes = settings().path("playerDeathAvoidMinutes").asInt(0);
-        // the session's deaths (not killedBy: those are the NPCs the ship killed — live 2026-11-26 04:27 it fired on a kill)
-        int deaths = ctx.stats().deaths.get();
-        // the map of the death is the last one this module saw the ship alive on before it: checked before taking the
-        // current map (live 2026-11-26: st5 died on 1-3, fled through 2-3 after the revive, and 2-3 was taken)
-        if (playerDeaths >= 0 && deaths > playerDeaths && minutes > 0 && aliveMap > 0) {
-            loadDanger();
-            dangerUntil.put(aliveMap, System.currentTimeMillis() + minutes * 60_000L);
-            saveDanger();
-            log.warn("Квесты: на {} корабль погиб — {} мин беру работу на других картах, где она есть",
-                    ctx.maps().info(aliveMap).name(), minutes);
-            work = null;
-            worker = null;
-        }
-        playerDeaths = deaths;
-        if (w.hero().alive() && w.hero().mapId() > 0) {
-            aliveMap = w.hero().mapId();
-        }
-    }
-
-    /**
-     * Leaves out the maps a ship died on lately; when only such maps have the work, none — the quest waits and others are
-     * done meanwhile (07:36: 108004 wants Boss Mordon on 1-3 only, where a player was camping).
-     */
-    private void avoidDanger(Set<Integer> maps, long now) {
-        if (settings().path("playerDeathAvoidMinutes").asInt(0) <= 0) {
-            return;
-        }
-        loadDanger();
-        long wall = System.currentTimeMillis();
-        dangerUntil.values().removeIf(t -> t < wall);
-        if (!dangerUntil.isEmpty()) {
-            maps.removeIf(dangerUntil::containsKey);
-        }
     }
 
     /** The companies' x-1 by faction (1 MMO 1-1, 2 EIC 2-1, 3 VRU 3-1). */

@@ -450,7 +450,6 @@
       "starterFirst": true,
       "sellAtOnce": true,
       "stuckMinutes": 30,
-      "playerDeathAvoidMinutes": 30,
       "typeOrder": [
         "STARTER",
         "MISSION",
