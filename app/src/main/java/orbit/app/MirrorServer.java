@@ -129,6 +129,7 @@ final class MirrorServer implements AutoCloseable {
                             write(out, r);
                         }
                         write(out, heroAt());
+                        write(out, heroBeacon());
                         out.flush();
                         shown = replay.size();
                     }
@@ -164,10 +165,38 @@ final class MirrorServer implements AutoCloseable {
             return m;
         }
         m.userId = w.hero().id();
-        m.x = (int) w.hero().x();
-        m.y = (int) w.hero().y();
+        m.x = w.hero().x();
+        m.y = w.hero().y();
         m.timeToTarget = 0;
         return m;
+    }
+
+    /**
+     * The server's beacon with the bot's ship where it is now and where it heads: the client takes the server's place of
+     * its ship from beacons, so it does not stand at the login's place till the next one.
+     */
+    private Packet heroBeacon() {
+        WorldSnapshot w = world.get();
+        orbit.protocol.gen.BeaconCommand last = capture.beacon();
+        if (w == null || w.hero() == null) {
+            return last;
+        }
+        orbit.protocol.gen.BeaconCommand b = new orbit.protocol.gen.BeaconCommand();
+        if (last != null) {
+            b.nearJumpGate = last.nearJumpGate;
+            b.inRadiationZone = last.inRadiationZone;
+            b.inStation = last.inStation;
+            b.inPeaceArea = last.inPeaceArea;
+            b.repairBotSkilled = last.repairBotSkilled;
+            b.isAlarmEffectActive = last.isAlarmEffectActive;
+            b.repairRobotLootId = last.repairRobotLootId;
+            b.repairRobotActive = last.repairRobotActive;
+        }
+        b.positionX = w.hero().x();
+        b.positionY = w.hero().y();
+        b.positionAheadX = w.hero().moving() ? w.hero().targetX() : w.hero().x();
+        b.positionAheadY = w.hero().moving() ? w.hero().targetY() : w.hero().y();
+        return b;
     }
 
     /** The bot's move as the server shows a ship's: to the target in the time its speed takes. */
@@ -196,6 +225,9 @@ final class MirrorServer implements AutoCloseable {
     }
 
     private static void write(OutputStream out, Packet p) throws IOException {
+        if (p == null) {
+            return;
+        }
         Frames.write(out, PacketCodec.encode(p));
     }
 

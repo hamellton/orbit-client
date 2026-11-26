@@ -76,6 +76,43 @@ class MirrorServerTest {
         }
     }
 
+    @Test
+    void theReplayIsTheMapAsItIsNowNotItsHistory() {
+        MirrorCapture cap = new MirrorCapture();
+        cap.incoming(new VersionCommand());
+        cap.incoming(new ShipInitializationCommand());
+        orbit.protocol.gen.ShipCreateCommand gone = new orbit.protocol.gen.ShipCreateCommand();
+        gone.userId = 1;
+        cap.incoming(gone);
+        orbit.protocol.gen.ShipCreateCommand here = new orbit.protocol.gen.ShipCreateCommand();
+        here.userId = 2;
+        cap.incoming(here);
+        orbit.protocol.gen.ShipRemoveCommand remove = new orbit.protocol.gen.ShipRemoveCommand();
+        remove.userId = 1;
+        cap.incoming(remove);
+        orbit.protocol.gen.AddBoxCommand box = new orbit.protocol.gen.AddBoxCommand();
+        box.hash = "b1";
+        cap.incoming(box);
+        orbit.protocol.gen.RemoveCollectableCommand picked = new orbit.protocol.gen.RemoveCollectableCommand();
+        picked.hash = "b1";
+        cap.incoming(picked);
+        for (int i = 0; i < 50; i++) {
+            orbit.protocol.gen.BeaconCommand b = new orbit.protocol.gen.BeaconCommand();
+            b.positionX = i;
+            cap.incoming(b);
+            orbit.protocol.gen.MenuItemStatusCommand st = new orbit.protocol.gen.MenuItemStatusCommand();
+            st.menuItemId = "ammunition_laser_lcb-10";
+            st.counterValue = i;
+            cap.incoming(st);
+        }
+        List<Packet> r = cap.replay();
+        assertEquals(List.of("ShipInitializationCommand", "ShipCreateCommand", "MenuItemStatusCommand"),
+                r.stream().map(p -> p.getClass().getSimpleName()).toList());
+        assertEquals(2, ((orbit.protocol.gen.ShipCreateCommand) r.get(1)).userId, "the ship still there");
+        assertEquals(49, ((orbit.protocol.gen.MenuItemStatusCommand) r.get(2)).counterValue, "the item's last state");
+        assertEquals(49, cap.beacon().positionX, "the last beacon, kept apart for the hero's fresh one");
+    }
+
     private static Packet read(InputStream in) throws Exception {
         byte[] f = Frames.read(in);
         return PacketCodec.decode(f);
