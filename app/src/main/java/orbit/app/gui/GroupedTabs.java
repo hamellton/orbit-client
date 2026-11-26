@@ -179,11 +179,13 @@ final class GroupedTabs {
             return;
         }
         List<MainWindow.Tab> all = List.copyOf(tabs);
-        pane.addTab("Все", MainWindow.overview(all, i -> openAccount(nameOf(all.get(i)))));
+        pane.addTab("Все", AccountStatus.dot(() -> together(all)),
+                MainWindow.overview(all, i -> openAccount(nameOf(all.get(i)))));
         for (String g : groups.groups()) {
             List<MainWindow.Tab> in = tabs.stream().filter(t -> g.equals(groups.group(nameOf(t)))).toList();
             if (!in.isEmpty()) {
-                pane.addTab(g + " · " + in.size(), MainWindow.overview(in, i -> openAccount(nameOf(in.get(i)))));
+                pane.addTab(g + " · " + in.size(), AccountStatus.dot(() -> together(in)),
+                        MainWindow.overview(in, i -> openAccount(nameOf(in.get(i)))));
                 pane.setToolTipTextAt(pane.getTabCount() - 1, "Группа «" + g + "»: " + String.join(", ",
                         in.stream().map(GroupedTabs::nameOf).toList()));
             }
@@ -196,9 +198,7 @@ final class GroupedTabs {
                 v.putClientProperty("JTabbedPane.tabClosable", grouped || closableUngrouped);
                 v.putClientProperty("JTabbedPane.tabCloseToolTipText", grouped
                         ? "Скрыть вкладку (аккаунт работает дальше, он на вкладке группы)" : "Закрыть (аккаунт остановится)");
-                pane.addTab(title(t), AccountStatus.dot(() -> t.managed() != null
-                        && t.managed().phase() == ManagedAccount.Phase.STOPPED ? AccountStatus.OFFLINE
-                        : AccountStatus.of(t.feed())), v);
+                pane.addTab(title(t), AccountStatus.dot(() -> statusOf(t)), v);
                 pane.setToolTipTextAt(pane.getTabCount() - 1, tooltip(t, groups));
             }
         }
@@ -209,6 +209,28 @@ final class GroupedTabs {
         if (back >= 0) {
             pane.setSelectedIndex(back);
         }
+    }
+
+    /** One account's state: a stopped one of the manager is not in game. */
+    static AccountStatus statusOf(MainWindow.Tab t) {
+        return t.managed() != null && t.managed().phase() == ManagedAccount.Phase.STOPPED ? AccountStatus.OFFLINE
+                : AccountStatus.of(t.feed());
+    }
+
+    /**
+     * A group's light (the user's wish 2026-11-27): yellow when one of its accounts has lost the link, else green when at
+     * least one is in the game, else grey.
+     */
+    static AccountStatus together(List<MainWindow.Tab> in) {
+        boolean playing = false;
+        for (MainWindow.Tab t : in) {
+            AccountStatus s = statusOf(t);
+            if (s == AccountStatus.LINK_LOST) {
+                return AccountStatus.LINK_LOST;
+            }
+            playing |= s != AccountStatus.OFFLINE;
+        }
+        return playing ? AccountStatus.ONLINE : AccountStatus.OFFLINE;
     }
 
     /** Each second: the titles and tooltips of the own tabs follow the game. */
