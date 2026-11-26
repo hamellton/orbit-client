@@ -26,6 +26,8 @@ final class GroupedTabs {
     final List<MainWindow.Tab> tabs = new ArrayList<>();
     final Map<String, AccountView> views = new LinkedHashMap<>();
     final Set<String> open = new LinkedHashSet<>();
+    /** The group tabs' start and stop ({@code (group, true)} start): the manager's; {@code null} — no buttons. */
+    java.util.function.BiConsumer<String, Boolean> groupActions;
 
     GroupedTabs(JTabbedPane pane, int lead, ManagerGroups groups, boolean closableUngrouped) {
         this.pane = pane;
@@ -185,7 +187,7 @@ final class GroupedTabs {
             List<MainWindow.Tab> in = tabs.stream().filter(t -> g.equals(groups.group(nameOf(t)))).toList();
             if (!in.isEmpty()) {
                 pane.addTab(g + " · " + in.size(), AccountStatus.dot(() -> together(in)),
-                        MainWindow.overview(in, i -> openAccount(nameOf(in.get(i)))));
+                        MainWindow.overview(in, i -> openAccount(nameOf(in.get(i))), groupButtons(g)));
                 pane.setToolTipTextAt(pane.getTabCount() - 1, "Группа «" + g + "»: " + String.join(", ",
                         in.stream().map(GroupedTabs::nameOf).toList()));
             }
@@ -209,6 +211,24 @@ final class GroupedTabs {
         if (back >= 0) {
             pane.setSelectedIndex(back);
         }
+    }
+
+    /** «Запустить группу» / «Остановить группу» for a group's tab (none without {@link #groupActions}). */
+    private javax.swing.JComponent groupButtons(String g) {
+        if (groupActions == null) {
+            return null;
+        }
+        javax.swing.JPanel p = new javax.swing.JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 6, 0));
+        p.setOpaque(false);
+        javax.swing.JButton start = new javax.swing.JButton("Запустить группу");
+        start.setToolTipText("Остановленные аккаунты группы «" + g + "», входы с паузой 15–45 с");
+        start.addActionListener(e -> groupActions.accept(g, true));
+        javax.swing.JButton stop = new javax.swing.JButton("Остановить группу");
+        stop.setToolTipText("Запущенные аккаунты группы «" + g + "»: выйти у портала или закрыть сразу");
+        stop.addActionListener(e -> groupActions.accept(g, false));
+        p.add(start);
+        p.add(stop);
+        return p;
     }
 
     /** One account's state: a stopped one of the manager is not in game. */

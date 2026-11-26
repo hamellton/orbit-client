@@ -93,6 +93,13 @@ public final class ManagerWindow {
         pane.setTabLayoutPolicy(JTabbedPane.SCROLL_TAB_LAYOUT);
         pane.addTab("Аккаунты", accountsPage());
         grouped = new GroupedTabs(pane, 1, groups, true);
+        grouped.groupActions = (g, start) -> {
+            if (start) {
+                startGroupNamed(g);
+            } else {
+                stopGroupNamed(g);
+            }
+        };
         pane.putClientProperty("JTabbedPane.tabCloseCallback",
                 (java.util.function.BiConsumer<JTabbedPane, Integer>) (p, index) -> closeTab(index));
     }
@@ -154,16 +161,27 @@ public final class ManagerWindow {
         });
     }
 
+    /**
+     * The accounts given at the start, logins spread out as the buttons do (15–45 s apart, the user's wish 2026-11-27: 5 s
+     * apart is no person); the ones without a saved site session (a password login) last — a few password logins in a row
+     * from one address bring the site's captcha.
+     */
     private void startNow(List<String> names) {
+        java.util.Random random = new java.util.Random();
+        List<String> order = new ArrayList<>(names);
+        order.sort(java.util.Comparator.comparing(n -> vault.accounts().containsKey(n) && vault.get(n).dosid() == null));
         long delay = 0;
-        for (String n : names) {
+        for (String n : order) {
             if (!model.names.contains(n)) {
                 org.slf4j.LoggerFactory.getLogger(ManagerWindow.class).warn("Запуск при старте: аккаунта «{}» нет", n);
                 continue;
             }
             String why = startOne(n, delay, false);
-            org.slf4j.LoggerFactory.getLogger(ManagerWindow.class).info("Запуск при старте: «{}» — {}", n, why == null ? "запущен" : why);
-            delay += 5_000;
+            org.slf4j.LoggerFactory.getLogger(ManagerWindow.class).info("Запуск при старте: «{}» через {} с — {}", n,
+                    delay / 1000, why == null ? "запущен" : why);
+            if (why == null) {
+                delay += 15_000 + random.nextInt(30_000);
+            }
         }
     }
 
@@ -925,6 +943,26 @@ public final class ManagerWindow {
         }
         return model.names.stream().filter(n -> NO_GROUP.equals(g) ? groups.group(n) == null : g.equals(groups.group(n)))
                 .toList();
+    }
+
+    /** The accounts of a group by its name. */
+    private List<String> inGroup(String g) {
+        return model.names.stream().filter(n -> g.equals(groups.group(n))).toList();
+    }
+
+    /** The group tab's «Запустить группу»: its stopped accounts, logins spread out. */
+    void startGroupNamed(String g) {
+        startEach(inGroup(g));
+    }
+
+    /** The group tab's «Остановить группу»: its running accounts, as «Остановить» asks. */
+    void stopGroupNamed(String g) {
+        List<ManagedAccount> running = inGroup(g).stream().map(this::account)
+                .filter(a -> a.phase() != ManagedAccount.Phase.STOPPED).toList();
+        if (!running.isEmpty()) {
+            StopDialog.stop(frame, "Остановить группу «" + g + "»", running, "");
+        }
+        refresh();
     }
 
     private void startGroup() {

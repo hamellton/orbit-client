@@ -231,6 +231,11 @@ public final class MainWindow {
 
     /** As above; a click on an account's map gives its index in {@code tabs} to {@code open}. */
     static JComponent overview(List<Tab> tabs, java.util.function.IntConsumer open) {
+        return overview(tabs, open, null);
+    }
+
+    /** As above with {@code extra} (a group's start and stop) at the end of the top row. */
+    static JComponent overview(List<Tab> tabs, java.util.function.IntConsumer open, JComponent extra) {
         JPanel grid = new JPanel(new Grid());
         grid.setBackground(SURFACE);
         grid.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
@@ -260,6 +265,9 @@ public final class MainWindow {
             timers.add(new Timer(1_000, e -> box.setText(GroupedTabs.title(t))));
             boxes.add(box);
             choose.add(box);
+        }
+        if (extra != null) {
+            choose.add(extra);
         }
         Runnable relayout = () -> {
             grid.removeAll();
