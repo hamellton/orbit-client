@@ -450,6 +450,10 @@
       "starterFirst": true,
       "sellAtOnce": true,
       "stuckMinutes": 30,
+      "sideAllQuests": true,
+      "npcMaps": {
+        "bosslordakia": 2
+      },
       "typeOrder": [
         "STARTER",
         "MISSION",

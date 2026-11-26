@@ -988,6 +988,13 @@ public final class QuestModule implements BotModule {
             boolean bosses = !want.isEmpty() && want.stream().allMatch(n -> n.startsWith("boss"));
             int map45 = ctx.maps().byName("4-5") == null ? -1 : ctx.maps().byName("4-5").id();
             Integer best = on.isEmpty() ? pirateMap(want, where.keySet(), h) : null;
+            Integer home = on.isEmpty() ? preferredMap(want, h) : null;
+            if (best == null && home != null) {
+                // «npcMaps» (the leveling quests configs): where an NPC is to be sought, the own company's x-N (a user's
+                // choice 2026-11-26: Boss Lordakia on x-2, not on 1-4 where it was once seen)
+                where.putIfAbsent(home, Set.of());
+                best = home;
+            }
             if (best == null) {
                 best = nearest(where.keySet(), h, m -> bosses && m == map45 ? BOSS_4_5_EXTRA_HOPS : 0);
             }
@@ -1426,6 +1433,27 @@ public final class QuestModule implements BotModule {
         status = "Стартовые врата: выхожу";
     }
 
+    /**
+     * {@code npcMaps} (the leveling quests configs, {norm name: x-number}): the own company's map for the work when every NPC
+     * it wants has one there; {@code null} none.
+     */
+    private Integer preferredMap(Set<String> want, WorldSnapshot.Hero h) {
+        com.fasterxml.jackson.databind.JsonNode m = settings().path("npcMaps");
+        if (!m.isObject() || want.isEmpty() || h.factionId() < 1 || h.factionId() > 3) {
+            return null;
+        }
+        Integer x = null;
+        for (String n : want) {
+            int v = m.path(n).asInt(0);
+            if (v <= 0 || x != null && x != v) {
+                return null;
+            }
+            x = v;
+        }
+        var info = ctx.maps().byName(h.factionId() + "-" + x);
+        return info == null ? null : info.id();
+    }
+
     /** The companies' x-1 by faction (1 MMO 1-1, 2 EIC 2-1, 3 VRU 3-1). */
     static final int[] HOME_MAPS = {0, 1, 5, 9};
     /** The home station's parts ({@code AssetTypeModule}: 46 company HQ, 48 hangar, 50 ore trade, 53 instant repair). */
@@ -1562,6 +1590,21 @@ public final class QuestModule implements BotModule {
                         v.forEach(n -> norms.putIfAbsent(n, 0));
                     }
                 });
+            }
+        }
+        if (settings().path("sideAllQuests").asBoolean(false)) {
+            // «sideAllQuests» (the leveling quests configs, a user's choice 2026-11-26): an NPC another taken mission or
+            // starter quest wants is fought too when in sight (Boss Lordakia met while on other work)
+            for (Quests.Quest other : w.quests().active().values()) {
+                if (other.id() == wk.quest() || setAside.contains(other.id()) || left(other.id())
+                        || !(other.is(Quests.MISSION) || other.is(Quests.STARTER))) {
+                    continue;
+                }
+                for (Quests.Condition o : other.leaves()) {
+                    if (!o.completed() && (QuestTargets.killing(o) || QuestTargets.damaging(o)) && o.onMaps().isEmpty()) {
+                        QuestTargets.wanted(o).forEach(n -> norms.putIfAbsent(n, 0));
+                    }
+                }
             }
         }
         Set<String> wanted = new TreeSet<>(wk.want());
