@@ -298,109 +298,118 @@ final class AccountView extends JPanel {
                     orbit.config.AccountSettings.DEFAULT_FILE, null, tab.config().get(), tab.feed().title()));
             cfg.add(edit);
         }
+        // the run controls first, always in sight; the windows, the client and the rest in short menus; each group wraps
+        // as a whole, so a narrow window moves a group to the next row instead of cutting it off
         JPanel actions = group();
         bar.add(actions);
-        JButton hangar = new JButton("Ангар");
-        hangar.setToolTipText("Патроны, ракеты, ресурсы и корабли аккаунта — в отдельном окне");
-        hangar.addActionListener(e -> HangarWindow.open(tab.feed()));
-        actions.add(hangar);
-        JButton packetsWin = new JButton("Пакеты");
-        packetsWin.setToolTipText("Пакеты игры этого аккаунта вживую — от сервера и от бота, с фильтром и сохранением");
-        packetsWin.addActionListener(e -> PacketWindow.open(tab.feed()));
-        actions.add(packetsWin);
+        JPanel menus = group();
+        bar.add(menus);
+        JPanel quick = group();
+        bar.add(quick);
+
+        JButton windows = new JButton("Окна ▾");
+        windows.setToolTipText("Ангар, итоги, обогащение, Скайлаб, пакеты — каждое в отдельном окне");
+        javax.swing.JPopupMenu windowsMenu = new javax.swing.JPopupMenu();
+        windowsMenu.add(item("Ангар", "Патроны, ракеты, ресурсы, корабли и формации аккаунта",
+                () -> HangarWindow.open(tab.feed())));
+        windowsMenu.add(item("Итоги", "Что подобрано по видам, добыча, доход и дела — за сессию, в час и за сегодня",
+                () -> InfoWindows.totals(tab.feed())));
+        windowsMenu.add(item("Обогащение", "Обогащение лазеров, ракет, двигателей и щитов и руда в трюме",
+                () -> InfoWindows.lab(tab.feed())));
+        windowsMenu.add(item("Скайлаб", "Склад и модули Скайлаба с сайта", () -> InfoWindows.skylab(tab.feed())));
+        windowsMenu.add(item("Пакеты", "Пакеты игры этого аккаунта вживую — от сервера и от бота, с фильтром и сохранением",
+                () -> PacketWindow.open(tab.feed())));
+        windowsMenu.addSeparator();
+        windowsMenu.add(item("Обновить данные окон", "Обогащение (из игры) и Скайлаб (с сайта) — сейчас, не дожидаясь их 5 и"
+                + " 20 минут", () -> {
+                    Runnable r = tab.feed().refreshInfo();
+                    if (r != null) {
+                        r.run();
+                    }
+                }));
+        windows.addActionListener(e -> windowsMenu.show(windows, 0, windows.getHeight()));
+        menus.add(windows);
+
         String handAccount = tab.feed().account();
         if (handAccount != null) {
-            JButton hand = new JButton("Играть руками");
-            hand.setToolTipText("Отдать игру официальному клиенту той же сессией (без выхода), бот на паузе; пакеты — в окне"
-                    + " «Пакеты» и в запись recordings/hand-…; закроешь клиент — бот войдёт снова");
-            hand.addActionListener(e -> {
-                if (orbit.app.HandPlay.active(handAccount)) {
-                    orbit.app.HandPlay.stop(handAccount);
-                    return;
-                }
-                hand.setEnabled(false);
-                Thread.ofVirtual().start(() -> orbit.app.HandPlay.start(handAccount, msg ->
-                        javax.swing.SwingUtilities.invokeLater(() -> {
-                            boolean on = orbit.app.HandPlay.active(handAccount);
-                            hand.setEnabled(true);
-                            hand.setText(on ? "Вернуть боту" : "Играть руками");
-                            hand.setToolTipText(msg);
-                            if (on) {
-                                PacketWindow.open(tab.feed());
-                            }
-                            javax.swing.JOptionPane.showMessageDialog(hand, msg, "Играть руками",
+            JButton client = new JButton("Клиент ▾");
+            client.setToolTipText("Официальный клиент: смотреть, как играет бот, или играть руками той же сессией");
+            javax.swing.JPopupMenu clientMenu = new javax.swing.JPopupMenu();
+            javax.swing.JMenuItem watch = new javax.swing.JMenuItem();
+            javax.swing.JMenuItem hand = new javax.swing.JMenuItem();
+            Runnable showClient = () -> {
+                boolean watching = orbit.app.HandPlay.watching(handAccount);
+                boolean playing = orbit.app.HandPlay.active(handAccount);
+                client.setText(watching ? "Клиент: смотришь ▾" : playing ? "Клиент: руками ▾" : "Клиент ▾");
+                watch.setText(watching ? "Закрыть клиент" : "Смотреть");
+                watch.setToolTipText("Клиент показывает, как играет бот; нажимать там ничего нельзя — нажатия никуда не идут");
+                watch.setEnabled(!playing);
+                hand.setText(playing ? "Вернуть боту" : "Играть руками");
+                hand.setToolTipText("Отдать игру клиенту той же сессией (без выхода), бот на паузе; закроешь клиент — бот"
+                        + " войдёт снова");
+                hand.setEnabled(!watching);
+            };
+            java.util.function.BiConsumer<String, String> told = (what, msg) ->
+                    javax.swing.SwingUtilities.invokeLater(() -> {
+                        showClient.run();
+                        client.setEnabled(true);
+                        if (!msg.startsWith("клиент закрыт")) {
+                            javax.swing.JOptionPane.showMessageDialog(client, msg, what,
                                     javax.swing.JOptionPane.INFORMATION_MESSAGE);
-                        })));
-            });
-            actions.add(hand);
-            JButton watch = new JButton("Смотреть");
-            watch.setToolTipText("Официальный клиент показывает, как играет бот; нажимать там ничего нельзя — нажатия никуда"
-                    + " не идут, бот играет как обычно");
+                        }
+                    });
             watch.addActionListener(e -> {
                 if (orbit.app.HandPlay.watching(handAccount)) {
                     orbit.app.HandPlay.stopWatch(handAccount);
                     return;
                 }
-                watch.setEnabled(false);
-                Thread.ofVirtual().start(() -> orbit.app.HandPlay.watch(handAccount, msg ->
-                        javax.swing.SwingUtilities.invokeLater(() -> {
-                            boolean on = orbit.app.HandPlay.watching(handAccount);
-                            watch.setEnabled(true);
-                            watch.setText(on ? "Закрыть клиент" : "Смотреть");
-                            watch.setToolTipText(msg);
-                            if (msg.startsWith("клиент закрыт")) {
-                                return;
-                            }
-                            javax.swing.JOptionPane.showMessageDialog(watch, msg, "Смотреть",
-                                    javax.swing.JOptionPane.INFORMATION_MESSAGE);
-                        })));
+                client.setEnabled(false);
+                Thread.ofVirtual().start(() -> orbit.app.HandPlay.watch(handAccount, msg -> told.accept("Смотреть", msg)));
             });
-            actions.add(watch);
-        }
-        JButton totalsWin = new JButton("Итоги");
-        totalsWin.setToolTipText("Итоги подробно: что подобрано по видам (ящики бегемота, инвоков, другие, руда),"
-                + " добыча, доход и дела — за сессию, в час и за сегодня — в отдельном окне");
-        totalsWin.addActionListener(e -> InfoWindows.totals(tab.feed()));
-        actions.add(totalsWin);
-        JButton skylabWin = new JButton("Скайлаб");
-        skylabWin.setToolTipText("Склад и модули Скайлаба с сайта — в отдельном окне");
-        skylabWin.addActionListener(e -> InfoWindows.skylab(tab.feed()));
-        actions.add(skylabWin);
-        JButton labWin = new JButton("Обогащение");
-        labWin.setToolTipText("Обогащение лазеров, ракет, двигателей и щитов и руда в трюме — в отдельном окне");
-        labWin.addActionListener(e -> InfoWindows.lab(tab.feed()));
-        actions.add(labWin);
-        JButton refreshInfo = new JButton("Обновить");
-        refreshInfo.setToolTipText("Обогащение (из игры) и Скайлаб (с сайта) — сейчас, не дожидаясь их 5 и 20 минут");
-        refreshInfo.addActionListener(e -> {
-            Runnable r = tab.feed().refreshInfo();
-            if (r != null) {
-                r.run();
-            }
-        });
-        actions.add(refreshInfo);
-        JButton reset = new JButton("Сбросить статистику");
-        reset.setToolTipText("Обнулить «за сессию»: добычу, кубы, NPC, смерти и время — с этого момента. Бот работает"
-                + " дальше; сводка за час и итог за сегодня не меняются");
-        reset.addActionListener(e -> {
-            if (javax.swing.JOptionPane.showConfirmDialog(reset, "Обнулить статистику сессии аккаунта «"
-                    + tab.feed().account() + "»?", "Сбросить статистику", javax.swing.JOptionPane.OK_CANCEL_OPTION)
-                    == javax.swing.JOptionPane.OK_OPTION) {
-                tab.feed().resetStatistics();
-                try (var mdc = org.slf4j.MDC.putCloseable("account", tab.feed().account())) {
-                    org.slf4j.LoggerFactory.getLogger(AccountView.class).info("Статистика сессии сброшена");
+            hand.addActionListener(e -> {
+                if (orbit.app.HandPlay.active(handAccount)) {
+                    orbit.app.HandPlay.stop(handAccount);
+                    return;
                 }
-            }
-        });
-        actions.add(reset);
-        JButton view = new JButton("Блоки ▾");
-        view.setToolTipText("Где показывать блоки");
-        view.addActionListener(e -> BlockMenu.all().show(view, 0, view.getHeight()));
-        actions.add(view);
-        JButton all = new JButton("Конфиги…");
-        all.addActionListener(e -> orbit.app.gui.config.ConfigWindow.open(orbit.config.ConfigStore.openDefault(),
-                orbit.config.AccountSettings.DEFAULT_FILE, null));
-        actions.add(all);
+                client.setEnabled(false);
+                Thread.ofVirtual().start(() -> orbit.app.HandPlay.start(handAccount, msg -> {
+                    if (orbit.app.HandPlay.active(handAccount)) {
+                        javax.swing.SwingUtilities.invokeLater(() -> PacketWindow.open(tab.feed()));
+                    }
+                    told.accept("Играть руками", msg);
+                }));
+            });
+            clientMenu.add(watch);
+            clientMenu.add(hand);
+            client.addActionListener(e -> {
+                showClient.run();
+                clientMenu.show(client, 0, client.getHeight());
+            });
+            showClient.run();
+            timer(1_000, e -> showClient.run());
+            menus.add(client);
+        }
+
+        JButton more = new JButton("Ещё ▾");
+        javax.swing.JPopupMenu moreMenu = new javax.swing.JPopupMenu();
+        moreMenu.add(item("Блоки…", "Где показывать блоки", () -> BlockMenu.all().show(more, 0, more.getHeight())));
+        moreMenu.add(item("Конфиги…", "Все конфиги", () -> orbit.app.gui.config.ConfigWindow.open(
+                orbit.config.ConfigStore.openDefault(), orbit.config.AccountSettings.DEFAULT_FILE, null)));
+        moreMenu.addSeparator();
+        moreMenu.add(item("Сбросить статистику…", "Обнулить «за сессию»: добычу, кубы, NPC, смерти и время — с этого"
+                + " момента. Бот работает дальше; сводка за час и итог за сегодня не меняются", () -> {
+                    if (javax.swing.JOptionPane.showConfirmDialog(more, "Обнулить статистику сессии аккаунта «"
+                            + tab.feed().account() + "»?", "Сбросить статистику", javax.swing.JOptionPane.OK_CANCEL_OPTION)
+                            == javax.swing.JOptionPane.OK_OPTION) {
+                        tab.feed().resetStatistics();
+                        try (var mdc = org.slf4j.MDC.putCloseable("account", tab.feed().account())) {
+                            org.slf4j.LoggerFactory.getLogger(AccountView.class).info("Статистика сессии сброшена");
+                        }
+                    }
+                }));
+        more.addActionListener(e -> moreMenu.show(more, 0, more.getHeight()));
+        menus.add(more);
+
         // quick switches of the running config (simple ways to turn things on and off):
         // they write the config file, the running bot reads it within a second
         javax.swing.JCheckBox enrichOn = new javax.swing.JCheckBox("Обогащение");
@@ -436,8 +445,9 @@ final class AccountView extends JPanel {
         });
         showQuick.run();
         timer(2_000, e -> showQuick.run());
-        actions.add(enrichOn);
-        actions.add(skylabOn);
+        quick.add(enrichOn);
+        quick.add(skylabOn);
+
         JButton pause = new JButton("Пауза");
         Runnable showPause = () -> {
             orbit.bot.run.BotRunner r = tab.feed().runner();
@@ -527,6 +537,14 @@ final class AccountView extends JPanel {
         label.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createLineBorder(MainWindow.LINE, 1, true),
                 BorderFactory.createEmptyBorder(2, 8, 2, 8)));
         return label;
+    }
+
+    /** A menu item with its tooltip and action. */
+    private static javax.swing.JMenuItem item(String text, String tip, Runnable action) {
+        javax.swing.JMenuItem i = new javax.swing.JMenuItem(text);
+        i.setToolTipText(tip);
+        i.addActionListener(e -> action.run());
+        return i;
     }
 
     private static JPanel group() {
