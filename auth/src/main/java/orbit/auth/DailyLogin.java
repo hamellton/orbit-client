@@ -17,13 +17,44 @@ public final class DailyLogin {
 
     static final String PATH = "/flashAPI/dailyLogin.php?doBook=1";
 
-    /** The site's answer: its HTTP status and the body, short and masked (it is logged). */
+    /**
+     * The site's answer: its HTTP status and the body, short and masked (it is logged). Seen live 2026-11-26:
+     * {@code {"success":true}} when the day is booked now, {@code {"isError":1,"error":{"message":"Already booked
+     * today"}}} when it was booked before (by the client or a manual login).
+     */
     public record Result(int status, String answer) {
 
+        /** The day is booked now. */
+        public boolean booked() {
+            return status == 200 && node().path("success").asBoolean(false);
+        }
+
+        /** The day was booked before this request. */
+        public boolean already() {
+            return status == 200 && node().path("error").path("message").asText("").toLowerCase()
+                    .contains("already booked");
+        }
+
+        /** The day is booked, now or before: nothing more to ask today. */
         public boolean ok() {
-            return status == 200;
+            return booked() || already();
+        }
+
+        /** The site's error text, {@code ""} none. */
+        public String error() {
+            return node().path("error").path("message").asText("");
+        }
+
+        private com.fasterxml.jackson.databind.JsonNode node() {
+            try {
+                return JSON.readTree(answer);
+            } catch (IOException | RuntimeException e) {
+                return com.fasterxml.jackson.databind.node.MissingNode.getInstance();
+            }
         }
     }
+
+    private static final com.fasterxml.jackson.databind.ObjectMapper JSON = new com.fasterxml.jackson.databind.ObjectMapper();
 
     private final HttpSession http;
     private final String origin;

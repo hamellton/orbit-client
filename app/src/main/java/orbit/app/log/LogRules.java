@@ -71,6 +71,7 @@ public final class LogRules {
             Map.entry(p("^(Состояние:|Ангары:|Вход )"), LogCategory.CONNECTION),
             Map.entry(p("^Корабль сменён"), LogCategory.SHIP),
             Map.entry(p("^Добыча"), LogCategory.REWARDS),
+            Map.entry(p("^Календарь входа"), LogCategory.REWARDS),
             Map.entry(p("^Скорость корабля"), LogCategory.SHIP));
 
     /** Plain lines that still go to the journal. */
@@ -83,7 +84,7 @@ public final class LogRules {
             "^Связь восстановлена", "^Выхожу из игры", "^Лечу на рабочую карту",
             "^Трюм полон", "^Продал", "^Обменял", "^Покупаю", "^Потрачено", "^Торговец не покупает",
             "^Выполняю проверку", "^Ящики проверки собраны",
-            "^Прыжок на карту", "^Добыча:", "^Склад: "));
+            "^Прыжок на карту", "^Добыча:", "^Склад: ", "^Календарь входа: награда"));
 
     /**
      * Never in the journal: warnings of the everyday kind (they would bury the real ones) and the echoes of one

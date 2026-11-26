@@ -82,6 +82,9 @@ class LogStoreTest {
         assertFalse(LogRules.of("orbit.bot.mod.BoxPicker", false, "Подобрал палладий (за сессию: 5)").important());
         assertEquals(LogCategory.LOOT, LogRules.of("orbit.bot.mod.BoxPicker", false, "Подобрал палладий").category());
         assertTrue(LogRules.of("orbit.world.QuestBook", false, "Квест 300014 «Охота» выполнен").important());
+        assertTrue(LogRules.of("orbit.app.OrbitMain", false, "Календарь входа: награда за 2026-11-26 забрана").important());
+        assertEquals(LogCategory.REWARDS,
+                LogRules.of("orbit.app.OrbitMain", false, "Календарь входа: награда за 2026-11-26 забрана").category());
         assertEquals(LogCategory.QUESTS, LogRules.of("orbit.world.QuestBook", false, "Квест 1 взят: x").category());
         // one journal line a death: the bot's own, not its echoes
         LogRules.Kind death = LogRules.of("orbit.bot.run.Revive", true, "Корабль уничтожен (-=[ Barracuda ]=-) — смертей 1");

@@ -1007,12 +1007,15 @@ public final class OrbitMain {
                             && !today.equals(calendarClaimed(accountName))) {
                         try {
                             var r = new orbit.auth.DailyLogin(auth.http(), session.host()).claim();
-                            if (r.ok()) {
+                            if (r.booked()) {
                                 rememberCalendar(accountName, today);
-                                log.info("Календарь входа: день {} отмечен на сайте — ответ: {}", today,
-                                        r.answer().isEmpty() ? "пусто" : r.answer());
+                                log.info("Календарь входа: награда за {} забрана", today);
+                            } else if (r.already()) {
+                                rememberCalendar(accountName, today);
+                                log.info("Календарь входа: награда за {} уже была забрана раньше", today);
                             } else {
-                                log.warn("Календарь входа: сайт ответил {} — повторю через 30 мин", r.status());
+                                log.warn("Календарь входа: сайт ответил {} ({}) — повторю через 30 мин", r.status(),
+                                        r.error().isEmpty() ? r.answer() : r.error());
                                 next = CALENDAR_RETRY_MS;
                             }
                         } catch (java.io.IOException | RuntimeException e) {
