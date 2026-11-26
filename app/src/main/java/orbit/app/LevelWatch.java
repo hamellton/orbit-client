@@ -128,7 +128,8 @@ final class LevelWatch {
     static int fitOffline(orbit.auth.Hangars site, String account) throws InterruptedException {
         LevelPlan plan = LevelPlan.bundled();
         try {
-            SiteHangars.ListInfo list = SiteHangars.list(site.listJson());
+            var listJson = site.listJson();
+            SiteHangars.ListInfo list = SiteHangars.list(listJson);
             int moved = 0;
             orbit.bot.level.PalladiumKit.Kit kit = orbit.bot.level.PalladiumKit.bundled();
             int kept = kit == null ? 0 : list.hangarOf(kit.ship());
@@ -149,6 +150,14 @@ final class LevelWatch {
             Thread.sleep(GAP_MS);
             var activeJson = site.hangarJson(list.activeHangar());
             SiteHangars.HangarInfo active = SiteHangars.hangar(activeJson, list.activeHangar());
+            // the Nostromo's moves out of the game (in it the site changes no hangar away from the base station): first,
+            // so what it gives back is in the inventory for the main ship's fitting right below
+            if (kept != 0 && kept != list.activeHangar()) {
+                moved += nostromoMoves(site, listJson, list, active, kept, kit, false, "вне игры: ");
+                Thread.sleep(GAP_MS);
+                activeJson = site.hangarJson(list.activeHangar());
+                active = SiteHangars.hangar(activeJson, list.activeHangar());
+            }
             var moves = new java.util.ArrayList<>(orbit.bot.level.FitPlanner.plan(active, list.activeHangar(),
                     SiteHangars.withExtender(list.slots(), active), plan));
             moves.addAll(orbit.bot.level.FitPlanner.drones(active, SiteHangars.droneView(activeJson, list.activeHangar()),
@@ -496,7 +505,7 @@ final class LevelWatch {
     private static void nostromo(AuthClient auth, String origin, orbit.auth.Hangars site,
                                  com.fasterxml.jackson.databind.JsonNode listJson, SiteHangars.ListInfo list,
                                  SiteHangars.HangarInfo anyView, String account, AccountState state, LevelPlan plan,
-                                 WorldFeed feed, java.util.function.Consumer<String> switchConfig)
+                                 WorldFeed feed, java.util.function.Consumer<String> switchConfig, Runnable requestRefit)
             throws InterruptedException {
         orbit.bot.level.PalladiumKit.Kit kit = orbit.bot.level.PalladiumKit.bundled();
         if (kit == null) {
@@ -520,13 +529,25 @@ final class LevelWatch {
             var slots = SiteHangars.withExtender(SiteHangars.slotsOf(listJson, kit.ship()), view);
             LevelPlan.Goal after = plan.goals().stream().filter(g -> kit.enginesAfter().equals(g.id())).findFirst().orElse(null);
             boolean engines = after != null && orbit.bot.level.Advisor.done(state, after);
-            // the main ship first: the kinds of extras it holds now (one taken off for a better one stays its own)
-            java.util.Set<String> mainKinds = new java.util.HashSet<>();
-            anyView.fittedIds().values().forEach(sets -> sets.getOrDefault("extras", java.util.List.of()).forEach(id ->
-                    anyView.items().stream().filter(o -> o.id().equals(id)).findFirst()
-                            .ifPresent(o -> mainKinds.add(orbit.bot.level.FitPlanner.kind(o.loot())))));
-            var moves = orbit.bot.level.PalladiumKit.moves(kit, view, drones, nh, slots, engines, mainKinds);
-            int done = moves.isEmpty() ? 0 : apply(site, nh, moves);
+            var moves = orbit.bot.level.PalladiumKit.moves(kit, view, drones, nh, slots, engines, mainKinds(anyView));
+            // in the game the site changes a hangar only by the base station («Станция с ангаром…», live 2026-11-26 on
+            // st2): there at once, else — waited as the main ship's moves — a re-login and the moves out of the game
+            int done = 0;
+            if (!moves.isEmpty() && atHomeStation(feed)) {
+                done = apply(site, nh, moves, () -> atHomeStation(feed));
+                PENDING_SINCE.remove(account + ":n");
+            } else if (!moves.isEmpty()) {
+                long since = PENDING_SINCE.computeIfAbsent(account + ":n", k -> System.currentTimeMillis());
+                // the main ship's own extras held by the Nostromo: back at once, not after the wait
+                boolean giveBack = moves.stream().anyMatch(m -> !m.toShip() && m.droneId() == null);
+                if (giveBack || System.currentTimeMillis() - since >= REFIT_AFTER_MS) {
+                    PENDING_SINCE.remove(account + ":n");
+                    LOG.info("Nostromo: {} перекладок ждут станцию — перезахожу, раскладка вне игры", moves.size());
+                    requestRefit.run();
+                }
+            } else {
+                PENDING_SINCE.remove(account + ":n");
+            }
             int lacking = engines ? orbit.bot.level.PalladiumKit.enginesMissing(kit, view, nh, slots) : 0;
             boolean gearOn = collectorGear(site, json, nh, kit);
             LOG.info("Nostromo: ангар {}, слоты {}; с аукциона ещё нужно {}; перекладок {} (сделано {}); двигателей не хватает {}{}",
@@ -584,6 +605,37 @@ final class LevelWatch {
      * fitted into the P.E.T.'s gears of its hangar in both configs ({@code move} with target {@code pet}, slotset
      * {@code gears}, as the inventory page does). The P.E.T.'s mode and fuel are the palladium config's.
      */
+    /** The kinds of extras the main ship holds now ({@link orbit.bot.level.FitPlanner#kind}): the Nostromo minds them. */
+    static java.util.Set<String> mainKinds(SiteHangars.HangarInfo main) {
+        java.util.Set<String> kinds = new java.util.HashSet<>();
+        main.fittedIds().values().forEach(sets -> sets.getOrDefault("extras", java.util.List.of()).forEach(id ->
+                main.items().stream().filter(o -> o.id().equals(id)).findFirst()
+                        .ifPresent(o -> kinds.add(orbit.bot.level.FitPlanner.kind(o.loot())))));
+        return kinds;
+    }
+
+    /**
+     * The Nostromo's moves done now (out of the game): what goes back to the main ship first, then its own kit; the
+     * engines only when {@code engines} (in the round, after the P.E.T.). The moves that went through.
+     */
+    static int nostromoMoves(orbit.auth.Hangars site, com.fasterxml.jackson.databind.JsonNode listJson,
+                             SiteHangars.ListInfo list, SiteHangars.HangarInfo main, int nh,
+                             orbit.bot.level.PalladiumKit.Kit kit, boolean engines, String prefix) throws InterruptedException {
+        try {
+            Thread.sleep(GAP_MS);
+            var json = site.hangarJson(nh);
+            SiteHangars.HangarInfo view = SiteHangars.hangar(json, nh);
+            var slots = SiteHangars.withExtender(SiteHangars.slotsOf(listJson, kit.ship()), view);
+            var moves = orbit.bot.level.PalladiumKit.moves(kit, view, SiteHangars.droneView(json, nh), nh, slots, engines,
+                    mainKinds(main));
+            LOG.info("{}Nostromo (ангар {}): {} перекладок", prefix, nh, moves.size());
+            return moves.isEmpty() ? 0 : apply(site, nh, moves);
+        } catch (java.io.IOException | RuntimeException e) {
+            LOG.warn("{}Nostromo: раскладка не вышла ({})", prefix, e.getMessage());
+            return 0;
+        }
+    }
+
     /** Marks the ship a favourite on the site if it is not one yet (for the game's ship warp, ССД). */
     private static void favourite(orbit.auth.Hangars site, com.fasterxml.jackson.databind.JsonNode listJson,
                                   SiteHangars.ListInfo list, int hangarId, String ship) throws InterruptedException {
@@ -902,7 +954,7 @@ final class LevelWatch {
             sellFlaxForIris(site, list.activeHangar(), drones);
         }
         if (hangar != null) {
-            nostromo(auth, session.host(), site, listJson, list, hangar, account, state, plan, feed, switchConfig);
+            nostromo(auth, session.host(), site, listJson, list, hangar, account, state, plan, feed, switchConfig, requestRefit);
         }
         String moduleStatus = status.get();
         boolean idle = moduleStatus != null && moduleStatus.contains("нечего делать");
