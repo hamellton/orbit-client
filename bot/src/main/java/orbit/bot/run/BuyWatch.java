@@ -113,6 +113,19 @@ final class BuyWatch {
      * ship — the laser ammunition bought by the ship's growth (3 000 at a time ran out within minutes with 15 lasers); the
      * config's own numbers while the lasers are not known.
      */
+    /**
+     * {@code modules.buyNeeds} (the leveling configs, a user's choice 2026-11-26): {item: CPU item} — the item is bought only
+     * while that CPU is in the game and switched on (the launcher's ECO-10 only with the launcher CPU RLLB-X on).
+     */
+    private boolean neededOn(WorldSnapshot w, String item) {
+        com.fasterxml.jackson.databind.JsonNode n = ctx.config().get().modules().get("buyNeeds");
+        if (n == null || !n.path(item).isTextual()) {
+            return true;
+        }
+        WorldSnapshot.Item cpu = w.items().get(n.path(item).asText());
+        return cpu != null && cpu.selected();
+    }
+
     private BotConfig.BuyRule scaled(BotConfig.BuyRule r) {
         com.fasterxml.jackson.databind.JsonNode s = ctx.config().get().modules().get("buyScale");
         int lasers = ctx.stats().lasers;
@@ -161,6 +174,9 @@ final class BuyWatch {
         for (BotConfig.BuyRule raw : b.items()) {
             BotConfig.BuyRule r = scaled(raw);
             if (noEffect.contains(r.item())) {
+                continue;
+            }
+            if (!neededOn(w, r.item())) {
                 continue;
             }
             WorldSnapshot.Item item = w.items().get(ItemCatalog.barItem(r.item()));

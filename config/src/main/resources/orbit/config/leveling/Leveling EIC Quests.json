@@ -441,6 +441,9 @@
   },
   "safetySpots": null,
   "modules": {
+    "buyNeeds": {
+      "ammunition_rocketlauncher_eco-10": "equipment_extra_cpu_rllb-x"
+    },
     "buyScale": {
       "ammunition_laser_lcb-10": {
         "below": 700,
