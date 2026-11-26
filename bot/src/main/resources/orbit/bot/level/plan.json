@@ -71,6 +71,8 @@
       "equipment_extra_cpu_nc-rrb-x",
       "equipment_extra_cpu_rllb-x",
       "equipment_extra_cpu_arol-x",
+      "equipment_extra_cpu_g3x-crgo-x",
+      "equipment_extra_cpu_rok-t01",
       "equipment_extra_cpu_jp-02",
       "equipment_extra_cpu_jp-01"
     ],
@@ -454,20 +456,16 @@
     {
       "id": "П4",
       "side": true,
-      "title": "Расширитель отсеков (аукцион)",
+      "title": "Расширитель отсеков SLE-04 — +10 мест под дополнения (аукцион; SLE-02/03 до него не в счёт)",
       "check": {
         "kind": "has",
         "min": 1,
         "accepted": [
-          "equipment_extra_cpu_sle-04",
-          "equipment_extra_cpu_sle-03",
-          "equipment_extra_cpu_sle-02"
+          "equipment_extra_cpu_sle-04"
         ]
       },
       "auction": [
-        "equipment_extra_cpu_sle-04",
-        "equipment_extra_cpu_sle-03",
-        "equipment_extra_cpu_sle-02"
+        "equipment_extra_cpu_sle-04"
       ]
     },
     {
@@ -528,6 +526,51 @@
       },
       "auction": [
         "equipment_generator_shield_sg3n-b02"
+      ]
+    },
+    {
+      "id": "П9",
+      "side": true,
+      "title": "Ремонтный робот REP-4 — обшивка целиком за 90 с (аукцион)",
+      "check": {
+        "kind": "has",
+        "min": 1,
+        "accepted": [
+          "equipment_extra_repbot_rep-4"
+        ]
+      },
+      "auction": [
+        "equipment_extra_repbot_rep-4"
+      ]
+    },
+    {
+      "id": "П10",
+      "side": true,
+      "title": "ROK-T01 — двойная скорость пуска ракет (аукцион)",
+      "check": {
+        "kind": "has",
+        "min": 1,
+        "accepted": [
+          "equipment_extra_cpu_rok-t01"
+        ]
+      },
+      "auction": [
+        "equipment_extra_cpu_rok-t01"
+      ]
+    },
+    {
+      "id": "П11",
+      "side": true,
+      "title": "G3X-CRGO-X — грузовой отсек ×2 (аукцион)",
+      "check": {
+        "kind": "has",
+        "min": 1,
+        "accepted": [
+          "equipment_extra_cpu_g3x-crgo-x"
+        ]
+      },
+      "auction": [
+        "equipment_extra_cpu_g3x-crgo-x"
       ]
     },
     {
