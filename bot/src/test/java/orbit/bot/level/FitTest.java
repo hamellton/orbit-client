@@ -110,4 +110,37 @@ class FitTest {
         var none = new SiteHangars.HangarInfo(Map.of(), Map.of(), 0, "", List.of(), Map.of());
         assertEquals(3, SiteHangars.withExtender(Map.of("extras", 3), none).get("extras"), "no extender: as the site says");
     }
+
+    @Test
+    void dronesTakeTheSpareLasersInConfigOneAndTheShieldsInConfigTwo() {
+        String lf2 = "equipment_weapon_laser_lf-2";
+        String b02 = "equipment_generator_shield_sg3n-b02";
+        // the ship holds SLL-02 «s1» in both configs; spares: two LF-2, an LF-1, two B02; drone «d1» already holds the LF-1
+        var h = view(List.of(own("s1", SLL2, 5), own("l1", lf2, 0), own("l2", lf2, 0), own("l3", LF1, 5),
+                own("b1", b02, 0), own("b2", b02, 0)), Map.of("lasers", List.of("s1")), Map.of("lasers", List.of("s1")));
+        var v = new SiteHangars.DroneView(List.of(new SiteHangars.Drone("d1", "drone_flax", 1),
+                new SiteHangars.Drone("d2", "drone_flax", 1)), Map.of(1, Map.of("d1", List.of("l3"), "d2", List.of()),
+                2, Map.of("d1", List.of(), "d2", List.of())));
+        var moves = FitPlanner.drones(h, v, 5, LevelPlan.bundled());
+        assertEquals(List.of(
+                new FitPlanner.Move("l3", LF1, 1, false, "default", "d1"),
+                new FitPlanner.Move("l1", lf2, 1, true, "default", "d1"),
+                new FitPlanner.Move("l2", lf2, 1, true, "default", "d2"),
+                new FitPlanner.Move("b1", b02, 2, true, "default", "d1"),
+                new FitPlanner.Move("b2", b02, 2, true, "default", "d2")), moves);
+        assertTrue(FitPlanner.drones(h, new SiteHangars.DroneView(List.of(), Map.of()), 5, LevelPlan.bundled()).isEmpty());
+    }
+
+    @Test
+    void droneIdsComeFromTheConfigsAndIrisHasTwoPlaces() throws Exception {
+        var root = new com.fasterxml.jackson.databind.ObjectMapper().readTree("""
+                {"data": {"map": {"lootIds": ["drone_flax", "drone_iris"]}, "ret": {"hangars": [{"hangarID": 5,
+                  "general": {"drones": [{"I": "11", "L": 0}, {"I": "12", "L": 1}]},
+                  "config": {"1": {"drones": {"11": {"EQ": {"default": ["7"]}}, "12": {"EQ": {"default": []}}}}}}]}}}
+                """);
+        var v = SiteHangars.droneView(root, 5);
+        assertEquals(List.of(new SiteHangars.Drone("11", "drone_flax", 1), new SiteHangars.Drone("12", "drone_iris", 2)),
+                v.drones());
+        assertEquals(List.of("7"), v.fitted().get(1).get("11"));
+    }
 }

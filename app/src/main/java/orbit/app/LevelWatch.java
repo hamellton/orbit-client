@@ -143,9 +143,12 @@ final class LevelWatch {
                 }
             }
             Thread.sleep(GAP_MS);
-            SiteHangars.HangarInfo active = SiteHangars.hangar(site.hangarJson(list.activeHangar()), list.activeHangar());
-            var moves = orbit.bot.level.FitPlanner.plan(active, list.activeHangar(),
-                    SiteHangars.withExtender(list.slots(), active), plan);
+            var activeJson = site.hangarJson(list.activeHangar());
+            SiteHangars.HangarInfo active = SiteHangars.hangar(activeJson, list.activeHangar());
+            var moves = new java.util.ArrayList<>(orbit.bot.level.FitPlanner.plan(active, list.activeHangar(),
+                    SiteHangars.withExtender(list.slots(), active), plan));
+            moves.addAll(orbit.bot.level.FitPlanner.drones(active, SiteHangars.droneView(activeJson, list.activeHangar()),
+                    list.activeHangar(), plan));
             LOG.info("вне игры: раскладка на «{}» (ангар {}): {} перекладок", list.activeShip(), list.activeHangar(), moves.size());
             return moved + apply(site, list.activeHangar(), moves);
         } catch (java.io.IOException | RuntimeException e) {
@@ -207,7 +210,11 @@ final class LevelWatch {
                 break;
             }
             try {
-                site.move(hangarId, java.util.List.of(m.itemId()), m.config(), m.toShip(), "ship", m.slotset());
+                if (m.droneId() != null) {
+                    site.moveDrone(hangarId, java.util.List.of(m.itemId()), m.config(), m.toShip(), m.droneId());
+                } else {
+                    site.move(hangarId, java.util.List.of(m.itemId()), m.config(), m.toShip(), "ship", m.slotset());
+                }
                 LOG.info("раскладка: {}", m.describe());
                 done++;
             } catch (java.io.IOException | RuntimeException e) {
@@ -487,10 +494,12 @@ final class LevelWatch {
             String cur = item.uridium() ? "уридия" : "кредитов";
             // dearer than the plan (or another currency): the plan is out of date; cheaper is bought (live 2026-11-26: the
             // G3N-7900 was 1 900 uridium against the plan's 2 000 and none were bought all night)
+            // a drone's price grows with each one owned (Flax 100 000, 190 000, … 800 000 for the fourth, live 2026-11-26):
+            // dearer than the plan, one is bought while the free credits cover it — the next round sees the next price
             boolean dearerDrone = p.item().startsWith("drone_") && !item.uridium() && !p.uridium()
-                    && (long) item.price() > p.price() && (long) item.price() * p.amount() <= freeCredits;
+                    && (long) item.price() > p.price() && (long) item.price() <= freeCredits;
             if (dearerDrone) {
-                LOG.info("магазин: {} подорожал — {} кредитов (в плане {}), свободно {} — покупаю", p.item(),
+                LOG.info("магазин: {} подорожал — {} кредитов (в плане {}), свободно {} — покупаю один", p.item(),
                         (long) item.price(), p.price(), freeCredits);
             }
             if (!dearerDrone && ((long) item.price() > p.price() || item.uridium() != p.uridium())) {
@@ -498,7 +507,7 @@ final class LevelWatch {
                         p.price(), p.uridium() ? "уридия" : "кредитов");
                 return false;
             }
-            int amount = item.maxAmount() > 0 ? Math.min(p.amount(), item.maxAmount()) : p.amount();
+            int amount = dearerDrone ? 1 : item.maxAmount() > 0 ? Math.min(p.amount(), item.maxAmount()) : p.amount();
             Thread.sleep(GAP_MS);
             String answer = new orbit.auth.Shop(auth.http(), origin).purchase(item, amount, tab);
             if (orbit.auth.Shop.refused(answer)) {
@@ -554,12 +563,14 @@ final class LevelWatch {
         orbit.auth.Hangars site = new orbit.auth.Hangars(auth.http(), session.host());
         SiteHangars.ListInfo list;
         SiteHangars.HangarInfo hangar = null;
+        SiteHangars.DroneView drones = null;
         try {
             list = SiteHangars.list(site.listJson());
             if (list.activeHangar() != 0) {
                 Thread.sleep(GAP_MS);
                 var hangarJson = site.hangarJson(list.activeHangar());
                 hangar = SiteHangars.hangar(hangarJson, list.activeHangar());
+                drones = SiteHangars.droneView(hangarJson, list.activeHangar());
                 LOG.info("дроны на сайте: {}", SiteHangars.drones(hangarJson, list.activeHangar()));
             }
         } catch (java.io.IOException | RuntimeException e) {
@@ -630,8 +641,11 @@ final class LevelWatch {
                 return false;
             }
             // the extras with the slot extender's places (the site lists the ship's own alone)
-            var moves = orbit.bot.level.FitPlanner.plan(hangar, list.activeHangar(),
-                    SiteHangars.withExtender(list.slots(), hangar), plan);
+            var moves = new java.util.ArrayList<>(orbit.bot.level.FitPlanner.plan(hangar, list.activeHangar(),
+                    SiteHangars.withExtender(list.slots(), hangar), plan));
+            if (drones != null) {
+                moves.addAll(orbit.bot.level.FitPlanner.drones(hangar, drones, list.activeHangar(), plan));
+            }
             if (moves.isEmpty()) {
                 PENDING_SINCE.remove(account);
                 LOG.info("раскладка: всё на местах");

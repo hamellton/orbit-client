@@ -342,6 +342,27 @@ public final class Hangars {
         }
     }
 
+    /**
+     * Moves items between the inventory and a drone of a config, as the inventory page's drag onto a drone
+     * ({@code inventory.swf} 2026-11-26: {@code DragComponent} puts {@code to.droneId} — the drone's id as text — and
+     * {@code to.slotset "default"}, target {@code "drone"} = {@code ActionIdentifiers.DRONES}; out: {@code from.droneId}).
+     */
+    public void moveDrone(int hangarId, List<String> itemIds, int config, boolean toDrone, String droneId)
+            throws IOException {
+        String drone = "{\"configId\":" + config + ",\"target\":\"drone\",\"slotset\":\"default\",\"droneId\":\""
+                + droneId + "\"";
+        String inv = "{\"configId\":" + config + ",\"target\":\"inventory\"";
+        String items = ",\"items\":[" + String.join(",", itemIds.stream().map(i -> "\"" + i + "\"").toList()) + "]}";
+        String from = toDrone ? inv + items : drone + items;
+        String to = toDrone ? drone + "}" : inv + ",\"index\":0}";
+        JsonNode root = call("move", "{\"action\":\"move\",\"params\":{\"hi\":" + hangarId + "},\"from\":" + from
+                + ",\"to\":" + to + "}");
+        if (root.path("data").path("ret").asInt(0) != 1) {
+            throw new IOException("сайт не переложил предмет в дрона: " + root.path("data").toString()
+                    .substring(0, Math.min(200, root.path("data").toString().length())));
+        }
+    }
+
     /** A {@code flashAPI/inventory.php} call: the action and its params as base64; the answer read, errors thrown. */
     private JsonNode call(String action, String params) throws IOException {
         Map<String, String> form = new LinkedHashMap<>();

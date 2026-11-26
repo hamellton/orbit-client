@@ -77,6 +77,22 @@
     "heavy_guns": [
       "equipment_weapon_rocketlauncher_hst-2",
       "equipment_weapon_rocketlauncher_hst-1"
+    ],
+    "drone1": [
+      "equipment_weapon_laser_lf-4",
+      "equipment_weapon_laser_lf-3",
+      "equipment_weapon_laser_sll-02",
+      "equipment_weapon_laser_lf-2",
+      "equipment_weapon_laser_sll-01",
+      "equipment_weapon_laser_mp-1",
+      "equipment_weapon_laser_lf-1"
+    ],
+    "drone2": [
+      "equipment_generator_shield_sg3n-b02",
+      "equipment_generator_shield_sg3n-b01",
+      "equipment_generator_shield_sg3n-a03",
+      "equipment_generator_shield_sg3n-a02",
+      "equipment_generator_shield_sg3n-a01"
     ]
   },
   "goals": [
@@ -246,7 +262,7 @@
     },
     {
       "id": "Ц4",
-      "title": "Дроны Flax — до 6 (конфиг 1 — урон, конфиг 2 — щиты; оснащение дронов — позже)",
+      "title": "Дроны Flax — до 6, за кредиты раньше P.E.T. (в дронах: конфиг 1 — лазеры, конфиг 2 — щиты)",
       "check": {
         "kind": "drones",
         "min": 6
@@ -496,6 +512,21 @@
       },
       "auction": [
         "equipment_extra_cpu_rllb-x"
+      ]
+    },
+    {
+      "id": "П8",
+      "side": true,
+      "title": "Щиты SG3N-B02 в дроны конфига 2, бегового (аукцион; до 8 — по щиту на дрона)",
+      "check": {
+        "kind": "has",
+        "min": 8,
+        "accepted": [
+          "equipment_generator_shield_sg3n-b02"
+        ]
+      },
+      "auction": [
+        "equipment_generator_shield_sg3n-b02"
       ]
     },
     {

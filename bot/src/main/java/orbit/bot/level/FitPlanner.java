@@ -25,12 +25,74 @@ public final class FitPlanner {
      *
      * @param toShip true: from the inventory into the config's slotset; false: out of it into the inventory
      */
-    public record Move(String itemId, String loot, int config, boolean toShip, String slotset) {
+    public record Move(String itemId, String loot, int config, boolean toShip, String slotset, String droneId) {
+
+        public Move(String itemId, String loot, int config, boolean toShip, String slotset) {
+            this(itemId, loot, config, toShip, slotset, null);
+        }
 
         public String describe() {
-            return (toShip ? "поставить " : "снять ") + loot + " (" + itemId + ") " + (toShip ? "в" : "из") + " конфиг " + config
-                    + " " + slotset;
+            return (toShip ? "поставить " : "снять ") + loot + " (" + itemId + ") " + (toShip ? "в" : "из")
+                    + (droneId != null ? " дрон " + droneId + ", конфиг " + config : " конфиг " + config + " " + slotset);
         }
+    }
+
+    /** The drone slotset of the site ({@code DataInterchange.DEFAULT}). */
+    public static final String DRONE_SLOTSET = "default";
+
+    /**
+     * The drones' items per config by the plan's {@code fit.drone<c>} order, best first (docs/LEVELING.md «Дроны»; a user's
+     * choice 2026-11-26: config 1 — the lasers the ship does not take, config 2 — the shields): the best owned items not on
+     * the ship fill the drones' places; an item outside the order or no longer among the best goes out first.
+     */
+    public static List<Move> drones(SiteHangars.HangarInfo h, SiteHangars.DroneView v, int hangarId, LevelPlan plan) {
+        List<Move> out = new ArrayList<>();
+        if (v.drones().isEmpty()) {
+            return out;
+        }
+        Set<String> onShip = new HashSet<>();
+        h.fittedIds().values().forEach(m -> m.values().forEach(onShip::addAll));
+        for (int config : new int[] {1, 2}) {
+            List<String> order = plan.fit().get("drone" + config);
+            if (order == null || order.isEmpty()) {
+                continue;
+            }
+            Map<String, List<String>> now = v.fitted().getOrDefault(config, Map.of());
+            int places = v.drones().stream().mapToInt(SiteHangars.Drone::slots).sum();
+            Map<String, SiteHangars.Owned> byId = new java.util.HashMap<>();
+            h.items().forEach(o -> byId.put(o.id(), o));
+            List<SiteHangars.Owned> own = h.items().stream()
+                    .filter(o -> order.contains(o.loot()) && (o.hangar() == 0 || o.hangar() == hangarId)
+                            && !onShip.contains(o.id()))
+                    .sorted(Comparator.comparingInt((SiteHangars.Owned o) -> rank(order, o.loot()))
+                            .thenComparing(SiteHangars.Owned::id))
+                    .toList();
+            Set<String> wanted = new HashSet<>();
+            own.stream().limit(places).forEach(o -> wanted.add(o.id()));
+            Set<String> placed = new HashSet<>();
+            Map<String, Integer> free = new java.util.LinkedHashMap<>();
+            for (SiteHangars.Drone d : v.drones()) {
+                int kept = 0;
+                for (String id : now.getOrDefault(d.id(), List.of())) {
+                    if (wanted.contains(id) && placed.add(id)) {
+                        kept++;
+                    } else {
+                        SiteHangars.Owned o = byId.get(id);
+                        out.add(new Move(id, o == null ? "?" : o.loot(), config, false, DRONE_SLOTSET, d.id()));
+                    }
+                }
+                free.put(d.id(), Math.max(0, d.slots() - kept));
+            }
+            java.util.Iterator<SiteHangars.Owned> next = own.stream().filter(o -> wanted.contains(o.id())
+                    && !placed.contains(o.id())).iterator();
+            for (var e : free.entrySet()) {
+                for (int i = 0; i < e.getValue() && next.hasNext(); i++) {
+                    SiteHangars.Owned o = next.next();
+                    out.add(new Move(o.id(), o.loot(), config, true, DRONE_SLOTSET, e.getKey()));
+                }
+            }
+        }
+        return out;
     }
 
     public static List<Move> plan(SiteHangars.HangarInfo h, int hangarId, Map<String, Integer> slots, LevelPlan plan) {

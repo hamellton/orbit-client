@@ -43,6 +43,68 @@ public final class SiteHangars {
     public record Owned(String id, String loot, int hangar) {
     }
 
+    /** One drone of the hangar: its id (the key of {@code config.<c>.drones}), loot id and item places. */
+    public record Drone(String id, String loot, int slots) {
+    }
+
+    /**
+     * The hangar's drones and what each holds per config: {@code config → drone id → item ids}
+     * ({@code data.ret.hangars{…}.config{"1","2"}.drones{<id>}.EQ.default}, as the inventory page reads them).
+     */
+    public record DroneView(List<Drone> drones, Map<Integer, Map<String, List<String>>> fitted) {
+    }
+
+    /** Item places of a drone: Flax one, Iris and the better ones two (the game's drone facts). */
+    static int droneSlots(String loot) {
+        return loot == null || loot.isEmpty() || loot.equals("drone_flax") ? 1 : 2;
+    }
+
+    public static DroneView droneView(JsonNode root, int hangarId) {
+        JsonNode data = root.path("data");
+        JsonNode lootIds = data.path("map").path("lootIds");
+        List<Drone> drones = new ArrayList<>();
+        Map<Integer, Map<String, List<String>>> fitted = new TreeMap<>();
+        for (JsonNode h : each(data.path("ret").path("hangars"))) {
+            if (h.path("hangarID").asInt() != hangarId) {
+                continue;
+            }
+            for (JsonNode d : each(h.path("general").path("drones"))) {
+                JsonNode l = d.path("L");
+                String loot = l.isInt() && lootIds.has(l.asInt()) ? lootIds.get(l.asInt()).asText() : "";
+                drones.add(new Drone(d.path("I").asText(), loot, droneSlots(loot)));
+            }
+            h.path("config").properties().forEach(c -> {
+                int config;
+                try {
+                    config = Integer.parseInt(c.getKey().strip());
+                } catch (NumberFormatException e) {
+                    return;
+                }
+                Map<String, List<String>> per = new TreeMap<>();
+                c.getValue().path("drones").properties().forEach(d -> {
+                    List<String> ids = new ArrayList<>();
+                    d.getValue().path("EQ").path("default").forEach(id -> ids.add(id.asText()));
+                    per.put(d.getKey(), List.copyOf(ids));
+                });
+                fitted.put(config, per);
+            });
+        }
+        // the configs' keys are the drones' ids; a list whose «I» is not among them (not seen yet) takes them in order
+        java.util.Set<String> keys = new java.util.LinkedHashSet<>();
+        fitted.values().forEach(m -> keys.addAll(m.keySet()));
+        if (!keys.isEmpty() && drones.stream().noneMatch(d -> keys.contains(d.id()))) {
+            List<Drone> byKey = new ArrayList<>();
+            int i = 0;
+            for (String k : keys) {
+                String loot = i < drones.size() ? drones.get(i).loot() : "";
+                byKey.add(new Drone(k, loot, droneSlots(loot)));
+                i++;
+            }
+            drones = byKey;
+        }
+        return new DroneView(List.copyOf(drones), fitted);
+    }
+
     /**
      * The active hangar's drones as the site tells them, every field but the id ({@code L} as its loot id) — for the log:
      * a formation stays unset on a ship whose drones do not work (2026-11-26: X bought, not set on st2–st5).
