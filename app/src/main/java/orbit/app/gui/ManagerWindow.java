@@ -48,8 +48,9 @@ public final class ManagerWindow {
 
     private static final Color BAD = new Color(0xff6b5b);
     private static final Color WAIT = new Color(0xf59e0b);
-    /** The first account tab: 0 = Accounts, 1 = All. */
-    private static final int FIRST_TAB = 2;
+    /** Columns of the account table. */
+    static final int C_PICK = 0, C_NAME = 1, C_GROUP = 2, C_LOGIN = 3, C_SERVER = 4, C_PROXY = 5, C_CONFIG = 6, C_MODULE = 7,
+            C_GOAL = 8, C_SCHEDULE = 9, C_STATE = 10, C_SESSION = 11, C_RESULTS = 12;
 
     private final Vault vault;
     private final Function<String, ManagedAccount> factory;
@@ -60,7 +61,25 @@ public final class ManagerWindow {
     final JTabbedPane pane = new JTabbedPane();
     final Model model = new Model();
     private final JTable table = new JTable(model);
+    private final javax.swing.table.TableRowSorter<Model> sorter = new javax.swing.table.TableRowSorter<>(model);
     private final JLabel hint = new JLabel(" ");
+    /** Groups, pinned accounts and start sets (docs/PLAN.md «Менеджер: группы»). */
+    final ManagerGroups groups = ManagerGroups.openDefault();
+    /** Each started account's view, made once and shown in its own tab when open. */
+    private final Map<String, AccountView> views = new LinkedHashMap<>();
+    /** Accounts with a tab of their own now (pinned, without a group, or opened from a card). */
+    private final java.util.Set<String> open = new java.util.LinkedHashSet<>();
+    private final javax.swing.JTextField search = new javax.swing.JTextField(16);
+    private final javax.swing.JComboBox<String> groupFilter = new javax.swing.JComboBox<>();
+    private final javax.swing.JComboBox<String> stateFilter = new javax.swing.JComboBox<>(
+            new String[] {"Все", "Запущенные", "Остановленные", "С проблемами"});
+    private final javax.swing.JComboBox<String> serverFilter = new javax.swing.JComboBox<>();
+    private final javax.swing.JComboBox<String> moduleFilter = new javax.swing.JComboBox<>();
+    static final String ANY = "Все";
+    static final String NO_GROUP = "Без группы";
+    /** The config → module names, read again every half minute (the list refreshes each second). */
+    private final Map<String, String> moduleOf = new java.util.HashMap<>();
+    private long modulesAt;
     /**
      * Accounts left out of the start-ticked button (unticked), kept in {@code local/manager.properties}; new accounts
      * are ticked. Another file with {@code -Dorbit.manager.file=…}.
@@ -180,11 +199,18 @@ public final class ManagerWindow {
     private JComponent accountsPage() {
         table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         table.setRowHeight(table.getRowHeight() + 8);
-        table.setAutoCreateRowSorter(false);
+        table.setRowSorter(sorter);
+        sorter.setSortable(C_PICK, false);
+        sorter.setRowFilter(new javax.swing.RowFilter<Model, Integer>() {
+            @Override
+            public boolean include(Entry<? extends Model, ? extends Integer> e) {
+                return shows(e.getIdentifier());
+            }
+        });
         table.getTableHeader().setReorderingAllowed(false);
         table.setDefaultRenderer(Object.class, new Renderer());
         loadPicks();
-        int[] widths = {28, 110, 120, 60, 200, 120, 150, 230, 70, 230};
+        int[] widths = {28, 110, 110, 110, 55, 180, 130, 90, 230, 140, 200, 65, 200};
         for (int i = 0; i < widths.length; i++) {
             table.getColumnModel().getColumn(i).setPreferredWidth(widths[i]);
         }
@@ -202,9 +228,8 @@ public final class ManagerWindow {
             @Override
             public void mouseClicked(java.awt.event.MouseEvent e) {
                 if (e.getClickCount() == 2 && selected() != null) {
-                    int tab = tabOf(selected());
-                    if (tab >= 0) {
-                        pane.setSelectedIndex(tab);
+                    if (views.containsKey(selected())) {
+                        openAccount(selected());
                     } else {
                         edit();
                     }
@@ -229,6 +254,14 @@ public final class ManagerWindow {
         bar.add(button("Запустить отмеченные", this::startAll, "Аккаунты с галочкой, входы с паузой 15–45 с"));
         bar.add(button("Остановить все", this::stopAll, "Выйти у портала или закрыть сразу"));
         bar.add(gap());
+        bar.add(button("Группа…", this::assignGroup, "Группа выбранного аккаунта и отдельная вкладка"));
+        bar.add(button("Запустить группу", this::startGroup, "Аккаунты группы, выбранной в фильтре «Группа»"));
+        bar.add(button("Остановить группу", this::stopGroup, "Аккаунты группы, выбранной в фильтре «Группа»"));
+        JButton sets = new JButton("Наборы ▾");
+        sets.setToolTipText("Сохранённые наборы аккаунтов с конфигом — запуск одним щелчком");
+        sets.addActionListener(e -> presetsMenu().show(sets, 0, sets.getHeight()));
+        bar.add(sets);
+        bar.add(gap());
         bar.add(button("Конфиги…", () -> orbit.app.gui.config.ConfigWindow.open(
                 orbit.config.ConfigStore.openDefault(), AccountSettings.DEFAULT_FILE, null),
                 "Конфиги и расписание"));
@@ -240,8 +273,39 @@ public final class ManagerWindow {
         JScrollPane scroll = new JScrollPane(table);
         scroll.setColumnHeaderView(table.getTableHeader()); // also without a screen (snapshots)
         scroll.setBorder(BorderFactory.createEmptyBorder());
+        JPanel filters = new JPanel(new WrapLayout(FlowLayout.LEFT, 8, 4));
+        filters.setBackground(Theme.SURFACE);
+        filters.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, Theme.BORDER));
+        search.putClientProperty("JTextField.placeholderText", "поиск: имя, сервер, конфиг, цель");
+        search.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
+            @Override
+            public void insertUpdate(javax.swing.event.DocumentEvent e) {
+                sorter.sort();
+            }
+
+            @Override
+            public void removeUpdate(javax.swing.event.DocumentEvent e) {
+                sorter.sort();
+            }
+
+            @Override
+            public void changedUpdate(javax.swing.event.DocumentEvent e) {
+                sorter.sort();
+            }
+        });
+        filters.add(search);
+        filters.add(filterGroup("Группа", groupFilter));
+        filters.add(filterGroup("Показать", stateFilter));
+        filters.add(filterGroup("Сервер", serverFilter));
+        filters.add(filterGroup("Модуль", moduleFilter));
+        for (var c : List.of(groupFilter, stateFilter, serverFilter, moduleFilter)) {
+            c.addActionListener(e -> sorter.sort());
+        }
+        JPanel top = new JPanel(new BorderLayout());
+        top.add(bar, BorderLayout.NORTH);
+        top.add(filters, BorderLayout.SOUTH);
         JPanel page = new JPanel(new BorderLayout());
-        page.add(bar, BorderLayout.NORTH);
+        page.add(top, BorderLayout.NORTH);
         page.add(scroll, BorderLayout.CENTER);
         page.add(hint, BorderLayout.SOUTH);
         return page;
@@ -266,7 +330,11 @@ public final class ManagerWindow {
     }
 
     private String selected() {
-        int r = table.getSelectedRow();
+        int v = table.getSelectedRow();
+        if (v < 0) {
+            return null;
+        }
+        int r = table.convertRowIndexToModel(v);
         return r < 0 || r >= model.names.size() ? null : model.names.get(r);
     }
 
@@ -317,10 +385,8 @@ public final class ManagerWindow {
         } catch (VaultException | java.io.IOException e) {
             JOptionPane.showMessageDialog(frame, "Не удалось: " + e.getMessage(), "Аккаунты", JOptionPane.ERROR_MESSAGE);
         }
-        int tab = tabOf(n);
-        if (tab >= 0) {
-            dropTab(tab);
-        }
+        dropAccount(n);
+        groups.forget(n);
         managed.remove(n);
         refresh();
     }
@@ -504,74 +570,135 @@ public final class ManagerWindow {
 
     private void select(String n) {
         int r = model.names.indexOf(n);
-        if (r >= 0) {
-            table.setRowSelectionInterval(r, r);
+        int v = r < 0 ? -1 : table.convertRowIndexToView(r);
+        if (v >= 0) {
+            table.setRowSelectionInterval(v, v);
         }
     }
 
     // ---- account tabs ----
 
-    private int tabOf(String name) {
-        for (int i = 0; i < tabs.size(); i++) {
-            if (tabs.get(i).managed().name().equals(name)) {
-                return i + FIRST_TAB;
-            }
-        }
-        return -1;
-    }
-
-    /** The account's tab, made on its first start and kept (with its log) while the program runs. */
+    /**
+     * The started account's view, made on its first start and kept (with its log) while the program runs; it gets a tab of
+     * its own when pinned or without a group — a grouped one is seen on its group's tab and opened from its card.
+     */
     private void ensureTab(ManagedAccount a) {
-        if (tabOf(a.name()) >= 0) {
+        if (views.containsKey(a.name())) {
             return;
         }
         MainWindow.Tab tab = MainWindow.Tab.of(a);
         tabs.add(tab);
-        if (pane.getTabCount() < FIRST_TAB) {
-            pane.addTab("Все", new JPanel());
-        }
         AccountView view = new AccountView(tab);
         view.putClientProperty("JTabbedPane.tabClosable", true);
-        view.putClientProperty("JTabbedPane.tabCloseToolTipText", "Закрыть (аккаунт остановится)");
-        pane.addTab(a.feed().title(), AccountStatus.dot(() -> status(a)), view);
-        rebuildOverview();
+        view.putClientProperty("JTabbedPane.tabCloseToolTipText", groups.group(a.name()) != null
+                ? "Скрыть вкладку (аккаунт работает дальше, он на вкладке группы)" : "Закрыть (аккаунт остановится)");
+        views.put(a.name(), view);
+        if (groups.pinned.contains(a.name()) || groups.group(a.name()) == null) {
+            open.add(a.name());
+        }
+        rebuildTabs();
     }
 
-    /** The tab's ×: a running account is stopped first (after a question); the account stays in the list. */
-    void closeTab(int index) {
-        if (index < FIRST_TAB || index >= pane.getTabCount()) {
+    /** The account's own tab, opened (from its card or a double click) and selected. */
+    void openAccount(String name) {
+        if (!views.containsKey(name)) {
             return;
         }
-        ManagedAccount a = tabs.get(index - FIRST_TAB).managed();
+        if (open.add(name)) {
+            rebuildTabs();
+        }
+        pane.setSelectedComponent(views.get(name));
+    }
+
+    /**
+     * The tab's ×: a grouped account's tab is only hidden (the account goes on, seen on its group's tab); an account without a
+     * group is stopped as before (after a question when in game) and its tab goes.
+     */
+    void closeTab(int index) {
+        if (index < 1 || index >= pane.getTabCount()) {
+            return;
+        }
+        String name = nameOf(pane.getComponentAt(index));
+        if (name == null) {
+            return; // the overview tabs stay
+        }
+        if (groups.group(name) != null) {
+            open.remove(name);
+            groups.setPinned(name, false);
+            rebuildTabs();
+            return;
+        }
+        ManagedAccount a = account(name);
         if (a.phase() == ManagedAccount.Phase.RUNNING
                 && !StopDialog.stop(frame, "Закрыть вкладку", List.of(a), "и закрыть вкладку")) {
             return; // in game and cancelled; not in game: stopped at once without a question
         }
-        dropTab(index);
+        dropAccount(name);
         refresh();
     }
 
-    private void dropTab(int index) {
-        Component view = pane.getComponentAt(index);
-        tabs.remove(index - FIRST_TAB);
-        pane.removeTabAt(index);
-        if (view instanceof AccountView v) {
-            v.dispose();
+    private String nameOf(Component view) {
+        for (var e : views.entrySet()) {
+            if (e.getValue() == view) {
+                return e.getKey();
+            }
         }
-        rebuildOverview();
+        return null;
     }
 
-    private void rebuildOverview() {
-        if (pane.getTabCount() >= FIRST_TAB) {
-            MainWindow.disposeOverview(pane.getComponentAt(1));
+    /** A removed account: its view and tab gone. */
+    private void dropAccount(String name) {
+        AccountView v = views.remove(name);
+        open.remove(name);
+        tabs.removeIf(t -> t.managed().name().equals(name));
+        if (v != null) {
+            int i = pane.indexOfComponent(v);
+            if (i >= 0) {
+                pane.removeTabAt(i);
+            }
+            v.dispose();
+        }
+        rebuildTabs();
+    }
+
+    /**
+     * The tabs after «Аккаунты»: «Все» (every started account), a tab per group with started accounts (its accounts'
+     * maps; a click opens the account), then the accounts with a tab of their own. The selected tab stays selected.
+     */
+    void rebuildTabs() {
+        Component was = pane.getSelectedComponent();
+        String wasTitle = pane.getSelectedIndex() >= 0 ? pane.getTitleAt(pane.getSelectedIndex()) : null;
+        for (int i = pane.getTabCount() - 1; i >= 1; i--) {
+            Component c = pane.getComponentAt(i);
+            pane.removeTabAt(i);
+            if (!(c instanceof AccountView)) {
+                MainWindow.disposeOverview(c);
+            }
         }
         if (tabs.isEmpty()) {
-            if (pane.getTabCount() >= FIRST_TAB) {
-                pane.removeTabAt(1);
-            }
             return;
         }
-        pane.setComponentAt(1, MainWindow.overview(tabs, pane, FIRST_TAB));
+        List<MainWindow.Tab> all = List.copyOf(tabs);
+        pane.addTab("Все", MainWindow.overview(all, i -> openAccount(all.get(i).managed().name())));
+        for (String g : groups.groups()) {
+            List<MainWindow.Tab> in = tabs.stream().filter(t -> g.equals(groups.group(t.managed().name()))).toList();
+            if (!in.isEmpty()) {
+                pane.addTab(g + " · " + in.size(), MainWindow.overview(in, i -> openAccount(in.get(i).managed().name())));
+            }
+        }
+        for (MainWindow.Tab t : tabs) {
+            String n = t.managed().name();
+            if (open.contains(n)) {
+                pane.addTab(t.feed().title(), AccountStatus.dot(() -> status(t.managed())), views.get(n));
+            }
+        }
+        int back = was == null ? -1 : pane.indexOfComponent(was);
+        if (back < 0 && wasTitle != null) {
+            back = pane.indexOfTab(wasTitle);
+        }
+        if (back >= 0) {
+            pane.setSelectedIndex(back);
+        }
     }
 
     private static AccountStatus status(ManagedAccount a) {
@@ -611,12 +738,14 @@ public final class ManagerWindow {
                 select(keep);
             }
         }
-        for (int i = 0; i < tabs.size(); i++) {
-            String title = tabs.get(i).feed().title();
-            if (!title.equals(pane.getTitleAt(i + FIRST_TAB))) {
-                pane.setTitleAt(i + FIRST_TAB, title);
+        for (MainWindow.Tab t : tabs) {
+            AccountView v = views.get(t.managed().name());
+            int i = v == null ? -1 : pane.indexOfComponent(v);
+            if (i >= 0 && !t.feed().title().equals(pane.getTitleAt(i))) {
+                pane.setTitleAt(i, t.feed().title());
             }
         }
+        refreshFilters();
         pane.repaint();
         updateHint();
     }
@@ -724,8 +853,281 @@ public final class ManagerWindow {
             double hours = feed.sessionHours();
             results = money(r.credits(), hours) + " кр · " + money(r.uridium(), hours) + " ур";
         }
-        return new Object[] {model.picked(n), n, acc.username(), acc.home(), proxy, config == null ? "—" : config, schedule,
+        String group = groups.group(n);
+        String goal = orbit.app.LevelGoals.of(n);
+        if (goal == null && a.phase() == ManagedAccount.Phase.RUNNING && feed.runner() != null) {
+            goal = feed.runner().status();
+        }
+        return new Object[] {model.picked(n), n, group == null ? "" : group, acc.username(), acc.home(), proxy,
+            config == null ? "—" : config, module(config), goal == null ? "" : goal, schedule,
             new State(stateText(a), stateColor(a)), session, results};
+    }
+
+    /** The config's module as the config window names it; read again every half minute. */
+    private String module(String config) {
+        if (config == null) {
+            return "—";
+        }
+        if (System.currentTimeMillis() - modulesAt > 30_000) {
+            moduleOf.clear();
+            modulesAt = System.currentTimeMillis();
+        }
+        return moduleOf.computeIfAbsent(config, c -> {
+            try {
+                return orbit.app.gui.config.ConfigWindow.moduleName(orbit.config.ConfigStore.openDefault().load(c).module());
+            } catch (java.io.IOException | RuntimeException e) {
+                return "—";
+            }
+        });
+    }
+
+    // ---- filters ----
+
+    private static JComponent filterGroup(String label, javax.swing.JComboBox<String> box) {
+        JPanel p = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
+        p.setOpaque(false);
+        JLabel l = new JLabel(label);
+        l.setForeground(Hud.DIM);
+        p.add(l);
+        p.add(box);
+        return p;
+    }
+
+    /** The filters' choices from the list (the chosen one kept). */
+    private void refreshFilters() {
+        java.util.TreeSet<String> gs = new java.util.TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+        java.util.TreeSet<String> servers = new java.util.TreeSet<>();
+        java.util.TreeSet<String> modules = new java.util.TreeSet<>();
+        for (Object[] r : model.rows) {
+            if (!String.valueOf(r[C_GROUP]).isEmpty()) {
+                gs.add(String.valueOf(r[C_GROUP]));
+            }
+            servers.add(String.valueOf(r[C_SERVER]));
+            modules.add(String.valueOf(r[C_MODULE]));
+        }
+        List<String> g = new ArrayList<>(List.of(ANY));
+        g.addAll(gs);
+        g.add(NO_GROUP);
+        fill(groupFilter, g);
+        List<String> sv = new ArrayList<>(List.of(ANY));
+        sv.addAll(servers);
+        fill(serverFilter, sv);
+        List<String> md = new ArrayList<>(List.of(ANY));
+        md.addAll(modules);
+        fill(moduleFilter, md);
+    }
+
+    private void fill(javax.swing.JComboBox<String> box, List<String> items) {
+        List<String> now = new ArrayList<>();
+        for (int i = 0; i < box.getItemCount(); i++) {
+            now.add(box.getItemAt(i));
+        }
+        if (now.equals(items)) {
+            return;
+        }
+        Object keep = box.getSelectedItem();
+        var listeners = box.getActionListeners();
+        for (var l : listeners) {
+            box.removeActionListener(l);
+        }
+        box.removeAllItems();
+        items.forEach(box::addItem);
+        box.setSelectedItem(keep != null && items.contains(keep) ? keep : ANY);
+        for (var l : listeners) {
+            box.addActionListener(l);
+        }
+    }
+
+    /** The row passes the search and the filters. */
+    boolean shows(int row) {
+        if (row >= model.rows.size()) {
+            return true;
+        }
+        Object[] r = model.rows.get(row);
+        String q = search.getText().strip().toLowerCase(java.util.Locale.ROOT);
+        if (!q.isEmpty()) {
+            boolean hit = false;
+            for (int c : new int[] {C_NAME, C_GROUP, C_LOGIN, C_SERVER, C_CONFIG, C_MODULE, C_GOAL, C_STATE}) {
+                if (String.valueOf(r[c]).toLowerCase(java.util.Locale.ROOT).contains(q)) {
+                    hit = true;
+                    break;
+                }
+            }
+            if (!hit) {
+                return false;
+            }
+        }
+        String g = (String) groupFilter.getSelectedItem();
+        if (g != null && !ANY.equals(g) && !(NO_GROUP.equals(g) ? String.valueOf(r[C_GROUP]).isEmpty() : g.equals(r[C_GROUP]))) {
+            return false;
+        }
+        String sv = (String) serverFilter.getSelectedItem();
+        if (sv != null && !ANY.equals(sv) && !sv.equals(String.valueOf(r[C_SERVER]))) {
+            return false;
+        }
+        String md = (String) moduleFilter.getSelectedItem();
+        if (md != null && !ANY.equals(md) && !md.equals(String.valueOf(r[C_MODULE]))) {
+            return false;
+        }
+        String st = (String) stateFilter.getSelectedItem();
+        ManagedAccount a = row < model.names.size() ? account(model.names.get(row)) : null;
+        if (st == null || ANY.equals(st) || a == null) {
+            return true;
+        }
+        return switch (st) {
+            case "Запущенные" -> a.phase() != ManagedAccount.Phase.STOPPED;
+            case "Остановленные" -> a.phase() == ManagedAccount.Phase.STOPPED;
+            case "С проблемами" -> a.problem() != null || a.feed().alertAt() != 0 || stateColor(a).equals(BAD);
+            default -> true;
+        };
+    }
+
+    // ---- groups and start sets ----
+
+    /** The selected account's group (an existing one or a new name; empty — none) and its own tab. */
+    private void assignGroup() {
+        String n = needSelected();
+        if (n == null) {
+            return;
+        }
+        javax.swing.JComboBox<String> box = new javax.swing.JComboBox<>();
+        box.setEditable(true);
+        box.addItem("");
+        groups.groups().forEach(box::addItem);
+        box.setSelectedItem(groups.group(n) == null ? "" : groups.group(n));
+        javax.swing.JCheckBox pin = new javax.swing.JCheckBox("Отдельная вкладка (кроме вкладки группы)", groups.pinned.contains(n));
+        JPanel p = new JPanel(new java.awt.GridLayout(0, 1, 4, 4));
+        p.add(new JLabel("Группа «" + n + "» (новое имя — новая группа, пусто — без группы):"));
+        p.add(box);
+        p.add(pin);
+        if (JOptionPane.showConfirmDialog(frame, p, "Группа", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE)
+                != JOptionPane.OK_OPTION) {
+            return;
+        }
+        Object g = box.getEditor().getItem();
+        groups.setGroup(n, g == null ? null : g.toString());
+        groups.setPinned(n, pin.isSelected());
+        if (views.containsKey(n)) {
+            if (pin.isSelected() || groups.group(n) == null) {
+                open.add(n);
+            } else {
+                open.remove(n);
+            }
+        }
+        refresh();
+        rebuildTabs();
+    }
+
+    /** The group chosen in the «Группа» filter, or {@code null} (with a word why). */
+    private List<String> chosenGroup(String what) {
+        String g = (String) groupFilter.getSelectedItem();
+        if (g == null || ANY.equals(g)) {
+            JOptionPane.showMessageDialog(frame, "Выберите группу в фильтре «Группа».", what, JOptionPane.INFORMATION_MESSAGE);
+            return null;
+        }
+        return model.names.stream().filter(n -> NO_GROUP.equals(g) ? groups.group(n) == null : g.equals(groups.group(n)))
+                .toList();
+    }
+
+    private void startGroup() {
+        List<String> in = chosenGroup("Запустить группу");
+        if (in != null) {
+            startEach(in);
+        }
+    }
+
+    private void stopGroup() {
+        List<String> in = chosenGroup("Остановить группу");
+        if (in == null) {
+            return;
+        }
+        List<ManagedAccount> running = in.stream().map(this::account)
+                .filter(a -> a.phase() != ManagedAccount.Phase.STOPPED).toList();
+        if (!running.isEmpty()) {
+            StopDialog.stop(frame, "Остановить группу «" + groupFilter.getSelectedItem() + "»", running, "");
+        }
+        refresh();
+    }
+
+    /** The start sets: each starts its accounts (on its config, if it has one); save the ticked ones as a set; remove. */
+    private javax.swing.JPopupMenu presetsMenu() {
+        javax.swing.JPopupMenu menu = new javax.swing.JPopupMenu();
+        for (ManagerGroups.Preset p : groups.presets) {
+            javax.swing.JMenuItem item = new javax.swing.JMenuItem("Запустить «" + p.name() + "» — " + p.accounts().size()
+                    + " акк." + (p.config() == null ? "" : ", конфиг «" + p.config() + "»"));
+            item.setToolTipText(String.join(", ", p.accounts()));
+            item.addActionListener(e -> startPreset(p));
+            menu.add(item);
+        }
+        if (!groups.presets.isEmpty()) {
+            menu.addSeparator();
+        }
+        javax.swing.JMenuItem save = new javax.swing.JMenuItem("Сохранить отмеченные как набор…");
+        save.addActionListener(e -> savePreset());
+        menu.add(save);
+        if (!groups.presets.isEmpty()) {
+            javax.swing.JMenuItem del = new javax.swing.JMenuItem("Удалить набор…");
+            del.addActionListener(e -> {
+                Object[] names = groups.presets.stream().map(ManagerGroups.Preset::name).toArray();
+                Object pick = JOptionPane.showInputDialog(frame, "Какой набор удалить?", "Наборы", JOptionPane.PLAIN_MESSAGE,
+                        null, names, names[0]);
+                if (pick != null) {
+                    groups.removePreset(pick.toString());
+                }
+            });
+            menu.add(del);
+        }
+        return menu;
+    }
+
+    private void savePreset() {
+        List<String> picked = model.names.stream().filter(model::picked).toList();
+        if (picked.isEmpty()) {
+            JOptionPane.showMessageDialog(frame, "Отметьте аккаунты галочками.", "Набор", JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+        javax.swing.JTextField name = new javax.swing.JTextField(20);
+        javax.swing.JComboBox<String> config = new javax.swing.JComboBox<>();
+        config.addItem("(свой конфиг у каждого)");
+        try {
+            orbit.config.ConfigStore.openDefault().list().forEach(config::addItem);
+        } catch (java.io.IOException | RuntimeException e) {
+            // no configs listed: own ones
+        }
+        JPanel p = new JPanel(new java.awt.GridLayout(0, 1, 4, 4));
+        p.add(new JLabel("Набор из " + picked.size() + " отмеченных: имя"));
+        p.add(name);
+        p.add(new JLabel("Конфиг при запуске набора"));
+        p.add(config);
+        if (JOptionPane.showConfirmDialog(frame, p, "Сохранить набор", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE)
+                != JOptionPane.OK_OPTION || name.getText().isBlank()) {
+            return;
+        }
+        String cfg = config.getSelectedIndex() <= 0 ? null : (String) config.getSelectedItem();
+        groups.putPreset(new ManagerGroups.Preset(name.getText().strip(), picked, cfg));
+    }
+
+    /** A start set: its config given to each account (saved as the account's), then the stopped ones started. */
+    private void startPreset(ManagerGroups.Preset p) {
+        if (p.config() != null) {
+            try {
+                var file = AccountSettings.DEFAULT_FILE;
+                var all = AccountSettings.load(file);
+                for (String n : p.accounts()) {
+                    if (model.names.contains(n)) {
+                        all = all.with(n, all.account(n).withConfig(p.config()));
+                        if (account(n).phase() != ManagedAccount.Phase.STOPPED) {
+                            account(n).switchConfig(p.config());
+                        }
+                    }
+                }
+                all.save(file);
+            } catch (java.io.IOException | RuntimeException e) {
+                JOptionPane.showMessageDialog(frame, "Конфиг набора не задан: " + e.getMessage(), "Набор", JOptionPane.WARNING_MESSAGE);
+            }
+        }
+        startEach(p.accounts().stream().filter(model.names::contains).toList());
+        refresh();
     }
 
     private static String money(double v, double hours) {
@@ -806,8 +1208,8 @@ public final class ManagerWindow {
     }
 
     static final class Model extends AbstractTableModel {
-        private static final String[] COLUMNS = {"✓", "Аккаунт", "Логин", "Сервер", "Прокси", "Конфиг", "Расписание",
-            "Состояние", "Сессия", "Итоги"};
+        private static final String[] COLUMNS = {"✓", "Аккаунт", "Группа", "Логин", "Сервер", "Прокси", "Конфиг", "Модуль",
+            "Цель / сейчас", "Расписание", "Состояние", "Сессия", "Итоги"};
         List<String> names = List.of();
         List<Object[]> rows = List.of();
         /** Names without a tick; everything else is ticked (so new accounts are). */

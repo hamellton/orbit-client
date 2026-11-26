@@ -920,6 +920,7 @@ final class LevelWatch {
         LOG.info("снимок [{}, конфиг «{}», план v{}]: {}; премиум {}", account, cfg, plan.version(), state.describe(),
                 snap == null || snap.hero() == null ? "?" : snap.hero().premium() ? "да" : "нет");
         LOG.info("совет: выполнено {}; {}", advice.done(), advice.text());
+        LevelGoals.set(account, advice.text());
         if (advice.purchase() != null) {
             LOG.info("покупаю по плану: {} × {} = {} {} ({})", advice.purchase().amount(), advice.purchase().item(),
                     advice.purchase().total(), advice.purchase().uridium() ? "уридия" : "кредитов", advice.goal().id());

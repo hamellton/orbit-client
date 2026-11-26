@@ -230,6 +230,11 @@ public final class MainWindow {
      * @param firstTab the index of the first account's tab in {@code pane}
      */
     static JComponent overview(List<Tab> tabs, JTabbedPane pane, int firstTab) {
+        return overview(tabs, i -> pane.setSelectedIndex(i + firstTab));
+    }
+
+    /** As above; a click on an account's map gives its index in {@code tabs} to {@code open}. */
+    static JComponent overview(List<Tab> tabs, java.util.function.IntConsumer open) {
         JPanel grid = new JPanel(new Grid());
         grid.setBackground(SURFACE);
         grid.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
@@ -245,11 +250,11 @@ public final class MainWindow {
         for (int i = 0; i < tabs.size(); i++) {
             Tab t = tabs.get(i);
             MinimapPanel map = new MinimapPanel(t.feed(), true, t.config() != null ? t.config() : () -> null);
-            int tabIndex = i + firstTab;
+            int index = i;
             map.addMouseListener(new java.awt.event.MouseAdapter() {
                 @Override
                 public void mouseClicked(java.awt.event.MouseEvent e) {
-                    pane.setSelectedIndex(tabIndex);
+                    open.accept(index);
                 }
             });
             map.setCursor(java.awt.Cursor.getPredefinedCursor(java.awt.Cursor.HAND_CURSOR));

@@ -140,18 +140,19 @@ class ManagerWindowTest {
         ManagerWindow w = new ManagerWindow(vault(dir), n -> fakes.computeIfAbsent(n, Fake::new));
         w.refresh();
         assertEquals(List.of("alpha", "beta"), w.model.names);
-        assertEquals("pilot-a", w.model.getValueAt(0, 2));
-        assertEquals("int1", w.model.getValueAt(0, 3));
-        assertEquals("SOCKS5 10.0.0.9:1080 (логин u)", w.model.getValueAt(0, 4));
-        assertEquals("напрямую — IP этого компьютера", w.model.getValueAt(1, 4));
-        assertEquals("ru1", w.model.getValueAt(1, 3));
+        assertEquals("pilot-a", w.model.getValueAt(0, ManagerWindow.C_LOGIN));
+        assertEquals("int1", w.model.getValueAt(0, ManagerWindow.C_SERVER));
+        assertEquals("SOCKS5 10.0.0.9:1080 (логин u)", w.model.getValueAt(0, ManagerWindow.C_PROXY));
+        assertEquals("напрямую — IP этого компьютера", w.model.getValueAt(1, ManagerWindow.C_PROXY));
+        assertEquals("ru1", w.model.getValueAt(1, ManagerWindow.C_SERVER));
+        assertEquals("", w.model.getValueAt(0, ManagerWindow.C_GROUP), "no group yet");
         for (int r = 0; r < 2; r++) {
             for (int c = 0; c < w.model.getColumnCount(); c++) {
                 String cell = String.valueOf(w.model.getValueAt(r, c));
                 assertFalse(cell.contains("Pw9#x") || cell.contains("Qx7!fake") || cell.contains("Zz3?fake"), cell);
             }
         }
-        assertEquals("Остановлен", w.model.getValueAt(0, 7).toString());
+        assertEquals("Остановлен", w.model.getValueAt(0, ManagerWindow.C_STATE).toString());
     }
 
     @Test
@@ -224,6 +225,57 @@ class ManagerWindowTest {
         w.closeTab(2); // the × of an account not in game: stopped at once, the tab goes
         assertEquals(2, fakes.get("alpha").killed);
         assertEquals(3, w.pane.getTabCount(), "«Аккаунты», «Все» and beta's tab are left");
+    }
+
+    @Test
+    void aGroupedAccountIsSeenOnItsGroupsTabAndOpenedFromItsCard(@TempDir Path dir) throws Exception {
+        String before = System.getProperty("orbit.manager.groups");
+        System.setProperty("orbit.manager.groups", dir.resolve("groups.json").toString());
+        try {
+            Map<String, Fake> fakes = new HashMap<>();
+            ManagerWindow w = new ManagerWindow(vault(dir), n -> fakes.computeIfAbsent(n, Fake::new));
+            w.groups.setGroup("alpha", "Стартеры");
+            w.refresh();
+            assertEquals("Стартеры", w.model.getValueAt(0, ManagerWindow.C_GROUP));
+            assertNull(w.startOne("alpha", 0, false));
+            assertNull(w.startOne("beta", 0, false));
+            List<String> titles = new ArrayList<>();
+            for (int i = 0; i < w.pane.getTabCount(); i++) {
+                titles.add(w.pane.getTitleAt(i));
+            }
+            // «Аккаунты», «Все», the group's tab, beta's own tab (no group); alpha has none of its own
+            assertEquals(4, w.pane.getTabCount(), titles.toString());
+            assertEquals("Стартеры · 1", w.pane.getTitleAt(2));
+            w.openAccount("alpha");
+            assertEquals(5, w.pane.getTabCount(), "opened from its card");
+            int alphaTab = w.pane.getSelectedIndex();
+            w.closeTab(alphaTab);
+            assertEquals(4, w.pane.getTabCount(), "the × of a grouped account hides its tab");
+            assertEquals(0, fakes.get("alpha").killed, "and does not stop it");
+            assertTrue(w.shows(0) && w.shows(1));
+            // a fresh window reads the groups back
+            ManagerWindow again = new ManagerWindow(vault(dir), n -> fakes.computeIfAbsent(n, Fake::new));
+            assertEquals("Стартеры", again.groups.group("alpha"));
+        } finally {
+            if (before == null) {
+                System.clearProperty("orbit.manager.groups");
+            } else {
+                System.setProperty("orbit.manager.groups", before);
+            }
+        }
+    }
+
+    @Test
+    void aStartSetIsKeptWithItsAccounts(@TempDir Path dir) {
+        ManagerGroups g = new ManagerGroups(dir.resolve("groups.json"));
+        g.putPreset(new ManagerGroups.Preset("Ночь", List.of("alpha", "beta"), "Leveling MMO Quests"));
+        g.setPinned("beta", true);
+        ManagerGroups back = new ManagerGroups(dir.resolve("groups.json"));
+        assertEquals(List.of(new ManagerGroups.Preset("Ночь", List.of("alpha", "beta"), "Leveling MMO Quests")), back.presets);
+        assertTrue(back.pinned.contains("beta"));
+        back.forget("alpha");
+        assertEquals(List.of("beta"), new ManagerGroups(dir.resolve("groups.json")).presets.getFirst().accounts(),
+                "a removed account leaves the sets");
     }
 
     @Test

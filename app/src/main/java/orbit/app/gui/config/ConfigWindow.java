@@ -35,6 +35,12 @@ import orbit.world.maps.MapCatalog;
  */
 public final class ConfigWindow {
 
+    /** The module's name as the config window shows it («Квесты», «Палладий»…). */
+    public static String moduleName(orbit.config.BotConfig.Module m) {
+        return m == null ? "—" : GeneralSection.MODULE_NAMES[Math.min(m.ordinal(), GeneralSection.MODULE_NAMES.length - 1)];
+    }
+
+
     private final ConfigStore store;
     private final MapCatalog maps;
     private final JFrame frame = new JFrame("Orbit — конфиги");
