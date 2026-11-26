@@ -1402,19 +1402,20 @@ public final class QuestModule implements BotModule {
     }
 
     /**
-     * {@code playerDeathAvoidMinutes} (the leveling quests configs; 0 = off, the default): the map where a player killed the
-     * ship is left out of the work's maps that long while another map has the same work (live 2026-11-26 on int1: st1 was
+     * {@code playerDeathAvoidMinutes} (the leveling quests configs; 0 = off, the default): the map where the ship died (a
+     * player's kill mostly) is left out of the work's maps that long while another map has the same work (live 2026-11-26 on int1: st1 was
      * killed by players twice in three minutes on 1-4, and the portal revive put it back there).
      */
     private void notePlayerDeath(WorldSnapshot w, long now) {
         int minutes = settings().path("playerDeathAvoidMinutes").asInt(0);
-        int deaths = ctx.stats().killedBy().values().stream().mapToInt(Integer::intValue).sum();
+        // the session's deaths (not killedBy: those are the NPCs the ship killed — live 2026-11-26 04:27 it fired on a kill)
+        int deaths = ctx.stats().deaths.get();
         if (w.hero().alive() && w.hero().mapId() > 0) {
             aliveMap = w.hero().mapId();
         }
         if (playerDeaths >= 0 && deaths > playerDeaths && minutes > 0 && aliveMap > 0) {
             dangerUntil.put(aliveMap, now + minutes * 60_000_000_000L);
-            log.warn("Квесты: на {} меня убил игрок — {} мин беру работу на других картах, где она есть",
+            log.warn("Квесты: на {} корабль погиб — {} мин беру работу на других картах, где она есть",
                     ctx.maps().info(aliveMap).name(), minutes);
             work = null;
             worker = null;
