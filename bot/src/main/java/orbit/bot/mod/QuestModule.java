@@ -704,7 +704,9 @@ public final class QuestModule implements BotModule {
     private double othersProgress(int quest) {
         double sum = 0;
         for (Quests.Quest q : ctx.world().get().quests().active().values()) {
-            if (q.id() == quest) {
+            // missions and starter quests only: the passes' long tasks (700037 «pick 1 500 cargo boxes») grow beside any
+            // work and kept the no-progress clock from ever running out (live 2026-11-26, st1 on 108002)
+            if (q.id() == quest || !(q.is(Quests.MISSION) || q.is(Quests.STARTER))) {
                 continue;
             }
             for (Quests.Condition x : q.leaves()) {
