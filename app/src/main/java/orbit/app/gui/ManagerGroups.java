@@ -34,6 +34,21 @@ final class ManagerGroups {
         load();
     }
 
+    /** Who hears that the groups changed (another window's group choice): their tabs follow. */
+    private static final List<Runnable> LISTENERS = new java.util.concurrent.CopyOnWriteArrayList<>();
+
+    static void onChange(Runnable r) {
+        LISTENERS.add(r);
+    }
+
+    /** The file read again (another window saved it). */
+    void reload() {
+        groupOf.clear();
+        pinned.clear();
+        presets.clear();
+        load();
+    }
+
     static ManagerGroups openDefault() {
         return new ManagerGroups(Path.of(System.getProperty("orbit.manager.groups", "local/manager-groups.json")));
     }
@@ -122,6 +137,7 @@ final class ManagerGroups {
                 Files.createDirectories(file.getParent());
             }
             orbit.config.Json.MAPPER.writerWithDefaultPrettyPrinter().writeValue(file.toFile(), root);
+            LISTENERS.forEach(Runnable::run);
         } catch (IOException e) {
             org.slf4j.LoggerFactory.getLogger(ManagerGroups.class).warn("Не сохранить {}: {}", file, e.getMessage());
         }

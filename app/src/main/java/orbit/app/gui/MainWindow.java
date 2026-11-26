@@ -194,18 +194,14 @@ public final class MainWindow {
         pane.putClientProperty("JTabbedPane.tabType", "card");
         pane.putClientProperty("JTabbedPane.scrollButtonsPolicy", "asNeeded");
         pane.setTabLayoutPolicy(JTabbedPane.SCROLL_TAB_LAYOUT);
-        pane.addTab("Все", overview(tabs, pane, 1));
-        for (Tab t : tabs) {
-            pane.addTab(t.feed().title(), AccountStatus.dot(() -> AccountStatus.of(t.feed())), new AccountView(t));
-        }
-        // names follow the game: the ship's nickname appears once the account is in game
+        // the accounts by groups, as in the account manager: «Все», a tab per group, own tabs of the pinned and ungrouped
+        GroupedTabs grouped = new GroupedTabs(pane, 0, ManagerGroups.openDefault(), false);
+        tabs.forEach(grouped::add);
+        pane.putClientProperty("JTabbedPane.tabCloseCallback",
+                (java.util.function.BiConsumer<JTabbedPane, Integer>) (p, index) -> grouped.hide(grouped.nameAt(index)));
+        // titles and tooltips follow the game (the pilot, what it does)
         new Timer(1_000, e -> {
-            for (int i = 0; i < tabs.size(); i++) {
-                String title = tabs.get(i).feed().title();
-                if (!title.equals(pane.getTitleAt(i + 1))) {
-                    pane.setTitleAt(i + 1, title); // tab 0 is the All tab
-                }
-            }
+            grouped.refresh();
             pane.repaint();
         }).start();
         return pane;
@@ -259,9 +255,9 @@ public final class MainWindow {
             });
             map.setCursor(java.awt.Cursor.getPredefinedCursor(java.awt.Cursor.HAND_CURSOR));
             maps.add(map);
-            JCheckBox box = new JCheckBox(t.feed().title(), true);
+            JCheckBox box = new JCheckBox(GroupedTabs.title(t), true);
             box.setOpaque(false);
-            timers.add(new Timer(1_000, e -> box.setText(t.feed().title())));
+            timers.add(new Timer(1_000, e -> box.setText(GroupedTabs.title(t))));
             boxes.add(box);
             choose.add(box);
         }

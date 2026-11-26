@@ -416,6 +416,11 @@ final class AccountView extends JPanel {
         moreMenu.add(item("Блоки…", "Где показывать блоки", () -> BlockMenu.all().show(more, 0, more.getHeight())));
         moreMenu.add(item("Конфиги…", "Все конфиги", () -> orbit.app.gui.config.ConfigWindow.open(
                 orbit.config.ConfigStore.openDefault(), orbit.config.AccountSettings.DEFAULT_FILE, null)));
+        String groupAccount = tab.feed().account();
+        if (groupAccount != null) {
+            moreMenu.add(item("Группа…", "Группа аккаунта (английское имя, например Starters) и отдельная вкладка — вкладки"
+                    + " окна строятся по группам", () -> chooseGroup(more, groupAccount)));
+        }
         moreMenu.addSeparator();
         moreMenu.add(item("Сбросить статистику…", "Обнулить «за сессию»: добычу, кубы, NPC, смерти и время — с этого"
                 + " момента. Бот работает дальше; сводка за час и итог за сегодня не меняются", () -> {
@@ -558,6 +563,29 @@ final class AccountView extends JPanel {
         label.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createLineBorder(MainWindow.LINE, 1, true),
                 BorderFactory.createEmptyBorder(2, 8, 2, 8)));
         return label;
+    }
+
+    /** The account's group (an existing one or a new name; empty — none) and its own tab; the window's tabs follow. */
+    static void chooseGroup(Component parent, String account) {
+        ManagerGroups groups = ManagerGroups.openDefault();
+        javax.swing.JComboBox<String> box = new javax.swing.JComboBox<>();
+        box.setEditable(true);
+        box.addItem("");
+        groups.groups().forEach(box::addItem);
+        box.setSelectedItem(groups.group(account) == null ? "" : groups.group(account));
+        javax.swing.JCheckBox pin = new javax.swing.JCheckBox("Отдельная вкладка (кроме вкладки группы)",
+                groups.pinned.contains(account));
+        JPanel p = new JPanel(new java.awt.GridLayout(0, 1, 4, 4));
+        p.add(new JLabel("Группа «" + account + "» (новое имя — новая группа, пусто — без группы):"));
+        p.add(box);
+        p.add(pin);
+        if (javax.swing.JOptionPane.showConfirmDialog(parent, p, "Группа", javax.swing.JOptionPane.OK_CANCEL_OPTION,
+                javax.swing.JOptionPane.PLAIN_MESSAGE) != javax.swing.JOptionPane.OK_OPTION) {
+            return;
+        }
+        Object g = box.getEditor().getItem();
+        groups.setGroup(account, g == null ? null : g.toString());
+        groups.setPinned(account, pin.isSelected());
     }
 
     /** A menu item with its tooltip and action. */

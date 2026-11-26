@@ -55,7 +55,6 @@ public final class ManagerWindow {
     private final Vault vault;
     private final Function<String, ManagedAccount> factory;
     private final Map<String, ManagedAccount> managed = new LinkedHashMap<>();
-    final List<MainWindow.Tab> tabs = new ArrayList<>();
     /** Made in {@link #show}: none in tests and snapshots (no screen there). */
     private JFrame frame;
     final JTabbedPane pane = new JTabbedPane();
@@ -65,10 +64,8 @@ public final class ManagerWindow {
     private final JLabel hint = new JLabel(" ");
     /** Groups, pinned accounts and start sets (docs/PLAN.md «Менеджер: группы»). */
     final ManagerGroups groups = ManagerGroups.openDefault();
-    /** Each started account's view, made once and shown in its own tab when open. */
-    private final Map<String, AccountView> views = new LinkedHashMap<>();
-    /** Accounts with a tab of their own now (pinned, without a group, or opened from a card). */
-    private final java.util.Set<String> open = new java.util.LinkedHashSet<>();
+    /** The accounts' tabs by groups (after «Аккаунты»), the same as in the bot's window. */
+    final GroupedTabs grouped;
     private final javax.swing.JTextField search = new javax.swing.JTextField(16);
     private final javax.swing.JComboBox<String> groupFilter = new javax.swing.JComboBox<>();
     private final javax.swing.JComboBox<String> stateFilter = new javax.swing.JComboBox<>(
@@ -95,6 +92,7 @@ public final class ManagerWindow {
         pane.putClientProperty("JTabbedPane.scrollButtonsPolicy", "asNeeded");
         pane.setTabLayoutPolicy(JTabbedPane.SCROLL_TAB_LAYOUT);
         pane.addTab("Аккаунты", accountsPage());
+        grouped = new GroupedTabs(pane, 1, groups, true);
         pane.putClientProperty("JTabbedPane.tabCloseCallback",
                 (java.util.function.BiConsumer<JTabbedPane, Integer>) (p, index) -> closeTab(index));
     }
@@ -228,7 +226,7 @@ public final class ManagerWindow {
             @Override
             public void mouseClicked(java.awt.event.MouseEvent e) {
                 if (e.getClickCount() == 2 && selected() != null) {
-                    if (views.containsKey(selected())) {
+                    if (grouped.views.containsKey(selected())) {
                         openAccount(selected());
                     } else {
                         edit();
@@ -578,36 +576,14 @@ public final class ManagerWindow {
 
     // ---- account tabs ----
 
-    /**
-     * The started account's view, made on its first start and kept (with its log) while the program runs; it gets a tab of
-     * its own when pinned or without a group — a grouped one is seen on its group's tab and opened from its card.
-     */
+    /** The started account's view, made on its first start and kept (with its log) while the program runs. */
     private void ensureTab(ManagedAccount a) {
-        if (views.containsKey(a.name())) {
-            return;
-        }
-        MainWindow.Tab tab = MainWindow.Tab.of(a);
-        tabs.add(tab);
-        AccountView view = new AccountView(tab);
-        view.putClientProperty("JTabbedPane.tabClosable", true);
-        view.putClientProperty("JTabbedPane.tabCloseToolTipText", groups.group(a.name()) != null
-                ? "Скрыть вкладку (аккаунт работает дальше, он на вкладке группы)" : "Закрыть (аккаунт остановится)");
-        views.put(a.name(), view);
-        if (groups.pinned.contains(a.name()) || groups.group(a.name()) == null) {
-            open.add(a.name());
-        }
-        rebuildTabs();
+        grouped.add(MainWindow.Tab.of(a));
     }
 
     /** The account's own tab, opened (from its card or a double click) and selected. */
     void openAccount(String name) {
-        if (!views.containsKey(name)) {
-            return;
-        }
-        if (open.add(name)) {
-            rebuildTabs();
-        }
-        pane.setSelectedComponent(views.get(name));
+        grouped.openAccount(name);
     }
 
     /**
@@ -615,18 +591,9 @@ public final class ManagerWindow {
      * group is stopped as before (after a question when in game) and its tab goes.
      */
     void closeTab(int index) {
-        if (index < 1 || index >= pane.getTabCount()) {
-            return;
-        }
-        String name = nameOf(pane.getComponentAt(index));
-        if (name == null) {
-            return; // the overview tabs stay
-        }
-        if (groups.group(name) != null) {
-            open.remove(name);
-            groups.setPinned(name, false);
-            rebuildTabs();
-            return;
+        String name = grouped.nameAt(index);
+        if (name == null || grouped.hide(name)) {
+            return; // the overview tabs stay; a grouped one is hidden
         }
         ManagedAccount a = account(name);
         if (a.phase() == ManagedAccount.Phase.RUNNING
@@ -637,68 +604,13 @@ public final class ManagerWindow {
         refresh();
     }
 
-    private String nameOf(Component view) {
-        for (var e : views.entrySet()) {
-            if (e.getValue() == view) {
-                return e.getKey();
-            }
-        }
-        return null;
-    }
-
-    /** A removed account: its view and tab gone. */
+    /** A removed or closed account: its view and tab gone. */
     private void dropAccount(String name) {
-        AccountView v = views.remove(name);
-        open.remove(name);
-        tabs.removeIf(t -> t.managed().name().equals(name));
-        if (v != null) {
-            int i = pane.indexOfComponent(v);
-            if (i >= 0) {
-                pane.removeTabAt(i);
-            }
-            v.dispose();
-        }
-        rebuildTabs();
+        grouped.remove(name);
     }
 
-    /**
-     * The tabs after «Аккаунты»: «Все» (every started account), a tab per group with started accounts (its accounts'
-     * maps; a click opens the account), then the accounts with a tab of their own. The selected tab stays selected.
-     */
     void rebuildTabs() {
-        Component was = pane.getSelectedComponent();
-        String wasTitle = pane.getSelectedIndex() >= 0 ? pane.getTitleAt(pane.getSelectedIndex()) : null;
-        for (int i = pane.getTabCount() - 1; i >= 1; i--) {
-            Component c = pane.getComponentAt(i);
-            pane.removeTabAt(i);
-            if (!(c instanceof AccountView)) {
-                MainWindow.disposeOverview(c);
-            }
-        }
-        if (tabs.isEmpty()) {
-            return;
-        }
-        List<MainWindow.Tab> all = List.copyOf(tabs);
-        pane.addTab("Все", MainWindow.overview(all, i -> openAccount(all.get(i).managed().name())));
-        for (String g : groups.groups()) {
-            List<MainWindow.Tab> in = tabs.stream().filter(t -> g.equals(groups.group(t.managed().name()))).toList();
-            if (!in.isEmpty()) {
-                pane.addTab(g + " · " + in.size(), MainWindow.overview(in, i -> openAccount(in.get(i).managed().name())));
-            }
-        }
-        for (MainWindow.Tab t : tabs) {
-            String n = t.managed().name();
-            if (open.contains(n)) {
-                pane.addTab(t.feed().title(), AccountStatus.dot(() -> status(t.managed())), views.get(n));
-            }
-        }
-        int back = was == null ? -1 : pane.indexOfComponent(was);
-        if (back < 0 && wasTitle != null) {
-            back = pane.indexOfTab(wasTitle);
-        }
-        if (back >= 0) {
-            pane.setSelectedIndex(back);
-        }
+        grouped.rebuild();
     }
 
     private static AccountStatus status(ManagedAccount a) {
@@ -738,13 +650,7 @@ public final class ManagerWindow {
                 select(keep);
             }
         }
-        for (MainWindow.Tab t : tabs) {
-            AccountView v = views.get(t.managed().name());
-            int i = v == null ? -1 : pane.indexOfComponent(v);
-            if (i >= 0 && !t.feed().title().equals(pane.getTitleAt(i))) {
-                pane.setTitleAt(i, t.feed().title());
-            }
-        }
+        grouped.refresh();
         refreshFilters();
         pane.repaint();
         updateHint();
@@ -1007,15 +913,7 @@ public final class ManagerWindow {
         Object g = box.getEditor().getItem();
         groups.setGroup(n, g == null ? null : g.toString());
         groups.setPinned(n, pin.isSelected());
-        if (views.containsKey(n)) {
-            if (pin.isSelected() || groups.group(n) == null) {
-                open.add(n);
-            } else {
-                open.remove(n);
-            }
-        }
-        refresh();
-        rebuildTabs();
+        refresh(); // the tabs follow by the groups' change (GroupedTabs hears it)
     }
 
     /** The group chosen in the «Группа» filter, or {@code null} (with a word why). */
