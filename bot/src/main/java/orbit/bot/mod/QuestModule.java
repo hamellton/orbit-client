@@ -648,8 +648,8 @@ public final class QuestModule implements BotModule {
      */
     private boolean stuck(Quests.Condition c, long now) {
         int minutes = settings().path("stuckMinutes").asInt(0);
-        if (minutes <= 0 || work == null) {
-            return false;
+        if (minutes <= 0 || work == null || ids("first").contains(work.quest())) {
+            return false; // the quests marked First (the starter chain up to its premium) are never set aside
         }
         if (stuckQuest != work.quest() || stuckCondition != c.id() || stuckAt != c.current()) {
             stuckQuest = work.quest();
