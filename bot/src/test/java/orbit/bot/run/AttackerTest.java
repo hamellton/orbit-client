@@ -264,13 +264,17 @@ class AttackerTest {
     }
 
     @Test
-    void onlyTheServersGreyMakesAnNpcSomebodyElses() {
-        // a player shooting it or its lost hull says nothing (he may have left it); the server's
-        // LSH says, its USH frees it again; cubes and group NPCs are fought anyway
+    void anNpcAnotherPlayerShootsOrTheServerGreysIsSomebodyElses() {
+        // another player's laser on it makes it his (DarkBot's isAttacked; the user's choice 2026-11-26), till he stops;
+        // the server's LSH says so too, its USH frees it again; cubes and group NPCs are fought anyway
         Sim sim = new Sim(config(false, null, Set.of()), 1, 10_500, 6_000);
         sim.npc(77, "-=[ Target ]=-", 10_000, 6_000);
         otherPlayerShoots(sim, 900, 77);
-        assertEquals(77, orbit.bot.mod.Targets.best(sim.config, sim.world.snapshot(sim.now), 10_000).id(), "no grey: ours");
+        assertTrue(orbit.bot.mod.Targets.best(sim.config, sim.world.snapshot(sim.now), 10_000) == null, "shot by another");
+        orbit.protocol.gen.AttackAbortLaserCommand stop = new orbit.protocol.gen.AttackAbortLaserCommand();
+        stop.uid = 900;
+        sim.world.apply(stop, sim.now);
+        assertEquals(77, orbit.bot.mod.Targets.best(sim.config, sim.world.snapshot(sim.now), 10_000).id(), "he stopped: ours");
         orbit.protocol.gen.LegacyModule grey = new orbit.protocol.gen.LegacyModule();
         grey.message = "0|n|LSH|77|900";
         sim.world.apply(grey, sim.now);

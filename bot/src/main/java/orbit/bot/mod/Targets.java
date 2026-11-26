@@ -101,6 +101,9 @@ public final class Targets {
         return w.ships().values().stream()
                 .filter(s -> attackable(c, s, h.mapId()))
                 .filter(s -> !taken(c, w, s))
+                // another player is shooting it (DarkBot's isAttacked), or another account of this program fights it:
+                // not ours (the server greys it only after the first shots) — unless its rule fights it anyway
+                .filter(s -> ownerIgnored(c, w, s) || !shotByOther(w, s) && !TargetClaims.claimedByOther(h.mapId(), s.id()))
                 .filter(s -> !passiveIdle(c, w, s))
                 .filter(s -> !skip.test(s))
                 .filter(s -> s.distanceTo(h.x(), h.y()) <= maxDistance)
@@ -121,6 +124,28 @@ public final class Targets {
         }
         WorldSnapshot.Hero h = w.hero();
         return s.attackTargetId() != h.id() && !h.attackers().contains(s.id());
+    }
+
+    /**
+     * A player not of the ship's group, or such a player's pet, is shooting the NPC ({@code AttackLaserRunCommand} with it
+     * as the target, till the {@code AttackAbortLaserCommand}).
+     */
+    public static boolean shotByOther(WorldSnapshot w, WorldSnapshot.Ship npc) {
+        WorldSnapshot.Hero h = w.hero();
+        java.util.Set<Integer> group = new java.util.HashSet<>();
+        if (w.group() != null) {
+            w.group().members().forEach(m -> group.add(m.id()));
+        }
+        for (WorldSnapshot.Ship o : w.ships().values()) {
+            if (o.id() == h.id() || o.id() == h.petId() || o.attackTargetId() != npc.id()) {
+                continue;
+            }
+            if (o.kind() == WorldSnapshot.ShipKind.PLAYER && !group.contains(o.id())
+                    || o.kind() == WorldSnapshot.ShipKind.PET && o.ownerId() != h.id() && !group.contains(o.ownerId())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** The NPC's rule fights it whoever hit first or attacks it ({@code IGNORE_OWNERSHIP}, {@code IGNORE_ATTACKED}). */

@@ -675,6 +675,11 @@ public final class Attacker {
         if (s.id() == targetId) {
             return;
         }
+        int map = ctx.world().get().hero().mapId();
+        if (targetId != 0) {
+            TargetClaims.release(map, targetId);
+        }
+        TargetClaims.claim(map, s.id());
         targetId = s.id();
         targetName = s.name();
         ammoTries = 0; // a new target: the switches start counting afresh
@@ -713,6 +718,9 @@ public final class Attacker {
     public void clear() {
         if (fight.active()) {
             fight.end(endReason, ctx.now());
+        }
+        if (targetId != 0) {
+            TargetClaims.release(ctx.world().get().hero().mapId(), targetId);
         }
         targetId = 0;
         targetRule = null;
@@ -795,6 +803,7 @@ public final class Attacker {
         WorldSnapshot w = ctx.world().get();
         settle(w, ctx.now());
         WorldSnapshot.Hero h = w.hero();
+        TargetClaims.claim(h.mapId(), targetId); // still ours: the other accounts keep off it
         WorldSnapshot.Ship t = w.ships().get(targetId);
         if (t == null && !shotAt && w.destroyed().containsKey(targetId) && seenAt != 0
                 && Math.hypot(h.x() - seenX, h.y() - seenY) <= KILL_NEAR) {
