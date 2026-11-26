@@ -30,6 +30,9 @@ public final class QuestsAlongside {
     private Quests lastQuests;
     private int lastMap;
     private BotConfig lastOut;
+    private long lastAt = Long.MIN_VALUE / 2;
+    /** The quests and the map change slowly: the world is looked at no more often than this for the same config. */
+    static final long RECHECK_NANOS = 250_000_000L;
 
     public QuestsAlongside(BotContext ctx) {
         this.ctx = ctx;
@@ -60,6 +63,15 @@ public final class QuestsAlongside {
 
     /** The module's config with the quests' extras: cargo boxes picked while a cargo condition is open. */
     public BotConfig adjust(BotConfig c) {
+        if (!on(c)) {
+            // modules ask their config many times a tick: a world snapshot each time cost most of a core (2026-11-26)
+            return c;
+        }
+        long now = ctx.now();
+        if (c == lastIn && now - lastAt < RECHECK_NANOS) {
+            return lastOut;
+        }
+        lastAt = now;
         WorldSnapshot w = ctx.world().get();
         Quests q = w.quests();
         int map = w.hero().mapId();
