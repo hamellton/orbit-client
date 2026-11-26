@@ -270,6 +270,47 @@ final class LevelWatch {
      * ECO-10 left, {@link #ECO_AMOUNT} are bought in the shop from the credits above the plan's reserve (ammunition, like the
      * lasers' — not held back for the equipment). The launcher CPU fires them; the config selects ECO-10.
      */
+    static final String AROL = "equipment_extra_cpu_arol-x";
+    static final String RLLB = "equipment_extra_cpu_rllb-x";
+    /** The game session the CPUs were last switched on in, per account (each login is a new one). */
+    private static final java.util.Map<String, Object> CPUS_ON = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /**
+     * The rocket CPUs fitted (AROL-X auto rockets, RLLB-X the launcher's auto load) are switched on once per game session —
+     * the client's {@code ActivationStatedRequest} (type 0 auto rocket, 1 rocket launcher CPU, the state given, not a
+     * toggle); a user's choice 2026-11-26: they were bought but never on.
+     */
+    private static void cpus(GameConnection conn, AccountState state, String account) {
+        Object session = conn.session();
+        if (session == null || session == CPUS_ON.get(account)) {
+            return;
+        }
+        boolean arol = fittedAnywhere(state, AROL);
+        boolean rllb = fittedAnywhere(state, RLLB);
+        if (!arol && !rllb) {
+            return;
+        }
+        CPUS_ON.put(account, session);
+        if (arol) {
+            send(conn, orbit.protocol.gen.ActivationStatedRequest.ACTIVATIONTYPE_AUTOROCKET);
+        }
+        if (rllb) {
+            send(conn, orbit.protocol.gen.ActivationStatedRequest.ACTIVATIONTYPE_ROCKET_LAUNCHER_CPU);
+        }
+        LOG.info("процессоры: включаю{}{}", arol ? " автопуск ракет (AROL-X)" : "", rllb ? " автозарядку ракетомёта (RLLB-X)" : "");
+    }
+
+    private static void send(GameConnection conn, int type) {
+        orbit.protocol.gen.ActivationStatedRequest r = new orbit.protocol.gen.ActivationStatedRequest();
+        r.activationType = (short) type;
+        r.active = true;
+        conn.send(r);
+    }
+
+    private static boolean fittedAnywhere(AccountState state, String loot) {
+        return state.fitted().values().stream().anyMatch(c -> c.values().stream().anyMatch(l -> l.contains(loot)));
+    }
+
     private static void launcherRockets(AuthClient auth, String origin, AccountState state, LevelPlan plan, WorldFeed feed)
             throws InterruptedException {
         boolean launcher = state.fitted().values().stream().anyMatch(c -> c.getOrDefault("heavy_guns", java.util.List.of())
@@ -569,6 +610,7 @@ final class LevelWatch {
         }
         auction(auth, session.host(), state, plan);
         launcherRockets(auth, session.host(), state, plan, feed);
+        cpus(conn, state, account);
         skylab(auth, session.host(), state, plan, advice, feed);
         if (logShape && hangar != null) {
             LOG.info("поля getHangar по конфигам (без значений): {}", hangar.shape());

@@ -585,6 +585,10 @@ public final class World {
                 log.warn("{} (чёрных {}, красных {}, круг у {}/{} радиусом {})", boxCheck.text(nanos), p.blackBox, p.redBox,
                         p.posX / 100, p.posY / 100, p.Radius);
             }
+            case orbit.protocol.gen.CPUInfoAutoRocketCommand p ->
+                    log.info("Сервер: автопуск ракет (AROL-X) {}", p.isActive ? "включён" : "выключен");
+            case orbit.protocol.gen.CPUInfoAutoRocketLauncherCommand p ->
+                    log.info("Сервер: автозарядка ракетомёта (RLLB-X) {}", p.active ? "включена" : "выключена");
             case orbit.protocol.gen.CaptchaResolvedCommand p -> {
                 log.warn("Проверка с ящиками пройдена");
                 boxCheck = null;

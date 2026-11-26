@@ -147,9 +147,13 @@ public final class SiteHangars {
     }
 
     static final String EXTENDER = "equipment_extra_cpu_sle-0";
+    /** Places each slot extender frees for extras (the game's item texts: SLE-02 4, SLE-03 6, SLE-04 10). */
+    static final Map<String, Integer> EXTENDER_SLOTS = Map.of(EXTENDER + "1", 2, EXTENDER + "2", 4, EXTENDER + "3", 6,
+            EXTENDER + "4", 10);
 
     /**
-     * The extras slots with the slot extender's: SLE-0N owned (fitted or spare) adds N to the ship's {@code extras} — the site
+     * The extras slots with the slot extender's: the best SLE owned (fitted or spare) adds its places
+     * ({@link #EXTENDER_SLOTS}) to the ship's {@code extras} — the site
      * lists the ship's own (live 2026-11-26 on int1: a G-Bastion «extras Q 3» with SLE-02 took a fourth and a fifth CPU,
      * AROL-X and RLLB-X, out of the game).
      */
@@ -161,9 +165,7 @@ public final class SiteHangars {
         java.util.List<String> all = new java.util.ArrayList<>(hangar.spare().keySet());
         hangar.fitted().values().forEach(sets -> sets.values().forEach(all::addAll));
         for (String loot : all) {
-            if (loot.startsWith(EXTENDER) && loot.length() == EXTENDER.length() + 1) {
-                best = Math.max(best, loot.charAt(EXTENDER.length()) - '0');
-            }
+            best = Math.max(best, EXTENDER_SLOTS.getOrDefault(loot, 0));
         }
         if (best <= 0) {
             return slots;
