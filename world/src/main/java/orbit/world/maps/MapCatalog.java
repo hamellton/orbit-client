@@ -56,6 +56,8 @@ public final class MapCatalog {
     private final String portalSource;
     /** Maps showing another map's minimap picture (maps-config {@code minimap}: the escort maps all 430's). */
     private Map<Integer, Integer> minimaps = Map.of();
+    /** Map pairs {@code from → to} with no portal at all ({@code noWay} of portals.json): never learned, never used. */
+    private java.util.Set<Long> noWay = java.util.Set.of();
 
     private MapCatalog(Map<Integer, MapInfo> maps, Map<Integer, List<Portal>> portals, String portalSource) {
         this.maps = maps;
@@ -101,6 +103,11 @@ public final class MapCatalog {
         MapCatalog c = new MapCatalog(Collections.unmodifiableMap(maps), Map.copyOf(portals),
                 pj.path("source").asText() + " @ " + pj.path("commit").asText());
         c.minimaps = Map.copyOf(minimaps);
+        java.util.Set<Long> none = new java.util.HashSet<>();
+        for (JsonNode n : pj.path("noWay")) {
+            none.add(pair(n.path("from").asInt(), n.path("to").asInt()));
+        }
+        c.noWay = java.util.Set.copyOf(none);
         return c;
     }
 
@@ -136,6 +143,15 @@ public final class MapCatalog {
     }
 
     /** Known portals of a map (empty for gates and instances): the bundled ones and those learned here. */
+    private static long pair(int from, int to) {
+        return ((long) from << 32) | (to & 0xffffffffL);
+    }
+
+    /** No portal leads from {@code from} to {@code to} (portals.json {@code noWay}): a learned one there is a mistake. */
+    public boolean noWay(int from, int to) {
+        return noWay.contains(pair(from, to));
+    }
+
     public List<Portal> portals(int mapId) {
         List<Portal> base = portals.getOrDefault(mapId, List.of());
         List<Portal> extra = learned.get(mapId);
@@ -161,6 +177,10 @@ public final class MapCatalog {
                 for (JsonNode m : JSON.readTree(file.toFile()).path("maps")) {
                     List<Portal> list = new ArrayList<>();
                     for (JsonNode p : m.path("portals")) {
+                        // learned before the facts said there is no such way (5-1 → 4-5 guessed as a way back)
+                        if (noWay(m.get("id").asInt(), p.path("toId").asInt())) {
+                            continue;
+                        }
                         list.add(new Portal(p.get("x").asInt(), p.get("y").asInt(), p.get("toId").asInt(),
                                 p.path("to").asText(), p.path("faction").asInt()));
                     }
@@ -177,7 +197,7 @@ public final class MapCatalog {
      * portal there. True when new.
      */
     public synchronized boolean learn(int from, int x, int y, int to, int faction) {
-        if (from <= 0 || to <= 0 || from == to || portalNear(from, x, y, 400) != null) {
+        if (from <= 0 || to <= 0 || from == to || noWay(from, to) || portalNear(from, x, y, 400) != null) {
             return false;
         }
         List<Portal> list = new ArrayList<>(learned.getOrDefault(from, List.of()));

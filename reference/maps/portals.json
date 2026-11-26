@@ -3,6 +3,9 @@
  "repository": "https://github.com/darkbot-reloaded/DarkBot",
  "commit": "73487ac6bb9cb6061f61a32d331a645fa53c281f",
  "corrections": "5-2: the server shows no 5-4 portals; its right-hand portals lead to 5-1 (live ru1 2026-11-12, the user)",
+ "noWay": [
+  {"from": 91, "to": 29, "why": "5-1 has no portal to 4-5: the three 4-5 portals to 5-1 are one-way (seen live 2026-11-26)"}
+ ],
  "maps": [
   {
    "id": 1,

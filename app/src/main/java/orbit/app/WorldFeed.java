@@ -144,13 +144,6 @@ public final class WorldFeed {
 
     /** The map left by the last jump, until the ship appears on the next one. */
     private volatile int jumpedFrom;
-    /**
-     * Arrived by a jump at a spot the data has no way back from: {map, x, y, from map}. Learned as a portal only when the
-     * server shows a gate there ({@link #BACK_GATE_NEAR}) — a jump CPU lands at the station, not at a portal (live
-     * 2026-11-14 on the VPS: 2-8's repair dock learned as a portal to 3-BL; the ship stood on it till the server kicked it).
-     */
-    private volatile int[] backPortal;
-    static final double BACK_GATE_NEAR = 600;
 
     public WorldFeed(String mode) {
         this(mode, null);
@@ -299,15 +292,9 @@ public final class WorldFeed {
             case ShipInitializationCommand si -> {
                 String where = maps.info(si.mapId).name();
                 log.info("Корабль {} на карте {} ({}/{})", si.userName, where, si.x / 100, si.y / 100);
-                // arrived by a portal: the ship stands at the portal leading back; the data may not have it
-                // (5-1 → 4-5, live 2026-11-12)
-                int from = jumpedFrom;
+                // no portal is learned as the way back from where the ship arrived: a portal does not always have one
+                // (the three 4-5 portals to 5-1: none back, the guess sent the ship to them again and again, 2026-11-26)
                 jumpedFrom = 0;
-                // not in or out of a galaxy gate: its portals differ by gate and stage, and the stage's portal stands
-                // by the arrival (live 2026-11-15 on gb2: GG β's way on was learned as "to 3-1")
-                boolean gate = orbit.config.GateCatalog.instanced(si.mapId) || orbit.config.GateCatalog.instanced(from);
-                backPortal = !gate && from > 0 && from != si.mapId && maps.portals(si.mapId).stream().noneMatch(pt -> pt.toId() == from)
-                        ? new int[] {si.mapId, si.x, si.y, from} : null;
                 if (!mode.startsWith("бот")) {
                     state = "В игре: " + where;
                 }
@@ -330,16 +317,6 @@ public final class WorldFeed {
                                         g.x() / 100, g.y() / 100, maps.info(j.mapId).name());
                             }
                         });
-            }
-            case orbit.protocol.gen.JumpgateCreateCommand jg when backPortal != null
-                    && backPortal[0] == world.snapshot(now()).hero().mapId()
-                    && Math.hypot(jg.x - backPortal[1], jg.y - backPortal[2]) <= BACK_GATE_NEAR -> {
-                int[] b = backPortal;
-                backPortal = null;
-                if (maps.learn(b[0], jg.x, jg.y, b[3], jg.factionId)) {
-                    log.info("Запомнил портал: {} ({}/{}) ведёт на {} (обратный)", maps.info(b[0]).name(), jg.x / 100,
-                            jg.y / 100, maps.info(b[3]).name());
-                }
             }
             // a gate's or event map's portal by its type, as DarkBot knows them
             case orbit.protocol.gen.JumpgateCreateCommand jg when orbit.world.maps.PortalTypes.gate(jg.designId) != null

@@ -126,6 +126,24 @@ class MapCatalogTest {
     }
 
     @org.junit.jupiter.api.Test
+    void noPortalLeadsFrom51BackTo45(@org.junit.jupiter.api.io.TempDir java.nio.file.Path dir) throws Exception {
+        // a file of an older build: the arrival spot on 5-1 learned as a way back to 4-5
+        java.nio.file.Path file = dir.resolve("portals-learned.json");
+        java.nio.file.Files.writeString(file, """
+                {"maps": [{"id": 91, "name": "5-1", "portals": [{"x": 2000, "y": 13500, "to": "4-5", "toId": 29}]}]}
+                """);
+        MapCatalog c;
+        try (var m = MapCatalog.class.getResourceAsStream("maps.json"); var p = MapCatalog.class.getResourceAsStream("portals.json")) {
+            c = MapCatalog.parse(m, p);
+        }
+        c.useLearned(file);
+        org.junit.jupiter.api.Assertions.assertTrue(c.noWay(91, 29));
+        org.junit.jupiter.api.Assertions.assertTrue(c.portals(91).stream().noneMatch(p -> p.toId() == 29), "dropped on load");
+        org.junit.jupiter.api.Assertions.assertFalse(c.learn(91, 2_000, 13_500, 29, 0), "never learned again");
+        org.junit.jupiter.api.Assertions.assertTrue(c.portals(29).stream().anyMatch(p -> p.toId() == 91), "4-5 → 5-1 stays");
+    }
+
+    @org.junit.jupiter.api.Test
     void aPortalJumpedThroughIsLearnedAndKept(@org.junit.jupiter.api.io.TempDir java.nio.file.Path dir) throws Exception {
         java.nio.file.Path file = dir.resolve("portals-learned.json");
         MapCatalog c;
