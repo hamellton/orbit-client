@@ -333,6 +333,29 @@ final class AccountView extends JPanel {
                         })));
             });
             actions.add(hand);
+            JButton watch = new JButton("Смотреть");
+            watch.setToolTipText("Официальный клиент показывает, как играет бот; нажимать там ничего нельзя — нажатия никуда"
+                    + " не идут, бот играет как обычно");
+            watch.addActionListener(e -> {
+                if (orbit.app.HandPlay.watching(handAccount)) {
+                    orbit.app.HandPlay.stopWatch(handAccount);
+                    return;
+                }
+                watch.setEnabled(false);
+                Thread.ofVirtual().start(() -> orbit.app.HandPlay.watch(handAccount, msg ->
+                        javax.swing.SwingUtilities.invokeLater(() -> {
+                            boolean on = orbit.app.HandPlay.watching(handAccount);
+                            watch.setEnabled(true);
+                            watch.setText(on ? "Закрыть клиент" : "Смотреть");
+                            watch.setToolTipText(msg);
+                            if (msg.startsWith("клиент закрыт")) {
+                                return;
+                            }
+                            javax.swing.JOptionPane.showMessageDialog(watch, msg, "Смотреть",
+                                    javax.swing.JOptionPane.INFORMATION_MESSAGE);
+                        })));
+            });
+            actions.add(watch);
         }
         JButton totalsWin = new JButton("Итоги");
         totalsWin.setToolTipText("Итоги подробно: что подобрано по видам (ящики бегемота, инвоков, другие, руда),"

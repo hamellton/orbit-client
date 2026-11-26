@@ -99,8 +99,8 @@ public final class HandPlay {
             status.accept("нет игровой сессии — сначала бот должен войти в игру");
             return;
         }
-        if (!PLAYING.isEmpty()) {
-            status.accept("руками уже играется другой аккаунт — сначала закрой его клиент");
+        if (!PLAYING.isEmpty() || !WATCHING.isEmpty()) {
+            status.accept("клиент уже открыт для другого аккаунта (порты игры одни) — сначала закрой его");
             return;
         }
         Path app = clientApp();
@@ -146,20 +146,9 @@ public final class HandPlay {
         }
         conn.hold();
         LOG.info("Играть руками: игра отдана официальному клиенту, бот на паузе; запись — {}", dir);
-        Path profile = Path.of("local", "client-profile-" + account.replaceAll("[^\\w.-]", "_")).toAbsolutePath();
-        List<String> cmd = List.of(app.resolve("Contents/MacOS/DarkOrbit Client").toString(),
-                "--proxy-server=socks5://127.0.0.1:" + relay.socksPort(),
-                "--proxy-bypass-list=<-loopback>",
-                "--host-resolver-rules=MAP *.prod.darkorbit.com 127.0.0.1",
-                "--user-data-dir=" + profile,
-                "--url=" + session.host() + "/indexInternal.es?action=internalMapRevolution",
-                "--dosid=" + session.dosid());
         Process process;
         try {
-            ProcessBuilder pb = new ProcessBuilder(cmd).redirectErrorStream(true)
-                    .redirectOutput(ProcessBuilder.Redirect.DISCARD);
-            pb.environment().remove("ELECTRON_RUN_AS_NODE");
-            process = pb.start();
+            process = launch(app, account, relay.socksPort(), session);
         } catch (IOException e) {
             relay.close();
             conn.release();
@@ -195,6 +184,131 @@ public final class HandPlay {
                 status.accept("клиент закрыт — бот входит снова");
             }
         });
+    }
+
+    /**
+     * The official client with the account's site session ({@code --url} the game page, {@code --dosid}), its own profile
+     * folder, the site through the relay's SOCKS5 port and the game hosts mapped to loopback.
+     */
+    static Process launch(Path app, String account, int socksPort, GameSession session) throws IOException {
+        Path profile = Path.of("local", "client-profile-" + account.replaceAll("[^\\w.-]", "_")).toAbsolutePath();
+        List<String> cmd = List.of(app.resolve("Contents/MacOS/DarkOrbit Client").toString(),
+                "--proxy-server=socks5://127.0.0.1:" + socksPort,
+                "--proxy-bypass-list=<-loopback>",
+                "--host-resolver-rules=MAP *.prod.darkorbit.com 127.0.0.1",
+                "--user-data-dir=" + profile,
+                "--url=" + session.host() + "/indexInternal.es?action=internalMapRevolution",
+                "--dosid=" + session.dosid());
+        ProcessBuilder pb = new ProcessBuilder(cmd).redirectErrorStream(true).redirectOutput(ProcessBuilder.Redirect.DISCARD);
+        pb.environment().remove("ELECTRON_RUN_AS_NODE");
+        return pb.start();
+    }
+
+    private static final Map<String, Process> WATCHING = new ConcurrentHashMap<>();
+
+    /** The account's bot is watched in the official client now. */
+    public static boolean watching(String account) {
+        return account != null && WATCHING.containsKey(account);
+    }
+
+    /**
+     * «Смотреть» (docs/PLAN.md, a user's wish 2026-11-26): the official client shows the bot's game and can change nothing.
+     * The bot plays on, untouched; the client's game sockets meet the app's {@link MirrorServer} (the bot's login, then the
+     * server's packets to the bot live, the client's own packets dropped), its site pages go through the account's proxy,
+     * the game hosts refused there.
+     */
+    public static synchronized void watch(String account, Consumer<String> status) {
+        Handle h = ACCOUNTS.get(account);
+        if (h == null) {
+            status.accept("этот аккаунт не запущен ботом в этой программе");
+            return;
+        }
+        if (WATCHING.containsKey(account)) {
+            status.accept("уже смотришь — закрой клиент");
+            return;
+        }
+        if (!PLAYING.isEmpty() || !WATCHING.isEmpty()) {
+            status.accept("клиент уже открыт для другого аккаунта (порты игры одни) — сначала закрой его");
+            return;
+        }
+        GameConnection conn = h.conn().get();
+        GameSession session = conn == null ? null : conn.session();
+        if (session == null || session.dosid() == null || session.host() == null || !h.feed().mirror().ready()) {
+            status.accept("бот ещё не в игре — подожди входа");
+            return;
+        }
+        Path app = clientApp();
+        if (app == null) {
+            status.accept("не нашёл DarkOrbit Client.app (задай ORBIT_CLIENT_APP)");
+            return;
+        }
+        List<Integer> ports = new ArrayList<>(GAME_PORTS);
+        if (!ports.contains(session.gamePort())) {
+            ports.add(session.gamePort());
+        }
+        for (int port : ports) {
+            if (!free(port)) {
+                status.accept("порт " + port + " занят (запущен сниффер?) — закрой его и попробуй снова");
+                return;
+            }
+        }
+        HandRelay relay;
+        MirrorServer mirror;
+        try {
+            if (!h.route().direct()) {
+                h.route().verify();
+            }
+            Upstream up = h.route().direct() ? Upstream.DIRECT
+                    : (host, port) -> h.route().connector().open(host, port, 15_000);
+            relay = HandRelay.siteOnly(Path.of("recordings"), up);
+            try {
+                mirror = new MirrorServer(h.feed().mirror(), h.feed()::snapshot, ports);
+            } catch (IOException e) {
+                relay.close();
+                throw e;
+            }
+        } catch (IOException | orbit.auth.AuthException | RuntimeException e) {
+            status.accept("зеркало не запустилось: " + e.getMessage());
+            return;
+        }
+        Process process;
+        try {
+            process = launch(app, account, relay.socksPort(), session);
+        } catch (IOException e) {
+            relay.close();
+            mirror.close();
+            status.accept("клиент не запустился: " + e.getMessage());
+            return;
+        }
+        WATCHING.put(account, process);
+        LOG.info("Смотреть: официальный клиент показывает игру бота, нажатия клиента в игру не идут");
+        status.accept("смотришь игру бота — нажатия клиента никуда не идут; закрой клиент, когда хватит");
+        Map<String, String> ctx = org.slf4j.MDC.getCopyOfContextMap();
+        Thread.ofPlatform().daemon().name("watch-" + account).start(() -> {
+            if (ctx != null) {
+                org.slf4j.MDC.setContextMap(ctx);
+            }
+            try {
+                process.waitFor();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            } finally {
+                relay.close();
+                mirror.close();
+                WATCHING.remove(account);
+                LOG.info("Смотреть: клиент закрыт");
+                status.accept("клиент закрыт");
+            }
+        });
+    }
+
+    /** Ends the watching: the client is closed. */
+    public static void stopWatch(String account) {
+        Process p = WATCHING.get(account);
+        if (p != null) {
+            p.toHandle().descendants().forEach(ProcessHandle::destroy);
+            p.destroy();
+        }
     }
 
     /** Ends the hand play: the client is closed, the bot logs in again. */

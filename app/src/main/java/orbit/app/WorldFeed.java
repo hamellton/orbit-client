@@ -249,9 +249,16 @@ public final class WorldFeed {
     }
 
     private final PacketJournal journal = new PacketJournal();
+    private final MirrorCapture mirror = new MirrorCapture();
+
+    /** The bot's login and live packets for a watching client («Смотреть»). */
+    public MirrorCapture mirror() {
+        return mirror;
+    }
 
     public void onPacket(Packet p, long nanos) {
         journal.add(false, p);
+        mirror.incoming(p);
         deluxe.onPacket(p);
         if (learnNpcMaps && p instanceof orbit.protocol.gen.ShipCreateCommand c && c.npc) {
             orbit.world.maps.NpcMaps.shared().learn(world.snapshot(nanos).hero().mapId(), c.userName);
@@ -378,6 +385,7 @@ public final class WorldFeed {
 
     public void onSent(Packet p, long nanos) {
         journal.add(true, p);
+        mirror.outgoing(p);
         world.applyOutgoing(p, nanos);
     }
 

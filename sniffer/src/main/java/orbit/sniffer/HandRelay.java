@@ -46,6 +46,35 @@ public final class HandRelay implements AutoCloseable {
         }
     }
 
+    private HandRelay() {
+    }
+
+    /**
+     * Only the site's SOCKS5 port, the game hosts refused (the watching client: its game sockets go to the app's mirror,
+     * nothing of it may reach the game server).
+     */
+    public static HandRelay siteOnly(Path recordDir, Upstream upstream) throws IOException {
+        HandRelay r = new HandRelay();
+        Upstream noGame = (host, port) -> {
+            if (GAME_TARGET.matcher(host + ":" + port).matches()) {
+                throw new IOException("игровой сервер закрыт для зеркала: " + host + ":" + port);
+            }
+            return upstream.open(host, port);
+        };
+        Socks5Server socks = new Socks5Server(0, recordDir, t -> false, noGame, null, true);
+        ServerSocket ss = socks.bind();
+        r.sockets.add(ss);
+        r.socksPort = ss.getLocalPort();
+        Thread.ofVirtual().name("mirror-socks").start(() -> {
+            try {
+                socks.serve(ss);
+            } catch (IOException e) {
+                // closed
+            }
+        });
+        return r;
+    }
+
     /** The SOCKS5 port for the client's {@code --proxy-server}. */
     public int socksPort() {
         return socksPort;
