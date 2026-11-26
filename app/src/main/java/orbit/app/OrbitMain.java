@@ -645,6 +645,8 @@ public final class OrbitMain {
         java.util.concurrent.atomic.AtomicReference<java.util.function.Consumer<String>> switcher =
                 new java.util.concurrent.atomic.AtomicReference<>();
         java.util.concurrent.atomic.AtomicReference<GameConnection> currentConn = new java.util.concurrent.atomic.AtomicReference<>();
+        // «Играть руками»: the window hands this account's game to the official client and back
+        HandPlay.register(accountName, currentConn::get, feed::runner, rig.route(), feed);
         // the account's site of the last game session (the hangars are switched there between sessions)
         java.util.concurrent.atomic.AtomicReference<String> lastHost = new java.util.concurrent.atomic.AtomicReference<>();
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {

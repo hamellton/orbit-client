@@ -28,10 +28,22 @@ final class DirectForwarder {
     private final List<Integer> ports;
     private final Path recordDir;
 
+    private final Upstream upstreamWay;
+    private final PacketTap tap;
+    private final boolean quiet;
+
     DirectForwarder(String upstreamIp, List<Integer> ports, Path recordDir) {
+        this(upstreamIp, ports, recordDir, Upstream.DIRECT, null, false);
+    }
+
+    DirectForwarder(String upstreamIp, List<Integer> ports, Path recordDir, Upstream upstreamWay, PacketTap tap,
+                    boolean quiet) {
         this.upstreamIp = upstreamIp;
         this.ports = List.copyOf(ports);
         this.recordDir = recordDir;
+        this.upstreamWay = upstreamWay;
+        this.tap = tap;
+        this.quiet = quiet;
     }
 
     /** Parses {@code "6001-6007"} or {@code "6003,6005"} into a list of ports. */
@@ -82,11 +94,10 @@ final class DirectForwarder {
 
     private void handle(Socket client, int port) {
         String target = upstreamIp + ":" + port;
-        try (client; Socket server = new Socket()) {
+        try (client; Socket server = upstreamWay.open(upstreamIp, port)) {
             client.setTcpNoDelay(true);
             server.setTcpNoDelay(true);
-            server.connect(new InetSocketAddress(upstreamIp, port), 15_000);
-            new GameRelay(client, server, target, recordDir).run();
+            new GameRelay(client, server, target, recordDir, tap, quiet).run();
         } catch (IOException e) {
             log.warn("Не удалось переслать соединение на {}: {}", target, e.getMessage());
         }

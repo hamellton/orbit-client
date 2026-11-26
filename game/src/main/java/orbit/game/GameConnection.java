@@ -143,6 +143,43 @@ public final class GameConnection implements AutoCloseable {
         closeSocket();
     }
 
+    /** The hand play (docs/PLAN.md «Играть руками»): the connection let go without a logout, no login till released. */
+    private volatile boolean holdAsked;
+    private final Object holdLock = new Object();
+
+    /**
+     * Lets the game go to the official client: the socket is closed without a logout (the ship stays on its map, the
+     * client logs in with the same site session) and nothing logs in again until {@link #release()}.
+     */
+    public void hold() {
+        if (closed.get()) {
+            return;
+        }
+        holdAsked = true;
+        closeSocket();
+    }
+
+    /** The hand play is over: a login by the saved site session, as after a planned new login. */
+    public void release() {
+        synchronized (holdLock) {
+            holdAsked = false;
+            holdLock.notifyAll();
+        }
+    }
+
+    /** The connection is let go to the official client. */
+    public boolean held() {
+        return holdAsked;
+    }
+
+    private void awaitRelease() throws InterruptedException {
+        synchronized (holdLock) {
+            while (holdAsked && !closed.get()) {
+                holdLock.wait(1_000);
+            }
+        }
+    }
+
     private volatile String trouble;
 
     /** Why the server's sign of trouble ended this connection for good, or {@code null}. */
@@ -368,6 +405,12 @@ public final class GameConnection implements AutoCloseable {
         int maintenance = 0; // logins in a row that met the site's maintenance page
         try {
             while (!closed.get()) {
+                if (holdAsked) {
+                    // let go between two logins: wait here as well, the client has the game
+                    awaitRelease();
+                    session = null;
+                    continue;
+                }
                 if (session == null) {
                     listener.onState(GameListener.State.AUTHENTICATING, "Вход на сайт");
                     try {
@@ -429,6 +472,18 @@ public final class GameConnection implements AutoCloseable {
                 } catch (IOException | ProtocolException e) {
                     if (closed.get()) {
                         break;
+                    }
+                    if (holdAsked) {
+                        log.info("Игра отдана клиенту — жду, пока его закроют");
+                        listener.onState(GameListener.State.RECONNECTING, "Играешь руками в клиенте");
+                        awaitRelease();
+                        if (closed.get()) {
+                            break;
+                        }
+                        failures = 0;
+                        log.info("Клиент закрыт — вход заново");
+                        session = null;
+                        continue;
                     }
                     if (refreshAsked) {
                         refreshAsked = false;

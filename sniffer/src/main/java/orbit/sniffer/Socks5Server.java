@@ -25,10 +25,22 @@ final class Socks5Server {
     private final Path recordDir;
     private final Predicate<String> isGameTarget;
 
+    private final Upstream upstreamWay;
+    private final PacketTap tap;
+    private final boolean quiet;
+
     Socks5Server(int port, Path recordDir, Predicate<String> isGameTarget) {
+        this(port, recordDir, isGameTarget, Upstream.DIRECT, null, false);
+    }
+
+    /** @param upstreamWay how to reach the target (an account's proxy); {@code tap}/{@code quiet} as {@link GameRelay} */
+    Socks5Server(int port, Path recordDir, Predicate<String> isGameTarget, Upstream upstreamWay, PacketTap tap, boolean quiet) {
         this.port = port;
         this.recordDir = recordDir;
         this.isGameTarget = isGameTarget;
+        this.upstreamWay = upstreamWay;
+        this.tap = tap;
+        this.quiet = quiet;
     }
 
     void serve() throws IOException {
@@ -94,9 +106,8 @@ final class Socks5Server {
 
             String target = host + ":" + dstPort;
             try {
-                upstream = new Socket();
+                upstream = upstreamWay.open(host, dstPort);
                 upstream.setTcpNoDelay(true);
-                upstream.connect(new InetSocketAddress(host, dstPort), 15_000);
             } catch (IOException e) {
                 reply(out, 5); // connection refused
                 log.warn("Не удалось подключиться к {}: {}", target, e.getMessage());
@@ -105,9 +116,13 @@ final class Socks5Server {
             reply(out, 0);
 
             if (isGameTarget.test(target)) {
-                new GameRelay(client, upstream, target, recordDir).run();
+                new GameRelay(client, upstream, target, recordDir, tap, quiet).run();
             } else {
-                log.info("Туннель к {}", target);
+                if (quiet) {
+                    log.debug("Туннель к {}", target);
+                } else {
+                    log.info("Туннель к {}", target);
+                }
                 pipe(client, upstream);
             }
         } catch (IOException e) {

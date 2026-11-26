@@ -308,6 +308,32 @@ final class AccountView extends JPanel {
         packetsWin.setToolTipText("Пакеты игры этого аккаунта вживую — от сервера и от бота, с фильтром и сохранением");
         packetsWin.addActionListener(e -> PacketWindow.open(tab.feed()));
         actions.add(packetsWin);
+        String handAccount = tab.feed().account();
+        if (handAccount != null) {
+            JButton hand = new JButton("Играть руками");
+            hand.setToolTipText("Отдать игру официальному клиенту той же сессией (без выхода), бот на паузе; пакеты — в окне"
+                    + " «Пакеты» и в запись recordings/hand-…; закроешь клиент — бот войдёт снова");
+            hand.addActionListener(e -> {
+                if (orbit.app.HandPlay.active(handAccount)) {
+                    orbit.app.HandPlay.stop(handAccount);
+                    return;
+                }
+                hand.setEnabled(false);
+                Thread.ofVirtual().start(() -> orbit.app.HandPlay.start(handAccount, msg ->
+                        javax.swing.SwingUtilities.invokeLater(() -> {
+                            boolean on = orbit.app.HandPlay.active(handAccount);
+                            hand.setEnabled(true);
+                            hand.setText(on ? "Вернуть боту" : "Играть руками");
+                            hand.setToolTipText(msg);
+                            if (on) {
+                                PacketWindow.open(tab.feed());
+                            }
+                            javax.swing.JOptionPane.showMessageDialog(hand, msg, "Играть руками",
+                                    javax.swing.JOptionPane.INFORMATION_MESSAGE);
+                        })));
+            });
+            actions.add(hand);
+        }
         JButton totalsWin = new JButton("Итоги");
         totalsWin.setToolTipText("Итоги подробно: что подобрано по видам (ящики бегемота, инвоков, другие, руда),"
                 + " добыча, доход и дела — за сессию, в час и за сегодня — в отдельном окне");

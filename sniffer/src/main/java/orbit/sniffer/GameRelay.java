@@ -43,11 +43,22 @@ final class GameRelay {
     private volatile byte[] sessionSecret;
     private final Stats stats = new Stats();
 
+    /** Receives this relay's packets instead of the registered taps ({@code null}: {@link PacketTap#TAPS}). */
+    private final PacketTap tap;
+    /** No line per packet in the log (the app's hand play: the packets go to the account's window). */
+    private final boolean quiet;
+
     GameRelay(Socket client, Socket server, String target, Path recordDir) {
+        this(client, server, target, recordDir, null, false);
+    }
+
+    GameRelay(Socket client, Socket server, String target, Path recordDir, PacketTap tap, boolean quiet) {
         this.client = client;
         this.server = server;
         this.target = target;
         this.recordDir = recordDir;
+        this.tap = tap;
+        this.quiet = quiet;
     }
 
     void run() throws IOException {
@@ -166,7 +177,7 @@ final class GameRelay {
         boolean known = Packets.known(pid);
         stats.count(known);
         publish(arrow, packet);
-        if (!log.isInfoEnabled()) {
+        if (quiet || !log.isInfoEnabled()) {
             return;
         }
         String text;
@@ -188,8 +199,9 @@ final class GameRelay {
         log.info("[#{}] {} {} ({} байт{})", id, arrow, text, packet.length, fromEnvelope ? ", lz4" : "");
     }
 
-    private static void publish(String arrow, byte[] packet) {
-        if (PacketTap.TAPS.isEmpty()) {
+    private void publish(String arrow, byte[] packet) {
+        List<PacketTap> taps = tap != null ? List.of(tap) : PacketTap.TAPS;
+        if (taps.isEmpty()) {
             return;
         }
         Packet decoded;
@@ -200,9 +212,9 @@ final class GameRelay {
         }
         long now = System.nanoTime();
         boolean upstream = UP_ARROW.equals(arrow);
-        for (PacketTap tap : PacketTap.TAPS) {
+        for (PacketTap t : taps) {
             try {
-                tap.onPacket(upstream, decoded, now);
+                t.onPacket(upstream, decoded, now);
             } catch (RuntimeException e) {
                 log.warn("Ошибка обработчика пакетов: {}", e.toString());
             }

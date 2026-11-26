@@ -562,6 +562,10 @@ final class LevelWatch {
                                  LevelPlan plan, boolean logShape, Supplier<String> status, Meter meter,
                                  java.util.function.Consumer<String> switchConfig, java.util.function.IntConsumer requestShip,
                                  Runnable refresh, Runnable requestRefit, boolean first) throws InterruptedException {
+        if (HandPlay.active(account)) {
+            LOG.info("советчик: играют руками в клиенте — пропускаю (без покупок и перезаходов)");
+            return false;
+        }
         var session = conn.session();
         if (session == null || session.host() == null) {
             LOG.info("советчик: нет игровой сессии — пропускаю");

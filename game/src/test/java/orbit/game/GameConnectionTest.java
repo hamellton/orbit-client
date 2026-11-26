@@ -397,6 +397,28 @@ class GameConnectionTest {
     }
 
     @Test
+    void aHeldConnectionWaitsWithoutLoggingInTillReleased() throws Exception {
+        try (FakeGameServer gs = new FakeGameServer()) {
+            Source src = new Source(gs.port(), 0);
+            Listener l = new Listener();
+            GameConnection c = new GameConnection(src, l, fast(), StartupSequence.minimal(READY));
+            Thread t = Thread.ofVirtual().start(c::run);
+            await(() -> l.states.stream().anyMatch(x -> x.startsWith("ONLINE")), 5);
+            c.hold();
+            Thread.sleep(1_500);
+            assertEquals(1, gs.gameConnections.get(), "held: no new connection, the client has the game");
+            assertEquals(1, src.logins.get());
+            assertTrue(c.held());
+            c.release();
+            await(() -> gs.gameConnections.get() >= 2, 15);
+            assertEquals(2, src.logins.get(), "released: a new site login by the saved session");
+            assertTrue(t.isAlive());
+            c.close();
+            t.join(5000);
+        }
+    }
+
+    @Test
     void aDoubleLoginStillStopsAtOnce() throws Exception {
         try (FakeGameServer gs = new FakeGameServer()) {
             gs.afterLogin = send -> {
