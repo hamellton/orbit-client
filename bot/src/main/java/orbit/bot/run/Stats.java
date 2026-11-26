@@ -133,6 +133,8 @@ public final class Stats {
     public volatile boolean selling;
     /** The way a full hold is handled now (the module's or the config's), for the box picker; null = the config's. */
     public volatile String cargoMode;
+    /** Lasers on the ship (the most of its two configs), told by the leveling watch from the site; 0 unknown. */
+    public volatile int lasers;
     public final AtomicInteger deaths = new AtomicInteger();
     /** Trips to a portal to repair. */
     public final AtomicInteger repairs = new AtomicInteger();

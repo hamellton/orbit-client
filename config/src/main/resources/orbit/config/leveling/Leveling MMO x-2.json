@@ -338,8 +338,8 @@
     "items": [
       {
         "item": "ammunition_laser_lcb-10",
-        "below": 1000,
-        "amount": 3000
+        "below": 10000,
+        "amount": 20000
       },
       {
         "item": "ammunition_rocket_plt-2026",
@@ -377,6 +377,12 @@
   },
   "safetySpots": null,
   "modules": {
+    "buyScale": {
+      "ammunition_laser_lcb-10": {
+        "below": 700,
+        "amount": 1400
+      }
+    },
     "enrich": {
       "enabled": true,
       "refine": false,

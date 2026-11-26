@@ -108,6 +108,21 @@ final class BuyWatch {
     /** The config's purchases as last seen: a change of them is acted on at once. */
     private BotConfig.Buy lastBuy;
 
+    /**
+     * {@code modules.buyScale} (the leveling configs, a user's choice 2026-11-26): {item: {below, amount}} per laser on the
+     * ship — the laser ammunition bought by the ship's growth (3 000 at a time ran out within minutes with 15 lasers); the
+     * config's own numbers while the lasers are not known.
+     */
+    private BotConfig.BuyRule scaled(BotConfig.BuyRule r) {
+        com.fasterxml.jackson.databind.JsonNode s = ctx.config().get().modules().get("buyScale");
+        int lasers = ctx.stats().lasers;
+        if (s == null || lasers <= 0 || !s.path(r.item()).isObject()) {
+            return r;
+        }
+        com.fasterxml.jackson.databind.JsonNode k = s.path(r.item());
+        return new BotConfig.BuyRule(r.item(), k.path("below").asInt(0) * lasers, k.path("amount").asInt(0) * lasers);
+    }
+
     void tick() {
         long now = ctx.now();
         BotConfig.Buy seen = ctx.config().get().buy();
@@ -143,7 +158,8 @@ final class BuyWatch {
                         ItemCatalog.label(id));
             }
         });
-        for (BotConfig.BuyRule r : b.items()) {
+        for (BotConfig.BuyRule raw : b.items()) {
+            BotConfig.BuyRule r = scaled(raw);
             if (noEffect.contains(r.item())) {
                 continue;
             }

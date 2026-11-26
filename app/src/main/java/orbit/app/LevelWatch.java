@@ -534,6 +534,11 @@ final class LevelWatch {
         }
         AccountState state = SiteHangars.state(list, hangar, level, credits, uridium);
         LAST_STATE.put(account, state);
+        if (feed.stats() != null) {
+            // the laser count for the laser ammunition bought by the ship's growth (BuyWatch, modules.buyScale)
+            feed.stats().lasers = state.fitted().values().stream()
+                    .mapToInt(c -> c.getOrDefault("lasers", java.util.List.of()).size()).max().orElse(0);
+        }
         Advisor.Advice advice = Advisor.advise(state, plan);
         LOG.info("снимок [{}, конфиг «{}», план v{}]: {}; премиум {}", account, cfg, plan.version(), state.describe(),
                 snap == null || snap.hero() == null ? "?" : snap.hero().premium() ? "да" : "нет");
