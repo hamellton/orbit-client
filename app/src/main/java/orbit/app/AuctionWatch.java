@@ -31,40 +31,6 @@ final class AuctionWatch {
     private AuctionWatch() {
     }
 
-    /** Who of this program's accounts leads a lot, at which price. */
-    private record Lead(String account, long credits, long until) {
-    }
-
-    /**
-     * The lots this program's own accounts lead, by server and lot ({@code origin|key}): another own account does not bid
-     * on a lot while an own account's bid is still the current one (live 2026-11-27 on int7 and int1: the starters bid against
-     * each other on the same LF-3 and engine, raising the price and getting «Слишком низкая ставка» back).
-     */
-    private static final java.util.Map<String, Lead> LEADS = new java.util.concurrent.ConcurrentHashMap<>();
-
-    /** The own account that leads this lot now ({@code null}: none, or a stranger outbid it since; a board read before
-     * the own bid shows a lower price and still counts as led). */
-    static String ownLeader(String origin, AuctionBoard.Lot lot, String account) {
-        Lead l = LEADS.get(leadKey(origin, lot));
-        return l == null || l.account().equals(account) || l.credits() < lot.current()
-                || System.currentTimeMillis() > l.until() ? null : l.account();
-    }
-
-    /** A lot's key is its place on the page ({@code item_hour_3}), the same each hour: with its loot and server. */
-    private static String leadKey(String origin, AuctionBoard.Lot lot) {
-        return origin + "|" + lot.key() + "|" + lot.loot();
-    }
-
-    /** A lead is forgotten when its auction ends at the latest (hour lots: the window is the hour's last minutes). */
-    private static long leadUntil(AuctionBoard.Lot lot) {
-        long ms = switch (lot.auction()) {
-            case "day" -> 86_400_000L;
-            case "week" -> 7 * 86_400_000L;
-            default -> 15 * 60_000L;
-        };
-        return System.currentTimeMillis() + ms;
-    }
-
     static void start(AuthClient auth, GameConnection conn, WorldFeed feed, String account, Supplier<String> config,
                       BooleanSupplier alive) {
         java.util.Map<String, String> ctx = org.slf4j.MDC.getCopyOfContextMap();
@@ -141,13 +107,7 @@ final class AuctionWatch {
                 if (!b.now()) {
                     continue;
                 }
-                String leader = ownLeader(origin, b.lot(), account);
-                if (leader != null) {
-                    LevelWatch.LOG.info("аукцион: {} — ведёт свой аккаунт {} ({}), не перебиваю", b.lot().name(), leader,
-                            b.lot().current());
-                    continue;
-                }
-                board = bid(auth, origin, account, board, b);
+                board = bid(auth, origin, board, b);
                 if (board == null) {
                     return;
                 }
@@ -178,8 +138,7 @@ final class AuctionWatch {
     }
 
     /** One bid: the form posted, the page that comes back read for the lot's «my bid». The new page (new token). */
-    private static AuctionBoard bid(AuthClient auth, String origin, String account, AuctionBoard board,
-                                    BidPlanner.Bid b) {
+    private static AuctionBoard bid(AuthClient auth, String origin, AuctionBoard board, BidPlanner.Bid b) {
         if (board.token().isEmpty()) {
             LevelWatch.LOG.warn("аукцион: на странице нет токена ставки — не ставлю");
             return null;
@@ -191,9 +150,6 @@ final class AuctionWatch {
             AuctionBoard after = AuctionBoard.parse(r.body());
             AuctionBoard.Lot lot = after.lots().stream().filter(l -> l.key().equals(b.lot().key())).findFirst().orElse(null);
             String message = notice(r.body());
-            if (lot != null && lot.mine() >= b.credits() && lot.mine() == lot.current()) {
-                LEADS.put(leadKey(origin, lot), new Lead(account, lot.mine(), leadUntil(lot)));
-            }
             if (lot == null || lot.mine() < b.credits()) {
                 // the site did not take the bid (live 2026-11-25: 53 000 sent, «mine 0» back): its page kept for a look
                 java.nio.file.Path f = java.nio.file.Path.of("local", "debug", "auction-bid-"
