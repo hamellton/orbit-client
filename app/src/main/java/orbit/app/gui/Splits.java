@@ -75,25 +75,39 @@ final class Splits {
         boolean folded = PREFS.getBoolean(key + ".folded", false);
         boolean[] ready = {saved <= 0 && !folded};
         if (!ready[0]) {
-            split.addHierarchyListener(new java.awt.event.HierarchyListener() {
-                @Override
-                public void hierarchyChanged(java.awt.event.HierarchyEvent e) {
-                    if (split.isShowing() && split.getHeight() > 0) {
-                        split.removeHierarchyListener(this);
-                        SwingUtilities.invokeLater(() -> {
-                            int max = split.getMaximumDividerLocation();
-                            if (folded) {
-                                // opened again (arrow or double click) to the size it had when open last
-                                int open = saved > 0 && saved < max - 4 ? saved : max * 2 / 3;
-                                before[0] = open;
-                                split.setDividerLocation(max);
-                                split.setLastDividerLocation(open);
-                            } else if (saved <= max) {
-                                split.setDividerLocation(saved);
-                            }
-                            ready[0] = true;
-                        });
+            // once shown with a size: a split made anew in a window already open (an overview rebuilt after an account's tab
+            // was closed) is showing before its first layout gives it a height, and no hierarchy event follows that layout —
+            // so the size's arrival counts too (live 2026-11-28: the group's log came back open)
+            boolean[] applied = {false};
+            Runnable apply = () -> {
+                if (applied[0] || !split.isShowing() || split.getHeight() <= 0) {
+                    return;
+                }
+                applied[0] = true;
+                SwingUtilities.invokeLater(() -> {
+                    int max = split.getMaximumDividerLocation();
+                    if (folded) {
+                        // opened again (arrow or double click) to the size it had when open last
+                        int open = saved > 0 && saved < max - 4 ? saved : max * 2 / 3;
+                        before[0] = open;
+                        split.setDividerLocation(max);
+                        split.setLastDividerLocation(open);
+                    } else if (saved <= max) {
+                        split.setDividerLocation(saved);
                     }
+                    ready[0] = true;
+                });
+            };
+            split.addHierarchyListener(e -> apply.run());
+            split.addComponentListener(new java.awt.event.ComponentAdapter() {
+                @Override
+                public void componentResized(java.awt.event.ComponentEvent e) {
+                    apply.run();
+                }
+
+                @Override
+                public void componentShown(java.awt.event.ComponentEvent e) {
+                    apply.run();
                 }
             });
         }
