@@ -62,6 +62,12 @@ public final class Router {
      */
     public static List<MapCatalog.Portal> route(MapCatalog catalog, int fromMap, double x, double y, int toMap, int faction,
                                                 int level) {
+        return route(catalog, fromMap, x, y, toMap, faction, level, m -> false);
+    }
+
+    /** As above, never through the maps {@code skip} names (those a portal would not let this level into). */
+    public static List<MapCatalog.Portal> route(MapCatalog catalog, int fromMap, double x, double y, int toMap, int faction,
+                                                int level, java.util.function.IntPredicate skip) {
         if (fromMap == toMap) {
             return List.of();
         }
@@ -83,7 +89,7 @@ public final class Router {
             }
             for (MapCatalog.Portal p : catalog.portals(n.map())) {
                 if (p.toId() <= 0 || (p.faction() != 0 && p.faction() != faction)
-                        || !open(p.toId(), faction, level)) {
+                        || !open(p.toId(), faction, level) || skip.test(p.toId())) {
                     continue;
                 }
                 double cost = n.cost() + Math.hypot(p.x() - n.x(), p.y() - n.y()) + JUMP_COST;

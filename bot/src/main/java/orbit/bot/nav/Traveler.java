@@ -60,6 +60,22 @@ public final class Traveler {
         return refused != null && level <= refused;
     }
 
+    /**
+     * The map cannot be reached by this level: closed itself, or every way to it goes through a map a portal would not let
+     * this level in (live 2026-11-27 on int7: ste1 of level 7 sent to 2-6 for Protegit, the only way is through 4-x, 4-2's
+     * portal did not let it in, the bot stopped with «нет пути на 2-6»).
+     */
+    public static boolean blocked(MapCatalog catalog, int fromMap, int toMap, int faction, int level) {
+        if (level <= 0 || fromMap == toMap) {
+            return false;
+        }
+        if (closed(toMap, level)) {
+            return true;
+        }
+        return Router.route(catalog, fromMap, 0, 0, toMap, faction, level, m -> closed(m, level)).isEmpty()
+                && !Router.route(catalog, fromMap, 0, 0, toMap, faction, level).isEmpty();
+    }
+
     public enum State { IDLE, TRAVELLING, ARRIVED, FAILED }
 
     private final Supplier<WorldSnapshot> world;
@@ -172,8 +188,11 @@ public final class Traveler {
             return;
         }
         // level 0 = not known yet (dead login): every map, as before
+        // the leveling configs: not through a map a portal would not let this level in (another way, if there is one)
+        int lvl = h.level();
+        java.util.function.IntPredicate skip = lvl > 0 && closedMaps.getAsBoolean() ? m -> closed(m, lvl) : m -> false;
         List<MapCatalog.Portal> route = Router.route(catalog, h.mapId(), h.x(), h.y(), targetMap, h.factionId(),
-                h.level() > 0 ? h.level() : Integer.MAX_VALUE);
+                h.level() > 0 ? h.level() : Integer.MAX_VALUE, skip);
         if (route.isEmpty()) {
             // a Blacklight map the pilot's level does not open: say so, a bare "no path" was a riddle (2026-11-20:
             // gb2 on «Blacklight Invoke 2-BL» simply would not go in)

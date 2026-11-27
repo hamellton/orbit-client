@@ -1015,7 +1015,8 @@ public final class BotRunner {
         if (travelTarget != map || t.state() != Traveler.State.TRAVELLING) {
             if (travelTarget == map && t.state() == Traveler.State.FAILED) {
                 WorldSnapshot.Hero hero = ctx.world().get().hero();
-                if (module instanceof orbit.bot.mod.QuestModule && orbit.bot.nav.Traveler.closed(map, hero.level())) {
+                if (module instanceof orbit.bot.mod.QuestModule && (orbit.bot.nav.Traveler.closed(map, hero.level())
+                        || orbit.bot.nav.Traveler.blocked(ctx.maps(), hero.mapId(), map, hero.factionId(), hero.level()))) {
                     // a quest's map closed to this level: the quests choose other work, the bot goes on (2026-11-25)
                     log.warn("Квесты: {} закрыта для уровня {} — беру другую работу", ctx.maps().info(map).name(), hero.level());
                     travelTarget = 0;

@@ -899,8 +899,10 @@ public final class QuestModule implements BotModule {
             }
         }
         if (wk != null && ownMapsOnly() && wk.map() > 0 && (!ownMap(wk.map(), w.hero().factionId())
-                || orbit.bot.nav.Traveler.closed(wk.map(), w.hero().level()))) {
-            return null; // also a map a portal would not let this level into
+                || orbit.bot.nav.Traveler.closed(wk.map(), w.hero().level())
+                || orbit.bot.nav.Traveler.blocked(ctx.maps(), w.hero().mapId(), wk.map(), w.hero().factionId(),
+                        w.hero().level()))) {
+            return null; // also a map a portal would not let this level into, or one reached only through such a map
         }
         return wk;
     }
