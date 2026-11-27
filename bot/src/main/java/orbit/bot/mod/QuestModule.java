@@ -774,6 +774,16 @@ public final class QuestModule implements BotModule {
         if (seenWanted || now - onMapSince < NOT_THERE_MS * 1_000_000) {
             return false;
         }
+        if (!otherMapFor(work, w)) {
+            // nowhere else to look (live 2026-11-27 on st1: Boss Kristallon lives on 1-7 only for an MMO pilot, the quest was
+            // set aside every 10 min «to try another map» there was none of) — it goes on searching here
+            onMapSince = now;
+            if (aloneTold.add(work.condition())) {
+                log.info("Квест {}: на {} {} мин не видно {} — других карт с ним нет, ищу дальше здесь", work.quest(),
+                        ctx.maps().info(work.map()).name(), NOT_THERE_MS / 60_000, String.join(", ", work.names()));
+            }
+            return false;
+        }
         log.warn("Квест {}: на {} за {} мин не видно {} — пробую другую карту", work.quest(),
                 ctx.maps().info(work.map()).name(), NOT_THERE_MS / 60_000, String.join(", ", work.names()));
         notThere.computeIfAbsent(work.map(), k -> new TreeSet<>()).add(work.condition());
@@ -783,6 +793,36 @@ public final class QuestModule implements BotModule {
         worker = null;
         work = null;
         return true;
+    }
+
+    /** Conditions told «nothing else to look on» once. */
+    private final Set<Integer> aloneTold = new java.util.HashSet<>();
+
+    /**
+     * Another map the work's NPCs live on that the bot may go to: not this one, not left out for the condition, the own
+     * company's twin when {@code ownMapsOnly} (another company's x-7 is the own 1-7), and open to the pilot's level.
+     */
+    private boolean otherMapFor(Work wk, WorldSnapshot w) {
+        int faction = w.hero().factionId();
+        for (int m : npcMaps.maps()) {
+            if (npcMaps.on(m).stream().noneMatch(n -> wk.want().contains(QuestTargets.norm(n)))) {
+                continue;
+            }
+            int to = m;
+            if (ownMapsOnly() && !ownMap(m, faction)) {
+                to = ownTwin(m, faction);
+                if (to <= 0) {
+                    continue; // 4-x, BL, gates: not for this pilot
+                }
+            }
+            if (to == wk.map() || notThere.getOrDefault(to, Set.of()).contains(wk.condition())
+                    || orbit.bot.nav.Traveler.closed(to, w.hero().level())
+                    || orbit.bot.nav.Traveler.blocked(ctx.maps(), w.hero().mapId(), to, faction, w.hero().level())) {
+                continue;
+            }
+            return true;
+        }
+        return false;
     }
 
     /** Quests marked Cancel: cancelled (the quest window's button, anywhere), one at a time, again if still there. */
