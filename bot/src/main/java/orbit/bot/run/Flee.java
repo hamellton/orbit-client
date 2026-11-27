@@ -180,7 +180,7 @@ public final class Flee {
         java.util.List<MapCatalog.Portal> all = SafePlaces.usablePortals(ctx.world().get(), ctx.maps(),
                 ctx.stats().closedPortals);
         if (all.isEmpty()) {
-            all = ctx.maps().portals(h.mapId()).stream()
+            all = ctx.maps().portals(h.mapId()).stream().filter(SafePlaces::ordinary)
                     .filter(p -> p.faction() == 0 || p.faction() == h.factionId()).toList();
         }
         // a portal with a way back first, unless the config lets the bot jump anywhere
