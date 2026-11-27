@@ -72,7 +72,7 @@ final class BuyWatch {
             com.fasterxml.jackson.databind.JsonNode n = orbit.config.Json.MAPPER.readTree(noEffectFile.toFile());
             long wall = System.currentTimeMillis();
             n.properties().forEach(e -> {
-                if (wall - e.getValue().asLong() < NO_EFFECT_KEEP_MS) {
+                if (wall - e.getValue().asLong() < NO_EFFECT_KEEP_MS && !fired(e.getKey())) {
                     noEffect.add(e.getKey());
                     log.info("{}: куплено раньше, но в игре не появилось — не покупаю до {}", ItemCatalog.label(e.getKey()),
                             java.time.Instant.ofEpochMilli(e.getValue().asLong() + NO_EFFECT_KEEP_MS)
@@ -99,6 +99,44 @@ final class BuyWatch {
         } catch (java.io.IOException | RuntimeException e) {
             log.warn("Не записал {}: {}", noEffectFile.getFileName(), e.toString());
         }
+    }
+
+    /**
+     * Rockets (laser rockets, launcher rockets) are fired as soon as they come: the count may never rise between two looks,
+     * so a purchase of them is never taken for «nothing came» (live 2026-11-26 on int1: 100 ECO-10 bought, the launcher fired
+     * them 4 s later, the count stayed 0 and ECO-10 was not bought for a day by any account of the server; PLT-2026 the
+     * same on int7).
+     */
+    static boolean fired(String item) {
+        return item.startsWith("ammunition_rocket_") || item.startsWith("ammunition_rocketlauncher_");
+    }
+
+    /** The wall time of the last purchase of each item (for {@code modules.buyLimit}'s pause). */
+    private final Map<String, Long> boughtAt = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /**
+     * {@code modules.buyLimit} (the leveling configs, a user's choice 2026-11-27): {item: {keepCredits, everyMin}} — the item
+     * is bought only while the credits are at least {@code keepCredits} and not again within {@code everyMin} minutes (100
+     * ECO-10 cost 150 000 credits: on 2026-11-26 st1 bought them 5 times in 50 minutes). {@code null}: may be bought.
+     */
+    private String limited(WorldSnapshot w, String item) {
+        com.fasterxml.jackson.databind.JsonNode n = ctx.config().get().modules().get("buyLimit");
+        if (n == null || !n.path(item).isObject()) {
+            return null;
+        }
+        com.fasterxml.jackson.databind.JsonNode l = n.path(item);
+        long keep = l.path("keepCredits").asLong(0);
+        double credits = credits(w);
+        if (keep > 0 && credits < keep) {
+            return "кредитов " + orbit.world.Num.group(credits) + " — покупаю, когда будет от " + orbit.world.Num.group(keep);
+        }
+        long every = l.path("everyMin").asLong(0) * 60_000L;
+        Long last = boughtAt.get(item);
+        if (every > 0 && last != null && System.currentTimeMillis() - last < every) {
+            return "куплено " + (System.currentTimeMillis() - last) / 60_000 + " мин назад — не чаще раза в "
+                    + every / 60_000 + " мин";
+        }
+        return null;
     }
 
     void setShop(ShopAccess s) {
@@ -179,6 +217,14 @@ final class BuyWatch {
             if (!neededOn(w, r.item())) {
                 continue;
             }
+            String limit = limited(w, r.item());
+            if (limit != null) {
+                if (told.add("l:" + r.item())) {
+                    log.info("{}: {}", ItemCatalog.label(r.item()), limit); // once till it may be bought again
+                }
+                continue;
+            }
+            told.remove("l:" + r.item());
             WorldSnapshot.Item item = w.items().get(ItemCatalog.barItem(r.item()));
             boolean noCloak = item == null && ItemCatalog.CLOAKS.contains(r.item()) && !w.items().isEmpty();
             if (noCloak) {
@@ -418,7 +464,10 @@ final class BuyWatch {
             long cost = (long) Math.ceil(o.price() * amount);
             log.info("Покупаю {} ×{} за {} {} (осталось {})", name, amount, cost, currency, left);
             String answer = s.buy(r.item(), amount);
-            bought.put(r.item(), new double[] {left, ctx.now()});
+            if (!fired(r.item())) {
+                bought.put(r.item(), new double[] {left, ctx.now()});
+            }
+            boughtAt.put(r.item(), System.currentTimeMillis());
             told(answer, credits, uridium);
         } catch (java.io.IOException | RuntimeException e) {
             log.warn("{}: покупка не удалась — {}", name, e.getMessage());

@@ -385,6 +385,12 @@
   },
   "safetySpots": null,
   "modules": {
+    "buyLimit": {
+      "ammunition_rocketlauncher_eco-10": {
+        "keepCredits": 500000,
+        "everyMin": 60
+      }
+    },
     "buyNeeds": {
       "ammunition_rocketlauncher_eco-10": "equipment_extra_cpu_rllb-x"
     },
