@@ -130,6 +130,24 @@
         3
       ],
       "sab": false
+    },
+    "..::{ Boss Kristallon }::..": {
+      "radius": 600.0,
+      "priority": 2,
+      "kill": false,
+      "maps": [
+        19
+      ],
+      "sab": false
+    },
+    "..::{ Boss Lordakium }::...": {
+      "radius": 600.0,
+      "priority": 2,
+      "kill": false,
+      "maps": [
+        17
+      ],
+      "sab": false
     }
   },
   "loot": {
