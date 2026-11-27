@@ -63,7 +63,16 @@ public final class SafePlaces {
     }
 
     /**
-     * The map's portals the ship may use: its company's or anyone's, not refused this run.
+     * A portal to an Experiment Zone (maps 401–404) is no way to safety: the jump there is refused or takes the ship to an
+     * event zone (live 2026-11-27 on int1, st4 on 1-8: under fire at the portal to Experiment Zone 2-1, the jump did not go,
+     * the ship died; st3 the same on 2026-11-26). Only ordinary portals count (the user's rule 2026-11-27).
+     */
+    static boolean ordinary(MapCatalog.Portal p) {
+        return p.toId() < 401 || p.toId() > 404;
+    }
+
+    /**
+     * The map's portals the ship may use: its company's or anyone's, ordinary ({@link #ordinary}), not refused this run.
      */
     static List<MapCatalog.Portal> usablePortals(WorldSnapshot w, MapCatalog maps, Set<String> closed) {
         WorldSnapshot.Hero h = w.hero();
@@ -71,7 +80,7 @@ public final class SafePlaces {
         for (MapCatalog.Portal p : maps.portals(h.mapId())) {
             // the server sends a map's gates as the ship comes near (live 5-2 2026-11-12), so a gate not sent
             // yet is no sign of a missing portal: only a refused jump is
-            if (p.faction() != 0 && p.faction() != h.factionId() || closed.contains(key(h.mapId(), p))
+            if (!ordinary(p) || p.faction() != 0 && p.faction() != h.factionId() || closed.contains(key(h.mapId(), p))
                     // another company's Blacklight lets in from level 24 only (live 2026-11-13: level 19 at 3-BL's portal)
                     || !orbit.bot.nav.Router.openKnown(p.toId(), h.factionId(), h.level())) {
                 continue;
@@ -125,6 +134,7 @@ public final class SafePlaces {
             return standOnly.stream().min(near).orElseThrow();
         }
         return maps.portals(h.mapId()).stream()
+                .filter(SafePlaces::ordinary)
                 .filter(p -> p.faction() == 0 || p.faction() == h.factionId())
                 .filter(p -> orbit.bot.nav.Router.openKnown(p.toId(), h.factionId(), h.level()))
                 .map(p -> new Place(p.x(), p.y(), "портал на " + p.toName(), p, false))
