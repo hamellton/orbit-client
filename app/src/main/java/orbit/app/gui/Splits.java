@@ -54,9 +54,13 @@ final class Splits {
                 }
             }
         });
-        // the place of the last run, once the split has its size
+        // the place of the last run, once the split has its size; a folded part stays folded (live 2026-11-27: the log
+        // folded on «Все», an account opened and closed, the overview made anew — the log was back: the saved place was
+        // the old maximum, a pixel past the new one, and the first layout wrote its own place over it)
         int saved = PREFS.getInt(key, -1);
-        if (saved > 0) {
+        boolean folded = PREFS.getBoolean(key + ".folded", false);
+        boolean[] ready = {saved <= 0 && !folded};
+        if (!ready[0]) {
             split.addHierarchyListener(new java.awt.event.HierarchyListener() {
                 @Override
                 public void hierarchyChanged(java.awt.event.HierarchyEvent e) {
@@ -64,17 +68,22 @@ final class Splits {
                         split.removeHierarchyListener(this);
                         SwingUtilities.invokeLater(() -> {
                             int max = split.getMaximumDividerLocation();
-                            if (saved <= max) {
+                            if (folded) {
+                                split.setDividerLocation(max);
+                            } else if (saved <= max) {
                                 split.setDividerLocation(saved);
                             }
+                            ready[0] = true;
                         });
                     }
                 }
             });
         }
         split.addPropertyChangeListener(JSplitPane.DIVIDER_LOCATION_PROPERTY, e -> {
-            if (split.isShowing()) {
-                PREFS.putInt(key, split.getDividerLocation());
+            if (ready[0] && split.isShowing()) {
+                int now = split.getDividerLocation();
+                PREFS.putInt(key, now);
+                PREFS.putBoolean(key + ".folded", now >= split.getMaximumDividerLocation() - 4);
             }
         });
     }
