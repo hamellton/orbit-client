@@ -264,6 +264,7 @@ public final class WorldFeed {
     }
 
     public void onPacket(Packet p, long nanos) {
+        journal.account(account());
         journal.add(false, p);
         miniReward.onPacket(p);
         mirror.incoming(p);

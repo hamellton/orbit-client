@@ -66,6 +66,68 @@ public final class PacketJournal {
 
     private final ArrayDeque<Entry> ring = new ArrayDeque<>();
     private long seq;
+    /** The account whose packets these are ({@code null}: not known yet), for the file record. */
+    private volatile String account;
+    private java.io.Writer file;
+    private long fileCheckedAt;
+    private boolean recording;
+    /** Looked for the flag this often. */
+    static final long FLAG_CHECK_MS = 5_000;
+
+    void account(String a) {
+        account = a;
+    }
+
+    /**
+     * The file record (docs/PLAN.md «Окно пакетов»): while {@code local/record-<account>} exists every packet is also
+     * written to {@code logs/packets-<account>.log} as the window shows it (secrets hidden) — to study a fight after it
+     * (2026-11-27: why one Boss Kristallon fight dealt three times the damage of another).
+     */
+    private void record(Entry e) {
+        String a = account;
+        if (a == null) {
+            return;
+        }
+        long now = e.millis();
+        if (now - fileCheckedAt > FLAG_CHECK_MS) {
+            fileCheckedAt = now;
+            boolean on = java.nio.file.Files.exists(java.nio.file.Path.of("local", "record-" + a));
+            if (on && file == null) {
+                try {
+                    java.nio.file.Path f = java.nio.file.Path.of("logs", "packets-" + a + ".log");
+                    java.nio.file.Files.createDirectories(f.getParent());
+                    file = java.nio.file.Files.newBufferedWriter(f, java.nio.charset.StandardCharsets.UTF_8,
+                            java.nio.file.StandardOpenOption.CREATE, java.nio.file.StandardOpenOption.APPEND);
+                } catch (java.io.IOException ex) {
+                    file = null;
+                }
+            } else if (!on && file != null) {
+                try {
+                    file.close();
+                } catch (java.io.IOException ignored) {
+                    // closing a record: nothing to do
+                }
+                file = null;
+            }
+            recording = on && file != null;
+            if (recording) {
+                try {
+                    file.flush();
+                } catch (java.io.IOException ignored) {
+                    recording = false;
+                }
+            }
+        }
+        if (!recording) {
+            return;
+        }
+        try {
+            file.write(java.time.LocalTime.now().withNano((java.time.LocalTime.now().getNano() / 1_000_000) * 1_000_000)
+                    + (e.out() ? " > " : " < ") + e.text() + "\n");
+        } catch (java.io.IOException ex) {
+            recording = false;
+        }
+    }
 
     public synchronized void add(boolean out, Packet p) {
         if (p == null) {
@@ -74,7 +136,9 @@ public final class PacketJournal {
         if (ring.size() >= CAPACITY) {
             ring.pollFirst();
         }
-        ring.addLast(new Entry(++seq, System.currentTimeMillis(), out, p));
+        Entry e = new Entry(++seq, System.currentTimeMillis(), out, p);
+        ring.addLast(e);
+        record(e);
     }
 
     /** The entries after number {@code after}, oldest first. */
