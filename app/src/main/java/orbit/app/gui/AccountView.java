@@ -84,7 +84,12 @@ final class AccountView extends JPanel {
     /** From this width the cards stand in a column beside the map. */
     static final int WIDE = 980;
     /** The side column grows up to this. */
-    static final int MAX_SIDE = 440;
+    static final int MAX_SIDE = 480;
+    /**
+     * The side column beside the map is at least this wide (the user's wish 2026-11-27: at 270 the cards were too narrow
+     * on a big window — the map took all but the minimum).
+     */
+    static final int MIN_SIDE = 340;
     /**
      * With the live cards apart ({@link ViewSettings.CardLayout#SPLIT}) the side takes up to two columns — only the
      * room the map leaves (the map is as big as the height allows and keeps that size).
@@ -189,12 +194,12 @@ final class AccountView extends JPanel {
             // the cards beside the map or under it: whichever leaves the bigger map (a low, wide window
             // keeps them beside), with the cards always readable
             int minSide = Math.min(side.contentHeight(w) + 2, Math.max(120, h / 3));
-            double besideMap = Math.min(w - SidePanel.MIN_COLUMN - gap, h * MainWindow.Grid.ASPECT);
+            double besideMap = Math.min(w - MIN_SIDE - gap, h * MainWindow.Grid.ASPECT);
             double underMap = Math.min(w, (h - minSide - gap) * MainWindow.Grid.ASPECT);
-            boolean beside = w >= WIDE || (w - SidePanel.MIN_COLUMN - gap >= 300 && besideMap >= underMap * 0.9);
+            boolean beside = w >= WIDE || (w - MIN_SIDE - gap >= 300 && besideMap >= underMap * 0.9);
             if (beside) {
                 // the map as big as the height allows, the cards take the rest (within limits), no dead strip
-                int mapW = (int) Math.min(w - SidePanel.MIN_COLUMN - gap, h * MainWindow.Grid.ASPECT);
+                int mapW = (int) Math.min(w - MIN_SIDE - gap, h * MainWindow.Grid.ASPECT);
                 int sideW = Math.min(ViewSettings.shared().cardLayout() == ViewSettings.CardLayout.SPLIT
                         ? MAX_SPLIT_SIDE : MAX_SIDE, w - mapW - gap);
                 int left = x + (w - mapW - gap - sideW) / 2;
