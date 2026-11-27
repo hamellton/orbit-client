@@ -138,7 +138,8 @@
       "maps": [
         23
       ],
-      "sab": false
+      "sab": false,
+      "move": "CIRCLE"
     },
     "..::{ Boss Lordakium }::...": {
       "radius": 600.0,
@@ -147,7 +148,8 @@
       "maps": [
         21
       ],
-      "sab": false
+      "sab": false,
+      "move": "CIRCLE"
     }
   },
   "loot": {

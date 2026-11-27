@@ -1699,8 +1699,9 @@ public final class QuestModule implements BotModule {
             all.forEach((n, prio) -> {
                 BotConfig.NpcRule own = c.npc(n);
                 int p = prio; // the work's own first (0), whatever the config's priority; the side ones after it
+                // its own move and formation kept too (live 2026-11-27: «circle» set for the bosses was lost in quests)
                 npcs.put(n, own != null ? new BotConfig.NpcRule(own.radius(), p, true, own.flags(), Set.of(),
-                        own.ammo(), own.sab(), own.rocket(), own.launcher())
+                        own.ammo(), own.sab(), own.rocket(), own.launcher(), own.move(), own.formation())
                         : new BotConfig.NpcRule(0, p, true, Set.of(), Set.of(), null)); // 0: the default radius
             });
             out = out.withNpcs(npcs);
