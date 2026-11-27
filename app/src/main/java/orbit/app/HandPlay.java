@@ -68,6 +68,15 @@ public final class HandPlay {
         return account != null && PLAYING.containsKey(account);
     }
 
+    /**
+     * The official client is on this machine: the macOS app only (there is none for Linux, and the Windows one is not
+     * looked for) — without it the window shows no «Клиент» menu (2026-11-27: on the Oracle Linux server «Смотреть» only
+     * said the app was not found).
+     */
+    public static boolean clientAvailable() {
+        return clientApp() != null;
+    }
+
     /** The official client: {@code ORBIT_CLIENT_APP}, else next to the project, else in Applications. */
     static Path clientApp() {
         List<Path> tries = new ArrayList<>();
