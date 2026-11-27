@@ -1566,6 +1566,14 @@ public final class QuestModule implements BotModule {
     static final Map<String, String> CALLED_BY = Map.of("blightedgygerthrall", "blightedkristallon");
     /** The priority of a caller: fought only when none of what it calls is in sight. */
     static final int CALLER_PRIORITY = 10;
+    /**
+     * The priorities beside the work's own NPCs (always 0, first): the same quest's other open conditions right after them,
+     * another quest's NPC ({@code sideAllQuests}) after those (live 2026-11-27 on st1, 1-7: «kill Boss Kristallon» was the
+     * work, the plain Kristallon of two other quests had the same priority 0 — and Boss Kristallon its config's 2 — so the
+     * ship fought the plain ones and let the boss be).
+     */
+    static final int SAME_QUEST_PRIORITY = 1;
+    static final int OTHER_QUEST_PRIORITY = 5;
 
     /**
      * The other open conditions of the work's quest fought alongside on the work's map — 122011: while the Blighted
@@ -1584,12 +1592,12 @@ public final class QuestModule implements BotModule {
                 continue;
             }
             if (QuestTargets.killing(o) || QuestTargets.damaging(o)) {
-                QuestTargets.wanted(o).forEach(n -> norms.putIfAbsent(n, 0));
+                QuestTargets.wanted(o).forEach(n -> norms.putIfAbsent(n, SAME_QUEST_PRIORITY));
             } else if (o.type() == Quests.COLLECT_LOOT && !o.matches().isEmpty()) {
                 String id = o.matches().getFirst().toLowerCase(java.util.Locale.ROOT);
                 LOOT_NPCS.forEach((k, v) -> {
                     if (id.contains(k)) {
-                        v.forEach(n -> norms.putIfAbsent(n, 0));
+                        v.forEach(n -> norms.putIfAbsent(n, SAME_QUEST_PRIORITY));
                     }
                 });
             }
@@ -1604,7 +1612,7 @@ public final class QuestModule implements BotModule {
                 }
                 for (Quests.Condition o : other.leaves()) {
                     if (!o.completed() && (QuestTargets.killing(o) || QuestTargets.damaging(o)) && o.onMaps().isEmpty()) {
-                        QuestTargets.wanted(o).forEach(n -> norms.putIfAbsent(n, 0));
+                        QuestTargets.wanted(o).forEach(n -> norms.putIfAbsent(n, OTHER_QUEST_PRIORITY));
                     }
                 }
             }
@@ -1690,7 +1698,7 @@ public final class QuestModule implements BotModule {
             side.forEach(all::putIfAbsent);
             all.forEach((n, prio) -> {
                 BotConfig.NpcRule own = c.npc(n);
-                int p = prio == 0 && own != null ? own.priority() : prio;
+                int p = prio; // the work's own first (0), whatever the config's priority; the side ones after it
                 npcs.put(n, own != null ? new BotConfig.NpcRule(own.radius(), p, true, own.flags(), Set.of(),
                         own.ammo(), own.sab(), own.rocket(), own.launcher())
                         : new BotConfig.NpcRule(0, p, true, Set.of(), Set.of(), null)); // 0: the default radius
