@@ -391,8 +391,38 @@ final class LevelWatch {
     }
 
 
-    private static void launcherRockets(AuthClient auth, String origin, AccountState state, LevelPlan plan, WorldFeed feed)
-            throws InterruptedException {
+    /** The last ECO-10 purchase of each account (wall ms), for the config's {@code modules.buyLimit} pause. */
+    private static final java.util.Map<String, Long> ECO_BOUGHT = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /**
+     * The config's {@code modules.buyLimit} for ECO-10 (as {@code BuyWatch} keeps it): {@code null} may buy, else why not
+     * (live 2026-11-27: the leveling bought 100 ECO-10 for 150 000 credits every half hour on each account besides the
+     * buy list's own purchases).
+     */
+    private static String ecoLimit(String account, String cfg, long credits) {
+        try {
+            var n = ConfigStore.openDefault().load(cfg).modules().get("buyLimit");
+            if (n == null || !n.path(ECO).isObject()) {
+                return null;
+            }
+            long keep = n.path(ECO).path("keepCredits").asLong(0);
+            if (keep > 0 && credits < keep) {
+                return "кредитов " + credits + ", покупаю от " + keep;
+            }
+            long every = n.path(ECO).path("everyMin").asLong(0) * 60_000L;
+            Long last = ECO_BOUGHT.get(account);
+            if (every > 0 && last != null && System.currentTimeMillis() - last < every) {
+                return "куплено " + (System.currentTimeMillis() - last) / 60_000 + " мин назад, не чаще раза в " + every / 60_000
+                        + " мин";
+            }
+            return null;
+        } catch (java.io.IOException | RuntimeException e) {
+            return null;
+        }
+    }
+
+    private static void launcherRockets(AuthClient auth, String origin, AccountState state, LevelPlan plan, WorldFeed feed,
+                                        String account, String cfg) throws InterruptedException {
         boolean launcher = state.fitted().values().stream().anyMatch(c -> c.getOrDefault("heavy_guns", java.util.List.of())
                 .stream().anyMatch(i -> i.contains("rocketlauncher")));
         var w = feed.snapshot();
@@ -402,6 +432,11 @@ final class LevelWatch {
         var item = w.items().get(ECO);
         long have = item == null ? 0 : (long) item.counter();
         if (have >= ECO_BELOW) {
+            return;
+        }
+        String limit = ecoLimit(account, cfg, (long) w.hero().credits());
+        if (limit != null) {
+            LOG.info("ракеты: ECO-10 {} шт. — {}", have, limit);
             return;
         }
         try {
@@ -420,6 +455,7 @@ final class LevelWatch {
             }
             Thread.sleep(GAP_MS);
             String answer = new orbit.auth.Shop(auth.http(), origin).purchase(offer, ECO_AMOUNT, "Ammo");
+            ECO_BOUGHT.put(account, System.currentTimeMillis());
             LOG.info("ракеты: ECO-10 было {}, {} {} за {} кредитов — сайт: {}", have,
                     orbit.auth.Shop.refused(answer) ? "не куплено" : "куплено", ECO_AMOUNT, cost, answer);
         } catch (java.io.IOException | RuntimeException e) {
@@ -1025,7 +1061,7 @@ final class LevelWatch {
             LOG.info("фракция {}: конфиг другой фракции — нужен «{}», сейчас «{}»", faction, start, cfg);
         }
         auction(auth, session.host(), state, plan, account);
-        launcherRockets(auth, session.host(), state, plan, feed);
+        launcherRockets(auth, session.host(), state, plan, feed, account, cfg);
         cpus(conn, feed, account);
         formations(conn, feed, account);
         skylab(auth, session.host(), state, plan, advice, feed);
