@@ -118,7 +118,7 @@ final class AccountView extends JPanel {
 
         JSplitPane split = new JSplitPane(JSplitPane.VERTICAL_SPLIT, body, log(tab.feed(), tab.managed() != null, onDispose));
         split.setResizeWeight(0.7);
-        Splits.setup(split, "account-log", "журнал");
+        Splits.setup(split, "account-log", "журнал", true);
         split.setBorder(BorderFactory.createEmptyBorder());
         split.setContinuousLayout(true);
 

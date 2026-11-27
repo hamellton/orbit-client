@@ -22,11 +22,25 @@ final class Splits {
     private Splits() {
     }
 
+    /** The keys already set up in this run (a part folded at start is folded only at the program's start). */
+    private static final java.util.Set<String> SEEN = java.util.concurrent.ConcurrentHashMap.newKeySet();
+
     /**
      * @param key  where its place is kept
      * @param what the second part, for the hint (e.g. the log, the form)
      */
     static void setup(JSplitPane split, String key, String what) {
+        setup(split, key, what, false);
+    }
+
+    /**
+     * As above; {@code foldedAtStart}: the second part starts folded each time the program starts (the logs, the user's
+     * wish 2026-11-27), opened by the arrows or a double click and kept so for the rest of the run.
+     */
+    static void setup(JSplitPane split, String key, String what, boolean foldedAtStart) {
+        if (foldedAtStart && SEEN.add(key)) {
+            PREFS.putBoolean(key + ".folded", true);
+        }
         split.setOneTouchExpandable(true);
         if (!(split.getUI() instanceof BasicSplitPaneUI ui)) {
             return;
@@ -69,7 +83,11 @@ final class Splits {
                         SwingUtilities.invokeLater(() -> {
                             int max = split.getMaximumDividerLocation();
                             if (folded) {
+                                // opened again (arrow or double click) to the size it had when open last
+                                int open = saved > 0 && saved < max - 4 ? saved : max * 2 / 3;
+                                before[0] = open;
                                 split.setDividerLocation(max);
+                                split.setLastDividerLocation(open);
                             } else if (saved <= max) {
                                 split.setDividerLocation(saved);
                             }
@@ -82,8 +100,11 @@ final class Splits {
         split.addPropertyChangeListener(JSplitPane.DIVIDER_LOCATION_PROPERTY, e -> {
             if (ready[0] && split.isShowing()) {
                 int now = split.getDividerLocation();
-                PREFS.putInt(key, now);
-                PREFS.putBoolean(key + ".folded", now >= split.getMaximumDividerLocation() - 4);
+                boolean isFolded = now >= split.getMaximumDividerLocation() - 4;
+                if (!isFolded) {
+                    PREFS.putInt(key, now); // the open size, to open to again
+                }
+                PREFS.putBoolean(key + ".folded", isFolded);
             }
         });
     }
