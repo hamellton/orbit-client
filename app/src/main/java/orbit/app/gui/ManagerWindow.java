@@ -490,6 +490,7 @@ public final class ManagerWindow {
             return why;
         }
         ensureTab(a);
+        grouped.showGroup(groups.group(n));
         refresh();
         return null;
     }
@@ -609,6 +610,11 @@ public final class ManagerWindow {
      * group is stopped as before (after a question when in game) and its tab goes.
      */
     void closeTab(int index) {
+        String g = grouped.groupAt(index);
+        if (g != null) {
+            closeGroupTab(g);
+            return;
+        }
         String name = grouped.nameAt(index);
         if (name == null || grouped.hide(name)) {
             return; // the overview tabs stay; a grouped one is hidden
@@ -619,6 +625,20 @@ public final class ManagerWindow {
             return; // in game and cancelled; not in game: stopped at once without a question
         }
         dropAccount(name);
+        refresh();
+    }
+
+    /**
+     * A group tab's ×: its accounts in game are stopped as «Остановить группу» asks (exit at a portal, close at once or
+     * cancel), then the tab goes; with none in game it goes at once. It comes back when one of the group's accounts starts.
+     */
+    private void closeGroupTab(String g) {
+        List<ManagedAccount> running = inGroup(g).stream().map(this::account)
+                .filter(a -> a.phase() != ManagedAccount.Phase.STOPPED).toList();
+        if (!running.isEmpty() && !StopDialog.stop(frame, "Закрыть группу «" + g + "»", running, "и закрыть вкладку группы")) {
+            return;
+        }
+        grouped.closeGroup(g);
         refresh();
     }
 

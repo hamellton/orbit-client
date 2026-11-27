@@ -26,6 +26,10 @@ final class GroupedTabs {
     final List<MainWindow.Tab> tabs = new ArrayList<>();
     final Map<String, AccountView> views = new LinkedHashMap<>();
     final Set<String> open = new LinkedHashSet<>();
+    /** Group tabs closed by their × (the manager's): back when one of the group's accounts starts. */
+    final Set<String> closedGroups = new LinkedHashSet<>();
+    /** The group tabs' views, by group (to tell a group tab's ×). */
+    private final Map<Component, String> groupTabs = new java.util.HashMap<>();
     /** The group tabs' start and stop ({@code (group, true)} start): the manager's; {@code null} — no buttons. */
     java.util.function.BiConsumer<String, Boolean> groupActions;
 
@@ -144,6 +148,25 @@ final class GroupedTabs {
         return null;
     }
 
+    /** The group of a group tab ({@code null}: another tab). */
+    String groupAt(int index) {
+        return index < 0 || index >= pane.getTabCount() ? null : groupTabs.get(pane.getComponentAt(index));
+    }
+
+    /** A group's tab closed (its × after the stop question, or at once with nobody in game). */
+    void closeGroup(String g) {
+        if (closedGroups.add(g)) {
+            rebuild();
+        }
+    }
+
+    /** A group's tab back (one of its accounts started). */
+    void showGroup(String g) {
+        if (g != null && closedGroups.remove(g)) {
+            rebuild();
+        }
+    }
+
     /** A grouped account's tab hidden (the account goes on); false when the account has no group. */
     boolean hide(String name) {
         if (name == null || groups.group(name) == null) {
@@ -177,6 +200,7 @@ final class GroupedTabs {
                 MainWindow.disposeOverview(c);
             }
         }
+        groupTabs.clear();
         if (tabs.isEmpty()) {
             return;
         }
@@ -185,9 +209,15 @@ final class GroupedTabs {
                 MainWindow.overview(all, i -> openAccount(nameOf(all.get(i)))));
         for (String g : groups.groups()) {
             List<MainWindow.Tab> in = tabs.stream().filter(t -> g.equals(groups.group(nameOf(t)))).toList();
-            if (!in.isEmpty()) {
-                pane.addTab(g + " · " + in.size(), AccountStatus.dot(() -> together(in)),
-                        MainWindow.overview(in, i -> openAccount(nameOf(in.get(i))), groupButtons(g)));
+            if (!in.isEmpty() && !closedGroups.contains(g)) {
+                javax.swing.JComponent view = MainWindow.overview(in, i -> openAccount(nameOf(in.get(i))), groupButtons(g));
+                if (groupActions != null) {
+                    view.putClientProperty("JTabbedPane.tabClosable", true);
+                    view.putClientProperty("JTabbedPane.tabCloseToolTipText",
+                            "Закрыть вкладку группы (аккаунты в игре — выйти у портала или закрыть сразу)");
+                }
+                groupTabs.put(view, g);
+                pane.addTab(g + " · " + in.size(), AccountStatus.dot(() -> together(in)), view);
                 pane.setToolTipTextAt(pane.getTabCount() - 1, "Группа «" + g + "»: " + String.join(", ",
                         in.stream().map(GroupedTabs::nameOf).toList()));
             }
