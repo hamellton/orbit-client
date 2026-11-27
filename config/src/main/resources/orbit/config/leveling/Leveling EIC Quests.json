@@ -136,8 +136,7 @@
       "priority": 2,
       "kill": false,
       "maps": [
-        23,
-        24
+        23
       ],
       "sab": false
     },
