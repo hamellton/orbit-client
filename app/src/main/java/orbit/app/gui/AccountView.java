@@ -342,8 +342,9 @@ final class AccountView extends JPanel {
         menus.add(windows);
 
         String handAccount = tab.feed().account();
-        // «Смотреть», «Играть руками», «Сайт» open the official client: no menu where it is not installed (Linux)
-        if (handAccount != null && orbit.app.HandPlay.clientAvailable()) {
+        // «Смотреть», «Играть руками», «Сайт» open the client; where it is not found the menu offers to install it or to point
+        // to it (docs/PLAN.md «Клиент для всех»); none where it cannot run (Linux on ARM)
+        if (handAccount != null && (orbit.app.HandPlay.clientAvailable() || orbit.app.ClientSetup.supported())) {
             JButton client = new JButton("Клиент ▾");
             client.setToolTipText("Официальный клиент: смотреть, как играет бот, или играть руками той же сессией");
             javax.swing.JPopupMenu clientMenu = new javax.swing.JPopupMenu();
@@ -404,12 +405,58 @@ final class AccountView extends JPanel {
                 client.setEnabled(false);
                 Thread.ofVirtual().start(() -> orbit.app.HandPlay.site(handAccount, msg -> told.accept("Сайт", msg)));
             });
-            clientMenu.add(watch);
-            clientMenu.add(hand);
-            clientMenu.addSeparator();
-            clientMenu.add(site);
+            javax.swing.JMenuItem install = new javax.swing.JMenuItem("Установить клиент…");
+            install.setToolTipText("Скачать DarkOrbit Client " + orbit.app.ClientSetup.VERSION + " (kaiserdj, GitHub) для этой"
+                    + " системы, проверить контрольную сумму выпуска и поставить для этого пользователя");
+            install.addActionListener(e -> {
+                int ok = javax.swing.JOptionPane.showConfirmDialog(client, "Скачать DarkOrbit Client "
+                        + orbit.app.ClientSetup.VERSION + " (~125 МБ) с GitHub (проект kaiserdj/Darkorbit-client, не Bigpoint)"
+                        + " и поставить его для этого пользователя?\nНужен для «Смотреть», «Играть руками» и «Сайт аккаунта».",
+                        "Установить клиент", javax.swing.JOptionPane.OK_CANCEL_OPTION);
+                if (ok != javax.swing.JOptionPane.OK_OPTION) {
+                    return;
+                }
+                client.setEnabled(false);
+                Thread.ofVirtual().start(() -> {
+                    String[] last = {""};
+                    java.nio.file.Path done = orbit.app.ClientSetup.install(msg -> {
+                        last[0] = msg;
+                        javax.swing.SwingUtilities.invokeLater(() -> client.setText("Клиент: " + msg));
+                    });
+                    told.accept("Установить клиент", done != null ? "Клиент установлен: " + done : last[0]);
+                });
+            });
+            javax.swing.JMenuItem choose = new javax.swing.JMenuItem("Указать клиент…");
+            choose.setToolTipText("Клиент уже стоит в другом месте: выбрать его программу (DarkOrbit Client.app, .exe или"
+                    + " .AppImage)");
+            choose.addActionListener(e -> {
+                javax.swing.JFileChooser fc = new javax.swing.JFileChooser();
+                fc.setFileSelectionMode(javax.swing.JFileChooser.FILES_AND_DIRECTORIES);
+                fc.setDialogTitle("Программа клиента DarkOrbit Client");
+                if (fc.showOpenDialog(client) != javax.swing.JFileChooser.APPROVE_OPTION) {
+                    return;
+                }
+                try {
+                    java.nio.file.Path program = orbit.app.ClientSetup.choose(fc.getSelectedFile().toPath());
+                    told.accept("Указать клиент", program != null ? "Клиент: " + program
+                            : "Там нет программы клиента — выберите DarkOrbit Client.app, .exe или .AppImage");
+                } catch (java.io.IOException ex) {
+                    told.accept("Указать клиент", "Не записал выбор: " + ex.getMessage());
+                }
+            });
             client.addActionListener(e -> {
                 showClient.run();
+                clientMenu.removeAll();
+                if (orbit.app.HandPlay.clientAvailable()) {
+                    clientMenu.add(watch);
+                    clientMenu.add(hand);
+                    clientMenu.addSeparator();
+                    clientMenu.add(site);
+                    clientMenu.addSeparator();
+                } else {
+                    clientMenu.add(install);
+                }
+                clientMenu.add(choose);
                 clientMenu.show(client, 0, client.getHeight());
             });
             showClient.run();

@@ -41,8 +41,19 @@ public final class HandPlay {
     private static final Map<String, Handle> ACCOUNTS = new ConcurrentHashMap<>();
     private static final Map<String, Process> PLAYING = new ConcurrentHashMap<>();
 
-    /** The game ports the client's Flash sockets come to (cluster 22: 6001–6007; the session's own port added). */
-    static final List<Integer> GAME_PORTS = List.of(6001, 6002, 6003, 6004, 6005, 6006, 6007);
+    /**
+     * The game ports the client's Flash sockets come to: the ten of the session's port — a cluster's game servers sit on one
+     * ten (seen: GE1 cluster 22 on 6003–6007, ru1 68 on 6021–6022, int7 277 on 6071–6073, gb2 502 on 6101–6103, 574 on
+     * 6111–6112), and a map change takes the client to another of them.
+     */
+    static List<Integer> gamePorts(int sessionPort) {
+        int base = sessionPort > 0 ? sessionPort / 10 * 10 : 6000;
+        List<Integer> out = new ArrayList<>();
+        for (int p = base; p < base + 10; p++) {
+            out.add(p);
+        }
+        return out;
+    }
 
     private HandPlay() {
     }
@@ -78,9 +89,10 @@ public final class HandPlay {
     }
 
     /**
-     * The client's program: {@code ORBIT_CLIENT_APP} (the program, or the macOS {@code .app}), else the macOS app next to the
-     * project or in Applications, else the Windows install in {@code %LOCALAPPDATA%\Programs\darkorbit-client} (its
-     * installer's place for one user; 2026-11-28 on the Windows laptop).
+     * The client's program: {@code ORBIT_CLIENT_APP} (the program, or the macOS {@code .app}), else the one the user pointed
+     * to («Указать клиент…»), else the macOS app next to the project or in Applications, else where {@link ClientSetup}
+     * installs it (macOS {@code ~/Applications}, Windows {@code %LOCALAPPDATA%\Programs\darkorbit-client} — the installer's
+     * own place for one user, Linux an AppImage in {@code ~/.local/share/orbit-client}).
      */
     static Path clientApp() {
         List<Path> tries = new ArrayList<>();
@@ -88,11 +100,14 @@ public final class HandPlay {
         if (env != null && !env.isBlank()) {
             tries.add(Path.of(env));
         }
+        Path chosen = ClientSetup.chosen();
+        if (chosen != null) {
+            tries.add(chosen);
+        }
         tries.add(Path.of("..", "DO Client", "DarkOrbit Client.app"));
         tries.add(Path.of("/Applications", "DarkOrbit Client.app"));
-        String local = System.getenv("LOCALAPPDATA");
-        if (local != null && !local.isBlank()) {
-            tries.add(Path.of(local, "Programs", "darkorbit-client", "DarkOrbit Client.exe"));
+        for (ClientSetup.Os os : ClientSetup.Os.values()) {
+            tries.add(ClientSetup.place(os)); // where «Установить клиент» puts it (and the Windows installer's own place)
         }
         for (Path p : tries) {
             Path program = program(p);
@@ -141,10 +156,7 @@ public final class HandPlay {
             status.accept("не нашёл DarkOrbit Client (задай ORBIT_CLIENT_APP)");
             return;
         }
-        List<Integer> ports = new ArrayList<>(GAME_PORTS);
-        if (!ports.contains(session.gamePort())) {
-            ports.add(session.gamePort());
-        }
+        List<Integer> ports = gamePorts(session.gamePort());
         for (int port : ports) {
             if (!free(port)) {
                 status.accept("порт " + port + " занят (запущен сниффер?) — закрой его и попробуй снова");
@@ -238,8 +250,17 @@ public final class HandPlay {
                 "--user-data-dir=" + profile,
                 "--url=" + session.host() + "/indexInternal.es?action=" + action,
                 "--dosid=" + session.dosid());
+        boolean appImage = app.getFileName().toString().endsWith(".AppImage");
+        if (appImage) {
+            // the AppImage's own Chromium sandbox cannot start from inside the image (no setuid helper there)
+            cmd = new ArrayList<>(cmd);
+            cmd.add(1, "--no-sandbox");
+        }
         ProcessBuilder pb = new ProcessBuilder(cmd).redirectErrorStream(true).redirectOutput(ProcessBuilder.Redirect.DISCARD);
         pb.environment().remove("ELECTRON_RUN_AS_NODE");
+        if (appImage) {
+            pb.environment().put("APPIMAGE_EXTRACT_AND_RUN", "1"); // no FUSE needed (Ubuntu 24.04 has no libfuse2)
+        }
         return pb.start();
     }
 
@@ -281,10 +302,7 @@ public final class HandPlay {
             status.accept("не нашёл DarkOrbit Client (задай ORBIT_CLIENT_APP)");
             return;
         }
-        List<Integer> ports = new ArrayList<>(GAME_PORTS);
-        if (!ports.contains(session.gamePort())) {
-            ports.add(session.gamePort());
-        }
+        List<Integer> ports = gamePorts(session.gamePort());
         for (int port : ports) {
             if (!free(port)) {
                 status.accept("порт " + port + " занят (запущен сниффер?) — закрой его и попробуй снова");
