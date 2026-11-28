@@ -69,15 +69,19 @@ public final class HandPlay {
     }
 
     /**
-     * The official client is on this machine: the macOS app only (there is none for Linux, and the Windows one is not
-     * looked for) — without it the window shows no «Клиент» menu (2026-11-27: on the Oracle Linux server «Смотреть» only
-     * said the app was not found).
+     * The official client is on this machine: the macOS app or the Windows install of the same client (kaiserdj's
+     * DarkOrbit Client; there is none for Linux) — without it the window shows no «Клиент» menu (2026-11-27: on the Oracle
+     * Linux server «Смотреть» only said the app was not found).
      */
     public static boolean clientAvailable() {
         return clientApp() != null;
     }
 
-    /** The official client: {@code ORBIT_CLIENT_APP}, else next to the project, else in Applications. */
+    /**
+     * The client's program: {@code ORBIT_CLIENT_APP} (the program, or the macOS {@code .app}), else the macOS app next to the
+     * project or in Applications, else the Windows install in {@code %LOCALAPPDATA%\Programs\darkorbit-client} (its
+     * installer's place for one user; 2026-11-28 on the Windows laptop).
+     */
     static Path clientApp() {
         List<Path> tries = new ArrayList<>();
         String env = System.getenv("ORBIT_CLIENT_APP");
@@ -86,12 +90,26 @@ public final class HandPlay {
         }
         tries.add(Path.of("..", "DO Client", "DarkOrbit Client.app"));
         tries.add(Path.of("/Applications", "DarkOrbit Client.app"));
+        String local = System.getenv("LOCALAPPDATA");
+        if (local != null && !local.isBlank()) {
+            tries.add(Path.of(local, "Programs", "darkorbit-client", "DarkOrbit Client.exe"));
+        }
         for (Path p : tries) {
-            if (Files.isDirectory(p)) {
-                return p.toAbsolutePath().normalize();
+            Path program = program(p);
+            if (program != null) {
+                return program.toAbsolutePath().normalize();
             }
         }
         return null;
+    }
+
+    /** The program to start for a client path: a macOS {@code .app}'s own program inside it, else the file itself. */
+    static Path program(Path p) {
+        if (Files.isDirectory(p)) {
+            Path inside = p.resolve("Contents").resolve("MacOS").resolve("DarkOrbit Client");
+            return Files.isRegularFile(inside) ? inside : null;
+        }
+        return Files.isRegularFile(p) ? p : null;
     }
 
     /**
@@ -120,7 +138,7 @@ public final class HandPlay {
         }
         Path app = clientApp();
         if (app == null) {
-            status.accept("не нашёл DarkOrbit Client.app (задай ORBIT_CLIENT_APP)");
+            status.accept("не нашёл DarkOrbit Client (задай ORBIT_CLIENT_APP)");
             return;
         }
         List<Integer> ports = new ArrayList<>(GAME_PORTS);
@@ -209,11 +227,11 @@ public final class HandPlay {
         return launch(app, "client-profile-", account, socksPort, session, "internalMapRevolution");
     }
 
-    /** @param profilePrefix the profile folder's name before the account; {@code action} the site page opened first */
+    /** @param app the client's program ({@link #clientApp}); {@code profilePrefix} the profile folder's name before the account; {@code action} the site page opened first */
     static Process launch(Path app, String profilePrefix, String account, int socksPort, GameSession session, String action)
             throws IOException {
         Path profile = Path.of("local", profilePrefix + account.replaceAll("[^\\w.-]", "_")).toAbsolutePath();
-        List<String> cmd = List.of(app.resolve("Contents/MacOS/DarkOrbit Client").toString(),
+        List<String> cmd = List.of(app.toString(),
                 "--proxy-server=socks5://127.0.0.1:" + socksPort,
                 "--proxy-bypass-list=<-loopback>",
                 "--host-resolver-rules=MAP *.prod.darkorbit.com 127.0.0.1",
@@ -260,7 +278,7 @@ public final class HandPlay {
         }
         Path app = clientApp();
         if (app == null) {
-            status.accept("не нашёл DarkOrbit Client.app (задай ORBIT_CLIENT_APP)");
+            status.accept("не нашёл DarkOrbit Client (задай ORBIT_CLIENT_APP)");
             return;
         }
         List<Integer> ports = new ArrayList<>(GAME_PORTS);
@@ -354,7 +372,7 @@ public final class HandPlay {
         }
         Path app = clientApp();
         if (app == null) {
-            status.accept("не нашёл DarkOrbit Client.app (задай ORBIT_CLIENT_APP)");
+            status.accept("не нашёл DarkOrbit Client (задай ORBIT_CLIENT_APP)");
             return;
         }
         HandRelay relay;

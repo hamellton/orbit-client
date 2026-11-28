@@ -342,7 +342,7 @@ final class AccountView extends JPanel {
         menus.add(windows);
 
         String handAccount = tab.feed().account();
-        // «Смотреть», «Играть руками», «Сайт» open the official client: no menu where it is not installed (Linux, Windows)
+        // «Смотреть», «Играть руками», «Сайт» open the official client: no menu where it is not installed (Linux)
         if (handAccount != null && orbit.app.HandPlay.clientAvailable()) {
             JButton client = new JButton("Клиент ▾");
             client.setToolTipText("Официальный клиент: смотреть, как играет бот, или играть руками той же сессией");
