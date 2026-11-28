@@ -159,7 +159,12 @@ public final class ConfigStore {
         try (DirectoryStream<Path> files = Files.newDirectoryStream(folder, "*.json")) {
             for (Path f : files) {
                 String n = f.getFileName().toString();
-                names.add(n.substring(0, n.length() - ".json".length()));
+                String name = n.substring(0, n.length() - ".json".length());
+                // only names a config may have: a macOS «._name.json» (its metadata, left by a copy from a Mac) is none, and
+                // opening it threw in the configs window (2026-11-28 on the Oracle server: the window would not open)
+                if (!name.startsWith(".") && NAME.matcher(name).matches()) {
+                    names.add(name);
+                }
             }
         }
         names.sort(String.CASE_INSENSITIVE_ORDER);

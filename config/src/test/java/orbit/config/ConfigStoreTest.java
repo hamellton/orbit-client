@@ -35,6 +35,14 @@ class ConfigStoreTest {
     }
 
     @Test
+    void aMacsMetadataFileIsNoConfig(@TempDir Path dir) throws IOException {
+        ConfigStore store = new ConfigStore(dir, false);
+        store.save("a", BotConfig.empty());
+        Files.write(dir.resolve("._a.json"), new byte[] {0, 5, 22, 7}); // AppleDouble, from a copy made on a Mac
+        assertEquals(List.of("a"), store.list(), "only what can be opened is listed");
+    }
+
+    @Test
     void copyRenameDelete(@TempDir Path dir) throws IOException {
         ConfigStore store = new ConfigStore(dir, false);
         store.save("a", BotConfig.empty());
