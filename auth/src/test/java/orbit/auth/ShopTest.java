@@ -94,6 +94,9 @@ class ShopTest {
         assertEquals(17500, gear.levelPrices().get(3), 0.1);
         assertEquals("PetGear", Shop.tabOf("equipment_petgear_g-ar1"));
         assertEquals("PetGear", Shop.tabOf("pet_pet10"), "the P.E.T. is sold among its gears");
+        Shop.Item pet = new Shop.Item("pet_pet10", "pet", "P.E.T.-10", 50000, "real", 1, 0, java.util.Map.of());
+        assertEquals("Pet", Shop.purchaseForm(pet, 1).get("selectedName"), "the shop wants a name for a P.E.T.");
+        assertEquals("", Shop.purchaseForm(gear, 1).get("selectedName"), "no name for other items");
         assertEquals("3", Shop.purchaseForm(gear, 1, 3).get("level"), "the level the page's selector sends");
         assertEquals("", Shop.purchaseForm(gear, 1).get("level"), "no level: as before");
         assertEquals(0, Shop.parseByLoot(DRONES_TAB).get("drone_flax").maxLevel(), "an offer without levels");

@@ -179,6 +179,9 @@ public final class Shop {
         return purchaseForm(item, amount, 0);
     }
 
+    /** The name a bought P.E.T. gets (the shop asks for one; it can be changed in the game). */
+    static final String PET_NAME = "Pet";
+
     /** As above with the level chosen in the page's level selector ({@code 0}: none — an offer without levels). */
     public static Map<String, String> purchaseForm(Item item, int amount, int level) {
         Map<String, String> form = new LinkedHashMap<>();
@@ -187,7 +190,9 @@ public final class Shop {
         form.put("itemId", item.id());
         form.put("amount", String.valueOf(amount));
         form.put("level", level > 0 ? String.valueOf(level) : "");
-        form.put("selectedName", "");
+        // the page's name field (itemName, 1–16 characters): the site refuses a P.E.T. without a name (2026-11-28 int1:
+        // «Имя P.E.T. должно содержать от 1 до 16 знаков!»)
+        form.put("selectedName", "pet".equals(item.category()) ? PET_NAME : "");
         return form;
     }
 
