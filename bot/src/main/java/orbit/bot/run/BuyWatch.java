@@ -111,6 +111,16 @@ final class BuyWatch {
         return item.startsWith("ammunition_rocket_") || item.startsWith("ammunition_rocketlauncher_");
     }
 
+    /**
+     * Laser ammunition bought in an amount the lasers can shoot within {@link #EFFECT_MS} (a salvo a second, one round a
+     * laser): the count may fall all the while, so it is never taken for «nothing came» (live 2026-11-27 on int7: 22 LCB-10
+     * bought with the last 220 credits during a fight, the count never rose, and LCB-10 was not bought for a day by any of
+     * the server's five accounts — their lasers stood silent). Lasers unknown: judged as before.
+     */
+    static boolean firedWithin(String item, long amount, int lasers) {
+        return item.startsWith("ammunition_laser_") && lasers > 0 && amount <= lasers * (EFFECT_MS / 1000);
+    }
+
     /** The wall time of the last purchase of each item (for {@code modules.buyLimit}'s pause). */
     private final Map<String, Long> boughtAt = new java.util.concurrent.ConcurrentHashMap<>();
 
@@ -201,6 +211,8 @@ final class BuyWatch {
             WorldSnapshot.Item now2 = w.items().get(ItemCatalog.barItem(id));
             if (now2 != null && now2.counter() > p[0]) {
                 bought.remove(id);
+            } else if (now - (long) p[1] > EFFECT_MS * 1_000_000 && firedWithin(id, (long) p[2], ctx.stats().lasers)) {
+                bought.remove(id); // shot away while waiting: no sign either way
             } else if (now - (long) p[1] > EFFECT_MS * 1_000_000) {
                 bought.remove(id);
                 noEffect.add(id);
@@ -465,7 +477,7 @@ final class BuyWatch {
             log.info("Покупаю {} ×{} за {} {} (осталось {})", name, amount, cost, currency, left);
             String answer = s.buy(r.item(), amount);
             if (!fired(r.item())) {
-                bought.put(r.item(), new double[] {left, ctx.now()});
+                bought.put(r.item(), new double[] {left, ctx.now(), amount});
             }
             boughtAt.put(r.item(), System.currentTimeMillis());
             told(answer, credits, uridium);

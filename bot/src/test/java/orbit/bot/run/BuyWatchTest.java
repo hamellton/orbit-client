@@ -1,6 +1,7 @@
 package orbit.bot.run;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
@@ -222,5 +223,15 @@ class BuyWatchTest {
         again.setShop(shop);
         runFor(sim, again, 100_000);
         assertEquals(List.of("equipment_extra_cpu_cl04k-xl x1"), shop.bought, "once, the restart remembers");
+    }
+
+    @Test
+    void smallLaserPurchasesShotAwayAreNotTakenForNothingCame() {
+        // 15 lasers shoot 1 800 rounds in the two minutes of waiting
+        assertTrue(BuyWatch.firedWithin("ammunition_laser_lcb-10", 22, 15));
+        assertTrue(BuyWatch.firedWithin("ammunition_laser_lcb-10", 1_800, 15));
+        assertFalse(BuyWatch.firedWithin("ammunition_laser_lcb-10", 21_000, 15), "a big purchase still has to show");
+        assertFalse(BuyWatch.firedWithin("ammunition_laser_lcb-10", 22, 0), "lasers unknown: judged as before");
+        assertFalse(BuyWatch.firedWithin("equipment_extra_cpu_cl04k-xl", 1, 15));
     }
 }
