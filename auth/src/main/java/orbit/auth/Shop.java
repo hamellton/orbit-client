@@ -124,7 +124,8 @@ public final class Shop {
 
     /**
      * The shop tab where an item is sold, by its loot id ({@code ship_…} Ships, {@code equipment_weapon_…} Laser,
-     * {@code equipment_generator_…} Generator, {@code drone_…} Drones); {@code null} for other items.
+     * {@code equipment_generator_…} Generator, {@code drone_…} Drones, {@code equipment_petgear_…} and the P.E.T. {@code pet_…} PetGear); {@code null} for
+     * other items.
      */
     public static String tabOf(String loot) {
         if (loot.startsWith("ship_")) {
@@ -139,8 +140,8 @@ public final class Shop {
         if (loot.startsWith("drone_")) {
             return "Drones";
         }
-        if (loot.startsWith("equipment_petgear_")) {
-            return "PetGear";
+        if (loot.startsWith("equipment_petgear_") || loot.startsWith("pet_")) {
+            return "PetGear"; // the P.E.T. itself is sold among its gears (2026-11-28: no tab for pet_pet10, int1's five stood at it)
         }
         return null;
     }

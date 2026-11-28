@@ -93,6 +93,7 @@ class ShopTest {
         assertEquals(2, gear.maxLevel(), "a P.E.T. too young for the 3rd");
         assertEquals(17500, gear.levelPrices().get(3), 0.1);
         assertEquals("PetGear", Shop.tabOf("equipment_petgear_g-ar1"));
+        assertEquals("PetGear", Shop.tabOf("pet_pet10"), "the P.E.T. is sold among its gears");
         assertEquals("3", Shop.purchaseForm(gear, 1, 3).get("level"), "the level the page's selector sends");
         assertEquals("", Shop.purchaseForm(gear, 1).get("level"), "no level: as before");
         assertEquals(0, Shop.parseByLoot(DRONES_TAB).get("drone_flax").maxLevel(), "an offer without levels");
