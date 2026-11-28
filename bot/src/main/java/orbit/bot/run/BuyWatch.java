@@ -421,6 +421,36 @@ final class BuyWatch {
         }
     }
 
+    /**
+     * The shop's answer as JSON: an error comes base64-encoded (live 2026-11-28 on int1: {@code {"isError":1, "error":
+     * {"message":"Error"}}} for 21 000 LCB-10 mid-fight), a success as plain JSON.
+     */
+    static String decoded(String answer) {
+        String t = answer == null ? "" : answer.trim();
+        if (t.length() >= 8 && t.length() % 4 == 0 && t.matches("[A-Za-z0-9+/]+={0,2}")) {
+            try {
+                String s = new String(java.util.Base64.getDecoder().decode(t), java.nio.charset.StandardCharsets.UTF_8);
+                if (s.trim().startsWith("{")) {
+                    return s;
+                }
+            } catch (IllegalArgumentException e) {
+                // not base64 after all
+            }
+        }
+        return t;
+    }
+
+    private static final java.util.regex.Pattern REFUSED = java.util.regex.Pattern.compile(
+            "\"isError\"\\s*:\\s*(1|true)|\"result\"\\s*:\\s*\"(error|fail\\w*)\"");
+
+    /**
+     * The shop said no: nothing was bought, so it is no «bought, nothing came» either (that answer once kept LCB-10 from
+     * every account of int1 for a day).
+     */
+    static boolean refused(String answer) {
+        return REFUSED.matcher(answer).find();
+    }
+
     /** JSON string escapes back to text (a backslash-u escape of a Cyrillic letter → the letter). */
     static String unescape(String s) {
         StringBuilder sb = new StringBuilder();
@@ -475,11 +505,17 @@ final class BuyWatch {
             }
             long cost = (long) Math.ceil(o.price() * amount);
             log.info("Покупаю {} ×{} за {} {} (осталось {})", name, amount, cost, currency, left);
-            String answer = s.buy(r.item(), amount);
+            String answer = decoded(s.buy(r.item(), amount));
+            boughtAt.put(r.item(), System.currentTimeMillis());
+            if (refused(answer)) {
+                java.util.regex.Matcher m = MESSAGE.matcher(answer);
+                log.warn("{}: магазин отказал ({}) — не куплено, попробую позже", name,
+                        m.find() ? unescape(m.group(1)) : answer);
+                return;
+            }
             if (!fired(r.item())) {
                 bought.put(r.item(), new double[] {left, ctx.now(), amount});
             }
-            boughtAt.put(r.item(), System.currentTimeMillis());
             told(answer, credits, uridium);
         } catch (java.io.IOException | RuntimeException e) {
             log.warn("{}: покупка не удалась — {}", name, e.getMessage());

@@ -234,4 +234,15 @@ class BuyWatchTest {
         assertFalse(BuyWatch.firedWithin("ammunition_laser_lcb-10", 22, 0), "lasers unknown: judged as before");
         assertFalse(BuyWatch.firedWithin("equipment_extra_cpu_cl04k-xl", 1, 15));
     }
+
+    @Test
+    void theShopsRefusalIsNoPurchase() {
+        // int1, 2026-11-28: the answer to 21 000 LCB-10 mid-fight
+        String error = BuyWatch.decoded("eyJpc0Vycm9yIjoxLCAiZXJyb3IiOnsibWVzc2FnZSI6IkVycm9yIn19");
+        assertEquals("{\"isError\":1, \"error\":{\"message\":\"Error\"}}", error);
+        assertTrue(BuyWatch.refused(error));
+        String ok = "{\"result\":\"success\",\"message\":\"\\u0420\\u0430\\u043a\",\"userBalance\":{\"credits\":5}}";
+        assertEquals(ok, BuyWatch.decoded(ok), "a plain answer stays as it is");
+        assertFalse(BuyWatch.refused(ok));
+    }
 }
